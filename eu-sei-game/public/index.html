@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eu sei!</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔴</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HOME -->
+  <section data-screen="home" class="screen active">
+    <div class="card">
+      <h1>Eu sei!</h1>
+      <p class="subtitle">O clássico jogo de letras, agora online.</p>
+      <input id="name-input" type="text" placeholder="O teu nome" maxlength="18" />
+      <button id="create-room-btn" class="primary">Criar sala</button>
+      <div class="divider">ou</div>
+      <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
+      <button id="join-room-btn">Entrar na sala</button>
+      <p id="home-error" class="error"></p>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section data-screen="lobby" class="screen">
+    <div class="card">
+      <h2>Sala <span id="lobby-code" class="room-code"></span></h2>
+      <p class="hint">Partilha este código com os outros jogadores.</p>
+      <ul id="lobby-players" class="player-list"></ul>
+
+      <form id="config-form" class="config-form">
+        <label>Nº de categorias por ronda
+          <input id="cfg-num-categories" type="number" min="4" max="15" />
+        </label>
+        <label>Tempo por ronda (segundos)
+          <input id="cfg-time-limit" type="number" min="30" max="300" />
+        </label>
+        <label class="checkbox-label">
+          <input id="cfg-exclude-hard" type="checkbox" />
+          Excluir letras difíceis (K, W, Y)
+        </label>
+        <label>Nº de rondas por partida
+          <input id="cfg-num-rounds" type="number" min="1" max="15" />
+        </label>
+      </form>
+
+      <button id="start-game-btn" class="primary">Iniciar jogo</button>
+      <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>
+      <button data-leave class="ghost">Sair da sala</button>
+    </div>
+  </section>
+
+  <!-- BALL MINIGAME -->
+  <section data-screen="ball" class="screen">
+    <div class="card center">
+      <h2>Quem escolhe a letra?</h2>
+      <p id="ball-status" class="hint">Prepara-te...</p>
+      <div id="ball-circle" class="ball-circle"></div>
+      <p class="hint small">Clica na bola assim que ela ficar vermelha.</p>
+    </div>
+  </section>
+
+  <!-- LETTER PICK -->
+  <section data-screen="letterpick" class="screen">
+    <div class="card center">
+      <h2>Escolha da letra</h2>
+      <p id="letter-info" class="hint"></p>
+      <div id="letter-buttons" class="letter-buttons"></div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES ROUND -->
+  <section data-screen="categories" class="screen">
+    <div class="card wide">
+      <div class="round-header">
+        <div class="round-letter">Letra: <span id="cat-letter"></span></div>
+        <div class="round-timer" id="cat-timer"></div>
+      </div>
+      <div id="cat-list" class="cat-list"></div>
+      <button id="cat-finish-btn" class="primary">Acabei!</button>
+    </div>
+  </section>
+
+  <!-- VOTING -->
+  <section data-screen="voting" class="screen">
+    <div class="card wide">
+      <div class="round-header">
+        <h2>Votação</h2>
+        <div class="round-timer" id="vote-timer"></div>
+      </div>
+      <div id="vote-my-answers" class="my-answers"></div>
+      <div id="vote-list" class="vote-list"></div>
+      <button id="vote-end-btn" class="primary hidden">Terminar votação</button>
+    </div>
+  </section>
+
+  <!-- ROUND SCORE -->
+  <section data-screen="roundscore" class="screen">
+    <div class="card wide">
+      <h2>Pontuação da ronda</h2>
+      <div id="round-score-table" class="score-table"></div>
+      <button id="round-next-btn" class="primary hidden">Próxima ronda</button>
+      <button data-leave class="ghost">Sair da sala</button>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section data-screen="final" class="screen">
+    <div class="card wide center">
+      <h2>Resultados finais</h2>
+      <div id="final-ranking" class="final-ranking"></div>
+      <button id="final-rematch-btn" class="primary hidden">Jogar outra vez</button>
+      <button data-leave class="ghost">Sair da sala</button>
+    </div>
+  </section>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
