@@ -59,28 +59,47 @@ const MEM_POINTS_CORRECT = 4;
 const MEM_POINTS_WRONG = 2;
 
 const SOLO_HANGMAN_MAX_WRONG = 6;
+const SOLO_HANGMAN_CHALLENGE_MAX_WRONG = 4;
 const SOLO_HANGMAN_WORD_PENALTY = 2;
 const SOLO_HANGMAN_MIN_BONUS = 6;
 const SOLO_HANGMAN_POINTS_PER_LIFE = 3;
-// Lista de reserva para quando ainda não há respostas próprias nesta sessão
-// (ex.: a jogar "Forca" avulso, sem ter feito nenhuma ronda do modo clássico).
-const HANGMAN_FALLBACK_WORDS = [
-  { categoryName: "Países", word: "PORTUGAL" },
-  { categoryName: "Países", word: "ANGOLA" },
-  { categoryName: "Cor", word: "AMARELO" },
-  { categoryName: "Fruta", word: "MANGA" },
-  { categoryName: "Animal", word: "ELEFANTE" },
-  { categoryName: "Filme", word: "TITANIC" },
-  { categoryName: "Desporto", word: "FUTEBOL" },
-  { categoryName: "Bebida", word: "AGUA" },
-  { categoryName: "Instrumento musical", word: "GUITARRA" },
-  { categoryName: "Profissão", word: "PROFESSOR" },
-  { categoryName: "Capital", word: "LISBOA" },
-  { categoryName: "Peixe", word: "ATUM" },
-  { categoryName: "Rede social", word: "INSTAGRAM" },
-  { categoryName: "Sobremesa", word: "PUDIM" },
-  { categoryName: "Super-herói", word: "BATMAN" },
-];
+const SOLO_HANGMAN_CHALLENGE_MULT = 1.5;
+const SOLO_HANGMAN_STREAK_MULT_STEP = 0.1;
+const SOLO_HANGMAN_STREAK_MULT_CAP = 10;
+const HANGMAN_ENABLED_CATEGORIES_KEY = "euSei_hangmanEnabledCategories";
+const HANGMAN_MIN_ENABLED_CATEGORIES = 1;
+
+// Banco de palavras por categoria — usado quando ainda não há (ou não
+// queres usar) respostas próprias desta sessão como palavra secreta.
+const HANGMAN_WORD_BANK = {
+  "Países": ["PORTUGAL", "ANGOLA", "BRASIL", "FRANCA", "ALEMANHA", "JAPAO", "CANADA", "MEXICO"],
+  "Animais": ["ELEFANTE", "GIRAFA", "LEAO", "TARTARUGA", "GOLFINHO", "PINGUIM", "CANGURU", "CROCODILO"],
+  "Frutas": ["MANGA", "BANANA", "MORANGO", "ANANAS", "MELANCIA", "LARANJA", "ABACAXI"],
+  "Desportos": ["FUTEBOL", "BASQUETEBOL", "TENIS", "NATACAO", "CICLISMO", "ATLETISMO", "VOLEIBOL"],
+  "Profissões": ["PROFESSOR", "MEDICO", "BOMBEIRO", "COZINHEIRO", "ENGENHEIRO", "ADVOGADO", "PILOTO"],
+  "Capitais": ["LISBOA", "LUANDA", "PARIS", "MADRID", "LONDRES", "ROMA", "BRASILIA"],
+  "Comida": ["PUDIM", "PIZZA", "FEIJOADA", "GELADO", "CHOCOLATE", "LASANHA", "HAMBURGUER"],
+};
+const HANGMAN_CATEGORY_NAMES = Object.keys(HANGMAN_WORD_BANK);
+
+function loadHangmanEnabledCategories() {
+  try {
+    const raw = localStorage.getItem(HANGMAN_ENABLED_CATEGORIES_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? new Set(arr) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveHangmanEnabledCategories(names) {
+  try {
+    localStorage.setItem(HANGMAN_ENABLED_CATEGORIES_KEY, JSON.stringify(names));
+  } catch {
+    // sem drama, a seleção só não persiste entre sessões.
+  }
+}
 
 const MAP_ROUNDS_COUNT = 8;
 const MAP_ROUND_MS = 7000;
@@ -157,13 +176,18 @@ function pickMapCriteria() {
   return { type, matchSet, promptText: `Clica num país da ${continent}.` };
 }
 
+function startHangmanSingle() {
+  solo.hangmanStreakMode = false;
+  startSoloHangman();
+}
+
 const MARATHON_GAMES = {
   reflex: startReflexMinigame,
   word: startWordFlashMinigame,
   bug: startBugSmashMinigame,
   monkey: startMonkeyRescueMinigame,
   memory: startMemoryMinigame,
-  hangman: startSoloHangman,
+  hangman: startHangmanSingle,
   map: startMapMinigame,
 };
 
@@ -350,7 +374,13 @@ const solo = {
   hangmanCategoryName: "",
   hangmanGuessedLetters: {},
   hangmanWrongCount: 0,
+  hangmanMaxWrong: SOLO_HANGMAN_MAX_WRONG,
   hangmanActive: false,
+  hangmanStreakMode: false,
+  hangmanStreak: 0,
+  hangmanChallengeMode: false,
+  hangmanIncludeOwnAnswers: true,
+  hangmanUsedWords: new Set(),
   marathonQueue: [],
   marathonTotalGames: 0,
   mapActive: false,
@@ -388,6 +418,14 @@ const els = {
   playMonkeyBtn: document.getElementById("solo-play-monkey-btn"),
   playMemoryBtn: document.getElementById("solo-play-memory-btn"),
   playHangmanBtn: document.getElementById("solo-play-hangman-btn"),
+  hangmanSetupStartBtn: document.getElementById("hangman-solo-setup-start-btn"),
+  hangmanCatGrid: document.getElementById("hangman-cat-grid"),
+  hangmanCatCount: document.getElementById("hangman-cat-count"),
+  hangmanCatSelectAll: document.getElementById("hangman-cat-selectall"),
+  hangmanCatClear: document.getElementById("hangman-cat-clear"),
+  hangmanIncludeOwnCb: document.getElementById("hangman-include-own"),
+  hangmanChallengeModeCb: document.getElementById("hangman-challenge-mode"),
+  hangmanStreakInfo: document.getElementById("solo-hangman-streak-info"),
   playMapBtn: document.getElementById("solo-play-map-btn"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
@@ -508,6 +546,57 @@ els.catClear.addEventListener("click", () => {
   saveEnabledCategories(currentEnabledCategoryIndexes());
 });
 
+const hangmanCatCheckboxes = HANGMAN_CATEGORY_NAMES.map((name) => {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = true;
+  input.dataset.hangmanCat = name;
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(name));
+  els.hangmanCatGrid.appendChild(label);
+  return input;
+});
+
+function refreshHangmanCategoryCount() {
+  els.hangmanCatCount.textContent = String(hangmanCatCheckboxes.filter((cb) => cb.checked).length);
+}
+
+function currentHangmanEnabledCategoryNames() {
+  return hangmanCatCheckboxes.filter((cb) => cb.checked).map((cb) => cb.dataset.hangmanCat);
+}
+
+(function initHangmanCategoryPicker() {
+  const saved = loadHangmanEnabledCategories();
+  if (saved) {
+    hangmanCatCheckboxes.forEach((cb) => { cb.checked = saved.has(cb.dataset.hangmanCat); });
+  }
+  refreshHangmanCategoryCount();
+})();
+
+hangmanCatCheckboxes.forEach((cb) => {
+  cb.addEventListener("change", () => {
+    if (!cb.checked && currentHangmanEnabledCategoryNames().length < HANGMAN_MIN_ENABLED_CATEGORIES) {
+      cb.checked = true;
+      return;
+    }
+    refreshHangmanCategoryCount();
+    saveHangmanEnabledCategories(currentHangmanEnabledCategoryNames());
+  });
+});
+
+els.hangmanCatSelectAll.addEventListener("click", () => {
+  hangmanCatCheckboxes.forEach((cb) => { cb.checked = true; });
+  refreshHangmanCategoryCount();
+  saveHangmanEnabledCategories(currentHangmanEnabledCategoryNames());
+});
+
+els.hangmanCatClear.addEventListener("click", () => {
+  hangmanCatCheckboxes.forEach((cb, i) => { cb.checked = i === 0; });
+  refreshHangmanCategoryCount();
+  saveHangmanEnabledCategories(currentHangmanEnabledCategoryNames());
+});
+
 function showScreen(name) {
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === name);
@@ -571,6 +660,7 @@ els.mgeExitBtn.addEventListener("click", () => {
   solo.marathonQueue = [];
   solo.inRound = false;
   solo.hangmanActive = false;
+  solo.hangmanStreakMode = false;
   returnToSoloMenu();
 });
 
@@ -627,6 +717,7 @@ function exitGameToMenu() {
   solo.marathonQueue = [];
   solo.inRound = false;
   solo.hangmanActive = false;
+  solo.hangmanStreakMode = false;
   returnToSoloMenu();
 }
 
@@ -665,7 +756,18 @@ els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordF
 els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame));
 els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame));
 els.playMemoryBtn.addEventListener("click", () => launchStandalone(startMemoryMinigame));
-els.playHangmanBtn.addEventListener("click", () => launchStandalone(startSoloHangman));
+els.playHangmanBtn.addEventListener("click", () => showScreen("solo-hangman-setup"));
+els.hangmanSetupStartBtn.addEventListener("click", () => {
+  saveHangmanEnabledCategories(currentHangmanEnabledCategoryNames());
+  solo.hangmanIncludeOwnAnswers = els.hangmanIncludeOwnCb.checked;
+  solo.hangmanChallengeMode = els.hangmanChallengeModeCb.checked;
+  launchStandalone(() => {
+    solo.hangmanStreakMode = true;
+    solo.hangmanStreak = 0;
+    solo.hangmanUsedWords = new Set();
+    startSoloHangman();
+  });
+});
 els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame));
 
 els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
@@ -1458,25 +1560,40 @@ function finishMapMinigame() {
 // rondas?), ou uma palavra da lista de reserva se ainda não jogaste nada. ---
 
 function pickHangmanWord() {
-  if (solo.pastValidAnswers.length > 0 && Math.random() < 0.7) {
-    const pick = solo.pastValidAnswers[Math.floor(Math.random() * solo.pastValidAnswers.length)];
-    return pick;
+  const includeOwn = solo.hangmanIncludeOwnAnswers !== false;
+  if (includeOwn && solo.pastValidAnswers.length > 0 && Math.random() < 0.4) {
+    return solo.pastValidAnswers[Math.floor(Math.random() * solo.pastValidAnswers.length)];
   }
-  return HANGMAN_FALLBACK_WORDS[Math.floor(Math.random() * HANGMAN_FALLBACK_WORDS.length)];
+  const enabled = loadHangmanEnabledCategories() || new Set(HANGMAN_CATEGORY_NAMES);
+  let pool = [];
+  HANGMAN_CATEGORY_NAMES.forEach((cat) => {
+    if (enabled.has(cat)) HANGMAN_WORD_BANK[cat].forEach((w) => pool.push({ categoryName: cat, word: w }));
+  });
+  if (pool.length === 0) {
+    HANGMAN_CATEGORY_NAMES.forEach((cat) => HANGMAN_WORD_BANK[cat].forEach((w) => pool.push({ categoryName: cat, word: w })));
+  }
+  const unused = pool.filter((p) => !solo.hangmanUsedWords.has(p.word));
+  const finalPool = unused.length > 0 ? unused : pool;
+  return finalPool[Math.floor(Math.random() * finalPool.length)];
 }
 
 function startSoloHangman() {
   const { categoryName, word } = pickHangmanWord();
+  solo.hangmanUsedWords.add(word);
   solo.hangmanWord = word;
   solo.hangmanCategoryName = categoryName;
   solo.hangmanGuessedLetters = {};
   solo.hangmanWrongCount = 0;
+  solo.hangmanMaxWrong = solo.hangmanChallengeMode ? SOLO_HANGMAN_CHALLENGE_MAX_WRONG : SOLO_HANGMAN_MAX_WRONG;
   solo.hangmanActive = true;
   els.soloHangmanStatus.textContent = "";
   els.soloHangmanGuessControls.classList.remove("hidden");
+  els.hangmanStreakInfo.textContent = solo.hangmanStreakMode
+    ? `Sequência atual: ${solo.hangmanStreak} palavra(s) certa(s)${solo.hangmanChallengeMode ? " — modo desafio 🔥" : ""}`
+    : "";
   renderSoloHangman();
   showScreen("solo-hangman");
-  showGameHud(() => Math.max(0, (SOLO_HANGMAN_MAX_WRONG - solo.hangmanWrongCount) * SOLO_HANGMAN_POINTS_PER_LIFE));
+  showGameHud(() => Math.max(0, (solo.hangmanMaxWrong - solo.hangmanWrongCount) * SOLO_HANGMAN_POINTS_PER_LIFE));
   registerActiveGame({ skip: () => finishSoloHangman(false) });
 }
 
@@ -1492,7 +1609,7 @@ function renderSoloHangman() {
     .join(" ");
   const wrong = Object.keys(solo.hangmanGuessedLetters).filter((l) => !solo.hangmanWord.includes(l));
   els.soloHangmanWrongLetters.textContent = wrong.length ? `Letras erradas: ${wrong.join(", ")}` : "";
-  els.soloHangmanLives.textContent = `Erros: ${solo.hangmanWrongCount} / ${SOLO_HANGMAN_MAX_WRONG}`;
+  els.soloHangmanLives.textContent = `Erros: ${solo.hangmanWrongCount} / ${solo.hangmanMaxWrong}`;
 }
 
 function soloHangmanGuessLetter(letterRaw) {
@@ -1520,7 +1637,7 @@ function resolveSoloHangmanTurn() {
   updateGameHudScore();
   if (soloHangmanRevealed()) {
     finishSoloHangman(true);
-  } else if (solo.hangmanWrongCount >= SOLO_HANGMAN_MAX_WRONG) {
+  } else if (solo.hangmanWrongCount >= solo.hangmanMaxWrong) {
     finishSoloHangman(false);
   }
 }
@@ -1531,15 +1648,38 @@ function finishSoloHangman(won) {
   els.soloHangmanGuessControls.classList.add("hidden");
   renderSoloHangman();
 
+  const challengeMult = solo.hangmanChallengeMode ? SOLO_HANGMAN_CHALLENGE_MULT : 1;
   let bonus = 0;
   let resultText;
+
   if (won) {
-    const livesLeft = SOLO_HANGMAN_MAX_WRONG - solo.hangmanWrongCount;
-    bonus = Math.max(SOLO_HANGMAN_MIN_BONUS, livesLeft * SOLO_HANGMAN_POINTS_PER_LIFE);
-    resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
+    const livesLeft = solo.hangmanMaxWrong - solo.hangmanWrongCount;
+    const base = Math.max(SOLO_HANGMAN_MIN_BONUS, livesLeft * SOLO_HANGMAN_POINTS_PER_LIFE);
+    if (solo.hangmanStreakMode) {
+      solo.hangmanStreak += 1;
+      const streakMult = 1 + Math.min(solo.hangmanStreak - 1, SOLO_HANGMAN_STREAK_MULT_CAP) * SOLO_HANGMAN_STREAK_MULT_STEP;
+      bonus = Math.round(base * streakMult * challengeMult);
+      resultText = `Acertaste "${solo.hangmanWord}"! Sequência: ${solo.hangmanStreak} 🔥 — +${bonus} pts.`;
+      if (solo.hangmanStreak > (account.bestHangmanStreak || 0)) {
+        account.bestHangmanStreak = solo.hangmanStreak;
+        saveAccount();
+      }
+      solo.afterMinigame = startSoloHangman;
+    } else {
+      bonus = Math.round(base * challengeMult);
+      resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
+    }
+  } else if (solo.hangmanStreakMode) {
+    resultText = `A sequência acabou em ${solo.hangmanStreak} palavra(s) — a palavra era "${solo.hangmanWord}". Recorde: ${account.bestHangmanStreak || 0}.`;
+    solo.afterMinigame = () => {
+      solo.hangmanStreak = 0;
+      solo.hangmanUsedWords = new Set();
+      startSoloHangman();
+    };
   } else {
     resultText = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
   }
+
   solo.runScore += bonus;
   showMinigameEnd({ gameLabel: "Forca", points: bonus, favoriteKey: "hangman", resultText });
 }

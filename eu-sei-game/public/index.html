@@ -102,10 +102,37 @@
     </div>
   </section>
 
+  <!-- SOLO: FORCA — preparar sequência -->
+  <section data-screen="solo-hangman-setup" class="screen">
+    <div class="card">
+      <h2>Forca — preparar</h2>
+      <p class="hint">Encadeia palavras certas em sequência — quanto mais acertares seguidas, mais valem os pontos!</p>
+      <details class="cat-picker" open>
+        <summary>Categorias (<span id="hangman-cat-count">7</span>/7)</summary>
+        <div class="cat-picker-actions">
+          <button type="button" id="hangman-cat-selectall" class="ghost">Selecionar todas</button>
+          <button type="button" id="hangman-cat-clear" class="ghost">Limpar</button>
+        </div>
+        <div id="hangman-cat-grid" class="cat-picker-grid"></div>
+      </details>
+      <label class="checkbox-label">
+        <input type="checkbox" id="hangman-include-own" checked />
+        Incluir as tuas próprias respostas desta sessão
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="hangman-challenge-mode" />
+        Modo desafio (menos erros permitidos, +50% pontos)
+      </label>
+      <button id="hangman-solo-setup-start-btn" class="primary">Começar sequência</button>
+      <button data-solo-home class="ghost">Voltar</button>
+    </div>
+  </section>
+
   <!-- SOLO MINIGAME: FORCA -->
   <section data-screen="solo-hangman" class="screen fullscreen-game">
     <div class="card wide center">
       <h2>Forca!</h2>
+      <p id="solo-hangman-streak-info" class="hint small"></p>
       <p id="solo-hangman-category" class="hint"></p>
       <div id="solo-hangman-word-display" class="hangman-word-display"></div>
       <p id="solo-hangman-wrong-letters" class="hint small"></p>
