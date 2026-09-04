@@ -674,10 +674,10 @@ function renderVoting(room) {
 
       if (text) {
         const voteKey = `${uid}_${ci}`;
-        const v = room.votes?.[voteKey] || {};
-        row.appendChild(voteToggleBtn("✕ Inválida", v.invalid, uid, ci, "invalid"));
-        row.appendChild(voteToggleBtn("👑 Glória", v.gloria, uid, ci, "gloria"));
-        row.appendChild(voteToggleBtn("😂 Engraçada", v.engracada, uid, ci, "engracada"));
+        const votesForAnswer = room.votes?.[voteKey] || {};
+        row.appendChild(voteToggleBtn("✕ Inválida", votesForAnswer, uid, ci, "invalid"));
+        row.appendChild(voteToggleBtn("👑 Glória", votesForAnswer, uid, ci, "gloria"));
+        row.appendChild(voteToggleBtn("😂 Engraçada", votesForAnswer, uid, ci, "engracada"));
       }
       section.appendChild(row);
     });
@@ -696,15 +696,18 @@ function renderVoting(room) {
   voteRAF = requestAnimationFrame(tick);
 }
 
-function voteToggleBtn(label, votersObj, targetUid, ci, kind) {
-  const count = Object.keys(votersObj || {}).length;
+// Um único voto por votante em cada resposta — Inválida/Glória/Engraçada
+// nunca se acumulam (ver nota em castVote, room.js). Clicar num botão já
+// ativo retira o voto; clicar noutro substitui o anterior.
+function voteToggleBtn(label, votesForAnswer, targetUid, ci, kind) {
+  const count = Object.values(votesForAnswer || {}).filter((k) => k === kind).length;
   const btn = document.createElement("button");
   btn.className = "vote-btn";
-  const active = !!(votersObj || {})[state.uid];
+  const active = (votesForAnswer || {})[state.uid] === kind;
   btn.classList.toggle("active", active);
   btn.textContent = `${label} (${count})`;
   btn.addEventListener("click", () => {
-    castVote(state.code, targetUid, ci, state.uid, kind, !active);
+    castVote(state.code, state.room, targetUid, ci, state.uid, kind);
   });
   return btn;
 }

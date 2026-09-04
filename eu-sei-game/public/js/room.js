@@ -284,9 +284,15 @@ export async function startVoting(code) {
   });
 }
 
-export async function castVote(code, targetUid, catIndex, voterUid, kind, active) {
-  const path = `rooms/${code}/votes/${targetUid}_${catIndex}/${kind}/${voterUid}`;
-  await set(ref(db, path), active ? true : null);
+// Um único voto por (votante, resposta): votar Inválida/Glória/Engraçada
+// substitui automaticamente qualquer voto anterior nessa mesma resposta —
+// não fazia sentido poder marcar as três ao mesmo tempo. Clicar de novo no
+// mesmo botão retira o voto.
+export async function castVote(code, room, targetUid, catIndex, voterUid, kind) {
+  const voteKey = `${targetUid}_${catIndex}`;
+  const current = room.votes?.[voteKey]?.[voterUid] || null;
+  const next = current === kind ? null : kind;
+  await set(ref(db, `rooms/${code}/votes/${voteKey}/${voterUid}`), next);
 }
 
 export async function finishVoting(code, room) {
@@ -300,6 +306,11 @@ export async function finishVoting(code, room) {
   updates["state"] = "roundScore";
   await update(roomRef(code), updates);
 }
+
+// Bónus fixo por uma resposta passar a válida por voto maioritário de
+// Glória (substitui o antigo "+2 por cada voto de Glória", que coexistia
+// de forma confusa com o voto de Inválida na mesma resposta).
+export const ROUND_GLORIA_BONUS = 5;
 
 export function computeRoundResults(room) {
   const players = Object.keys(room.players || {});
@@ -315,18 +326,27 @@ export function computeRoundResults(room) {
       const text = (room.answers?.[uid]?.[catKey(ci)] || "").trim();
       return { uid, text };
     });
+    const othersCount = Math.max(N - 1, 0);
     entries.forEach((e) => {
       e.startsOk = e.text.length > 0 && e.text[0].toUpperCase() === letter;
       const voteKey = `${e.uid}_${ci}`;
-      const v = room.votes?.[voteKey] || {};
-      const invalidCount = Object.keys(v.invalid || {}).length;
-      const othersCount = Math.max(N - 1, 0);
+      // Um único voto por votante (ver castVote) — nunca se acumulam
+      // Inválida/Glória/Engraçada na mesma resposta.
+      const kinds = Object.values(room.votes?.[voteKey] || {});
+      const invalidCount = kinds.filter((k) => k === "invalid").length;
+      const gloriaCount = kinds.filter((k) => k === "gloria").length;
+      const engracadaCount = kinds.filter((k) => k === "engracada").length;
       e.invalidByVote = othersCount > 0 && invalidCount > Math.floor(othersCount / 2);
-      e.gloriaCount = Object.keys(v.gloria || {}).length;
-      e.engracadaCount = Object.keys(v.engracada || {}).length;
+      e.gloriaByVote = othersCount > 0 && gloriaCount > Math.floor(othersCount / 2);
+      e.gloriaCount = gloriaCount;
+      e.engracadaCount = engracadaCount;
+      // A maioria em Glória torna a resposta válida mesmo que não cumprisse
+      // a letra ou tivesse maioria de Inválida — o veredito da equipa vale
+      // mais do que a verificação automática.
+      e.isValid = e.text.length > 0 && (e.gloriaByVote || (e.startsOk && !e.invalidByVote));
     });
 
-    const validEntries = entries.filter((e) => e.startsOk && !e.invalidByVote && e.text);
+    const validEntries = entries.filter((e) => e.isValid);
     const counts = {};
     validEntries.forEach((e) => {
       const key = e.text.toLowerCase();
@@ -337,14 +357,14 @@ export function computeRoundResults(room) {
       let status, points;
       if (!e.text) {
         status = "vazia"; points = 0;
-      } else if (!e.startsOk || e.invalidByVote) {
+      } else if (!e.isValid) {
         if (e.engracadaCount > 0) { status = "engracada"; points = 2; }
         else { status = "invalida"; points = 0; }
       } else {
         const key = e.text.toLowerCase();
         const repeated = counts[key] > 1;
         const base = repeated ? 5 : 10;
-        const bonus = e.gloriaCount * 2;
+        const bonus = e.gloriaByVote ? ROUND_GLORIA_BONUS : 0;
         status = repeated ? "valida-repetida" : "valida-unica";
         points = base + bonus;
       }
