@@ -50,6 +50,11 @@ const MONKEY_MAX_BONUS = 28;
 const MONKEY_CATCHER_HALF_WIDTH = 24;
 const MONKEY_BASE_FALL_SPEED = 60; // px/s
 const MONKEY_SPEED_INCREASE_PER_SEC = 4; // px/s a mais por cada segundo decorrido
+const MONKEY_LIFESAVER_MS = 5000;
+const MONKEY_LIFESAVER_MAX_SAVES = 4;
+const MONKEY_LIFESAVER_COOLDOWN_MS = 2200;
+const MONKEY_LIFESAVER_MAX_ACTIVE = 2;
+const MONKEY_LIFESAVER_HALF_WIDTH = 26;
 
 const MEM_PREVIEW_MS = 3000;
 const MEM_SHOWN_BASE = 5;
@@ -365,6 +370,9 @@ const solo = {
   monkeys: [],
   monkeySpawnTimeoutId: null,
   monkeyMoveHandler: null,
+  monkeyClickHandler: null,
+  monkeyLifesavers: [],
+  monkeyLastLifesaverAt: 0,
   memActive: false,
   memShownIndexes: new Set(),
   memSelected: new Set(),
@@ -1213,19 +1221,47 @@ function startMonkeyRescueMinigame() {
   solo.monkeyMoveHandler = onMove;
   els.monkeyArena.addEventListener("pointermove", onMove);
 
+  solo.monkeyLifesavers = [];
+  solo.monkeyLastLifesaverAt = 0;
+  function onClick(e) {
+    if (!solo.monkeyActive || solo.paused) return;
+    const now = Date.now();
+    if (now - solo.monkeyLastLifesaverAt < MONKEY_LIFESAVER_COOLDOWN_MS) return;
+    if (solo.monkeyLifesavers.length >= MONKEY_LIFESAVER_MAX_ACTIVE) return;
+    const rect = els.monkeyArena.getBoundingClientRect();
+    const x = Math.max(20, Math.min(rect.width - 20, e.clientX - rect.left));
+    const el = document.createElement("div");
+    el.className = "monkey-lifesaver";
+    el.textContent = "🛟";
+    el.style.left = `${x}px`;
+    els.monkeyArena.appendChild(el);
+    solo.monkeyLifesavers.push({ el, x, savesLeft: MONKEY_LIFESAVER_MAX_SAVES, expiresAt: now + MONKEY_LIFESAVER_MS });
+    solo.monkeyLastLifesaverAt = now;
+  }
+  solo.monkeyClickHandler = onClick;
+  els.monkeyArena.addEventListener("click", onClick);
+
   solo.monkeyStartedAt = Date.now();
   solo.monkeyEndAt = solo.monkeyStartedAt + MONKEY_GAME_MS;
   solo.monkeyLastFrame = solo.monkeyStartedAt;
   showGameHud(() => solo.monkeyScore);
   registerActiveGame({
-    pauseShift: (ms) => { solo.monkeyEndAt += ms; solo.monkeyStartedAt += ms; solo.monkeyLastFrame = Date.now(); },
+    pauseShift: (ms) => {
+      solo.monkeyEndAt += ms;
+      solo.monkeyStartedAt += ms;
+      solo.monkeyLastFrame = Date.now();
+      solo.monkeyLifesavers.forEach((s) => { s.expiresAt += ms; });
+    },
     skip: finishMonkeyRescue,
     cleanup: () => {
       solo.monkeyActive = false;
       clearTimeout(solo.monkeySpawnTimeoutId);
       els.monkeyArena.removeEventListener("pointermove", solo.monkeyMoveHandler);
+      els.monkeyArena.removeEventListener("click", solo.monkeyClickHandler);
       solo.monkeys.forEach((m) => m.el.remove());
       solo.monkeys = [];
+      solo.monkeyLifesavers.forEach((s) => s.el.remove());
+      solo.monkeyLifesavers = [];
     },
   });
 
@@ -1270,18 +1306,28 @@ function startMonkeyRescueMinigame() {
       m.el.style.top = `${m.y}px`;
 
       const inCatchZone = m.y >= arenaHeight - 40;
-      const alignedWithCatcher = Math.abs(m.x - solo.monkeyCatcherX) <= MONKEY_CATCHER_HALF_WIDTH + 14;
-      if (inCatchZone && alignedWithCatcher) {
-        solo.monkeyScore += MONKEY_CATCH_POINTS * (m.golden ? MONKEY_GOLDEN_MULTIPLIER : 1);
-        m.el.remove();
-        updateGameHudScore();
-        return false;
+      if (inCatchZone) {
+        const alignedWithCatcher = Math.abs(m.x - solo.monkeyCatcherX) <= MONKEY_CATCHER_HALF_WIDTH + 14;
+        const lifesaverHit = solo.monkeyLifesavers.find((s) => Math.abs(m.x - s.x) <= MONKEY_LIFESAVER_HALF_WIDTH);
+        if (alignedWithCatcher || lifesaverHit) {
+          solo.monkeyScore += MONKEY_CATCH_POINTS * (m.golden ? MONKEY_GOLDEN_MULTIPLIER : 1);
+          if (lifesaverHit && !alignedWithCatcher) lifesaverHit.savesLeft -= 1;
+          m.el.remove();
+          updateGameHudScore();
+          return false;
+        }
       }
       if (m.y >= arenaHeight) {
         m.el.remove();
         return false;
       }
       return true;
+    });
+
+    solo.monkeyLifesavers = solo.monkeyLifesavers.filter((s) => {
+      const expired = now >= s.expiresAt || s.savesLeft <= 0;
+      if (expired) s.el.remove();
+      return !expired;
     });
 
     els.monkeyTimer.textContent = formatSeconds(Math.max(0, Math.ceil((solo.monkeyEndAt - now) / 1000)));
@@ -1302,8 +1348,11 @@ function finishMonkeyRescue() {
   solo.monkeyActive = false;
   clearTimeout(solo.monkeySpawnTimeoutId);
   els.monkeyArena.removeEventListener("pointermove", solo.monkeyMoveHandler);
+  els.monkeyArena.removeEventListener("click", solo.monkeyClickHandler);
   solo.monkeys.forEach((m) => m.el.remove());
   solo.monkeys = [];
+  solo.monkeyLifesavers.forEach((s) => s.el.remove());
+  solo.monkeyLifesavers = [];
 
   const bonus = Math.min(solo.monkeyScore, MONKEY_MAX_BONUS);
   solo.runScore += bonus;
