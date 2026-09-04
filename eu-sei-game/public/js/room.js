@@ -141,7 +141,10 @@ export async function confirmLetter(code, room, letter) {
   const usedLetters = { ...(room.usedLetters || {}), [letter]: true };
   const usedCats = new Set(Object.keys(room.usedCategories || {}).map(catIndexFromKey));
   const numCategories = room.config?.numCategories || DEFAULT_CONFIG.numCategories;
-  const catIndexes = pickCategories(numCategories, usedCats);
+  const enabledCats = room.config?.enabledCategories?.length
+    ? new Set(room.config.enabledCategories)
+    : undefined;
+  const catIndexes = pickCategories(numCategories, usedCats, enabledCats);
   const newUsedCats = { ...(room.usedCategories || {}) };
   catIndexes.forEach((i) => { newUsedCats[catKey(i)] = true; });
   const timeLimit = room.config?.timeLimit || DEFAULT_CONFIG.timeLimit;

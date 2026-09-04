@@ -21,6 +21,16 @@
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
       <button id="solo-start-btn" class="ghost-primary">Jogar sozinho</button>
+
+      <details class="cat-picker">
+        <summary>Categorias do modo solo (<span id="solo-cat-count">40</span>/40)</summary>
+        <div class="cat-picker-actions">
+          <button type="button" id="solo-cat-selectall" class="ghost">Selecionar todas</button>
+          <button type="button" id="solo-cat-clear" class="ghost">Limpar</button>
+        </div>
+        <div id="solo-cat-grid" class="cat-picker-grid"></div>
+      </details>
+
       <p id="home-error" class="error"></p>
     </div>
   </section>
@@ -140,6 +150,15 @@
           <input id="cfg-num-rounds" type="number" min="1" max="15" />
         </label>
       </form>
+
+      <details class="cat-picker">
+        <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/40)</summary>
+        <div class="cat-picker-actions">
+          <button type="button" id="cfg-cat-selectall" class="ghost">Selecionar todas</button>
+          <button type="button" id="cfg-cat-clear" class="ghost">Limpar</button>
+        </div>
+        <div id="cfg-cat-grid" class="cat-picker-grid"></div>
+      </details>
 
       <button id="start-game-btn" class="primary">Iniciar jogo</button>
       <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>

@@ -1,6 +1,6 @@
 import { getUid, serverNow } from "./firebase-init.js";
 import {
-  CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey,
+  CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
 } from "./data.js";
 import {
   createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost,
@@ -143,7 +143,58 @@ const lobbyEls = {
   timeLimit: document.getElementById("cfg-time-limit"),
   excludeHard: document.getElementById("cfg-exclude-hard"),
   numRounds: document.getElementById("cfg-num-rounds"),
+  catCount: document.getElementById("cfg-cat-count"),
+  catGrid: document.getElementById("cfg-cat-grid"),
+  catSelectAll: document.getElementById("cfg-cat-selectall"),
+  catClear: document.getElementById("cfg-cat-clear"),
 };
+
+const catCheckboxes = CATEGORIES.map((name, i) => {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = true;
+  input.dataset.catIndex = String(i);
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(name));
+  lobbyEls.catGrid.appendChild(label);
+  return input;
+});
+
+function getSelectedCategoryIndexes() {
+  return catCheckboxes
+    .map((cb, i) => (cb.checked ? i : -1))
+    .filter((i) => i !== -1);
+}
+
+function sendCategoryUpdate() {
+  if (!state.room || !isHost(state.room)) return;
+  const selected = getSelectedCategoryIndexes();
+  updateConfig(state.code, { enabledCategories: selected });
+}
+
+catCheckboxes.forEach((cb) => {
+  cb.addEventListener("change", () => {
+    if (!state.room || !isHost(state.room)) return;
+    if (!cb.checked && getSelectedCategoryIndexes().length < MIN_ENABLED_CATEGORIES) {
+      cb.checked = true; // não deixa descer abaixo do mínimo
+      return;
+    }
+    sendCategoryUpdate();
+  });
+});
+
+lobbyEls.catSelectAll.addEventListener("click", () => {
+  if (!state.room || !isHost(state.room)) return;
+  catCheckboxes.forEach((cb) => { cb.checked = true; });
+  sendCategoryUpdate();
+});
+
+lobbyEls.catClear.addEventListener("click", () => {
+  if (!state.room || !isHost(state.room)) return;
+  catCheckboxes.forEach((cb, i) => { cb.checked = i < MIN_ENABLED_CATEGORIES; });
+  sendCategoryUpdate();
+});
 
 let configDebounce = null;
 ["numCategories", "timeLimit", "excludeHard", "numRounds"].forEach((key) => {
@@ -189,10 +240,21 @@ function renderLobby(room) {
   if (document.activeElement !== lobbyEls.numRounds) lobbyEls.numRounds.value = cfg.numRounds;
   lobbyEls.excludeHard.checked = !!cfg.excludeHardLetters;
 
+  const enabledCats = room.config?.enabledCategories;
+  const hasCustomSelection = Array.isArray(enabledCats) && enabledCats.length > 0;
+  const enabledSet = hasCustomSelection ? new Set(enabledCats) : null;
+  catCheckboxes.forEach((cb, i) => {
+    cb.checked = enabledSet ? enabledSet.has(i) : true;
+  });
+  lobbyEls.catCount.textContent = hasCustomSelection ? enabledCats.length : CATEGORIES.length;
+
   const amHost = isHost(room);
   [lobbyEls.numCategories, lobbyEls.timeLimit, lobbyEls.excludeHard, lobbyEls.numRounds].forEach((el) => {
     el.disabled = !amHost;
   });
+  catCheckboxes.forEach((cb) => { cb.disabled = !amHost; });
+  lobbyEls.catSelectAll.classList.toggle("hidden", !amHost);
+  lobbyEls.catClear.classList.toggle("hidden", !amHost);
   lobbyEls.startBtn.classList.toggle("hidden", !amHost);
   lobbyEls.startBtn.disabled = players.length < 2;
   lobbyEls.waiting.classList.toggle("hidden", amHost);

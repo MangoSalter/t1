@@ -4,9 +4,10 @@
 // Sem outros jogadores para votar, só se valida se a resposta começa pela
 // letra certa (decisão tomada para o MVP: sem lista de palavras).
 
-import { CATEGORIES, pickLetters, pickCategories } from "./data.js";
+import { CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES } from "./data.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
+const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
 
 const SOLO_BASE_CATEGORIES = 5;
 const SOLO_MAX_CATEGORIES = 12;
@@ -82,6 +83,25 @@ function saveHighScore(score, rounds) {
   }
 }
 
+function loadEnabledCategories() {
+  try {
+    const raw = localStorage.getItem(ENABLED_CATEGORIES_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? new Set(arr) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveEnabledCategories(indexes) {
+  try {
+    localStorage.setItem(ENABLED_CATEGORIES_KEY, JSON.stringify(indexes));
+  } catch {
+    // sem persistência entre sessões, sem drama — a sessão atual continua a funcionar.
+  }
+}
+
 const solo = {
   round: 0,
   runScore: 0,
@@ -147,7 +167,62 @@ const els = {
   memGrid: document.getElementById("mem-grid"),
   memConfirmBtn: document.getElementById("mem-confirm-btn"),
   memStatus: document.getElementById("mem-status"),
+  catCount: document.getElementById("solo-cat-count"),
+  catGrid: document.getElementById("solo-cat-grid"),
+  catSelectAll: document.getElementById("solo-cat-selectall"),
+  catClear: document.getElementById("solo-cat-clear"),
 };
+
+const catCheckboxes = CATEGORIES.map((name, i) => {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = true;
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(name));
+  els.catGrid.appendChild(label);
+  return input;
+});
+
+function refreshCategoryCount() {
+  const count = catCheckboxes.filter((cb) => cb.checked).length;
+  els.catCount.textContent = String(count);
+}
+
+function currentEnabledCategoryIndexes() {
+  return catCheckboxes.map((cb, i) => (cb.checked ? i : -1)).filter((i) => i !== -1);
+}
+
+(function initCategoryPicker() {
+  const saved = loadEnabledCategories();
+  if (saved) {
+    catCheckboxes.forEach((cb, i) => { cb.checked = saved.has(i); });
+  }
+  refreshCategoryCount();
+})();
+
+catCheckboxes.forEach((cb) => {
+  cb.addEventListener("change", () => {
+    if (!cb.checked && currentEnabledCategoryIndexes().length < MIN_ENABLED_CATEGORIES) {
+      cb.checked = true;
+      return;
+    }
+    refreshCategoryCount();
+    saveEnabledCategories(currentEnabledCategoryIndexes());
+  });
+});
+
+els.catSelectAll.addEventListener("click", () => {
+  catCheckboxes.forEach((cb) => { cb.checked = true; });
+  refreshCategoryCount();
+  saveEnabledCategories(currentEnabledCategoryIndexes());
+});
+
+els.catClear.addEventListener("click", () => {
+  catCheckboxes.forEach((cb, i) => { cb.checked = i < MIN_ENABLED_CATEGORIES; });
+  refreshCategoryCount();
+  saveEnabledCategories(currentEnabledCategoryIndexes());
+});
 
 function showScreen(name) {
   document.querySelectorAll("[data-screen]").forEach((el) => {
@@ -212,7 +287,8 @@ function pickLetter(letter) {
   solo.letter = letter;
   solo.usedLetters.add(letter);
   const { numCategories, timeLimit } = difficultyForRound(solo.round);
-  const catIndexes = pickCategories(numCategories, solo.usedCategories);
+  const enabledCats = new Set(currentEnabledCategoryIndexes());
+  const catIndexes = pickCategories(numCategories, solo.usedCategories, enabledCats);
   catIndexes.forEach((i) => solo.usedCategories.add(i));
   solo.categoryIndexes = catIndexes;
   solo.answers = {};

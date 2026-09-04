@@ -66,10 +66,18 @@ export function catIndexFromKey(key) {
   return parseInt(key.slice(1), 10);
 }
 
-export function pickCategories(count, usedIndexes) {
-  let available = CATEGORIES.map((_, i) => i).filter((i) => !usedIndexes.has(i));
-  if (available.length < count) {
-    available = CATEGORIES.map((_, i) => i);
+export const MIN_ENABLED_CATEGORIES = 4;
+
+// `enabledIndexes`: Set opcional de índices permitidos (categorias ativadas
+// pelo jogador/anfitrião). Omitido ou vazio = todas as 40 estão disponíveis.
+export function pickCategories(count, usedIndexes, enabledIndexes) {
+  const pool = enabledIndexes && enabledIndexes.size > 0
+    ? CATEGORIES.map((_, i) => i).filter((i) => enabledIndexes.has(i))
+    : CATEGORIES.map((_, i) => i);
+  const wanted = Math.min(count, pool.length);
+  let available = pool.filter((i) => !usedIndexes.has(i));
+  if (available.length < wanted) {
+    available = pool;
   }
-  return shuffle(available).slice(0, count);
+  return shuffle(available).slice(0, wanted);
 }
