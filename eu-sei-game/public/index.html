@@ -59,6 +59,7 @@
         <button id="solo-play-hangman-btn">Forca</button>
         <button id="solo-play-map-btn">Mapa-Múndi</button>
         <button id="solo-play-pac-btn">Kota Corre!</button>
+        <button id="solo-play-golf-btn">Mini-Golfe</button>
       </div>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
@@ -91,6 +92,7 @@
         <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
         <label><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
         <label><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
+        <label><input type="checkbox" data-marathon-game="golf" /> Mini-Golfe</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -312,6 +314,17 @@
       <p id="pac-lives" class="hint"></p>
       <div id="pac-maze" class="pac-maze"></div>
       <p id="pac-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: MINI-GOLFE -->
+  <section data-screen="solo-golf" class="screen fullscreen-game">
+    <div class="card wide center">
+      <h2>Mini-Golfe</h2>
+      <p class="hint small">Setas ou WASD para acelerar a bola — quanto mais depressa entrares no buraco, mais pontos!</p>
+      <p id="golf-hole-info" class="hint"></p>
+      <div id="golf-course" class="golf-course"></div>
+      <p id="golf-status" class="hint"></p>
     </div>
   </section>
 

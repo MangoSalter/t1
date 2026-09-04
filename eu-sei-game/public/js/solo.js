@@ -294,6 +294,7 @@ const MARATHON_GAMES = {
   hangman: startHangmanSingle,
   map: startMapMinigame,
   pacman: startPacman,
+  golf: startGolf,
 };
 
 // --- Kota Corre!: labirinto ao estilo Pac-Man com tempero angolano — foge
@@ -355,6 +356,25 @@ function buildPacmanMaze() {
   });
   return grid;
 }
+
+// --- Mini-Golfe: física simples (aceleração + atrito + ressaltos) em 3
+// buracos, pontuação por rapidez em vez de contar pancadas. ---
+const GOLF_COURSE_W = 500;
+const GOLF_COURSE_H = 300;
+const GOLF_BALL_RADIUS = 8;
+const GOLF_HOLE_RADIUS = 12;
+const GOLF_ACCEL = 420; // px/s²
+const GOLF_DRAG = 1.4; // por segundo
+const GOLF_MAX_SPEED = 260; // px/s
+const GOLF_BOUNCE_LOSS = 0.7;
+const GOLF_POINTS_PER_HOLE_MAX = 20;
+const GOLF_POINTS_PER_HOLE_MIN = 4;
+const GOLF_MAX_BONUS = 50;
+const GOLF_HOLES = [
+  { start: { x: 40, y: 150 }, hole: { x: 460, y: 150 }, walls: [{ x: 230, y: 0, w: 20, h: 190 }] },
+  { start: { x: 40, y: 40 }, hole: { x: 460, y: 260 }, walls: [{ x: 160, y: 60, w: 20, h: 240 }, { x: 320, y: 0, w: 20, h: 240 }] },
+  { start: { x: 40, y: 150 }, hole: { x: 460, y: 150 }, walls: [{ x: 150, y: 0, w: 20, h: 180 }, { x: 330, y: 120, w: 20, h: 180 }] },
+];
 
 function memShownCountForRound(round) {
   return Math.min(MEM_SHOWN_BASE + Math.floor((round - 1) / 3), MEM_SHOWN_MAX);
@@ -472,6 +492,7 @@ const GAME_LABELS = {
   hangman: "Forca",
   map: "Mapa-Múndi",
   pacman: "Kota Corre!",
+  golf: "Mini-Golfe",
 };
 
 const account = loadAccount();
@@ -583,6 +604,20 @@ const solo = {
   pacCellEls: {},
   pacPlayerEl: null,
   pacGhostEls: [],
+  golfActive: false,
+  golfHoleIndex: 0,
+  golfScore: 0,
+  golfBallX: 0,
+  golfBallY: 0,
+  golfVX: 0,
+  golfVY: 0,
+  golfKeys: { up: false, down: false, left: false, right: false },
+  golfLastFrame: 0,
+  golfHoleStartedAt: 0,
+  golfAdvanceTimeoutId: null,
+  golfBallEl: null,
+  golfKeydownHandler: null,
+  golfKeyupHandler: null,
 };
 
 const els = {
@@ -617,6 +652,10 @@ const els = {
   pacMaze: document.getElementById("pac-maze"),
   pacLivesLabel: document.getElementById("pac-lives"),
   pacStatus: document.getElementById("pac-status"),
+  playGolfBtn: document.getElementById("solo-play-golf-btn"),
+  golfCourse: document.getElementById("golf-course"),
+  golfHoleInfo: document.getElementById("golf-hole-info"),
+  golfStatus: document.getElementById("golf-status"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
   mapRoundInfo: document.getElementById("map-round-info"),
@@ -984,6 +1023,7 @@ els.hangmanSetupStartBtn.addEventListener("click", () => {
 });
 els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame));
 els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman));
+els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf));
 
 els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
 els.marathonStartBtn.addEventListener("click", startMarathon);
@@ -2181,6 +2221,190 @@ function finishPacman(won) {
     ? `Comeste tudo! +${bonus} pts bónus!`
     : `As comidas apanharam-te — +${bonus} pts bónus mesmo assim.`;
   showMinigameEnd({ gameLabel: "Kota Corre!", points: bonus, favoriteKey: "pacman", resultText });
+}
+
+// --- Mini-Golfe: 3 buracos, aceleração pelas setas/WASD (mantidas
+// premidas), atrito e ressaltos nas paredes; pontuação por rapidez. ---
+
+function golfRenderHole() {
+  const hole = GOLF_HOLES[solo.golfHoleIndex];
+  els.golfCourse.innerHTML = "";
+  hole.walls.forEach((w) => {
+    const el = document.createElement("div");
+    el.className = "golf-wall";
+    el.style.left = `${w.x}px`;
+    el.style.top = `${w.y}px`;
+    el.style.width = `${w.w}px`;
+    el.style.height = `${w.h}px`;
+    els.golfCourse.appendChild(el);
+  });
+  const holeEl = document.createElement("div");
+  holeEl.className = "golf-hole";
+  holeEl.style.left = `${hole.hole.x}px`;
+  holeEl.style.top = `${hole.hole.y}px`;
+  els.golfCourse.appendChild(holeEl);
+
+  solo.golfBallEl = document.createElement("div");
+  solo.golfBallEl.className = "golf-ball";
+  els.golfCourse.appendChild(solo.golfBallEl);
+}
+
+function golfUpdateBallEl() {
+  solo.golfBallEl.style.left = `${solo.golfBallX}px`;
+  solo.golfBallEl.style.top = `${solo.golfBallY}px`;
+}
+
+function golfStartHole() {
+  const hole = GOLF_HOLES[solo.golfHoleIndex];
+  solo.golfBallX = hole.start.x;
+  solo.golfBallY = hole.start.y;
+  solo.golfVX = 0;
+  solo.golfVY = 0;
+  solo.golfHoleStartedAt = Date.now();
+  els.golfHoleInfo.textContent = `Buraco ${solo.golfHoleIndex + 1}/${GOLF_HOLES.length}`;
+  els.golfStatus.textContent = "";
+  golfRenderHole();
+  golfUpdateBallEl();
+  solo.golfLastFrame = performance.now();
+  requestAnimationFrame(golfTick);
+}
+
+function golfTick(now) {
+  if (!solo.golfActive) return;
+  if (solo.paused) {
+    solo.golfLastFrame = now;
+    requestAnimationFrame(golfTick);
+    return;
+  }
+  const dt = Math.min((now - solo.golfLastFrame) / 1000, 0.05);
+  solo.golfLastFrame = now;
+
+  let ax = 0, ay = 0;
+  if (solo.golfKeys.up) ay -= 1;
+  if (solo.golfKeys.down) ay += 1;
+  if (solo.golfKeys.left) ax -= 1;
+  if (solo.golfKeys.right) ax += 1;
+  if (ax !== 0 || ay !== 0) {
+    const len = Math.hypot(ax, ay);
+    solo.golfVX += (ax / len) * GOLF_ACCEL * dt;
+    solo.golfVY += (ay / len) * GOLF_ACCEL * dt;
+  }
+
+  const dragFactor = Math.max(0, 1 - GOLF_DRAG * dt);
+  solo.golfVX *= dragFactor;
+  solo.golfVY *= dragFactor;
+
+  const speed = Math.hypot(solo.golfVX, solo.golfVY);
+  if (speed > GOLF_MAX_SPEED) {
+    solo.golfVX = (solo.golfVX / speed) * GOLF_MAX_SPEED;
+    solo.golfVY = (solo.golfVY / speed) * GOLF_MAX_SPEED;
+  }
+
+  let newX = solo.golfBallX + solo.golfVX * dt;
+  let newY = solo.golfBallY + solo.golfVY * dt;
+
+  const hole = GOLF_HOLES[solo.golfHoleIndex];
+  hole.walls.forEach((w) => {
+    const closestX = Math.max(w.x, Math.min(newX, w.x + w.w));
+    const closestY = Math.max(w.y, Math.min(newY, w.y + w.h));
+    const dx = newX - closestX;
+    const dy = newY - closestY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < GOLF_BALL_RADIUS * GOLF_BALL_RADIUS) {
+      const dist = Math.sqrt(distSq) || 0.01;
+      const nx = dx / dist, ny = dy / dist;
+      newX = closestX + nx * GOLF_BALL_RADIUS;
+      newY = closestY + ny * GOLF_BALL_RADIUS;
+      const vDotN = solo.golfVX * nx + solo.golfVY * ny;
+      solo.golfVX -= 2 * vDotN * nx * GOLF_BOUNCE_LOSS;
+      solo.golfVY -= 2 * vDotN * ny * GOLF_BOUNCE_LOSS;
+    }
+  });
+
+  if (newX <= GOLF_BALL_RADIUS || newX >= GOLF_COURSE_W - GOLF_BALL_RADIUS) solo.golfVX *= -0.6;
+  if (newY <= GOLF_BALL_RADIUS || newY >= GOLF_COURSE_H - GOLF_BALL_RADIUS) solo.golfVY *= -0.6;
+  newX = Math.max(GOLF_BALL_RADIUS, Math.min(GOLF_COURSE_W - GOLF_BALL_RADIUS, newX));
+  newY = Math.max(GOLF_BALL_RADIUS, Math.min(GOLF_COURSE_H - GOLF_BALL_RADIUS, newY));
+
+  solo.golfBallX = newX;
+  solo.golfBallY = newY;
+  golfUpdateBallEl();
+
+  const distToHole = Math.hypot(newX - hole.hole.x, newY - hole.hole.y);
+  if (distToHole < GOLF_HOLE_RADIUS) {
+    golfCompleteHole();
+    return;
+  }
+
+  requestAnimationFrame(golfTick);
+}
+
+function golfCompleteHole() {
+  const elapsed = (Date.now() - solo.golfHoleStartedAt) / 1000;
+  const points = Math.max(GOLF_POINTS_PER_HOLE_MIN, Math.round(GOLF_POINTS_PER_HOLE_MAX - elapsed * 1.2));
+  solo.golfScore += points;
+  updateGameHudScore();
+  els.golfStatus.textContent = `Buraco ${solo.golfHoleIndex + 1} em ${elapsed.toFixed(1)}s — +${points} pts!`;
+  solo.golfHoleIndex += 1;
+
+  clearTimeout(solo.golfAdvanceTimeoutId);
+  if (solo.golfHoleIndex >= GOLF_HOLES.length) {
+    solo.golfAdvanceTimeoutId = setTimeout(() => finishGolf(true), 1200);
+  } else {
+    solo.golfAdvanceTimeoutId = setTimeout(() => golfStartHole(), 1200);
+  }
+}
+
+function golfHandleKey(e, isDown) {
+  if (!solo.golfActive) return;
+  const dir = PAC_DIRS[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (dir.r < 0) solo.golfKeys.up = isDown;
+  else if (dir.r > 0) solo.golfKeys.down = isDown;
+  else if (dir.c < 0) solo.golfKeys.left = isDown;
+  else if (dir.c > 0) solo.golfKeys.right = isDown;
+}
+
+function startGolf() {
+  solo.golfActive = true;
+  solo.golfHoleIndex = 0;
+  solo.golfScore = 0;
+  solo.golfKeys = { up: false, down: false, left: false, right: false };
+  showScreen("solo-golf");
+  showGameHud(() => solo.golfScore);
+
+  solo.golfKeydownHandler = (e) => golfHandleKey(e, true);
+  solo.golfKeyupHandler = (e) => golfHandleKey(e, false);
+  document.addEventListener("keydown", solo.golfKeydownHandler);
+  document.addEventListener("keyup", solo.golfKeyupHandler);
+
+  registerActiveGame({
+    skip: () => finishGolf(false),
+    cleanup: () => {
+      solo.golfActive = false;
+      clearTimeout(solo.golfAdvanceTimeoutId);
+      document.removeEventListener("keydown", solo.golfKeydownHandler);
+      document.removeEventListener("keyup", solo.golfKeyupHandler);
+    },
+  });
+
+  golfStartHole();
+}
+
+function finishGolf(wonAll) {
+  if (!solo.golfActive) return;
+  solo.golfActive = false;
+  clearTimeout(solo.golfAdvanceTimeoutId);
+  document.removeEventListener("keydown", solo.golfKeydownHandler);
+  document.removeEventListener("keyup", solo.golfKeyupHandler);
+
+  const bonus = Math.min(solo.golfScore, GOLF_MAX_BONUS);
+  solo.runScore += bonus;
+  const resultText = wonAll
+    ? `Acabaste os ${GOLF_HOLES.length} buracos! +${bonus} pts bónus!`
+    : `+${bonus} pts bónus pelos buracos que fizeste.`;
+  showMinigameEnd({ gameLabel: "Mini-Golfe", points: bonus, favoriteKey: "golf", resultText });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
