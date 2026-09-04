@@ -3186,7 +3186,7 @@ function startCarGame() {
   showGameHud(() => Math.round(solo.carScore));
 
   solo.carKeyHandler = (e) => carHandleKey(e, true);
-  showTouchControls();
+  showTouchControls({ axis: "horizontal" });
   document.addEventListener("keydown", solo.carKeyHandler);
 
   registerActiveGame({

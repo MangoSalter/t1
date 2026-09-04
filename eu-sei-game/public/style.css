@@ -494,6 +494,12 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .touch-left { left: 0; top: 50px; }
 .touch-right { left: 100px; top: 50px; }
 .touch-down { left: 50px; top: 100px; }
+/* Jogos de faixas: só esquerda/direita, e o bloco encolhe para tapar menos. */
+.touch-controls.touch-horizontal .touch-up,
+.touch-controls.touch-horizontal .touch-down { display: none; }
+.touch-controls.touch-horizontal .touch-dpad { height: 60px; }
+.touch-controls.touch-horizontal .touch-left,
+.touch-controls.touch-horizontal .touch-right { top: 5px; }
 .touch-action { position: static; width: auto; min-width: 92px; height: 62px; padding: 0 18px; font-weight: 700; background: var(--primary); color: var(--paper); pointer-events: auto; }
 
 /* Em ecrãs baixos (telemóvel deitado) encolhe para não tapar o jogo. */
@@ -501,4 +507,47 @@ button.hud-btn .icon-inline { color: var(--ink); }
   .touch-dpad { width: 120px; height: 120px; }
   .touch-btn { width: 40px; height: 40px; }
   .touch-up { left: 40px; } .touch-left { top: 40px; } .touch-right { left: 80px; top: 40px; } .touch-down { left: 40px; top: 80px; }
+}
+
+/* --- Estrada Maluca em equipa: estrada ao centro, classificação ao vivo ao lado --- */
+/* width:100% é essencial: dentro do cartão (flex-column, align-items:center)
+   esta linha encolheria para o conteúdo e a classificação passava para
+   baixo da estrada, fora do ecrã. */
+.race-layout { display: flex; width: 100%; gap: 16px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.race-standings { flex: 0 1 260px; min-width: 200px; text-align: left; background: var(--card-bg, #fff); border: 2px solid var(--ink); border-radius: 10px; padding: 8px 10px; }
+#race-results { width: 100%; }
+/* A estrada tem tamanho fixo em píxeis (a lógica do jogo depende disso).
+   Num telemóvel isso punha o carro do jogador — que está lá em baixo, a 430px
+   — por trás dos comandos ou fora do ecrã. Em vez de mexer na lógica,
+   encolhe-se a estrada inteira até caber, e a caixa à volta fica com a
+   altura já reduzida para não deixar um buraco por baixo. */
+.race-road-wrap { position: relative; }
+/* .car-road tem max-width:100%: sem isto, a estrada era encolhida DUAS vezes
+   (uma pela caixa já reduzida, outra pelo scale) e ficava com o aspeto de uma
+   única faixa. */
+/* origem no canto superior esquerdo + margem zero: assim a estrada reduzida
+   fica alinhada com a caixa (que já tem a largura reduzida) e continua
+   centrada; com 'top center' saía deslocada para a direita. */
+.race-road-wrap #race-road { transform-origin: top left; max-width: none; margin: 0; }
+.race-standing-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed rgba(0,0,0,0.15); }
+.race-standing-row:last-child { border-bottom: none; }
+.race-standing-place { font-weight: 700; min-width: 2.2em; }
+.race-standing-time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.race-standing-me { font-weight: 700; }
+.race-standing-out { opacity: 0.55; }
+/* Quem bate continua a ver a estrada correr, mas o seu carro fica marcado. */
+.car-player-crashed { filter: grayscale(1); opacity: 0.6; }
+
+@media (max-width: 760px) {
+  /* No telemóvel a altura é o recurso escasso: a classificação passa para
+     CIMA da estrada, numa tira compacta, para não ficar debaixo dos comandos
+     no ecrã — e o cabeçalho encolhe para sobrar estrada. */
+  .race-layout { flex-direction: column; align-items: center; }
+  .race-standings { order: -1; flex: 1 1 auto; width: 100%; max-width: 420px; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 8px; }
+  .race-standings .race-standing-row { border-bottom: none; padding: 0; gap: 5px; font-size: 0.85rem; }
+  .race-standings .race-standing-row .avatar-thumb-sm { display: none; }
+  .race-standings .race-standing-time { margin-left: 4px; }
+  [data-screen="race"] h2 { font-size: 1.2rem; margin: 0; }
+  [data-screen="race"] .hint.small { display: none; }
+  [data-screen="race"] #race-status-line { font-size: 0.85rem; margin: 0; }
 }

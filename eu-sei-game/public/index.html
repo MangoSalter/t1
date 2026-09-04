@@ -426,6 +426,7 @@
         <button type="button" data-mp-game="mapTrivia">Mapa-Múndi</button>
         <button type="button" data-mp-game="tag">Fuga da Infeção</button>
         <button type="button" data-mp-game="battle">Labirinto: Batalha</button>
+        <button type="button" data-mp-game="race">Estrada Maluca</button>
       </div>
 
       <div class="divider"></div>
@@ -465,6 +466,7 @@
             <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa</label>
             <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
             <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
+            <label><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
           </div>
         </details>
       </details>
@@ -597,6 +599,21 @@
       <div id="battle-arena" class="battle-arena"></div>
       <div id="battle-results" class="score-table hidden"></div>
       <button id="battle-continue-btn" class="primary hidden">Continuar</button>
+    </div>
+  </section>
+
+  <!-- ESTRADA MALUCA EM EQUIPA -->
+  <section data-screen="race" class="screen fullscreen-game">
+    <div class="card wide center golf-wide-card">
+      <h2>Estrada Maluca — Corrida!</h2>
+      <p class="hint small">Setas &larr;/&rarr; ou A/D para mudar de faixa. Todos apanham exatamente os mesmos carros, ao mesmo tempo: ganha quem aguentar mais tempo sem bater.</p>
+      <p id="race-status-line" class="hint"></p>
+      <div class="race-layout">
+        <div class="race-road-wrap"><div id="race-road" class="car-road"></div></div>
+        <div id="race-standings" class="race-standings"></div>
+      </div>
+      <div id="race-results" class="score-table hidden"></div>
+      <button id="race-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
 

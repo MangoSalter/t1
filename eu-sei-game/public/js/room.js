@@ -81,7 +81,33 @@ export const BATTLE_WALLS = [
   { x: 1080, y: 430, w: 220, h: 24 },
 ];
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw"];
+// --- Estrada Maluca em equipa (bónus de fim de partida) — corrida de
+// resistência em que todos apanham EXATAMENTE os mesmos obstáculos. ---
+//
+// Ao contrário da Fuga/Batalha, aqui não se transmitem posições para haver
+// colisões entre jogadores: cada um corre na sua própria estrada. O que tem
+// de ser igual para todos é a pista. Por isso o anfitrião sorteia uma
+// "semente" no início e cada cliente gera a mesma sequência de obstáculos a
+// partir dela (raceObstacleLane) — ninguém tem uma estrada mais fácil, e não
+// é preciso mandar um obstáculo de cada vez pela rede.
+export const RACE_LANES = 3;
+export const RACE_ROAD_H = 560;
+export const RACE_CAR_W = 56;
+export const RACE_CAR_H = 88;
+export const RACE_PLAYER_Y = 430;
+export const RACE_BASE_SPEED = 240; // px/s
+export const RACE_MAX_SPEED = 620;
+export const RACE_SPEED_RAMP = 4.5; // px/s por segundo
+export const RACE_SPAWN_INTERVAL_START_MS = 950;
+export const RACE_SPAWN_INTERVAL_MIN_MS = 380;
+export const RACE_SPAWN_RAMP_MS_PER_S = 12;
+export const RACE_MAX_MS = 150000; // teto de segurança: ninguém corre para sempre
+export const RACE_POINTS_PER_SECOND = 1;
+export const RACE_PODIUM_BONUS = [20, 12, 6];
+export const RACE_RESULT_DISPLAY_MS = 6000;
+export const RACE_BROADCAST_MS = 250;
+
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
 //
@@ -480,6 +506,8 @@ export async function startNextBonusGame(code, room) {
     await startBattleTeam(code, nextRoom);
   } else if (key === "draw") {
     await startDrawGame(code, nextRoom);
+  } else if (key === "race") {
+    await startRaceGame(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -501,6 +529,8 @@ export async function startQuickBonusGame(code, room, key) {
     await startBattleTeam(code, nextRoom);
   } else if (key === "draw") {
     await startDrawGame(code, nextRoom);
+  } else if (key === "race") {
+    await startRaceGame(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -1065,5 +1095,120 @@ export async function resolveBattleRound(code, room) {
 }
 
 export async function finishBattleRound(code, room) {
+  await startNextBonusGame(code, room);
+}
+
+// --- Estrada Maluca em equipa ---
+
+// Gerador determinístico: dada a mesma semente e o mesmo índice de
+// obstáculo, todos os clientes têm de chegar à MESMA faixa. Um xorshift
+// simples chega — não é criptografia, é só ruído reprodutível.
+export function raceObstacleLane(seed, index) {
+  let x = ((seed >>> 0) ^ Math.imul(index + 1, 2654435761)) >>> 0;
+  x ^= x << 13; x >>>= 0;
+  x ^= x >>> 17;
+  x ^= x << 5; x >>>= 0;
+  return x % RACE_LANES;
+}
+
+// Intervalo entre obstáculos no instante t (ms de corrida). Aperta com o
+// tempo, tal como no modo sozinho.
+export function raceSpawnIntervalAt(elapsedMs) {
+  return Math.max(
+    RACE_SPAWN_INTERVAL_MIN_MS,
+    RACE_SPAWN_INTERVAL_START_MS - (elapsedMs / 1000) * RACE_SPAWN_RAMP_MS_PER_S
+  );
+}
+
+export function raceSpeedAt(elapsedMs) {
+  return Math.min(RACE_MAX_SPEED, RACE_BASE_SPEED + (elapsedMs / 1000) * RACE_SPEED_RAMP);
+}
+
+export async function startRaceGame(code, room) {
+  const playerIds = Object.keys(room.players || {});
+  const racers = {};
+  playerIds.forEach((uid) => {
+    racers[uid] = { lane: 1, alive: true, timeMs: 0, updatedAt: serverNow() };
+  });
+  await update(roomRef(code), {
+    state: "race",
+    race: {
+      seed: Math.floor(Math.random() * 2147483647),
+      startedAt: serverNow(),
+      endAt: serverNow() + RACE_MAX_MS,
+      racers,
+      resolved: false,
+    },
+  });
+}
+
+// Cada cliente só escreve a SUA linha (posição/tempo), nunca a dos outros.
+export async function updateRacer(code, uid, lane, timeMs) {
+  await update(ref(db, `rooms/${code}/race/racers/${uid}`), {
+    lane, timeMs: Math.round(timeMs), updatedAt: serverNow(),
+  });
+}
+
+// A batida é detetada localmente (é a estrada de quem joga) e só depois
+// registada. Idempotente: bater duas vezes não muda nada.
+//
+// O tempo da batida vai para um campo SÓ SEU (crashTimeMs), que o
+// updateRacer nunca toca. Sem isso, um envio de posição já a caminho podia
+// aterrar depois da batida e reescrever um tempo menor por cima — o jogador
+// perdia segundos que tinha mesmo aguentado.
+export async function crashRacer(code, uid, timeMs) {
+  await update(ref(db, `rooms/${code}/race/racers/${uid}`), {
+    alive: false, crashTimeMs: Math.round(timeMs), crashedAt: serverNow(),
+  });
+}
+
+// O tempo que conta: o da batida, se já bateu; senão o último transmitido.
+export function racerTimeMs(racer) {
+  if (!racer) return 0;
+  return racer.crashTimeMs ?? racer.timeMs ?? 0;
+}
+
+// Função pura — pontos = segundos aguentados, mais um bónus de pódio para
+// os três que foram mais longe. Empates ficam com a mesma classificação.
+export function computeRaceResults(room) {
+  const race = room.race || {};
+  const players = Object.keys(room.players || {});
+  const ranked = players
+    .map((uid) => ({ uid, timeMs: racerTimeMs(race.racers?.[uid]) }))
+    .sort((a, b) => b.timeMs - a.timeMs);
+  const roundPoints = {};
+  const standings = {};
+  let place = 0;
+  let lastTime = null;
+  ranked.forEach((entry, i) => {
+    if (entry.timeMs !== lastTime) { place = i; lastTime = entry.timeMs; }
+    const seconds = Math.floor(entry.timeMs / 1000);
+    const podium = entry.timeMs > 0 ? (RACE_PODIUM_BONUS[place] || 0) : 0;
+    roundPoints[entry.uid] = seconds * RACE_POINTS_PER_SECOND + podium;
+    standings[entry.uid] = { place: place + 1, timeMs: entry.timeMs, podium };
+  });
+  return { roundPoints, standings };
+}
+
+export async function resolveRaceRound(code, room) {
+  const race = room.race;
+  if (!race || race.resolved) return;
+  const { roundPoints, standings } = computeRaceResults(room);
+  const updates = {
+    "race/resolved": true,
+    "race/resolvedAt": serverNow(),
+    "race/roundPoints": roundPoints,
+    "race/standings": standings,
+  };
+  Object.entries(roundPoints).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = room.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  await update(roomRef(code), updates);
+}
+
+export async function finishRaceRound(code, room) {
   await startNextBonusGame(code, room);
 }

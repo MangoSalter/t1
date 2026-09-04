@@ -66,11 +66,15 @@ if (el) {
 
 /**
  * Mostra os comandos no ecrã (só em aparelhos táteis).
- * @param {{action?: {key: string, label: string}}} opts botão de ação
- *   opcional à direita (ex.: Espaço para atacar no Labirinto: Batalha).
+ * @param {{action?: {key: string, label: string}, axis?: "horizontal"}} opts
+ *   action: botão opcional à direita (ex.: Espaço para atacar no Labirinto:
+ *   Batalha). axis "horizontal": esconde as setas cima/baixo, para os jogos
+ *   de faixas (Estrada Maluca) onde elas não fazem nada — um botão que não
+ *   responde parece avaria, e ainda tapa o ecrã de jogo.
  */
 export function showTouchControls(opts = {}) {
   if (!el || !touchLikely) return;
+  el.classList.toggle("touch-horizontal", opts.axis === "horizontal");
   const action = opts.action;
   if (action && actionBtn) {
     actionBtn.dataset.touchKey = action.key;

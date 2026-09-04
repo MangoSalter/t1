@@ -22,6 +22,10 @@ import {
   battleClampToWalls, BATTLE_WALLS, BATTLE_PLAYER_RADIUS, BATTLE_WEAPON_RADIUS, BATTLE_WEAPON_MAX_ACTIVE,
   BATTLE_WEAPON_SPAWN_INTERVAL_MS, BATTLE_ATTACK_RADIUS, BATTLE_ATTACK_COOLDOWN_MS, BATTLE_LIVES,
   BATTLE_RESULT_DISPLAY_MS,
+  updateRacer, crashRacer, resolveRaceRound, finishRaceRound, raceObstacleLane, racerTimeMs,
+  raceSpawnIntervalAt, raceSpeedAt,
+  RACE_LANES, RACE_CAR_W, RACE_CAR_H, RACE_ROAD_H, RACE_PLAYER_Y, RACE_BASE_SPEED,
+  RACE_SPAWN_INTERVAL_START_MS, RACE_BROADCAST_MS, RACE_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -277,6 +281,7 @@ function onRoomUpdate(room) {
   }
   if (room.state !== "tag" && tagState.active) tagExit();
   if (room.state !== "battle" && battleState.active) battleExit();
+  if (room.state !== "race" && raceState.active) raceExit();
 
   switch (room.state) {
     case "lobby": renderLobby(room); showScreen("lobby"); break;
@@ -290,6 +295,7 @@ function onRoomUpdate(room) {
     case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
     case "tag": renderTag(room); showScreen("tag"); break;
     case "battle": renderBattle(room); showScreen("battle"); break;
+    case "race": renderRace(room); showScreen("race"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -305,6 +311,7 @@ function leaveToHome() {
   state.room = null;
   if (tagState.active) tagExit();
   if (battleState.active) battleExit();
+  if (raceState.active) raceExit();
   optionsEls.fab.classList.add("hidden");
   optionsEls.overlay.classList.add("hidden");
   showScreen("home");
@@ -356,7 +363,7 @@ const lobbyEls = {
 // de bónus de fim de partida), o que deixava os quadros de desenho mortos
 // numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
 // o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
-const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2 };
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2 };
 
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
@@ -1840,6 +1847,297 @@ function renderBattle(room) {
   }
 }
 
+// ---------- ESTRADA MALUCA EM EQUIPA ----------
+// Este jogo não sincroniza posições como a Fuga/Batalha: cada jogador corre
+// na SUA estrada, sem colidir com os outros. O que tem de ser rigorosamente
+// igual é a pista — daí a semente partilhada, com a qual cada cliente gera
+// localmente a mesma sequência de obstáculos (raceObstacleLane). Assim
+// ninguém apanha uma estrada mais fácil, e pela rede só passa uma linha por
+// jogador (faixa + tempo aguentado), a cada 250ms, em vez de dezenas de
+// carros por segundo.
+
+const raceEls = {
+  statusLine: document.getElementById("race-status-line"),
+  road: document.getElementById("race-road"),
+  standings: document.getElementById("race-standings"),
+  results: document.getElementById("race-results"),
+  continueBtn: document.getElementById("race-continue-btn"),
+};
+
+const raceState = {
+  active: false,
+  lane: 1,
+  elapsedMs: 0,
+  crashed: false,
+  spawnedCount: 0,
+  nextSpawnAtMs: 0,
+  obstacles: [],
+  obstacleEls: {},
+  laneLineEls: [],
+  playerEl: null,
+  lastFrame: 0,
+  lastBroadcastAt: 0,
+  keydownHandler: null,
+  resizeHandler: null,
+  lastFitTop: null,
+  lastFitH: null,
+  rafId: null,
+};
+
+raceEls.continueBtn.addEventListener("click", () => {
+  finishRaceRound(state.code, state.room);
+});
+
+function raceRoadWidth() {
+  return RACE_LANES * (RACE_CAR_W + 24) + 24;
+}
+
+function raceLaneCenterX(lane) {
+  const laneW = raceRoadWidth() / RACE_LANES;
+  return lane * laneW + laneW / 2;
+}
+
+function raceHandleKey(e) {
+  if (!raceState.active || raceState.crashed) return;
+  const left = ["ArrowLeft", "a", "A"].includes(e.key);
+  const right = ["ArrowRight", "d", "D"].includes(e.key);
+  if (!left && !right) return;
+  e.preventDefault();
+  if (left && raceState.lane > 0) raceState.lane -= 1;
+  else if (right && raceState.lane < RACE_LANES - 1) raceState.lane += 1;
+  raceUpdatePlayerX();
+}
+
+function raceUpdatePlayerX() {
+  if (!raceState.playerEl) return;
+  raceState.playerEl.style.left = `${raceLaneCenterX(raceState.lane) - RACE_CAR_W / 2}px`;
+}
+
+function raceBuildRoad() {
+  raceEls.road.innerHTML = "";
+  raceEls.road.style.width = `${raceRoadWidth()}px`;
+  raceEls.road.style.height = `${RACE_ROAD_H}px`;
+  raceState.laneLineEls = [];
+  for (let i = 1; i < RACE_LANES; i++) {
+    const line = document.createElement("div");
+    line.className = "car-lane-line";
+    line.style.left = `${i * (raceRoadWidth() / RACE_LANES)}px`;
+    raceEls.road.appendChild(line);
+    raceState.laneLineEls.push(line);
+  }
+  raceState.playerEl = document.createElement("div");
+  raceState.playerEl.className = "car-player";
+  raceState.playerEl.style.width = `${RACE_CAR_W}px`;
+  raceState.playerEl.style.height = `${RACE_CAR_H}px`;
+  raceState.playerEl.style.top = `${RACE_PLAYER_Y}px`;
+  raceEls.road.appendChild(raceState.playerEl);
+  raceUpdatePlayerX();
+}
+
+// Encolhe a estrada até o carro do jogador caber no ecrã, com margem para os
+// comandos táteis. Chamada ao entrar e sempre que a janela muda de tamanho.
+function fitRaceRoad() {
+  const wrap = raceEls.road.parentElement;
+  if (!wrap) return;
+  const top = Math.round(wrap.getBoundingClientRect().top);
+  // Recalcula só quando algo acima da estrada mudou de altura (a tira da
+  // classificação, por exemplo). renderRace corre várias vezes por segundo e
+  // medir/escrever estilos de cada vez custava um reflow por atualização.
+  if (top === raceState.lastFitTop && window.innerHeight === raceState.lastFitH) return;
+  raceState.lastFitTop = top;
+  raceState.lastFitH = window.innerHeight;
+  const reserved = 100; // comandos no ecrã + respiro no fundo
+  const available = window.innerHeight - top - reserved;
+  // A largura disponível vem do PAI: a própria caixa já leva a largura
+  // reduzida do cálculo anterior, e medi-la aqui encolhia a estrada um pouco
+  // mais a cada redimensionamento, até desaparecer.
+  const availableW = wrap.parentElement?.clientWidth || window.innerWidth;
+  const scale = Math.max(0.45, Math.min(1, available / RACE_ROAD_H, availableW / raceRoadWidth()));
+  raceEls.road.style.transform = `scale(${scale})`;
+  wrap.style.height = `${RACE_ROAD_H * scale}px`;
+  wrap.style.width = `${raceRoadWidth() * scale}px`;
+}
+
+function raceEnter(room) {
+  const race = room.race || {};
+  raceState.active = true;
+  raceState.lane = 1;
+  // Quem entrar a meio (recarregou a página, por exemplo) retoma no tempo de
+  // corrida já decorrido, para continuar a ver os mesmos carros que os outros.
+  raceState.elapsedMs = Math.max(0, serverNow() - (race.startedAt || serverNow()));
+  raceState.crashed = !!(race.racers?.[state.uid] && race.racers[state.uid].alive === false);
+  raceState.spawnedCount = 0;
+  raceState.nextSpawnAtMs = RACE_SPAWN_INTERVAL_START_MS;
+  raceState.obstacles = [];
+  raceState.obstacleEls = {};
+  raceState.lastBroadcastAt = 0;
+  raceBuildRoad();
+  raceState.lastFitTop = null;
+  raceState.lastFitH = null;
+  fitRaceRoad();
+  raceState.resizeHandler = () => fitRaceRoad();
+  window.addEventListener("resize", raceState.resizeHandler);
+  raceState.keydownHandler = (e) => raceHandleKey(e);
+  document.addEventListener("keydown", raceState.keydownHandler);
+  showTouchControls({ axis: "horizontal" });
+  raceState.lastFrame = performance.now();
+  raceState.rafId = requestAnimationFrame(raceTick);
+}
+
+function raceExit() {
+  hideTouchControls();
+  raceState.active = false;
+  if (raceState.rafId) cancelAnimationFrame(raceState.rafId);
+  raceState.rafId = null;
+  if (raceState.keydownHandler) document.removeEventListener("keydown", raceState.keydownHandler);
+  raceState.keydownHandler = null;
+  if (raceState.resizeHandler) window.removeEventListener("resize", raceState.resizeHandler);
+  raceState.resizeHandler = null;
+}
+
+// Sem tons dourados/laranja perto de var(--accent), para o carro do jogador
+// nunca se confundir com um obstáculo. A cor sai do índice (e não de
+// Math.random) para que todos vejam a mesma estrada até nos detalhes.
+const RACE_COLORS = ["#c65d4a", "#5c7e91", "#6c8a4f", "#8a6bb0", "#4a7a8c"];
+
+function raceSpawnObstacle(seed) {
+  const index = raceState.spawnedCount++;
+  const lane = raceObstacleLane(seed, index);
+  raceState.obstacles.push({ id: index, lane, y: -RACE_CAR_H });
+  const el = document.createElement("div");
+  el.className = "car-obstacle";
+  el.style.width = `${RACE_CAR_W}px`;
+  el.style.height = `${RACE_CAR_H}px`;
+  el.style.background = RACE_COLORS[(index * 3 + lane) % RACE_COLORS.length];
+  raceEls.road.appendChild(el);
+  raceState.obstacleEls[index] = el;
+}
+
+function raceTick(now) {
+  if (!raceState.active) return;
+  const room = state.room;
+  const race = room?.race;
+  if (!race || race.resolved) { raceState.rafId = requestAnimationFrame(raceTick); return; }
+
+  const dt = Math.min((now - raceState.lastFrame) / 1000, 0.05);
+  raceState.lastFrame = now;
+  if (!raceState.crashed) raceState.elapsedMs += dt * 1000;
+
+  const speed = raceSpeedAt(raceState.elapsedMs);
+
+  // Os obstáculos continuam a nascer mesmo depois de bater: quem já bateu
+  // fica a ver a estrada correr, e não um ecrã congelado.
+  while (raceState.nextSpawnAtMs <= raceState.elapsedMs) {
+    raceSpawnObstacle(race.seed || 0);
+    raceState.nextSpawnAtMs += raceSpawnIntervalAt(raceState.nextSpawnAtMs);
+  }
+
+  let collided = false;
+  raceState.obstacles.forEach((o) => {
+    o.y += speed * dt;
+    const el = raceState.obstacleEls[o.id];
+    if (!el) return;
+    el.style.left = `${raceLaneCenterX(o.lane) - RACE_CAR_W / 2}px`;
+    el.style.top = `${o.y}px`;
+    const overlapsY = o.y + RACE_CAR_H > RACE_PLAYER_Y && o.y < RACE_PLAYER_Y + RACE_CAR_H;
+    if (overlapsY && o.lane === raceState.lane) collided = true;
+  });
+  raceState.obstacles = raceState.obstacles.filter((o) => {
+    if (o.y > RACE_ROAD_H + RACE_CAR_H) {
+      raceState.obstacleEls[o.id]?.remove();
+      delete raceState.obstacleEls[o.id];
+      return false;
+    }
+    return true;
+  });
+
+  if (collided && !raceState.crashed) {
+    raceState.crashed = true;
+    raceState.playerEl?.classList.add("car-player-crashed");
+    crashRacer(state.code, state.uid, raceState.elapsedMs);
+  }
+
+  // Se o servidor já me dá como fora (bati e a escrita chegou, ou reentrei
+  // depois de bater), não volto a transmitir — senão um tick atrasado
+  // reescrevia um tempo MENOR por cima do tempo com que bati, e a
+  // classificação final baixava sozinha.
+  if (race.racers?.[state.uid]?.alive === false) raceState.crashed = true;
+  if (!raceState.crashed && serverNow() - raceState.lastBroadcastAt > RACE_BROADCAST_MS) {
+    raceState.lastBroadcastAt = serverNow();
+    updateRacer(state.code, state.uid, raceState.lane, raceState.elapsedMs);
+  }
+
+  const laneAnimS = Math.max(0.12, 0.5 * (RACE_BASE_SPEED / speed));
+  raceState.laneLineEls.forEach((el) => { el.style.animationDuration = `${laneAnimS}s`; });
+
+  raceState.rafId = requestAnimationFrame(raceTick);
+}
+
+// Painel lateral: mostra em tempo real quem ainda está de pé e há quanto
+// tempo — é isto que torna a corrida "multijogador" apesar de cada um correr
+// na sua estrada.
+function raceRenderStandings(room) {
+  const race = room.race || {};
+  const rows = Object.entries(room.players || {})
+    .map(([uid, p]) => {
+      const r = race.racers?.[uid] || {};
+      const isMe = uid === state.uid;
+      const timeMs = isMe ? raceState.elapsedMs : racerTimeMs(r);
+      const alive = isMe ? !raceState.crashed : r.alive !== false;
+      return { uid, name: p.name, avatar: p.avatar, timeMs, alive, isMe };
+    })
+    .sort((a, b) => b.timeMs - a.timeMs);
+  raceEls.standings.innerHTML = rows
+    .map((r, i) => `<div class="race-standing-row${r.isMe ? " race-standing-me" : ""}${r.alive ? "" : " race-standing-out"}">
+      <span class="race-standing-place">${i + 1}º</span>
+      <span class="score-name">${avatarImgHtml(r.avatar, "sm")}${escapeHtml(r.name)}</span>
+      <span class="race-standing-time">${r.alive ? "" : "💥 "}${(r.timeMs / 1000).toFixed(1)}s</span>
+    </div>`)
+    .join("");
+}
+
+function renderRace(room) {
+  const race = room.race;
+  if (!race) return;
+  if (!raceState.active) raceEnter(room);
+
+  if (!race.resolved) {
+    raceEls.statusLine.textContent = raceState.crashed
+      ? "Bateste! Vê quem ainda aguenta — a ronda acaba quando o último bater."
+      : "Desvia-te! Todos apanham exatamente os mesmos carros.";
+    raceEls.results.classList.add("hidden");
+    raceEls.continueBtn.classList.add("hidden");
+    raceEls.standings.classList.remove("hidden");
+    raceEls.road.classList.remove("hidden");
+    raceRenderStandings(room);
+    fitRaceRoad();
+  } else {
+    raceEls.statusLine.textContent = "Corrida terminada!";
+    raceEls.standings.classList.add("hidden");
+    // Acabou a corrida: a estrada já não tem nada para ver e, com 560px de
+    // altura, empurrava os resultados e o botão "Continuar" para fora do ecrã.
+    raceEls.road.classList.add("hidden");
+    raceEls.results.classList.remove("hidden");
+    raceEls.results.innerHTML = "";
+    const ordered = Object.entries(room.players || {})
+      .sort((a, b) => (race.standings?.[a[0]]?.place || 99) - (race.standings?.[b[0]]?.place || 99));
+    ordered.forEach(([uid, p]) => {
+      const st = race.standings?.[uid] || {};
+      const seconds = ((st.timeMs || 0) / 1000).toFixed(1);
+      const detail = st.podium
+        ? `${st.place}º — ${seconds}s (+${st.podium} de pódio)`
+        : `${st.place || "-"}º — ${seconds}s`;
+      const row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+        <span class="score-round">${detail}</span>
+        <span class="score-total">+${race.roundPoints?.[uid] || 0} pts</span>`;
+      raceEls.results.appendChild(row);
+    });
+    raceEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
+}
+
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -2126,6 +2424,22 @@ async function runHostLoopTick(room) {
       } else if (battle && battle.resolved) {
         if (now - (battle.resolvedAt || 0) > BATTLE_RESULT_DISPLAY_MS) {
           await finishBattleRound(state.code, room);
+        }
+      }
+    } else if (room.state === "race") {
+      const race = room.race;
+      if (race && !race.resolved) {
+        // A corrida acaba quando o último bater (ou ao fim do teto de tempo).
+        // Só contam quem está ligado: se alguém fechar o browser a meio, os
+        // outros não ficam presos à espera de um carro que já não corre.
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const aliveCount = connectedIds.filter((uid) => race.racers?.[uid]?.alive !== false).length;
+        if (now >= (race.endAt || 0) || aliveCount === 0) {
+          await resolveRaceRound(state.code, room);
+        }
+      } else if (race && race.resolved) {
+        if (now - (race.resolvedAt || 0) > RACE_RESULT_DISPLAY_MS) {
+          await finishRaceRound(state.code, room);
         }
       }
     }
