@@ -40,6 +40,22 @@ const MONKEY_CATCHER_HALF_WIDTH = 24;
 const MONKEY_BASE_FALL_SPEED = 60; // px/s
 const MONKEY_SPEED_INCREASE_PER_SEC = 4; // px/s a mais por cada segundo decorrido
 
+const MEM_PREVIEW_MS = 3000;
+const MEM_SHOWN_COUNT = 5;
+const MEM_DECOY_COUNT = 5;
+const MEM_POINTS_CORRECT = 4;
+const MEM_POINTS_WRONG = 2;
+const MEM_MAX_BONUS = 20;
+
+function shuffleArray(array) {
+  const a = array.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function difficultyForRound(round) {
   const numCategories = Math.min(
     SOLO_BASE_CATEGORIES + Math.floor((round - 1) / 2),
@@ -92,6 +108,9 @@ const solo = {
   monkeys: [],
   monkeySpawnIntervalId: null,
   monkeyMoveHandler: null,
+  memActive: false,
+  memShownIndexes: new Set(),
+  memSelected: new Set(),
 };
 
 const els = {
@@ -124,6 +143,10 @@ const els = {
   monkeyArena: document.getElementById("monkey-arena"),
   monkeyCatcher: document.getElementById("monkey-catcher"),
   monkeyStatus: document.getElementById("monkey-status"),
+  memInstructions: document.getElementById("mem-instructions"),
+  memGrid: document.getElementById("mem-grid"),
+  memConfirmBtn: document.getElementById("mem-confirm-btn"),
+  memStatus: document.getElementById("mem-status"),
 };
 
 function showScreen(name) {
@@ -155,6 +178,7 @@ els.mgCircle.addEventListener("click", () => {
 els.wfInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitWfWord();
 });
+els.memConfirmBtn.addEventListener("click", finishMemory);
 
 function startRun() {
   solo.round = 0;
@@ -294,7 +318,10 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
 // --- Mini-jogos bónus entre rondas: escolhido ao acaso a cada ronda, para
 // dar variedade em vez de repetir sempre o mesmo. ---
 
-const MINIGAMES = [startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame, startMonkeyRescueMinigame];
+const MINIGAMES = [
+  startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame,
+  startMonkeyRescueMinigame, startMemoryMinigame,
+];
 
 function startMinigame() {
   const chosen = MINIGAMES[Math.floor(Math.random() * MINIGAMES.length)];
@@ -584,4 +611,70 @@ function finishMonkeyRescue() {
   solo.runScore += bonus;
   els.monkeyStatus.textContent = `+${bonus} pts bónus!`;
   setTimeout(nextRound, 1400);
+}
+
+// --- Memória: memoriza categorias mostradas por breves segundos, depois
+// identifica-as entre distratoras. Sem pressão de tempo na escolha. ---
+
+function startMemoryMinigame() {
+  solo.memActive = true;
+  solo.memSelected = new Set();
+  els.memStatus.textContent = "";
+  els.memConfirmBtn.classList.add("hidden");
+  showScreen("solo-minigame-memory");
+
+  const shuffled = shuffleArray(CATEGORIES.map((_, i) => i));
+  const shown = shuffled.slice(0, MEM_SHOWN_COUNT);
+  const decoys = shuffled.slice(MEM_SHOWN_COUNT, MEM_SHOWN_COUNT + MEM_DECOY_COUNT);
+  solo.memShownIndexes = new Set(shown);
+  const gridIndexes = shuffleArray([...shown, ...decoys]);
+
+  els.memInstructions.textContent = "Memoriza estas categorias...";
+  els.memGrid.innerHTML = "";
+  shown.forEach((ci) => {
+    const card = document.createElement("div");
+    card.className = "mem-card shown-preview";
+    card.textContent = CATEGORIES[ci];
+    els.memGrid.appendChild(card);
+  });
+
+  setTimeout(() => {
+    if (!solo.memActive) return;
+    els.memInstructions.textContent = `Clica nas ${MEM_SHOWN_COUNT} categorias que estavam lá antes.`;
+    els.memGrid.innerHTML = "";
+    gridIndexes.forEach((ci) => {
+      const card = document.createElement("div");
+      card.className = "mem-card";
+      card.textContent = CATEGORIES[ci];
+      card.addEventListener("click", () => {
+        if (!solo.memActive) return;
+        if (solo.memSelected.has(ci)) {
+          solo.memSelected.delete(ci);
+          card.classList.remove("selected");
+        } else {
+          solo.memSelected.add(ci);
+          card.classList.add("selected");
+        }
+      });
+      els.memGrid.appendChild(card);
+    });
+    els.memConfirmBtn.classList.remove("hidden");
+  }, MEM_PREVIEW_MS);
+}
+
+function finishMemory() {
+  if (!solo.memActive) return;
+  solo.memActive = false;
+  els.memConfirmBtn.classList.add("hidden");
+
+  let correct = 0;
+  let wrong = 0;
+  solo.memSelected.forEach((ci) => {
+    if (solo.memShownIndexes.has(ci)) correct += 1;
+    else wrong += 1;
+  });
+  const bonus = Math.max(0, Math.min(correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG, MEM_MAX_BONUS));
+  solo.runScore += bonus;
+  els.memStatus.textContent = `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`;
+  setTimeout(nextRound, 1600);
 }
