@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray, normalizeCountryName,
+  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord,
 } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
@@ -548,6 +548,12 @@ export async function startDrawGame(code, room) {
       turnOrder,
       turnIndex: 0,
       drawerId: turnOrder[0],
+      // A palavra secreta fica em texto simples na sala, como o resto do
+      // jogo ("por confiança" — ver nota no topo): quem espreitar a
+      // consola estraga o jogo a si próprio. O cliente só a mostra a quem
+      // desenha, e revela-a a todos quando a ronda fecha.
+      secretWord: pickDrawWord([]),
+      usedWords: [],
       doodle: { points: [] },
       resolved: false,
       roundWinnerId: null,
@@ -609,9 +615,12 @@ export async function advanceDrawRound(code, room) {
     await startNextBonusGame(code, room);
     return;
   }
+  const usedWords = [...(draw.usedWords || []), draw.secretWord].filter(Boolean);
   await update(ref(db, `rooms/${code}/draw`), {
     turnIndex: nextIndex,
     drawerId: draw.turnOrder[nextIndex],
+    secretWord: pickDrawWord(usedWords),
+    usedWords,
     doodle: { points: [] },
     resolved: false,
     roundWinnerId: null,

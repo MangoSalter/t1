@@ -300,3 +300,27 @@ export function pickLandmarkRound(usedIds) {
   const options = shuffleArray([landmark.answer, ...uniqueDistractors]);
   return { landmark, options };
 }
+
+// --- Palavras para o "Desenha e Adivinha" ---
+// Escolhidas por serem DESENHÁVEIS (coisas concretas, com forma óbvia), ao
+// contrário do banco da Forca, que tem palavras como "ENGENHEIRO" — boas
+// para adivinhar letra a letra, impossíveis de desenhar.
+export const DRAW_WORDS = [
+  "Elefante", "Girafa", "Pinguim", "Tartaruga", "Golfinho", "Caranguejo", "Borboleta", "Aranha",
+  "Bicicleta", "Comboio", "Avião", "Barco", "Foguetão", "Helicóptero", "Trator", "Autocarro",
+  "Guarda-chuva", "Óculos", "Chapéu", "Sapato", "Relógio", "Chave", "Escada", "Martelo",
+  "Banana", "Melancia", "Ananás", "Pizza", "Gelado", "Bolo", "Ovo estrelado", "Cachupa",
+  "Casa", "Farol", "Ponte", "Castelo", "Igreja", "Moinho", "Tenda", "Piscina",
+  "Sol", "Nuvem", "Trovoada", "Arco-íris", "Vulcão", "Ilha", "Cascata", "Palmeira",
+  "Violão", "Tambor", "Piano", "Microfone", "Televisão", "Telemóvel", "Câmara", "Livro",
+  "Fantasma", "Robô", "Dragão", "Sereia", "Bruxa", "Coroa", "Espada", "Tesouro",
+  "Futebol", "Basquetebol", "Surf", "Skate", "Paraquedas", "Pesca", "Xadrez", "Balão de ar quente",
+];
+
+// Escolhe uma palavra ainda não usada nesta partida (recomeça se esgotar).
+export function pickDrawWord(usedWords) {
+  const used = new Set(usedWords || []);
+  const available = DRAW_WORDS.filter((w) => !used.has(w));
+  const pool = available.length > 0 ? available : DRAW_WORDS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}

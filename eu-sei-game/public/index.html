@@ -413,56 +413,60 @@
       <button id="lobby-avatar-edit-btn" type="button" class="ghost-primary">🎨 Desenhar o meu avatar</button>
       <p class="hint small">Aproveita a espera para desenhares o teu avatar!</p>
 
-      <form id="config-form" class="config-form">
-        <label>Nº de categorias por ronda
-          <input id="cfg-num-categories" type="number" min="4" max="15" />
-        </label>
-        <label>Tempo por ronda (segundos)
-          <input id="cfg-time-limit" type="number" min="30" max="300" />
-        </label>
-        <label class="checkbox-label">
-          <input id="cfg-exclude-hard" type="checkbox" />
-          Excluir letras difíceis (K, W, Y)
-        </label>
-        <label>Nº de rondas por partida
-          <input id="cfg-num-rounds" type="number" min="1" max="15" />
-        </label>
-      </form>
+      <!-- Menu de escolha de jogo, como no modo sozinho -->
+      <div class="divider">o que vamos jogar?</div>
+      <button id="start-game-btn" class="primary">Eu sei — modo clássico (rondas + bónus)</button>
+      <p class="hint small">As rondas do Stop e, no fim, os mini-jogos bónus escolhidos nas definições.</p>
 
+      <div class="divider">ou joga já um mini-jogo</div>
+      <p id="lobby-minigames-hint" class="hint small">Salta as rondas clássicas e começa já neste. Precisa de 3+ jogadores ligados.</p>
+      <div class="solo-menu-grid">
+        <button type="button" data-mp-game="draw">Desenha e Adivinha</button>
+        <button type="button" data-mp-game="hangman">Forca (quadro branco)</button>
+        <button type="button" data-mp-game="mapTrivia">Mapa-Múndi</button>
+        <button type="button" data-mp-game="tag">Fuga da Infeção</button>
+        <button type="button" data-mp-game="battle">Labirinto: Batalha</button>
+      </div>
+
+      <div class="divider"></div>
       <details class="cat-picker">
-        <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/40)</summary>
-        <div class="cat-picker-actions">
-          <button type="button" id="cfg-cat-selectall" class="ghost">Selecionar todas</button>
-          <button type="button" id="cfg-cat-clear" class="ghost">Limpar</button>
-        </div>
-        <div id="cfg-cat-grid" class="cat-picker-grid"></div>
-      </details>
+        <summary>⚙️ Definições da partida (anfitrião)</summary>
+        <form id="config-form" class="config-form">
+          <label>Nº de categorias por ronda
+            <input id="cfg-num-categories" type="number" min="4" max="15" />
+          </label>
+          <label>Tempo por ronda (segundos)
+            <input id="cfg-time-limit" type="number" min="30" max="300" />
+          </label>
+          <label class="checkbox-label">
+            <input id="cfg-exclude-hard" type="checkbox" />
+            Excluir letras difíceis (K, W, Y)
+          </label>
+          <label>Nº de rondas por partida
+            <input id="cfg-num-rounds" type="number" min="1" max="15" />
+          </label>
+        </form>
 
-      <details class="cat-picker" open>
-        <summary>Mini-jogos bónus de fim de partida (a partir de 3 jogadores)</summary>
-        <p class="hint small">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
-        <div class="marathon-picker">
-          <label><input type="checkbox" data-bonus-game="hangman" checked /> Forca em equipa</label>
-          <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
-          <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa (experimental, tempo real)</label>
-          <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa (experimental, tempo real)</label>
-          <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa (experimental, tempo real)</label>
-        </div>
-      </details>
+        <details class="cat-picker">
+          <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/40)</summary>
+          <div class="cat-picker-actions">
+            <button type="button" id="cfg-cat-selectall" class="ghost">Selecionar todas</button>
+            <button type="button" id="cfg-cat-clear" class="ghost">Limpar</button>
+          </div>
+          <div id="cfg-cat-grid" class="cat-picker-grid"></div>
+        </details>
 
-      <button id="start-game-btn" class="primary">Iniciar jogo</button>
-
-      <details class="cat-picker">
-        <summary>⚡ Ou salta direto para um mini-jogo (sem rondas clássicas)</summary>
-        <p class="hint small">Tal como escolher um jogo avulso no modo sozinho — começa logo neste, sem jogar as rondas do Stop primeiro. Precisa de pelo menos 3 jogadores ligados.</p>
-        <div class="marathon-picker">
-          <label><input type="radio" name="quickgame" value="hangman" checked /> Forca em equipa (quadro branco)</label>
-          <label><input type="radio" name="quickgame" value="mapTrivia" /> Mapa-Múndi em equipa</label>
-          <label><input type="radio" name="quickgame" value="tag" /> Fuga da Infeção em equipa</label>
-          <label><input type="radio" name="quickgame" value="battle" /> Labirinto: Batalha em equipa</label>
-          <label><input type="radio" name="quickgame" value="draw" /> Desenha e Adivinha em equipa</label>
-        </div>
-        <button id="lobby-quickgame-btn" type="button" class="primary">Começar este mini-jogo</button>
+        <details class="cat-picker" open>
+          <summary>Mini-jogos bónus de fim de partida (a partir de 3 jogadores)</summary>
+          <p class="hint small">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
+          <div class="marathon-picker">
+            <label><input type="checkbox" data-bonus-game="hangman" checked /> Forca em equipa</label>
+            <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
+            <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa</label>
+            <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
+            <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
+          </div>
+        </details>
       </details>
 
       <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>

@@ -333,8 +333,19 @@ const lobbyEls = {
   catGrid: document.getElementById("cfg-cat-grid"),
   catSelectAll: document.getElementById("cfg-cat-selectall"),
   catClear: document.getElementById("cfg-cat-clear"),
-  quickGameBtn: document.getElementById("lobby-quickgame-btn"),
+  minigamesHint: document.getElementById("lobby-minigames-hint"),
 };
+
+// Menu de escolha de jogo da sala, ao estilo do menu do modo sozinho: cada
+// botão salta as rondas clássicas e começa logo nesse mini-jogo.
+const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
+mpGameButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const room = state.room;
+    if (!room || !isHost(room)) return;
+    startQuickBonusGame(state.code, room, btn.dataset.mpGame);
+  });
+});
 
 const bonusGameCheckboxes = Array.from(document.querySelectorAll("[data-bonus-game]"));
 
@@ -467,19 +478,16 @@ function renderLobby(room) {
   lobbyEls.startBtn.disabled = players.length < 2;
   lobbyEls.waiting.classList.toggle("hidden", amHost);
 
-  lobbyEls.quickGameBtn.classList.toggle("hidden", !amHost);
   const connectedCount = players.filter(([, p]) => p.connected).length;
-  lobbyEls.quickGameBtn.disabled = connectedCount < 3;
+  mpGameButtons.forEach((btn) => {
+    btn.disabled = !amHost || connectedCount < 3;
+  });
+  lobbyEls.minigamesHint.textContent = !amHost
+    ? "Só o anfitrião escolhe o jogo."
+    : connectedCount < 3
+      ? `Precisa de 3+ jogadores ligados (há ${connectedCount}).`
+      : "Salta as rondas clássicas e começa já neste.";
 }
-
-// Salta direto para um mini-jogo bónus escolhido, sem passar pelas rondas
-// clássicas — tal como escolher um jogo avulso no menu do modo sozinho.
-lobbyEls.quickGameBtn.addEventListener("click", () => {
-  const room = state.room;
-  if (!room || !isHost(room)) return;
-  const key = document.querySelector('input[name="quickgame"]:checked')?.value || "hangman";
-  startQuickBonusGame(state.code, room, key);
-});
 
 // ---------- BALL MINIGAME ----------
 
@@ -1098,8 +1106,10 @@ function renderDraw(room) {
   const roundLabel = `Ronda ${draw.turnIndex + 1}/${draw.turnOrder.length}`;
 
   if (!draw.resolved) {
+    // A palavra secreta só aparece a quem desenha; os outros só sabem de
+    // quem é a vez (e adivinham em voz alta).
     drawEls.status.textContent = amDrawer
-      ? `${roundLabel} — és tu que desenhas! Desenha uma pista para a equipa adivinhar em voz alta.`
+      ? `${roundLabel} — desenha: “${draw.secretWord || "?"}”`
       : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`;
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
@@ -1114,11 +1124,12 @@ function renderDraw(room) {
     drawEls.skipBtn.classList.add("hidden");
     drawEls.continueBtn.classList.toggle("hidden", !isHost(room));
     drawEls.result.classList.remove("hidden");
+    const word = draw.secretWord ? `Era “${draw.secretWord}”. ` : "";
     if (draw.roundWinnerId) {
       const winnerName = room.players?.[draw.roundWinnerId]?.name || "Alguém";
-      drawEls.result.textContent = `🎉 ${winnerName} acertou! +${DRAW_WINNER_POINTS} pts (e +${DRAW_DRAWER_BONUS} para ${drawerName})`;
+      drawEls.result.textContent = `🎉 ${word}${winnerName} acertou! +${DRAW_WINNER_POINTS} pts (e +${DRAW_DRAWER_BONUS} para ${drawerName})`;
     } else {
-      drawEls.result.textContent = "Ninguém acertou desta vez...";
+      drawEls.result.textContent = `${word}Ninguém acertou desta vez...`;
     }
   }
   drawDoodleRedraw();
