@@ -979,6 +979,7 @@ const tagState = {
   worldEl: null,
   playerEls: {},
   powerupEls: {},
+  playerDisplayPos: {},
 };
 
 tagEls.continueBtn.addEventListener("click", () => {
@@ -1003,6 +1004,7 @@ function tagEnter(room) {
   tagState.keys = { up: false, down: false, left: false, right: false };
   tagState.playerEls = {};
   tagState.powerupEls = {};
+  tagState.playerDisplayPos = {};
 
   tagEls.arena.innerHTML = "";
   tagState.worldEl = document.createElement("div");
@@ -1126,18 +1128,37 @@ function tagTick(now) {
   }
 
   // Renderiza todos os jogadores (posições mais recentes conhecidas via room).
+  // Os outros jogadores só recebem uma posição nova a cada ~120ms (o ritmo
+  // de transmissão de cada cliente), por isso suaviza-se visualmente o
+  // movimento deles (o próprio jogador já é 100% local, sem essa lacuna).
   Object.keys(room.players || {}).forEach((uid) => {
-    const pos = uid === state.uid ? { x: tagState.x, y: tagState.y } : tag.positions?.[uid];
-    if (!pos) return;
+    const isMe = uid === state.uid;
+    const target = isMe ? { x: tagState.x, y: tagState.y } : tag.positions?.[uid];
+    if (!target) return;
+    let display = tagState.playerDisplayPos[uid];
+    if (!display) {
+      display = { x: target.x, y: target.y };
+      tagState.playerDisplayPos[uid] = display;
+    }
+    if (isMe) {
+      display.x = target.x;
+      display.y = target.y;
+    } else {
+      const smoothing = Math.min(1, dt * 8);
+      display.x += (target.x - display.x) * smoothing;
+      display.y += (target.y - display.y) * smoothing;
+    }
     const el = tagPlayerEl(uid, room.players[uid].name || "?");
     const infected = !!tag.infected?.[uid];
     const shielded = (tag.effects?.[uid]?.shieldUntil || 0) > serverNow();
+    const speedy = (tag.effects?.[uid]?.speedUntil || 0) > serverNow();
     el.classList.toggle("tag-player-infected", infected);
     el.classList.toggle("tag-player-survivor", !infected);
-    el.classList.toggle("tag-player-me", uid === state.uid);
+    el.classList.toggle("tag-player-me", isMe);
     el.classList.toggle("tag-player-shield", shielded);
-    el.style.left = `${pos.x}px`;
-    el.style.top = `${pos.y}px`;
+    el.classList.toggle("tag-player-speed", speedy && !shielded);
+    el.style.left = `${display.x}px`;
+    el.style.top = `${display.y}px`;
   });
   tagRenderPowerups(tag.powerups);
 

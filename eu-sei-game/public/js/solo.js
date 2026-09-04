@@ -628,6 +628,7 @@ const solo = {
   carNextObstacleId: 1,
   carPlayerEl: null,
   carKeyHandler: null,
+  carLaneLineEls: [],
 };
 
 const els = {
@@ -2915,11 +2916,13 @@ function carRenderRoad() {
   els.carRoad.innerHTML = "";
   els.carRoad.style.width = `${carRoadWidth()}px`;
   els.carRoad.style.height = `${CAR_ROAD_H}px`;
+  solo.carLaneLineEls = [];
   for (let i = 1; i < CAR_LANES; i++) {
     const line = document.createElement("div");
     line.className = "car-lane-line";
     line.style.left = `${i * (carRoadWidth() / CAR_LANES)}px`;
     els.carRoad.appendChild(line);
+    solo.carLaneLineEls.push(line);
   }
   solo.carPlayerEl = document.createElement("div");
   solo.carPlayerEl.className = "car-player";
@@ -3045,6 +3048,10 @@ function carTick(now) {
   solo.carScore += CAR_POINTS_PER_SECOND * dt;
   updateGameHudScore();
   els.carStatus.textContent = `${Math.floor(solo.carElapsed)}s — velocidade ${Math.round(solo.carSpeed)}`;
+  // As linhas da estrada "correm" a uma velocidade ligada à do jogo, para
+  // reforçar a sensação de aceleração, não só os carros a mexerem-se.
+  const laneAnimS = Math.max(0.12, 0.5 * (CAR_BASE_SPEED / solo.carSpeed));
+  solo.carLaneLineEls.forEach((el) => { el.style.animationDuration = `${laneAnimS}s`; });
 
   requestAnimationFrame(carTick);
 }
