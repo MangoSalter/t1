@@ -10,7 +10,7 @@ import {
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
-  finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints,
+  finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints, pointsObjectToArray,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -862,7 +862,7 @@ function hangmanDoodleRedraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
-  const points = [...(room?.hangman?.doodle?.points || []), ...hangmanDoodleState.pending];
+  const points = [...pointsObjectToArray(room?.hangman?.doodle?.points), ...hangmanDoodleState.pending];
   ctx.strokeStyle = HANGMAN_DOODLE_INK;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -1022,7 +1022,7 @@ function drawDoodleRedraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
-  const points = [...(room?.draw?.doodle?.points || []), ...drawDoodleState.pending];
+  const points = [...pointsObjectToArray(room?.draw?.doodle?.points), ...drawDoodleState.pending];
   ctx.strokeStyle = DRAW_DOODLE_INK;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -1943,7 +1943,7 @@ function scratchpadRedraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
-  const points = [...(room?.scratchpad?.points || []), ...scratchpadState.pending];
+  const points = [...pointsObjectToArray(room?.scratchpad?.points), ...scratchpadState.pending];
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = 3;

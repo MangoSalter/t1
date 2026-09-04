@@ -83,6 +83,57 @@ export const BATTLE_WALLS = [
 
 export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw"];
 
+// --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
+//
+// Os pontos são guardados NUM OBJETO com chaves sequenciais, não num array.
+// Antes era um array reescrito por inteiro a cada envio (~90ms enquanto se
+// desenha): com o limite cheio, cada escrita levava a lista toda — dezenas
+// de KB por envio, centenas de KB por segundo, tudo para acrescentar meia
+// dúzia de pontos. Assim escreve-se só o que é novo.
+//
+// A chave é `p` + sequência com zeros à esquerda + sufixo de quem escreveu:
+// a largura fixa faz a ordem alfabética coincidir com a numérica (é assim
+// que se lê de volta), e o sufixo evita que dois clientes a desenhar ao
+// mesmo tempo (no rabisco) se sobreponham na mesma sequência.
+const POINT_SEQ_WIDTH = 7;
+
+export function pointsObjectToArray(pointsObj) {
+  if (!pointsObj) return [];
+  if (Array.isArray(pointsObj)) return pointsObj.filter(Boolean); // formato antigo
+  return Object.keys(pointsObj).sort().map((k) => pointsObj[k]);
+}
+
+function nextPointSeq(pointsObj) {
+  if (!pointsObj || Array.isArray(pointsObj)) return 0;
+  let max = -1;
+  Object.keys(pointsObj).forEach((k) => {
+    const n = parseInt(k.slice(1, 1 + POINT_SEQ_WIDTH), 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  });
+  return max + 1;
+}
+
+// Acrescenta só os pontos novos e apaga os mais antigos que passem do
+// limite — ambos no mesmo update multi-caminho, uma só escrita.
+async function appendPoints(basePath, existingObj, newPoints, uid, maxPoints) {
+  const suffix = String(uid || "x").slice(-4);
+  let seq = nextPointSeq(existingObj);
+  const updates = {};
+  newPoints.forEach((pt) => {
+    updates[`p${String(seq++).padStart(POINT_SEQ_WIDTH, "0")}_${suffix}`] = pt;
+  });
+  const existingKeys = existingObj && !Array.isArray(existingObj) ? Object.keys(existingObj).sort() : [];
+  const overflow = existingKeys.length + newPoints.length - maxPoints;
+  for (let i = 0; i < overflow && i < existingKeys.length; i++) {
+    updates[existingKeys[i]] = null;
+  }
+  // Vinha do formato antigo (array): recomeça limpo, senão misturavam-se.
+  if (Array.isArray(existingObj)) {
+    await set(ref(db, basePath), null);
+  }
+  await update(ref(db, basePath), updates);
+}
+
 // --- Rabisco coletivo (menu de Opções, disponível em qualquer ecrã da
 // sala) — ao contrário do quadro da Forca (só o anfitrião, um jogo de
 // charadas), este é só por diversão: qualquer jogador pode desenhar a
@@ -93,15 +144,12 @@ export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw"]
 export const SCRATCHPAD_MAX_POINTS = 500;
 
 export async function pushScratchpadPoints(code, room, newPoints) {
-  const combined = [...(room.scratchpad?.points || []), ...newPoints];
-  const trimmed = combined.length > SCRATCHPAD_MAX_POINTS
-    ? combined.slice(combined.length - SCRATCHPAD_MAX_POINTS)
-    : combined;
-  await set(ref(db, `rooms/${code}/scratchpad/points`), trimmed);
+  const uid = newPoints[0]?.uid;
+  await appendPoints(`rooms/${code}/scratchpad/points`, room.scratchpad?.points, newPoints, uid, SCRATCHPAD_MAX_POINTS);
 }
 
 export async function clearScratchpad(code) {
-  await set(ref(db, `rooms/${code}/scratchpad/points`), []);
+  await set(ref(db, `rooms/${code}/scratchpad/points`), null);
 }
 
 // --- Forca em equipa (bónus de fim de partida) ---
@@ -500,7 +548,7 @@ export async function startHangman(code, room) {
     state: "hangman",
     hangman: {
       leaderId: room.hostId,
-      doodle: { points: [] },
+      doodle: { points: null },
     },
   });
 }
@@ -510,7 +558,7 @@ export async function finishHangman(code, room) {
 }
 
 export async function clearHangmanDoodle(code) {
-  await update(ref(db, `rooms/${code}/hangman/doodle`), { points: [] });
+  await set(ref(db, `rooms/${code}/hangman/doodle/points`), null);
 }
 
 // Só o líder (anfitrião da sala) pode escrever (verificação por confiança,
@@ -521,11 +569,7 @@ export async function clearHangmanDoodle(code) {
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;
   if (!hangman || hangman.leaderId !== uid) return;
-  const combined = [...(hangman.doodle?.points || []), ...newPoints];
-  const trimmed = combined.length > HANGMAN_DOODLE_MAX_POINTS
-    ? combined.slice(combined.length - HANGMAN_DOODLE_MAX_POINTS)
-    : combined;
-  await set(ref(db, `rooms/${code}/hangman/doodle/points`), trimmed);
+  await appendPoints(`rooms/${code}/hangman/doodle/points`, hangman.doodle?.points, newPoints, uid, HANGMAN_DOODLE_MAX_POINTS);
 }
 
 // --- Desenha e Adivinha em equipa (bónus de fim de partida) ---
@@ -554,7 +598,7 @@ export async function startDrawGame(code, room) {
       // desenha, e revela-a a todos quando a ronda fecha.
       secretWord: pickDrawWord([]),
       usedWords: [],
-      doodle: { points: [] },
+      doodle: { points: null },
       resolved: false,
       roundWinnerId: null,
       resolvedAt: null,
@@ -567,16 +611,12 @@ export async function startDrawGame(code, room) {
 export async function pushDrawDoodlePoints(code, room, uid, newPoints) {
   const draw = room.draw;
   if (!draw || draw.drawerId !== uid || draw.resolved) return;
-  const combined = [...(draw.doodle?.points || []), ...newPoints];
-  const trimmed = combined.length > DRAW_MAX_POINTS
-    ? combined.slice(combined.length - DRAW_MAX_POINTS)
-    : combined;
-  await set(ref(db, `rooms/${code}/draw/doodle/points`), trimmed);
+  await appendPoints(`rooms/${code}/draw/doodle/points`, draw.doodle?.points, newPoints, uid, DRAW_MAX_POINTS);
 }
 
 export async function clearDrawDoodle(code, room, uid) {
   if (!room.draw || room.draw.drawerId !== uid) return;
-  await update(ref(db, `rooms/${code}/draw/doodle`), { points: [] });
+  await set(ref(db, `rooms/${code}/draw/doodle/points`), null);
 }
 
 // Quem desenha escolhe quem acertou primeiro (é o único que sabe a
@@ -621,7 +661,7 @@ export async function advanceDrawRound(code, room) {
     drawerId: draw.turnOrder[nextIndex],
     secretWord: pickDrawWord(usedWords),
     usedWords,
-    doodle: { points: [] },
+    doodle: { points: null },
     resolved: false,
     roundWinnerId: null,
     resolvedAt: null,
