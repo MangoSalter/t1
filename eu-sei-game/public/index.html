@@ -46,6 +46,7 @@
     <div class="card">
       <h2>Jogar sozinho</h2>
       <p class="hint">Escolhe o que queres jogar.</p>
+      <p id="solo-account-xp" class="hint small account-xp"></p>
       <button id="solo-classic-btn" class="primary">Eu sei — modo clássico</button>
       <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
       <div class="divider">jogar avulso</div>
@@ -102,7 +103,7 @@
   </section>
 
   <!-- SOLO MINIGAME: FORCA -->
-  <section data-screen="solo-hangman" class="screen">
+  <section data-screen="solo-hangman" class="screen fullscreen-game">
     <div class="card wide center">
       <h2>Forca!</h2>
       <p id="solo-hangman-category" class="hint"></p>
@@ -162,7 +163,7 @@
   </section>
 
   <!-- SOLO MINIGAME: REFLEXOS -->
-  <section data-screen="solo-minigame" class="screen">
+  <section data-screen="solo-minigame" class="screen fullscreen-game">
     <div class="card center">
       <h2>Mini-jogo: Reflexos!</h2>
       <p id="solo-mg-status" class="hint">Prepara-te...</p>
@@ -172,7 +173,7 @@
   </section>
 
   <!-- SOLO MINIGAME: PALAVRA RELÂMPAGO -->
-  <section data-screen="solo-minigame-word" class="screen">
+  <section data-screen="solo-minigame-word" class="screen fullscreen-game">
     <div class="card center">
       <h2>Mini-jogo: Palavra Relâmpago!</h2>
       <p class="hint">Escreve o máximo de palavras que conseguires que comecem por <span id="wf-letter" class="letter-big"></span>, antes do tempo acabar.</p>
@@ -185,7 +186,7 @@
   </section>
 
   <!-- SOLO MINIGAME: MATA O INSETO -->
-  <section data-screen="solo-minigame-bug" class="screen">
+  <section data-screen="solo-minigame-bug" class="screen fullscreen-game">
     <div class="card center">
       <h2>Mini-jogo: Mata o Inseto!</h2>
       <p class="hint">Apanha só o <span id="bug-target-label" class="letter-big"></span> — não cliques nos outros!</p>
@@ -196,7 +197,7 @@
   </section>
 
   <!-- SOLO MINIGAME: CADA MACACO NO SEU GALHO -->
-  <section data-screen="solo-minigame-monkey" class="screen">
+  <section data-screen="solo-minigame-monkey" class="screen fullscreen-game">
     <div class="card center">
       <h2>Mini-jogo: Cada Macaco no Seu Galho!</h2>
       <p class="hint">Os macacos caem das árvores — move o rato para os apanhares com o bombeiro-macaco!</p>
@@ -209,7 +210,7 @@
   </section>
 
   <!-- SOLO MINIGAME: MEMÓRIA DE CATEGORIAS -->
-  <section data-screen="solo-minigame-memory" class="screen">
+  <section data-screen="solo-minigame-memory" class="screen fullscreen-game">
     <div class="card wide center">
       <h2>Mini-jogo: Memória!</h2>
       <p id="mem-instructions" class="hint">Memoriza estas categorias...</p>
@@ -220,7 +221,7 @@
   </section>
 
   <!-- SOLO MINIGAME: MAPA-MÚNDI -->
-  <section data-screen="solo-minigame-map" class="screen">
+  <section data-screen="solo-minigame-map" class="screen fullscreen-game">
     <div class="card wide center">
       <h2>Mini-jogo: Mapa-Múndi!</h2>
       <p id="map-prompt" class="hint"></p>
@@ -386,6 +387,37 @@
       <button data-leave class="ghost">Sair da sala</button>
     </div>
   </section>
+
+  <!-- HUD partilhado por todos os mini-jogos solo: pontos em tempo real + pausar/saltar -->
+  <div id="game-hud" class="game-hud hidden">
+    <div class="game-hud-score">🏆 <span id="game-hud-score-value">0</span> pts</div>
+    <button type="button" id="game-hud-pause-btn" class="hud-btn" title="Pausar">⏸</button>
+    <button type="button" id="game-hud-skip-btn" class="hud-btn" title="Saltar mini-jogo">⏭</button>
+  </div>
+
+  <!-- Ecrã de pausa -->
+  <div id="pause-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>⏸ Pausa</h2>
+      <p class="hint">O jogo está parado — ninguém a ver.</p>
+      <button type="button" id="pause-resume-btn" class="primary">Continuar</button>
+      <button type="button" id="pause-exit-btn" class="ghost">Sair para o menu</button>
+    </div>
+  </div>
+
+  <!-- Ecrã partilhado de fim de mini-jogo -->
+  <div id="minigame-end-overlay" class="minigame-end-overlay hidden">
+    <div class="card center minigame-end-card">
+      <h2 id="mge-title"></h2>
+      <p id="mge-points" class="hint"></p>
+      <p id="mge-xp" class="hint small"></p>
+      <p id="mge-quip" class="hint small mascot-quip hidden"></p>
+      <div class="minigame-end-actions">
+        <button type="button" id="mge-continue-btn" class="primary">Continuar</button>
+        <button type="button" id="mge-exit-btn" class="ghost">Sair para o menu</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="js/app.js"></script>
   <script type="module" src="js/solo.js"></script>

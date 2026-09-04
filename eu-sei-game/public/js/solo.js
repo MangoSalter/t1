@@ -11,6 +11,8 @@ const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
 const BEST_REACTION_KEY = "euSei_soloBestReaction";
 const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
 const SCORE_HISTORY_MAX = 20;
+const ACCOUNT_KEY = "euSei_soloAccount";
+const XP_PER_POINT = 1;
 
 const SOLO_BASE_CATEGORIES = 5;
 const SOLO_MAX_CATEGORIES = 12;
@@ -264,6 +266,53 @@ function addScoreHistoryEntry(entry) {
   }
 }
 
+// --- Conta local (XP): fica guardada no browser, soma-se em todos os
+// jogos e mini-jogos. Sem login/servidor — é "a tua conta neste browser",
+// pensada para no futuro dar para trocar por cosmética. ---
+
+function loadAccount() {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_KEY);
+    const acc = raw ? JSON.parse(raw) : {};
+    return { xp: acc.xp || 0, gamesPlayed: acc.gamesPlayed || 0, bestCombo: acc.bestCombo || 0 };
+  } catch {
+    return { xp: 0, gamesPlayed: 0, bestCombo: 0 };
+  }
+}
+
+function saveAccount() {
+  try {
+    localStorage.setItem(
+      ACCOUNT_KEY,
+      JSON.stringify({ xp: account.xp, gamesPlayed: account.gamesPlayed, bestCombo: account.bestCombo })
+    );
+  } catch {
+    // sem drama, a conta só não persiste entre sessões.
+  }
+}
+
+const account = loadAccount();
+account.sessionXp = 0;
+account.sessionGamesPlayed = 0;
+account.sessionPoints = 0;
+
+// Chamado no fim de cada mini-jogo/run — soma XP à conta e às estatísticas
+// desta sessão. gainedPoints pode ser 0 (ex.: perdeste a Forca).
+function addXP(gainedPoints, favoriteKey) {
+  const gained = Math.max(0, Math.round(gainedPoints * XP_PER_POINT));
+  account.xp += gained;
+  account.gamesPlayed += 1;
+  account.sessionXp += gained;
+  account.sessionGamesPlayed += 1;
+  account.sessionPoints += Math.max(0, gainedPoints);
+  if (favoriteKey) {
+    account.favorites = account.favorites || {};
+    account.favorites[favoriteKey] = (account.favorites[favoriteKey] || 0) + 1;
+  }
+  saveAccount();
+  return gained;
+}
+
 const solo = {
   round: 0,
   runScore: 0,
@@ -311,6 +360,16 @@ const solo = {
   mapRoundStartAt: 0,
   mapRoundEndAt: 0,
   mapMarkerEls: {},
+  bugEndAt: 0,
+  monkeyStartedAt: 0,
+  monkeyEndAt: 0,
+  monkeyLastFrame: 0,
+  paused: false,
+  pauseStartedAt: 0,
+  activePauseShift: null,
+  activeSkip: null,
+  activeCleanup: null,
+  hudScoreGetter: null,
 };
 
 const els = {
@@ -381,6 +440,21 @@ const els = {
   catGrid: document.getElementById("solo-cat-grid"),
   catSelectAll: document.getElementById("solo-cat-selectall"),
   catClear: document.getElementById("solo-cat-clear"),
+  mgeOverlay: document.getElementById("minigame-end-overlay"),
+  mgeTitle: document.getElementById("mge-title"),
+  mgeQuip: document.getElementById("mge-quip"),
+  mgePoints: document.getElementById("mge-points"),
+  mgeXp: document.getElementById("mge-xp"),
+  mgeContinueBtn: document.getElementById("mge-continue-btn"),
+  mgeExitBtn: document.getElementById("mge-exit-btn"),
+  gameHud: document.getElementById("game-hud"),
+  gameHudScoreValue: document.getElementById("game-hud-score-value"),
+  gameHudPauseBtn: document.getElementById("game-hud-pause-btn"),
+  gameHudSkipBtn: document.getElementById("game-hud-skip-btn"),
+  pauseOverlay: document.getElementById("pause-overlay"),
+  pauseResumeBtn: document.getElementById("pause-resume-btn"),
+  pauseExitBtn: document.getElementById("pause-exit-btn"),
+  accountXpLabel: document.getElementById("solo-account-xp"),
 };
 
 const catCheckboxes = CATEGORIES.map((name, i) => {
@@ -446,6 +520,121 @@ function formatSeconds(total) {
   return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
 }
 
+// --- Falas da Dona Manga / Brasa entre mini-jogos da maratona — servem só
+// para dar sabor ao ecrã onde o jogador controla o ritmo entre jogos. ---
+const MASCOT_QUIPS = [
+  { who: "Dona Manga", text: "Miau. Continua a competir — quero ver quem é fraco o suficiente para eu roubar as respostas depois." },
+  { who: "Brasa", text: "Psst... não contes à Dona Manga, mas estás a ir bem! (Já disse demais outra vez, não foi?)" },
+  { who: "Dona Manga", text: "Outro mini-jogo. Não me dececiones, humano." },
+  { who: "Brasa", text: "Tentei fugir dela ontem. Cheguei à porta e lembrei-me que ela tem as chaves da comida. Voltei." },
+  { who: "Dona Manga", text: "Continua. Estou a tirar uma soneca com um olho aberto." },
+  { who: "Brasa", text: "Dica secreta: ela finge que dorme mas está sempre a contar os teus pontos." },
+];
+function randomMascotQuip() {
+  return MASCOT_QUIPS[Math.floor(Math.random() * MASCOT_QUIPS.length)];
+}
+
+function updateAccountXpLabel() {
+  if (els.accountXpLabel) {
+    els.accountXpLabel.textContent =
+      `⭐ ${account.xp} XP — ${account.gamesPlayed} jogos jogados (${account.sessionGamesPlayed} nesta sessão, +${account.sessionXp} XP)`;
+  }
+}
+updateAccountXpLabel();
+
+// --- Ecrã partilhado de fim de mini-jogo: mostra pontos + XP e deixa o
+// jogador escolher continuar ou sair, em vez de desaparecer sozinho. ---
+function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
+  clearActiveGame();
+  hideGameHud();
+  const gained = addXP(points, favoriteKey);
+  updateAccountXpLabel();
+  els.mgeTitle.textContent = `${gameLabel} — fim!`;
+  els.mgePoints.textContent = resultText || `+${points} pts bónus.`;
+  els.mgeXp.textContent = `+${gained} XP — conta: ${account.xp} XP (${account.gamesPlayed} jogos)`;
+  if (solo.marathonQueue.length > 0) {
+    const quip = randomMascotQuip();
+    els.mgeQuip.textContent = `${quip.who}: "${quip.text}"`;
+    els.mgeQuip.classList.remove("hidden");
+  } else {
+    els.mgeQuip.classList.add("hidden");
+  }
+  els.mgeOverlay.classList.remove("hidden");
+}
+
+els.mgeContinueBtn.addEventListener("click", () => {
+  els.mgeOverlay.classList.add("hidden");
+  solo.afterMinigame();
+});
+els.mgeExitBtn.addEventListener("click", () => {
+  els.mgeOverlay.classList.add("hidden");
+  solo.marathonQueue = [];
+  solo.inRound = false;
+  solo.hangmanActive = false;
+  returnToSoloMenu();
+});
+
+// --- HUD do jogo: pontuação em tempo real + pausar/saltar, partilhado por
+// todos os mini-jogos a full-screen. ---
+function showGameHud(scoreGetter) {
+  solo.hudScoreGetter = scoreGetter;
+  els.gameHud.classList.remove("hidden");
+  updateGameHudScore();
+}
+function hideGameHud() {
+  els.gameHud.classList.add("hidden");
+  solo.hudScoreGetter = null;
+}
+function updateGameHudScore() {
+  if (!solo.hudScoreGetter) return;
+  els.gameHudScoreValue.textContent = String(solo.hudScoreGetter());
+}
+
+function registerActiveGame({ pauseShift, skip, cleanup }) {
+  solo.activePauseShift = pauseShift || null;
+  solo.activeSkip = skip || null;
+  solo.activeCleanup = cleanup || null;
+}
+function clearActiveGame() {
+  solo.activePauseShift = null;
+  solo.activeSkip = null;
+  solo.activeCleanup = null;
+}
+
+function pauseGame() {
+  if (solo.paused || els.gameHud.classList.contains("hidden")) return;
+  solo.paused = true;
+  solo.pauseStartedAt = Date.now();
+  els.pauseOverlay.classList.remove("hidden");
+}
+function resumeGame() {
+  if (!solo.paused) return;
+  const pausedMs = Date.now() - solo.pauseStartedAt;
+  solo.paused = false;
+  els.pauseOverlay.classList.add("hidden");
+  if (solo.activePauseShift) solo.activePauseShift(pausedMs);
+}
+function skipCurrentGame() {
+  if (solo.paused) { els.pauseOverlay.classList.add("hidden"); solo.paused = false; }
+  if (solo.activeSkip) solo.activeSkip();
+}
+function exitGameToMenu() {
+  solo.paused = false;
+  els.pauseOverlay.classList.add("hidden");
+  if (solo.activeCleanup) solo.activeCleanup();
+  clearActiveGame();
+  hideGameHud();
+  solo.marathonQueue = [];
+  solo.inRound = false;
+  solo.hangmanActive = false;
+  returnToSoloMenu();
+}
+
+els.gameHudPauseBtn.addEventListener("click", pauseGame);
+els.gameHudSkipBtn.addEventListener("click", skipCurrentGame);
+els.pauseResumeBtn.addEventListener("click", resumeGame);
+els.pauseExitBtn.addEventListener("click", exitGameToMenu);
+
 els.menuBtn.addEventListener("click", () => showScreen("solo-menu"));
 document.querySelectorAll("[data-solo-home]").forEach((btn) => {
   btn.addEventListener("click", () => showScreen("home"));
@@ -453,8 +642,7 @@ document.querySelectorAll("[data-solo-home]").forEach((btn) => {
 document.querySelectorAll("[data-solo-leave]").forEach((btn) => {
   btn.addEventListener("click", () => {
     solo.inRound = false;
-    solo.hangmanActive = false;
-    showScreen("solo-menu");
+    exitGameToMenu();
   });
 });
 
@@ -674,9 +862,16 @@ function startReflexMinigame() {
   els.mgCircle.classList.remove("visible");
   els.mgStatus.textContent = "Prepara-te...";
   showScreen("solo-minigame");
+  showGameHud(() => 0);
+  registerActiveGame({
+    pauseShift: (ms) => { solo.mgAppearAt += ms; },
+    skip: () => resolveMinigame(Math.max(Date.now(), solo.mgAppearAt + 2000)),
+    cleanup: () => { solo.mgResolved = true; },
+  });
 
   function tick() {
     if (solo.mgResolved) return;
+    if (solo.paused) { requestAnimationFrame(tick); return; }
     if (Date.now() >= solo.mgAppearAt) {
       els.mgCircle.classList.add("visible");
     }
@@ -686,26 +881,27 @@ function startReflexMinigame() {
 }
 
 function resolveMinigame(clickedAt) {
+  if (solo.mgResolved) return;
   solo.mgResolved = true;
   els.mgCircle.classList.add("visible");
 
   let bonus = 0;
+  let resultText;
   if (clickedAt < solo.mgAppearAt) {
-    els.mgStatus.textContent = "Cedo demais! +0 pts bónus.";
+    resultText = "Cedo demais! +0 pts bónus.";
   } else {
     const reactionMs = clickedAt - solo.mgAppearAt;
     bonus = Math.max(0, Math.round(MG_MAX_BONUS - reactionMs / 100));
     const best = loadBestReaction();
     if (best === null || reactionMs < best) {
       saveBestReaction(reactionMs);
-      els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! Novo recorde pessoal! ⚡`;
+      resultText = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! Novo recorde pessoal! ⚡`;
     } else {
-      els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! (recorde: ${best}ms)`;
+      resultText = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! (recorde: ${best}ms)`;
     }
   }
   solo.runScore += bonus;
-
-  setTimeout(() => solo.afterMinigame(), 1400);
+  showMinigameEnd({ gameLabel: "Reflexos", points: bonus, favoriteKey: "reflex", resultText });
 }
 
 // --- Palavra Relâmpago: escreve o máximo de palavras possível numa letra
@@ -725,9 +921,16 @@ function startWordFlashMinigame() {
   els.wfStatus.textContent = "";
   showScreen("solo-minigame-word");
   els.wfInput.focus();
+  showGameHud(() => solo.wfPoints);
+  registerActiveGame({
+    pauseShift: (ms) => { solo.wfEndAt += ms; },
+    skip: finishWordFlash,
+    cleanup: () => { solo.wfActive = false; },
+  });
 
   function tick() {
     if (!solo.wfActive) return;
+    if (solo.paused) { requestAnimationFrame(tick); return; }
     const msLeft = solo.wfEndAt - Date.now();
     els.wfTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
     if (msLeft <= 0) {
@@ -740,7 +943,7 @@ function startWordFlashMinigame() {
 }
 
 function submitWfWord() {
-  if (!solo.wfActive) return;
+  if (!solo.wfActive || solo.paused) return;
   const raw = els.wfInput.value.trim();
   els.wfInput.value = "";
   if (!raw) return;
@@ -770,14 +973,20 @@ function submitWfWord() {
   chip.className = "wf-word-chip";
   chip.textContent = `${raw} (+${points})`;
   els.wfWords.appendChild(chip);
+  updateGameHudScore();
 }
 
 function finishWordFlash() {
+  if (!solo.wfActive) return;
   solo.wfActive = false;
   const bonus = Math.min(solo.wfPoints, WF_MAX_BONUS);
   solo.runScore += bonus;
-  els.wfStatus.textContent = `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`;
-  setTimeout(() => solo.afterMinigame(), 1600);
+  showMinigameEnd({
+    gameLabel: "Palavra Relâmpago",
+    points: bonus,
+    favoriteKey: "word",
+    resultText: `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`,
+  });
 }
 
 // --- Mata o Inseto: apanha só o inseto-alvo entre insetos "inocentes"
@@ -792,11 +1001,16 @@ function startBugSmashMinigame() {
   els.bugArena.innerHTML = "";
   els.bugStatus.textContent = "";
   showScreen("solo-minigame-bug");
-
-  const endAt = Date.now() + BUG_GAME_MS;
+  showGameHud(() => solo.bugScore);
+  solo.bugEndAt = Date.now() + BUG_GAME_MS;
+  registerActiveGame({
+    pauseShift: (ms) => { solo.bugEndAt += ms; },
+    skip: finishBugSmash,
+    cleanup: () => { solo.bugActive = false; clearInterval(solo.bugSpawnIntervalId); els.bugArena.innerHTML = ""; },
+  });
 
   function spawnBug() {
-    if (!solo.bugActive) return;
+    if (!solo.bugActive || solo.paused) return;
     const isTarget = Math.random() < 0.4;
     const emoji = isTarget
       ? solo.bugTarget
@@ -836,6 +1050,8 @@ function startBugSmashMinigame() {
         solo.bugScore = Math.max(0, solo.bugScore - BUG_MISS_PENALTY);
         els.bugStatus.textContent = "Combo perdido!";
       }
+      updateGameHudScore();
+      if (solo.bugCombo > account.bestCombo) { account.bestCombo = solo.bugCombo; saveAccount(); }
     });
 
     els.bugArena.appendChild(btn);
@@ -843,7 +1059,8 @@ function startBugSmashMinigame() {
 
   function tick() {
     if (!solo.bugActive) return;
-    const msLeft = endAt - Date.now();
+    if (solo.paused) { requestAnimationFrame(tick); return; }
+    const msLeft = solo.bugEndAt - Date.now();
     els.bugTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
     if (msLeft <= 0) {
       finishBugSmash();
@@ -865,8 +1082,7 @@ function finishBugSmash() {
 
   const bonus = Math.min(solo.bugScore, BUG_MAX_BONUS);
   solo.runScore += bonus;
-  els.bugStatus.textContent = `+${bonus} pts bónus!`;
-  setTimeout(() => solo.afterMinigame(), 1400);
+  showMinigameEnd({ gameLabel: "Mata o Inseto", points: bonus, favoriteKey: "bug", resultText: `+${bonus} pts bónus!` });
 }
 
 // --- Cada Macaco no Seu Galho: apanha os macacos que caem, movendo o
@@ -895,12 +1111,24 @@ function startMonkeyRescueMinigame() {
   solo.monkeyMoveHandler = onMove;
   els.monkeyArena.addEventListener("pointermove", onMove);
 
-  const startedAt = Date.now();
-  const endAt = startedAt + MONKEY_GAME_MS;
-  let lastFrame = startedAt;
+  solo.monkeyStartedAt = Date.now();
+  solo.monkeyEndAt = solo.monkeyStartedAt + MONKEY_GAME_MS;
+  solo.monkeyLastFrame = solo.monkeyStartedAt;
+  showGameHud(() => solo.monkeyScore);
+  registerActiveGame({
+    pauseShift: (ms) => { solo.monkeyEndAt += ms; solo.monkeyStartedAt += ms; solo.monkeyLastFrame = Date.now(); },
+    skip: finishMonkeyRescue,
+    cleanup: () => {
+      solo.monkeyActive = false;
+      clearTimeout(solo.monkeySpawnTimeoutId);
+      els.monkeyArena.removeEventListener("pointermove", solo.monkeyMoveHandler);
+      solo.monkeys.forEach((m) => m.el.remove());
+      solo.monkeys = [];
+    },
+  });
 
   function spawnMonkey() {
-    if (!solo.monkeyActive) return;
+    if (!solo.monkeyActive || solo.paused) return;
     const arenaWidth = els.monkeyArena.clientWidth || 320;
     const x = 20 + Math.random() * Math.max(arenaWidth - 40, 1);
     const golden = Math.random() < MONKEY_GOLDEN_CHANCE;
@@ -910,15 +1138,16 @@ function startMonkeyRescueMinigame() {
     el.style.left = `${x}px`;
     el.style.top = "-20px";
     els.monkeyArena.appendChild(el);
-    const elapsedSec = (Date.now() - startedAt) / 1000;
+    const elapsedSec = (Date.now() - solo.monkeyStartedAt) / 1000;
     const speed = MONKEY_BASE_FALL_SPEED + elapsedSec * MONKEY_SPEED_INCREASE_PER_SEC;
     solo.monkeys.push({ el, x, y: -20, speed, golden });
   }
 
   function scheduleNextSpawn() {
     if (!solo.monkeyActive) return;
+    if (solo.paused) { solo.monkeySpawnTimeoutId = setTimeout(scheduleNextSpawn, 150); return; }
     spawnMonkey();
-    const elapsedSec = (Date.now() - startedAt) / 1000;
+    const elapsedSec = (Date.now() - solo.monkeyStartedAt) / 1000;
     const interval = Math.max(
       MONKEY_SPAWN_INTERVAL_MS - elapsedSec * MONKEY_SPAWN_SPEEDUP_PER_SEC,
       MONKEY_MIN_SPAWN_INTERVAL_MS
@@ -928,9 +1157,10 @@ function startMonkeyRescueMinigame() {
 
   function frame() {
     if (!solo.monkeyActive) return;
+    if (solo.paused) { solo.monkeyLastFrame = Date.now(); requestAnimationFrame(frame); return; }
     const now = Date.now();
-    const dt = (now - lastFrame) / 1000;
-    lastFrame = now;
+    const dt = (now - solo.monkeyLastFrame) / 1000;
+    solo.monkeyLastFrame = now;
     const arenaHeight = els.monkeyArena.clientHeight || 240;
 
     solo.monkeys = solo.monkeys.filter((m) => {
@@ -942,6 +1172,7 @@ function startMonkeyRescueMinigame() {
       if (inCatchZone && alignedWithCatcher) {
         solo.monkeyScore += MONKEY_CATCH_POINTS * (m.golden ? MONKEY_GOLDEN_MULTIPLIER : 1);
         m.el.remove();
+        updateGameHudScore();
         return false;
       }
       if (m.y >= arenaHeight) {
@@ -951,9 +1182,9 @@ function startMonkeyRescueMinigame() {
       return true;
     });
 
-    els.monkeyTimer.textContent = formatSeconds(Math.max(0, Math.ceil((endAt - now) / 1000)));
+    els.monkeyTimer.textContent = formatSeconds(Math.max(0, Math.ceil((solo.monkeyEndAt - now) / 1000)));
 
-    if (now >= endAt) {
+    if (now >= solo.monkeyEndAt) {
       finishMonkeyRescue();
       return;
     }
@@ -974,8 +1205,7 @@ function finishMonkeyRescue() {
 
   const bonus = Math.min(solo.monkeyScore, MONKEY_MAX_BONUS);
   solo.runScore += bonus;
-  els.monkeyStatus.textContent = `+${bonus} pts bónus!`;
-  setTimeout(() => solo.afterMinigame(), 1400);
+  showMinigameEnd({ gameLabel: "Cada Macaco no Seu Galho", points: bonus, favoriteKey: "monkey", resultText: `+${bonus} pts bónus!` });
 }
 
 // --- Memória: memoriza categorias mostradas por breves segundos, depois
@@ -987,6 +1217,8 @@ function startMemoryMinigame() {
   els.memStatus.textContent = "";
   els.memConfirmBtn.classList.add("hidden");
   showScreen("solo-minigame-memory");
+  showGameHud(() => solo.memSelected.size);
+  registerActiveGame({ skip: finishMemory, cleanup: () => { solo.memActive = false; } });
 
   const shownCount = memShownCountForRound(solo.round);
   const shuffled = shuffleArray(CATEGORIES.map((_, i) => i));
@@ -1021,6 +1253,7 @@ function startMemoryMinigame() {
           solo.memSelected.add(ci);
           card.classList.add("selected");
         }
+        updateGameHudScore();
       });
       els.memGrid.appendChild(card);
     });
@@ -1041,8 +1274,12 @@ function finishMemory() {
   });
   const bonus = Math.max(0, correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG);
   solo.runScore += bonus;
-  els.memStatus.textContent = `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`;
-  setTimeout(() => solo.afterMinigame(), 1600);
+  showMinigameEnd({
+    gameLabel: "Memória",
+    points: bonus,
+    favoriteKey: "memory",
+    resultText: `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`,
+  });
 }
 
 // --- Maratona de mini-jogos: escolhes quais entram, jogas-nos um a um por
@@ -1141,17 +1378,24 @@ function startMapMinigame() {
   els.mapStatus.textContent = "";
   renderMapMarkers();
   showScreen("solo-minigame-map");
+  showGameHud(() => solo.mapScore);
+  registerActiveGame({
+    pauseShift: (ms) => { solo.mapRoundEndAt += ms; },
+    skip: finishMapMinigame,
+    cleanup: () => { solo.mapActive = false; solo.mapCriteria = null; },
+  });
   nextMapRound();
 }
 
 function handleMapPinClick(country) {
-  if (!solo.mapActive || !solo.mapCriteria) return;
+  if (!solo.mapActive || !solo.mapCriteria || solo.paused) return;
   const btn = solo.mapMarkerEls[country.name];
   if (solo.mapCriteria.matchSet.has(country.name)) {
     const reactionMs = Date.now() - solo.mapRoundStartAt;
     const speedBonus = Math.max(0, Math.round(MAP_HIT_SPEED_BONUS_MAX - reactionMs / 1500));
     const points = MAP_HIT_BASE_POINTS + speedBonus;
     solo.mapScore += points;
+    updateGameHudScore();
     btn.classList.add("correct-flash");
     els.mapStatus.textContent = `Certo! ${country.name} — +${points} pts`;
     solo.mapCriteria = null;
@@ -1159,6 +1403,7 @@ function handleMapPinClick(country) {
     setTimeout(() => nextMapRound(), 700);
   } else {
     solo.mapScore = Math.max(0, solo.mapScore - MAP_WRONG_PENALTY);
+    updateGameHudScore();
     btn.classList.add("wrong-flash");
     els.mapStatus.textContent = `"${country.name}" não é isso — -${MAP_WRONG_PENALTY} pts.`;
     setTimeout(() => btn.classList.remove("wrong-flash"), 400);
@@ -1181,6 +1426,7 @@ function nextMapRound() {
 
   function tick() {
     if (!solo.mapActive || !solo.mapCriteria) return;
+    if (solo.paused) { requestAnimationFrame(tick); return; }
     const msLeft = solo.mapRoundEndAt - Date.now();
     els.mapTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
     if (msLeft <= 0) {
@@ -1199,12 +1445,12 @@ function nextMapRound() {
 function finishMapMinigame() {
   if (!solo.mapActive) return;
   solo.mapActive = false;
+  solo.mapCriteria = null;
   const bonus = Math.min(solo.mapScore, MAP_MAX_BONUS);
   solo.runScore += bonus;
   els.mapPrompt.textContent = "Jogo terminado!";
   els.mapRoundInfo.textContent = "";
-  els.mapStatus.textContent = `+${bonus} pts bónus!`;
-  setTimeout(() => solo.afterMinigame(), 1600);
+  showMinigameEnd({ gameLabel: "Mapa-Múndi", points: bonus, favoriteKey: "map", resultText: `+${bonus} pts bónus!` });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
@@ -1230,6 +1476,8 @@ function startSoloHangman() {
   els.soloHangmanGuessControls.classList.remove("hidden");
   renderSoloHangman();
   showScreen("solo-hangman");
+  showGameHud(() => Math.max(0, (SOLO_HANGMAN_MAX_WRONG - solo.hangmanWrongCount) * SOLO_HANGMAN_POINTS_PER_LIFE));
+  registerActiveGame({ skip: () => finishSoloHangman(false) });
 }
 
 function soloHangmanRevealed() {
@@ -1248,7 +1496,7 @@ function renderSoloHangman() {
 }
 
 function soloHangmanGuessLetter(letterRaw) {
-  if (!solo.hangmanActive) return;
+  if (!solo.hangmanActive || solo.paused) return;
   const letter = letterRaw.toUpperCase();
   if (solo.hangmanGuessedLetters[letter]) return;
   solo.hangmanGuessedLetters[letter] = true;
@@ -1257,7 +1505,7 @@ function soloHangmanGuessLetter(letterRaw) {
 }
 
 function soloHangmanGuessWord(guessRaw) {
-  if (!solo.hangmanActive) return;
+  if (!solo.hangmanActive || solo.paused) return;
   const guess = guessRaw.trim().toUpperCase();
   if (guess === solo.hangmanWord) {
     [...solo.hangmanWord].forEach((ch) => { solo.hangmanGuessedLetters[ch] = true; });
@@ -1269,6 +1517,7 @@ function soloHangmanGuessWord(guessRaw) {
 
 function resolveSoloHangmanTurn() {
   renderSoloHangman();
+  updateGameHudScore();
   if (soloHangmanRevealed()) {
     finishSoloHangman(true);
   } else if (solo.hangmanWrongCount >= SOLO_HANGMAN_MAX_WRONG) {
@@ -1277,18 +1526,20 @@ function resolveSoloHangmanTurn() {
 }
 
 function finishSoloHangman(won) {
+  if (!solo.hangmanActive) return;
   solo.hangmanActive = false;
   els.soloHangmanGuessControls.classList.add("hidden");
   renderSoloHangman();
 
   let bonus = 0;
+  let resultText;
   if (won) {
     const livesLeft = SOLO_HANGMAN_MAX_WRONG - solo.hangmanWrongCount;
     bonus = Math.max(SOLO_HANGMAN_MIN_BONUS, livesLeft * SOLO_HANGMAN_POINTS_PER_LIFE);
-    els.soloHangmanStatus.textContent = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
+    resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
   } else {
-    els.soloHangmanStatus.textContent = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
+    resultText = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
   }
   solo.runScore += bonus;
-  setTimeout(() => solo.afterMinigame(), 1800);
+  showMinigameEnd({ gameLabel: "Forca", points: bonus, favoriteKey: "hangman", resultText });
 }

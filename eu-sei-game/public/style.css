@@ -114,11 +114,11 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .mem-card.selected { border-color: var(--primary); background: var(--accent-soft); }
 .mem-card.shown-preview { background: var(--accent-soft); border-color: var(--accent); }
 
-.bug-arena { position: relative; width: 100%; max-width: 320px; height: 220px; background: var(--paper-soft); border: 2px solid var(--paper-line); border-radius: 14px; margin: 12px auto; overflow: hidden; }
+.bug-arena { position: relative; width: 100%; max-width: none; height: min(58vh, 520px); background: var(--paper-soft); border: 2px solid var(--paper-line); border-radius: 14px; margin: 12px auto; overflow: hidden; }
 .bug { position: absolute; font-size: 2rem; line-height: 1; cursor: pointer; background: none; border: none; box-shadow: none; padding: 4px; transform: translate(-50%, -50%); }
 .bug:active { transform: translate(-50%, -50%) scale(0.85); }
 
-.monkey-arena { position: relative; width: 100%; max-width: 320px; height: 240px; background: linear-gradient(to bottom, #d9e6ea, var(--paper-soft)); border: 2px solid var(--paper-line); border-radius: 14px; margin: 12px auto; overflow: hidden; cursor: none; }
+.monkey-arena { position: relative; width: 100%; max-width: none; height: min(62vh, 560px); background: linear-gradient(to bottom, #d9e6ea, var(--paper-soft)); border: 2px solid var(--paper-line); border-radius: 14px; margin: 12px auto; overflow: hidden; cursor: none; }
 .monkey-catcher { position: absolute; bottom: 6px; font-size: 2.4rem; transform: translateX(-50%); pointer-events: none; }
 .falling-monkey { position: absolute; font-size: 1.8rem; transform: translateX(-50%); pointer-events: none; }
 .falling-monkey.golden { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 2px gold); }
@@ -135,7 +135,7 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .marathon-picker { display: flex; flex-direction: column; gap: 8px; text-align: left; margin: 8px 0; }
 .marathon-picker label { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
 
-.map-arena { position: relative; width: 100%; aspect-ratio: 2 / 1; background: linear-gradient(to bottom, #d9e6ea, var(--paper-soft)); border: 2px solid var(--paper-line); border-radius: 14px; margin: 10px auto; overflow: hidden; }
+.map-arena { position: relative; width: 100%; max-width: 900px; aspect-ratio: 2 / 1; background: linear-gradient(to bottom, #d9e6ea, var(--paper-soft)); border: 2px solid var(--paper-line); border-radius: 14px; margin: 10px auto; overflow: hidden; }
 .map-bg { position: absolute; inset: 0; }
 .map-bg svg { width: 100%; height: 100%; display: block; }
 .map-blob { fill: var(--accent-soft); stroke: var(--ink); stroke-width: 0.8; fill-opacity: 0.65; }
@@ -143,6 +143,32 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .map-pin:hover { background: var(--primary); transform: translate(-50%, -50%) scale(1.25); }
 .map-pin.correct-flash { background: var(--success); transform: translate(-50%, -50%) scale(1.5); }
 .map-pin.wrong-flash { background: var(--danger); transform: translate(-50%, -50%) scale(0.7); }
+
+/* Mini-jogos a full-screen: ocupam o browser todo em vez de um cartão pequeno */
+.screen.fullscreen-game.active { position: fixed; inset: 0; z-index: 8; padding: 16px; overflow-y: auto; align-items: flex-start; }
+.fullscreen-game .card { width: 100%; max-width: 1000px; transform: none; margin: 12px auto; }
+
+.account-xp { font-weight: 700; color: var(--primary-dark); }
+
+/* HUD fixo: pontos em tempo real + pausar/saltar, comum a todos os mini-jogos */
+.game-hud {
+  position: fixed; top: 14px; right: 14px; z-index: 20;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card-bg); border: 2.5px solid var(--ink); border-radius: 14px;
+  padding: 6px 10px; box-shadow: 3px 3px 0 rgba(58,49,38,0.2);
+}
+.game-hud-score { font-size: 0.95rem; font-weight: 700; white-space: nowrap; padding: 0 4px; }
+.hud-btn { padding: 6px 10px; font-size: 1.05rem; box-shadow: none; line-height: 1; }
+
+/* Overlays modais: pausa e fim de mini-jogo */
+.pause-overlay, .minigame-end-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  background: rgba(58,49,38,0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.minigame-end-card { max-width: 440px; }
+.minigame-end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.mascot-quip { font-style: italic; }
 
 .leaderboard-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 55vh; overflow-y: auto; width: 100%; }
 .leaderboard-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; background: var(--paper-soft); border: 1.5px solid var(--paper-line); padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: left; }
