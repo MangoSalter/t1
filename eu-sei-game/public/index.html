@@ -55,6 +55,7 @@
       <button id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
       <button id="solo-play-memory-btn">Memória</button>
       <button id="solo-play-hangman-btn">Forca</button>
+      <button id="solo-play-map-btn">Mapa-Múndi</button>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -83,6 +84,7 @@
         <label><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
         <label><input type="checkbox" data-marathon-game="memory" checked /> Memória</label>
         <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
+        <label><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -214,6 +216,18 @@
       <div id="mem-grid" class="mem-grid"></div>
       <button id="mem-confirm-btn" class="primary hidden">Confirmar</button>
       <p id="mem-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: MAPA-MÚNDI -->
+  <section data-screen="solo-minigame-map" class="screen">
+    <div class="card wide center">
+      <h2>Mini-jogo: Mapa-Múndi!</h2>
+      <p id="map-prompt" class="hint"></p>
+      <p id="map-round-info" class="hint small"></p>
+      <div class="round-timer" id="map-timer"></div>
+      <div id="map-arena" class="map-arena"></div>
+      <p id="map-status" class="hint"></p>
     </div>
   </section>
 

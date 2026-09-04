@@ -135,6 +135,15 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .marathon-picker { display: flex; flex-direction: column; gap: 8px; text-align: left; margin: 8px 0; }
 .marathon-picker label { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
 
+.map-arena { position: relative; width: 100%; aspect-ratio: 2 / 1; background: linear-gradient(to bottom, #d9e6ea, var(--paper-soft)); border: 2px solid var(--paper-line); border-radius: 14px; margin: 10px auto; overflow: hidden; }
+.map-bg { position: absolute; inset: 0; }
+.map-bg svg { width: 100%; height: 100%; display: block; }
+.map-blob { fill: var(--accent-soft); stroke: var(--ink); stroke-width: 0.8; fill-opacity: 0.65; }
+.map-pin { position: absolute; width: 16px; height: 16px; padding: 0; border-radius: 50%; background: var(--blue); border: 1.6px solid var(--ink); box-shadow: 1px 1px 0 rgba(58,49,38,0.25); transform: translate(-50%, -50%); }
+.map-pin:hover { background: var(--primary); transform: translate(-50%, -50%) scale(1.25); }
+.map-pin.correct-flash { background: var(--success); transform: translate(-50%, -50%) scale(1.5); }
+.map-pin.wrong-flash { background: var(--danger); transform: translate(-50%, -50%) scale(0.7); }
+
 .leaderboard-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 55vh; overflow-y: auto; width: 100%; }
 .leaderboard-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; background: var(--paper-soft); border: 1.5px solid var(--paper-line); padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: left; }
 .leaderboard-pos { font-weight: 700; color: var(--primary-dark); width: 30px; }
