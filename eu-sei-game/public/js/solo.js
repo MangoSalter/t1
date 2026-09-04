@@ -9,6 +9,8 @@ import { CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES } from 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
 const BEST_REACTION_KEY = "euSei_soloBestReaction";
+const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
+const SCORE_HISTORY_MAX = 20;
 
 const SOLO_BASE_CATEGORIES = 5;
 const SOLO_MAX_CATEGORIES = 12;
@@ -162,6 +164,30 @@ function saveBestReaction(ms) {
   }
 }
 
+function loadScoreHistory() {
+  try {
+    const raw = localStorage.getItem(SCORE_HISTORY_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+// Guarda cada run terminada (clássico ou maratona) numa tabela local dos
+// 20 melhores, ordenada por pontuação — dá algo para tentar bater sozinho.
+function addScoreHistoryEntry(entry) {
+  try {
+    const history = loadScoreHistory();
+    history.push(entry);
+    history.sort((a, b) => b.score - a.score);
+    const trimmed = history.slice(0, SCORE_HISTORY_MAX);
+    localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch {
+    // sem drama, a run já foi jogada — só não fica guardada.
+  }
+}
+
 const solo = {
   round: 0,
   runScore: 0,
@@ -201,6 +227,7 @@ const solo = {
   hangmanWrongCount: 0,
   hangmanActive: false,
   marathonQueue: [],
+  marathonTotalGames: 0,
 };
 
 const els = {
@@ -211,6 +238,8 @@ const els = {
   marathonStartBtn: document.getElementById("solo-marathon-start-btn"),
   marathonRestartBtn: document.getElementById("marathon-restart-btn"),
   marathonSummary: document.getElementById("marathon-result-summary"),
+  leaderboardBtn: document.getElementById("solo-leaderboard-btn"),
+  leaderboardList: document.getElementById("solo-leaderboard-list"),
   playReflexBtn: document.getElementById("solo-play-reflex-btn"),
   playWordflashBtn: document.getElementById("solo-play-wordflash-btn"),
   playBugBtn: document.getElementById("solo-play-bug-btn"),
@@ -364,6 +393,10 @@ els.playHangmanBtn.addEventListener("click", () => launchStandalone(startSoloHan
 els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
 els.marathonStartBtn.addEventListener("click", startMarathon);
 els.marathonRestartBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
+els.leaderboardBtn.addEventListener("click", () => {
+  renderLeaderboard();
+  showScreen("solo-leaderboard");
+});
 
 els.finishBtn.addEventListener("click", finishRound);
 els.continueBtn.addEventListener("click", startMinigame);
@@ -516,6 +549,7 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
     const best = loadHighScore();
     const isNewBest = !best || solo.runScore > best.score;
     if (isNewBest) saveHighScore(solo.runScore, solo.round);
+    addScoreHistoryEntry({ score: solo.runScore, mode: "Clássico", detail: `${solo.round} ronda(s)`, date: Date.now() });
 
     els.resultTitle.textContent = `Fim da run — ${correctCount}/${rows.length} corretas (precisavas de ${needed})`;
     let summary = `Pontuação final: ${solo.runScore} pts, em ${solo.round} ronda(s).`;
@@ -929,6 +963,7 @@ function startMarathon() {
     .map((cb) => cb.dataset.marathonGame);
   if (keys.length === 0) return;
   solo.marathonQueue = shuffleArray(keys);
+  solo.marathonTotalGames = keys.length;
   solo.runScore = 0;
   solo.round = 1;
   solo.afterMinigame = runNextMarathonGame;
@@ -947,8 +982,43 @@ function runNextMarathonGame() {
 }
 
 function showMarathonResult() {
+  addScoreHistoryEntry({
+    score: solo.runScore,
+    mode: "Maratona",
+    detail: `${solo.marathonTotalGames} mini-jogo(s)`,
+    date: Date.now(),
+  });
   els.marathonSummary.textContent = `Pontuação total: ${solo.runScore} pts.`;
   showScreen("solo-marathon-result");
+}
+
+// --- Recordes: tabela local dos 20 melhores resultados de sempre. ---
+
+function formatHistoryDate(ts) {
+  const d = new Date(ts);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function renderLeaderboard() {
+  const history = loadScoreHistory();
+  els.leaderboardList.innerHTML = "";
+  if (history.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "Ainda não há pontuações guardadas — joga uma run (clássico ou maratona) para entrares na tabela!";
+    els.leaderboardList.appendChild(empty);
+    return;
+  }
+  history.forEach((entry, i) => {
+    const row = document.createElement("div");
+    row.className = "leaderboard-row";
+    row.innerHTML = `<span class="leaderboard-pos">${i + 1}º</span>
+      <span class="leaderboard-mode">${entry.mode}</span>
+      <span class="leaderboard-detail">${entry.detail}</span>
+      <span class="leaderboard-score">${entry.score} pts</span>
+      <span class="leaderboard-date">${formatHistoryDate(entry.date)}</span>`;
+    els.leaderboardList.appendChild(row);
+  });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
