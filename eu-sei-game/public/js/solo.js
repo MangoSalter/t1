@@ -7,7 +7,7 @@
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
-  ACHIEVEMENTS,
+  ACHIEVEMENTS, pickMascotIntro,
 } from "./data.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 
@@ -839,6 +839,7 @@ const els = {
   pauseExitBtn: document.getElementById("pause-exit-btn"),
   accountXpLabel: document.getElementById("solo-account-xp"),
   readyOverlay: document.getElementById("ready-overlay"),
+  readyMascot: document.getElementById("ready-mascot"),
   readyTitle: document.getElementById("ready-title"),
   readyStartBtn: document.getElementById("ready-start-btn"),
 };
@@ -997,12 +998,12 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
     const extra = fresh.length > 1 ? ` (+${fresh.length - 1})` : "";
     els.mgeQuip.textContent = `${a.icon} Conquista: ${a.name}${extra} — ${a.who}: “${a.quip}”`;
     els.mgeQuip.classList.remove("hidden");
-  } else if (solo.marathonQueue.length > 0) {
+  } else {
+    // Antes só falavam entre jogos da maratona; a jogar avulso o fim era
+    // mudo, e os mini-jogos soltos não pareciam do mesmo jogo.
     const quip = randomMascotQuip();
     els.mgeQuip.textContent = `${quip.who}: "${quip.text}"`;
     els.mgeQuip.classList.remove("hidden");
-  } else {
-    els.mgeQuip.classList.add("hidden");
   }
   els.mgeOverlay.classList.remove("hidden");
 }
@@ -1103,8 +1104,17 @@ els.setupStartBtn.addEventListener("click", () => {
 // de cada "jogar novamente"/próximo jogo da maratona) e só chama onStart()
 // quando o jogador clica em Começar, para o cronómetro nunca correr antes
 // de haver tempo de preparação.
-function showReadyOverlay(label, onStart) {
+function showReadyOverlay(label, onStart, gameKey) {
   els.readyTitle.textContent = label;
+  // Uma fala da mascote sobre ESTE jogo: é o que liga os mini-jogos ao mesmo
+  // mundo em vez de serem doze coisas soltas com o mesmo botão.
+  const intro = gameKey ? pickMascotIntro(gameKey) : null;
+  if (intro) {
+    els.readyMascot.textContent = `${intro.who}: “${intro.text}”`;
+    els.readyMascot.classList.remove("hidden");
+  } else {
+    els.readyMascot.classList.add("hidden");
+  }
   els.readyOverlay.classList.remove("hidden");
   const handler = () => {
     els.readyOverlay.classList.add("hidden");
@@ -1118,7 +1128,7 @@ function launchStandalone(startFn, gameKey) {
   // "Continuar" no ecrã de fim volta a jogar o mesmo jogo (jogar novamente
   // sem ter de voltar ao menu) — "Sair" continua sempre disponível à parte.
   const label = GAME_LABELS[gameKey] || "Mini-jogo";
-  const gated = () => showReadyOverlay(label, startFn);
+  const gated = () => showReadyOverlay(label, startFn, gameKey);
   solo.afterMinigame = gated;
   solo.runScore = 0;
   solo.round = Math.max(solo.round, 1);
@@ -1957,7 +1967,7 @@ function runNextMarathonGame() {
   }
   const key = solo.marathonQueue.shift();
   const startFn = MARATHON_GAMES[key];
-  if (startFn) showReadyOverlay(GAME_LABELS[key] || "Mini-jogo", startFn);
+  if (startFn) showReadyOverlay(GAME_LABELS[key] || "Mini-jogo", startFn, key);
   else runNextMarathonGame();
 }
 
@@ -3511,7 +3521,7 @@ function finishSoloHangman(won) {
         account.bestHangmanStreak = solo.hangmanStreak;
         saveAccount();
       }
-      solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, startSoloHangman);
+      solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, startSoloHangman, "hangman");
     } else {
       bonus = Math.round(base * challengeMult);
       resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
@@ -3522,7 +3532,7 @@ function finishSoloHangman(won) {
       solo.hangmanStreak = 0;
       solo.hangmanUsedWords = new Set();
       startSoloHangman();
-    });
+    }, "hangman");
   } else {
     resultText = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
   }

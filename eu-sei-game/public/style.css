@@ -583,3 +583,6 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .golf-mp-powerup { position: absolute; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); z-index: 2; }
 /* A barreira é de outro jogador: tem de ler-se como "isto não estava aqui". */
 .golf-mp-barrier { background: #c9704f; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(201,112,79,0.35); }
+
+/* Fala da mascote no ecrã "pronto?" — escrita à mão, não é interface. */
+.ready-mascot { font-style: italic; margin: 4px 0 2px; max-width: 34ch; opacity: 0.9; }

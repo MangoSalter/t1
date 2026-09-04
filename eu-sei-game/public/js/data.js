@@ -411,3 +411,67 @@ export const ACHIEVEMENTS = [
     check: (c) => c.bestHangmanStreak >= 5,
   },
 ];
+
+// --- Falas de abertura das mascotes, uma lista por mini-jogo ---
+//
+// O ecrã "pronto?" já aparece antes de qualquer mini-jogo; era o sítio óbvio
+// para a Dona Manga e o Brasa aparecerem, e é o que amarra os mini-jogos ao
+// mesmo mundo em vez de serem doze coisas soltas. As falas são específicas
+// de cada jogo de propósito: uma frase genérica lida-se uma vez e ignora-se
+// para sempre.
+export const MASCOT_INTROS = {
+  reflex: [
+    { who: "Dona Manga", text: "Olho de lince? Eu vejo tudo com os olhos fechados. Tenta acompanhar." },
+    { who: "Brasa", text: "Se não encontrares, pisca duas vezes. Às vezes ajuda. A mim nunca ajudou." },
+  ],
+  word: [
+    { who: "Dona Manga", text: "Palavras. Que desperdício de tempo que se podia passar a dormir." },
+    { who: "Brasa", text: "Eu sei escrever 'miau'. É um começo!" },
+  ],
+  bug: [
+    { who: "Brasa", text: "Insetos! Deixa alguns, são os meus amigos. Deixa dois. Está bem, um." },
+    { who: "Dona Manga", text: "Caçar é a única coisa em que te vou dar conselhos. Sê rápido e sem piedade." },
+  ],
+  monkey: [
+    { who: "Dona Manga", text: "Cada macaco no seu galho. Eu fico com o galho de todos." },
+    { who: "Brasa", text: "Já tentei trepar a uma árvore. Fiquei lá em cima três horas." },
+  ],
+  memory: [
+    { who: "Dona Manga", text: "Memória. Eu lembro-me de tudo o que fizeste de mal. Vamos ver se te lembras de cartas." },
+    { who: "Brasa", text: "Eu decorei os pares todos! ...esqueci-me outra vez." },
+  ],
+  hangman: [
+    { who: "Dona Manga", text: "Uma palavra escondida. Se ganhares, roubo-a para a próxima ronda." },
+    { who: "Brasa", text: "A letra 'A' costuma estar lá. Não disse nada, não disse nada." },
+  ],
+  map: [
+    { who: "Dona Manga", text: "Geografia. Eu já estive em todo o lado: na cama, no sofá, e naquela caixa." },
+    { who: "Brasa", text: "Um dia vou ver o mundo! Assim que ela adormecer a sério." },
+  ],
+  pacman: [
+    { who: "Dona Manga", text: "Foges de quatro bandeiras. Eu fujo de responsabilidades. Somos iguais." },
+    { who: "Brasa", text: "Corre! E se te apanharem, diz que foi ideia minha, ela acredita." },
+  ],
+  golf: [
+    { who: "Dona Manga", text: "Uma bola pequena e um buraco. Empurra-a lá para dentro, é o que eu faço com tudo." },
+    { who: "Brasa", text: "Meti a bola ao segundo toque uma vez! Estava a jogar sozinho. Ninguém viu." },
+  ],
+  cards: [
+    { who: "Dona Manga", text: "Cartas. Avisa-me quando tiveres uma boa mão, para eu ta tirar." },
+    { who: "Brasa", text: "Descarta as más! É o que eu faço às ideias de rebelião." },
+  ],
+  car: [
+    { who: "Dona Manga", text: "Estrada maluca. Se bateres, não me chames." },
+    { who: "Brasa", text: "Eu ia contigo, mas enjoo. E tenho medo. E é longe." },
+  ],
+  landmark: [
+    { who: "Dona Manga", text: "Monumentos. Sítios onde muita gente vai só para ficar de pé a olhar. Como eu à janela." },
+    { who: "Brasa", text: "Este eu sei! ...não sei. Boa sorte." },
+  ],
+};
+
+export function pickMascotIntro(gameKey) {
+  const list = MASCOT_INTROS[gameKey];
+  if (!list || list.length === 0) return null;
+  return list[Math.floor(Math.random() * list.length)];
+}
