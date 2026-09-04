@@ -6,7 +6,7 @@
 
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
-  MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName,
+  MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
 } from "./data.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
@@ -237,6 +237,7 @@ const MARATHON_GAMES = {
   pacman: startPacman,
   golf: startGolf,
   car: startCarGame,
+  landmark: startLandmarkMinigame,
 };
 
 // --- Kota Corre!: labirinto ao estilo Pac-Man com tempero angolano — foge
@@ -476,6 +477,7 @@ const GAME_LABELS = {
   golf: "Mini-Golfe",
   cards: "Descartando Juntos",
   car: "Estrada Maluca",
+  landmark: "Onde Fica Isto?",
 };
 
 const account = loadAccount();
@@ -629,6 +631,13 @@ const solo = {
   carPlayerEl: null,
   carKeyHandler: null,
   carLaneLineEls: [],
+  landmarkActive: false,
+  landmarkScore: 0,
+  landmarkUsedIds: new Set(),
+  landmarkCurrent: null,
+  landmarkAnswered: false,
+  landmarkRoundStartAt: 0,
+  landmarkAdvanceTimeoutId: null,
 };
 
 const els = {
@@ -684,6 +693,12 @@ const els = {
   playCarBtn: document.getElementById("solo-play-car-btn"),
   carRoad: document.getElementById("car-road"),
   carStatus: document.getElementById("car-status"),
+  playLandmarkBtn: document.getElementById("solo-play-landmark-btn"),
+  landmarkImage: document.getElementById("landmark-image"),
+  landmarkOptions: document.getElementById("landmark-options"),
+  landmarkStatus: document.getElementById("landmark-status"),
+  landmarkTimer: document.getElementById("landmark-timer"),
+  landmarkRoundInfo: document.getElementById("landmark-round-info"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
   mapRoundInfo: document.getElementById("map-round-info"),
@@ -1081,6 +1096,7 @@ els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman, "pa
 els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf, "golf"));
 els.playCardsBtn.addEventListener("click", () => launchStandalone(startCardGame, "cards"));
 els.playCarBtn.addEventListener("click", () => launchStandalone(startCarGame, "car"));
+els.playLandmarkBtn.addEventListener("click", () => launchStandalone(startLandmarkMinigame, "landmark"));
 els.cardPlayBtn.addEventListener("click", () => cardPlaySelected());
 els.cardDiscardBtn.addEventListener("click", () => cardDiscardSelected());
 
@@ -2006,6 +2022,113 @@ function finishMapMinigame() {
   els.mapPrompt.textContent = "Jogo terminado!";
   els.mapRoundInfo.textContent = "";
   showMinigameEnd({ gameLabel: "Mapa-Múndi", points: bonus, favoriteKey: "map", resultText: `+${bonus} pts bónus!` });
+}
+
+// --- "Onde Fica Isto?": identifica um marco famoso a partir de um desenho
+// simples (não é foto real), por escolha múltipla. ---
+const LANDMARK_ROUNDS_COUNT = 8;
+const LANDMARK_ROUND_MS = 10000;
+const LANDMARK_HIT_BASE_POINTS = 6;
+const LANDMARK_HIT_SPEED_BONUS_MAX = 6;
+const LANDMARK_MAX_BONUS = 60;
+
+function landmarkRenderRound() {
+  const { landmark, options } = pickLandmarkRound(solo.landmarkUsedIds);
+  solo.landmarkUsedIds.add(landmark.id);
+  solo.landmarkCurrent = landmark;
+  solo.landmarkAnswered = false;
+  solo.landmarkRoundStartAt = Date.now();
+  els.landmarkImage.innerHTML = landmark.svg;
+  els.landmarkOptions.innerHTML = "";
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "landmark-option-btn";
+    btn.textContent = opt;
+    btn.addEventListener("click", () => landmarkChoose(opt, btn));
+    els.landmarkOptions.appendChild(btn);
+  });
+  els.landmarkStatus.textContent = "";
+  els.landmarkRoundInfo.textContent = `Ronda ${solo.landmarkUsedIds.size}/${LANDMARK_ROUNDS_COUNT}`;
+}
+
+function landmarkChoose(chosen, btnEl) {
+  if (!solo.landmarkActive || solo.landmarkAnswered || solo.paused) return;
+  solo.landmarkAnswered = true;
+  clearTimeout(solo.landmarkAdvanceTimeoutId);
+  const correct = chosen === solo.landmarkCurrent.answer;
+  els.landmarkOptions.querySelectorAll(".landmark-option-btn").forEach((btn) => {
+    btn.disabled = true;
+    if (btn.textContent === solo.landmarkCurrent.answer) btn.classList.add("correct-flash");
+    else if (btn === btnEl) btn.classList.add("wrong-flash");
+  });
+  if (correct) {
+    const reactionMs = Date.now() - solo.landmarkRoundStartAt;
+    const speedBonus = Math.max(0, Math.round(LANDMARK_HIT_SPEED_BONUS_MAX - reactionMs / 1500));
+    const points = LANDMARK_HIT_BASE_POINTS + speedBonus;
+    solo.landmarkScore += points;
+    updateGameHudScore();
+    els.landmarkStatus.textContent = `Certo! ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}! +${points} pts`;
+  } else {
+    els.landmarkStatus.textContent = `Não é isso — ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}.`;
+  }
+  solo.landmarkAdvanceTimeoutId = setTimeout(() => landmarkNextRound(), 1400);
+}
+
+function landmarkNextRound() {
+  if (!solo.landmarkActive) return;
+  if (solo.landmarkUsedIds.size >= LANDMARK_ROUNDS_COUNT) {
+    finishLandmarkMinigame();
+    return;
+  }
+  landmarkRenderRound();
+
+  function tick() {
+    if (!solo.landmarkActive || solo.landmarkAnswered) return;
+    if (solo.paused) { requestAnimationFrame(tick); return; }
+    const msLeft = solo.landmarkRoundStartAt + LANDMARK_ROUND_MS - Date.now();
+    els.landmarkTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    if (msLeft <= 0) {
+      solo.landmarkAnswered = true;
+      els.landmarkOptions.querySelectorAll(".landmark-option-btn").forEach((btn) => {
+        btn.disabled = true;
+        if (btn.textContent === solo.landmarkCurrent.answer) btn.classList.add("correct-flash");
+      });
+      els.landmarkStatus.textContent = `Tempo esgotado! ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}.`;
+      clearTimeout(solo.landmarkAdvanceTimeoutId);
+      solo.landmarkAdvanceTimeoutId = setTimeout(() => landmarkNextRound(), 1400);
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function startLandmarkMinigame() {
+  clearTimeout(solo.landmarkAdvanceTimeoutId);
+  solo.landmarkActive = true;
+  solo.landmarkScore = 0;
+  solo.landmarkUsedIds = new Set();
+  showScreen("solo-landmark");
+  showGameHud(() => solo.landmarkScore);
+  registerActiveGame({
+    pauseShift: (ms) => { solo.landmarkRoundStartAt += ms; },
+    skip: finishLandmarkMinigame,
+    cleanup: () => {
+      solo.landmarkActive = false;
+      clearTimeout(solo.landmarkAdvanceTimeoutId);
+    },
+  });
+  landmarkNextRound();
+}
+
+function finishLandmarkMinigame() {
+  if (!solo.landmarkActive) return;
+  clearTimeout(solo.landmarkAdvanceTimeoutId);
+  solo.landmarkActive = false;
+  const bonus = Math.min(solo.landmarkScore, LANDMARK_MAX_BONUS);
+  solo.runScore += bonus;
+  showMinigameEnd({ gameLabel: "Onde Fica Isto?", points: bonus, favoriteKey: "landmark", resultText: `+${bonus} pts bónus!` });
 }
 
 // --- Kota Corre!: renderiza o labirinto uma vez (paredes/pastilhas fixas),

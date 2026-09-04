@@ -66,6 +66,7 @@
         <button id="solo-play-golf-btn">Mini-Golfe</button>
         <button id="solo-play-cards-btn">Descartando Juntos</button>
         <button id="solo-play-car-btn">Estrada Maluca</button>
+        <button id="solo-play-landmark-btn">Onde Fica Isto?</button>
       </div>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
@@ -100,6 +101,7 @@
         <label><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
         <label><input type="checkbox" data-marathon-game="golf" /> Mini-Golfe</label>
         <label><input type="checkbox" data-marathon-game="car" /> Estrada Maluca</label>
+        <label><input type="checkbox" data-marathon-game="landmark" /> Onde Fica Isto?</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -374,6 +376,19 @@
       <p class="hint small">Setas ou WASD para mudar de faixa — desvia dos carros, a velocidade só aumenta!</p>
       <p id="car-status" class="hint"></p>
       <div id="car-road" class="car-road"></div>
+    </div>
+  </section>
+
+  <!-- SOLO: ONDE FICA ISTO? -->
+  <section data-screen="solo-landmark" class="screen fullscreen-game">
+    <div class="card wide center">
+      <h2>Onde Fica Isto?</h2>
+      <p class="hint small">Que país é este marco famoso? Escolhe entre as opções antes do tempo acabar.</p>
+      <p id="landmark-round-info" class="hint small"></p>
+      <div class="round-timer" id="landmark-timer"></div>
+      <div id="landmark-image" class="landmark-image"></div>
+      <div id="landmark-options" class="landmark-options"></div>
+      <p id="landmark-status" class="hint"></p>
     </div>
   </section>
 

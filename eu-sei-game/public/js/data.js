@@ -182,3 +182,98 @@ export function pickMapCriteria() {
   const matchNames = MAP_COUNTRIES.filter((c) => c.continent === continent).map((c) => c.name);
   return { type, matchNames, promptText: `Escreve o nome de um país da ${continent}.` };
 }
+
+// --- "Onde Fica Isto?": mini-jogo de identificar um marco/monumento
+// famoso a partir de um desenho simples (estilo postal ilustrado à mão,
+// sem fotos reais), com escolha múltipla. Partilhado entre o mini-jogo
+// solo e uma futura versão em equipa. ---
+export const LANDMARKS = [
+  {
+    id: "eiffel", name: "Torre Eiffel", answer: "França",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="10" y1="88" x2="90" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M50,10 L30,88 M50,10 L70,88 M38,55 L62,55 M32,72 L68,72 M42,35 L58,35" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M44,10 L50,4 L56,10 Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "piramides", name: "Pirâmides de Gizé", answer: "Egito",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="6" y1="88" x2="94" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <circle cx="80" cy="22" r="10" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.6"/>
+      <polygon points="50,20 20,88 80,88" fill="#e3c98f" stroke="var(--ink)" stroke-width="2.4"/>
+      <polygon points="50,20 65,88 80,88" fill="#d9ba75" stroke="var(--ink)" stroke-width="2" opacity="0.7"/>
+      <polygon points="20,88 40,50 50,88" fill="#e3c98f" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "cristo", name: "Cristo Redentor", answer: "Brasil",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,90 C 30,70 70,70 90,90 Z" fill="#8fb56f" stroke="var(--ink)" stroke-width="2"/>
+      <line x1="50" y1="30" x2="50" y2="70" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/>
+      <line x1="18" y1="42" x2="82" y2="42" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="50" cy="22" r="9" fill="#f0cf8f" stroke="var(--ink)" stroke-width="2.2"/>
+    </svg>`,
+  },
+  {
+    id: "muralha", name: "Grande Muralha da China", answer: "China",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4,70 C 20,50 30,80 46,55 C 58,38 68,68 96,40" fill="none" stroke="#c9a877" stroke-width="10" stroke-linecap="round"/>
+      <path d="M4,70 C 20,50 30,80 46,55 C 58,38 68,68 96,40" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>
+      <rect x="40" y="30" width="14" height="18" fill="#c9a877" stroke="var(--ink)" stroke-width="2"/>
+      <polygon points="37,30 47,20 57,30" fill="var(--primary)" stroke="var(--ink)" stroke-width="1.6"/>
+    </svg>`,
+  },
+  {
+    id: "liberdade", name: "Estátua da Liberdade", answer: "Estados Unidos",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="80" width="20" height="10" fill="#9db89a" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M42,80 L42,45 C 42,35 58,35 58,45 L58,80 Z" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
+      <circle cx="50" cy="30" r="9" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M44,22 L50,10 L56,22 M40,25 L47,15 M60,25 L53,15" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="66" y1="45" x2="66" y2="15" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M66,15 C 60,15 60,25 66,25 C 72,25 72,15 66,15 Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "bigben", name: "Big Ben", answer: "Reino Unido",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="38" y="30" width="24" height="58" fill="#d9a563" stroke="var(--ink)" stroke-width="2.2"/>
+      <polygon points="34,30 50,10 66,30" fill="var(--primary)" stroke="var(--ink)" stroke-width="2.2"/>
+      <circle cx="50" cy="42" r="9" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+      <line x1="50" y1="42" x2="50" y2="36" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="50" y1="42" x2="55" y2="44" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="12" y1="88" x2="88" y2="88" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "opera", name: "Ópera de Sydney", answer: "Austrália",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="6" y1="88" x2="94" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M14,88 C 14,60 30,40 34,88 Z" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M34,88 C 34,52 54,28 58,88 Z" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M58,88 C 58,62 72,44 76,88 Z" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+    </svg>`,
+  },
+  {
+    id: "tajmahal", name: "Taj Mahal", answer: "Índia",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="8" y1="88" x2="92" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="30" y="55" width="40" height="33" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M35,55 C 35,35 65,35 65,55 Z" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
+      <circle cx="50" cy="30" r="3" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.4"/>
+      <rect x="14" y="65" width="8" height="23" fill="#f6efdd" stroke="var(--ink)" stroke-width="1.8"/>
+      <rect x="78" y="65" width="8" height="23" fill="#f6efdd" stroke="var(--ink)" stroke-width="1.8"/>
+    </svg>`,
+  },
+];
+
+export function pickLandmarkRound(usedIds) {
+  const available = LANDMARKS.filter((l) => !usedIds.has(l.id));
+  const pool = available.length > 0 ? available : LANDMARKS;
+  const landmark = pool[Math.floor(Math.random() * pool.length)];
+  const otherAnswers = shuffleArray(LANDMARKS.filter((l) => l.answer !== landmark.answer).map((l) => l.answer));
+  const uniqueDistractors = [...new Set(otherAnswers)].slice(0, 3);
+  const options = shuffleArray([landmark.answer, ...uniqueDistractors]);
+  return { landmark, options };
+}
