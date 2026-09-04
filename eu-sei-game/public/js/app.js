@@ -69,6 +69,19 @@ els.createBtn.addEventListener("click", async () => {
   }
 });
 
+// Enter no nome cria a sala; Enter no código entra na sala — a seguir a
+// escrever, ninguém quer ir buscar o rato.
+els.nameInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || els.createBtn.disabled) return;
+  e.preventDefault();
+  (els.joinCodeInput.value.trim() ? els.joinBtn : els.createBtn).click();
+});
+els.joinCodeInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || els.joinBtn.disabled) return;
+  e.preventDefault();
+  els.joinBtn.click();
+});
+
 els.joinBtn.addEventListener("click", async () => {
   const name = els.nameInput.value.trim();
   const code = els.joinCodeInput.value.trim();
@@ -339,6 +352,12 @@ const lobbyEls = {
 
 // Menu de escolha de jogo da sala, ao estilo do menu do modo sozinho: cada
 // botão salta as rondas clássicas e começa logo nesse mini-jogo.
+// Mínimo de jogadores por jogo. Era 3 para todos (herdado da regra da fila
+// de bónus de fim de partida), o que deixava os quadros de desenho mortos
+// numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
+// o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2 };
+
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -480,13 +499,18 @@ function renderLobby(room) {
   lobbyEls.waiting.classList.toggle("hidden", amHost);
 
   const connectedCount = players.filter(([, p]) => p.connected).length;
+  let blockedByPlayers = 0;
   mpGameButtons.forEach((btn) => {
-    btn.disabled = !amHost || connectedCount < 3;
+    const min = MP_GAME_MIN_PLAYERS[btn.dataset.mpGame] ?? 2;
+    const enough = connectedCount >= min;
+    if (!enough) blockedByPlayers++;
+    btn.disabled = !amHost || !enough;
+    btn.title = enough ? "" : `Precisa de ${min}+ jogadores ligados.`;
   });
   lobbyEls.minigamesHint.textContent = !amHost
     ? "Só o anfitrião escolhe o jogo."
-    : connectedCount < 3
-      ? `Precisa de 3+ jogadores ligados (há ${connectedCount}).`
+    : blockedByPlayers > 0
+      ? `Salta as rondas clássicas e começa já neste. Há ${connectedCount} ligado(s) — alguns jogos precisam de mais.`
       : "Salta as rondas clássicas e começa já neste.";
 }
 
@@ -619,6 +643,15 @@ function renderCategories(room) {
     input.type = "text";
     input.autocomplete = "off";
     input.value = room.answers?.[state.uid]?.[catKey(ci)] || "";
+    // Enter salta para a categoria seguinte; no último campo, entrega.
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const inputs = [...catEls.list.querySelectorAll(".cat-item input")];
+      const next = inputs[inputs.indexOf(input) + 1];
+      if (next) next.focus();
+      else catEls.finishBtn.click();
+    });
     input.addEventListener("input", () => {
       clearTimeout(state.answerTimers[ci]);
       state.answerTimers[ci] = setTimeout(() => {

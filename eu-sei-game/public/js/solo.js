@@ -241,11 +241,13 @@ const MARATHON_GAMES = {
   landmark: startLandmarkMinigame,
 };
 
-// --- Kota Corre!: labirinto ao estilo Pac-Man com tempero angolano — foge
-// dos fantasmas com nomes de comidas, come as pastilhas, usa os túneis. ---
+// --- Kota Corre!: labirinto ao estilo Pac-Man com tema da história de
+// Angola — és a bandeira de Angola a fugir das forças estrangeiras da
+// guerra civil; come as pastilhas grandes e por uns segundos são elas que
+// fogem de ti. Usa os túneis dos lados para escapar. ---
 const PAC_COLS = 17;
 const PAC_ROWS = 13;
-const PAC_CELL_PX = 26;
+const PAC_CELL_PX = 32;
 const PAC_TICK_MS = 160;
 const PAC_FRIGHTEN_MS = 6000;
 const PAC_LIVES = 3;
@@ -255,11 +257,51 @@ const PAC_GHOST_POINTS = 20;
 const PAC_MAX_BONUS = 80;
 // Começam perto do centro (junto ao bloco central), não colados ao
 // jogador — dá um respiro inicial antes da perseguição começar a sério.
+// Bandeiras desenhadas em SVG e não com emoji (🇦🇴): os emoji de bandeira
+// simplesmente não aparecem no Windows, e aqui são o elemento central do
+// jogo. Ficam recortadas em círculo pelo border-radius do .pac-ghost.
+const FLAG_ANGOLA = `<svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+  <rect width="30" height="10" fill="#c8102e"/><rect y="10" width="30" height="10" fill="#111"/>
+  <g fill="#ffcf00"><circle cx="15" cy="10" r="3.1" fill="none" stroke="#ffcf00" stroke-width="1.2"/>
+  <path d="M15 6.2l0.7 2.1h2.2l-1.8 1.3 0.7 2.1-1.8-1.3-1.8 1.3 0.7-2.1-1.8-1.3h2.2z"/></g>
+</svg>`;
+const FLAG_SOUTH_AFRICA = `<svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+  <rect width="30" height="20" fill="#fff"/>
+  <path d="M0 0h30v6.5H0z" fill="#e03c31"/><path d="M0 13.5h30V20H0z" fill="#001489"/>
+  <path d="M0 7.5h30v5H0z" fill="#007749"/>
+  <path d="M0 0l12 10L0 20z" fill="#ffb81c"/><path d="M0 3l9 7-9 7z" fill="#001489"/>
+</svg>`;
+const FLAG_ZAIRE = `<svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+  <rect width="30" height="20" fill="#0b7a3b"/>
+  <circle cx="15" cy="10" r="6" fill="#f7d117"/>
+  <path d="M14.2 12.5h1.6v-4h-1.6z" fill="#5a3a1a"/>
+  <path d="M15 4.5c1.4 1.2 1.6 2.6 0 3.6-1.6-1-1.4-2.4 0-3.6z" fill="#e2542c"/>
+</svg>`;
+const FLAG_CUBA = `<svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+  <rect width="30" height="20" fill="#fff"/>
+  <g fill="#0033a0"><rect width="30" height="4"/><rect y="8" width="30" height="4"/><rect y="16" width="30" height="4"/></g>
+  <path d="M0 0l13 10L0 20z" fill="#cb1515"/>
+  <path d="M5 6.6l0.9 2.7h2.8l-2.3 1.7 0.9 2.7L5 12l-2.3 1.7 0.9-2.7L1.3 9.3h2.8z" fill="#fff"/>
+</svg>`;
+const FLAG_USSR = `<svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+  <rect width="30" height="20" fill="#cc0000"/>
+  <g fill="#ffd700" transform="translate(6.5 5.5) scale(0.9)">
+    <path d="M2.6 0l0.8 2.4h2.5L3.9 3.9l0.8 2.4L2.6 4.8 0.5 6.3l0.8-2.4L-0.7 2.4h2.5z"/>
+    <path d="M0 8.5c2.6-1 4.6-3 5-5.4l1.1 0.5C5.6 6 3.3 8 0.4 9.2z"/>
+    <path d="M1.4 9.4l4.9-3.2 0.8 1.2-4.9 3.2z"/>
+  </g>
+</svg>`;
+
+// Forças estrangeiras presentes na Guerra Civil Angolana (1975–2002), que
+// aqui perseguem o jogador. Nota histórica: a África do Sul e o Zaire
+// entraram mesmo com tropas em 1975; Cuba e a URSS intervieram do lado do
+// governo do MPLA, a convite deste. Usa-se a bandeira atual da África do
+// Sul (a da época é hoje um símbolo do apartheid).
 const PAC_GHOSTS_INFO = [
-  { name: "Muamba", color: "#c65d4a", home: { row: 5, col: 7 } },
-  { name: "Kizaka", color: "#5c7e91", home: { row: 5, col: 9 } },
-  { name: "Funji", color: "#e3a53d", home: { row: 8, col: 7 } },
-  { name: "Jindungo", color: "#6c8a4f", home: { row: 8, col: 9 } },
+  { name: "África do Sul", color: "#007749", flag: FLAG_SOUTH_AFRICA, home: { row: 5, col: 7 } },
+  { name: "Zaire", color: "#0b7a3b", flag: FLAG_ZAIRE, home: { row: 5, col: 9 } },
+  { name: "Cuba", color: "#0033a0", flag: FLAG_CUBA, home: { row: 8, col: 7 } },
+  { name: "União Soviética", color: "#cc0000", flag: FLAG_USSR, home: { row: 8, col: 9 } },
 ];
 const PAC_TUNNEL_ROW = Math.floor(PAC_ROWS / 2);
 const PAC_DIRS = {
@@ -1128,6 +1170,14 @@ els.soloHangmanGuessWordBtn.addEventListener("click", () => {
 });
 els.soloHangmanGiveupBtn.addEventListener("click", () => finishSoloHangman(false));
 
+// Enter entrega o palpite, sem obrigar a ir ao rato buscar o botão.
+els.soloHangmanLetterInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); els.soloHangmanGuessLetterBtn.click(); }
+});
+els.soloHangmanWordGuessInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); els.soloHangmanGuessWordBtn.click(); }
+});
+
 function startRun() {
   solo.round = 0;
   solo.runScore = 0;
@@ -1191,6 +1241,16 @@ function renderRound() {
     input.value = solo.answers[ci] || "";
     input.addEventListener("input", () => {
       solo.answers[ci] = input.value;
+    });
+    // Enter salta para a categoria seguinte; no último campo, entrega a
+    // ronda — evita ter de ir ao rato a meio de uma ronda cronometrada.
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const inputs = [...els.catList.querySelectorAll(".cat-item input")];
+      const next = inputs[inputs.indexOf(input) + 1];
+      if (next) next.focus();
+      else els.finishBtn.click();
     });
     wrapper.appendChild(title);
     wrapper.appendChild(input);
@@ -2188,7 +2248,8 @@ function renderPacmanMaze() {
 
   solo.pacPlayerEl = document.createElement("div");
   solo.pacPlayerEl.className = "pac-player";
-  solo.pacPlayerEl.textContent = "😋";
+  solo.pacPlayerEl.innerHTML = FLAG_ANGOLA;
+  solo.pacPlayerEl.title = "Angola";
   els.pacMaze.appendChild(solo.pacPlayerEl);
 
   solo.pacGhostEls = PAC_GHOSTS_INFO.map((info) => {
@@ -2196,7 +2257,7 @@ function renderPacmanMaze() {
     el.className = "pac-ghost";
     el.style.background = info.color;
     el.title = info.name;
-    el.textContent = "👻";
+    el.innerHTML = info.flag;
     els.pacMaze.appendChild(el);
     return el;
   });
@@ -2295,7 +2356,7 @@ function pacCheckCollisions() {
         ghost.col = ghost.home.col;
         ghost.dir = { r: 0, c: 0 };
         pacUpdateEntityEl(solo.pacGhostEls[i], ghost);
-        els.pacStatus.textContent = `Comeste a ${ghost.name}! +${PAC_GHOST_POINTS} pts`;
+        els.pacStatus.textContent = `Expulsaste ${ghost.name}! +${PAC_GHOST_POINTS} pts`;
       } else {
         pacLoseLife();
       }
