@@ -82,6 +82,10 @@ button.ghost-primary:hover:not(:disabled) { filter: brightness(0.95); }
 .mem-card { background: #f4f2fa; border: 2px solid transparent; border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; cursor: pointer; }
 .mem-card.selected { border-color: var(--primary); background: var(--accent); }
 .mem-card.shown-preview { background: var(--accent); }
+
+.bug-arena { position: relative; width: 100%; max-width: 320px; height: 220px; background: #f4f2fa; border-radius: 14px; margin: 12px auto; overflow: hidden; }
+.bug { position: absolute; font-size: 2rem; line-height: 1; cursor: pointer; background: none; border: none; padding: 4px; transform: translate(-50%, -50%); }
+.bug:active { transform: translate(-50%, -50%) scale(0.85); }
 .hidden { display: none !important; }
 
 .divider { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }

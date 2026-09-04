@@ -23,6 +23,15 @@ const WF_POINTS_PER_WORD = 3;
 const WF_MAX_BONUS = 30;
 const WF_MIN_LENGTH = 3;
 
+const BUG_TARGET_POOL = ["🪲", "🦗", "🐜", "🕷️"];
+const BUG_DECOY_POOL = ["🐞", "🦋", "🐝", "🐛", "🐌"];
+const BUG_GAME_MS = 9000;
+const BUG_SPAWN_INTERVAL_MS = 700;
+const BUG_VISIBLE_MS = 900;
+const BUG_HIT_POINTS = 3;
+const BUG_MISS_PENALTY = 2;
+const BUG_MAX_BONUS = 24;
+
 function difficultyForRound(round) {
   const numCategories = Math.min(
     SOLO_BASE_CATEGORIES + Math.floor((round - 1) / 2),
@@ -65,6 +74,10 @@ const solo = {
   wfWords: new Set(),
   wfEndAt: 0,
   wfActive: false,
+  bugTarget: "",
+  bugActive: false,
+  bugScore: 0,
+  bugSpawnIntervalId: null,
 };
 
 const els = {
@@ -89,6 +102,10 @@ const els = {
   wfFeedback: document.getElementById("wf-feedback"),
   wfWords: document.getElementById("wf-words"),
   wfStatus: document.getElementById("wf-status"),
+  bugTargetLabel: document.getElementById("bug-target-label"),
+  bugTimer: document.getElementById("bug-timer"),
+  bugArena: document.getElementById("bug-arena"),
+  bugStatus: document.getElementById("bug-status"),
 };
 
 function showScreen(name) {
@@ -259,7 +276,7 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
 // --- Mini-jogos bónus entre rondas: escolhido ao acaso a cada ronda, para
 // dar variedade em vez de repetir sempre o mesmo. ---
 
-const MINIGAMES = [startReflexMinigame, startWordFlashMinigame];
+const MINIGAMES = [startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame];
 
 function startMinigame() {
   const chosen = MINIGAMES[Math.floor(Math.random() * MINIGAMES.length)];
@@ -368,4 +385,87 @@ function finishWordFlash() {
   solo.runScore += bonus;
   els.wfStatus.textContent = `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`;
   setTimeout(nextRound, 1600);
+}
+
+// --- Mata o Inseto: apanha só o inseto-alvo entre insetos "inocentes"
+// que aparecem e desaparecem na arena. ---
+
+function startBugSmashMinigame() {
+  solo.bugTarget = BUG_TARGET_POOL[Math.floor(Math.random() * BUG_TARGET_POOL.length)];
+  solo.bugScore = 0;
+  solo.bugActive = true;
+  els.bugTargetLabel.textContent = solo.bugTarget;
+  els.bugArena.innerHTML = "";
+  els.bugStatus.textContent = "";
+  showScreen("solo-minigame-bug");
+
+  const endAt = Date.now() + BUG_GAME_MS;
+
+  function spawnBug() {
+    if (!solo.bugActive) return;
+    const isTarget = Math.random() < 0.4;
+    const emoji = isTarget
+      ? solo.bugTarget
+      : BUG_DECOY_POOL[Math.floor(Math.random() * BUG_DECOY_POOL.length)];
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "bug";
+    btn.textContent = emoji;
+    const areaW = els.bugArena.clientWidth || 320;
+    const areaH = els.bugArena.clientHeight || 220;
+    const x = 20 + Math.random() * Math.max(areaW - 40, 1);
+    const y = 20 + Math.random() * Math.max(areaH - 40, 1);
+    btn.style.left = `${x}px`;
+    btn.style.top = `${y}px`;
+
+    let resolved = false;
+    const removeTimeout = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      btn.remove();
+    }, BUG_VISIBLE_MS);
+
+    btn.addEventListener("click", () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(removeTimeout);
+      btn.remove();
+      if (!solo.bugActive) return;
+      if (emoji === solo.bugTarget) {
+        solo.bugScore += BUG_HIT_POINTS;
+      } else {
+        solo.bugScore = Math.max(0, solo.bugScore - BUG_MISS_PENALTY);
+      }
+    });
+
+    els.bugArena.appendChild(btn);
+  }
+
+  function tick() {
+    if (!solo.bugActive) return;
+    const msLeft = endAt - Date.now();
+    els.bugTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    if (msLeft <= 0) {
+      finishBugSmash();
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  solo.bugSpawnIntervalId = setInterval(spawnBug, BUG_SPAWN_INTERVAL_MS);
+  spawnBug();
+  requestAnimationFrame(tick);
+}
+
+function finishBugSmash() {
+  if (!solo.bugActive) return;
+  solo.bugActive = false;
+  clearInterval(solo.bugSpawnIntervalId);
+  els.bugArena.innerHTML = "";
+
+  const bonus = Math.min(solo.bugScore, BUG_MAX_BONUS);
+  solo.runScore += bonus;
+  els.bugStatus.textContent = `+${bonus} pts bónus!`;
+  setTimeout(nextRound, 1400);
 }
