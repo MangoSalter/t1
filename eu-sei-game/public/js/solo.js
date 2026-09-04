@@ -299,22 +299,61 @@ function buildPacmanMaze() {
 }
 
 // --- Mini-Golfe: física simples (aceleração + atrito + ressaltos) em 3
-// buracos, pontuação por rapidez em vez de contar pancadas. ---
-const GOLF_COURSE_W = 500;
-const GOLF_COURSE_H = 300;
+// buracos bem maiores do que o ecrã — uma câmara segue a bola, tal como
+// num jogo de ação normal, em vez de mostrar o percurso todo espremido
+// numa caixinha. Pontuação por rapidez em vez de contar pancadas. ---
 const GOLF_BALL_RADIUS = 8;
 const GOLF_HOLE_RADIUS = 12;
-const GOLF_ACCEL = 420; // px/s²
-const GOLF_DRAG = 1.4; // por segundo
-const GOLF_MAX_SPEED = 260; // px/s
+const GOLF_ACCEL = 460; // px/s²
+const GOLF_DRAG = 1.3; // por segundo
+const GOLF_MAX_SPEED = 320; // px/s
 const GOLF_BOUNCE_LOSS = 0.7;
-const GOLF_POINTS_PER_HOLE_MAX = 20;
-const GOLF_POINTS_PER_HOLE_MIN = 4;
-const GOLF_MAX_BONUS = 50;
+const GOLF_POINTS_PER_HOLE_MAX = 30;
+const GOLF_POINTS_PER_HOLE_MIN = 6;
+const GOLF_MAX_BONUS = 80;
 const GOLF_HOLES = [
-  { start: { x: 40, y: 150 }, hole: { x: 460, y: 150 }, walls: [{ x: 230, y: 0, w: 20, h: 190 }] },
-  { start: { x: 40, y: 40 }, hole: { x: 460, y: 260 }, walls: [{ x: 160, y: 60, w: 20, h: 240 }, { x: 320, y: 0, w: 20, h: 240 }] },
-  { start: { x: 40, y: 150 }, hole: { x: 460, y: 150 }, walls: [{ x: 150, y: 0, w: 20, h: 180 }, { x: 330, y: 120, w: 20, h: 180 }] },
+  {
+    courseW: 1500, courseH: 700,
+    start: { x: 60, y: 350 }, hole: { x: 1440, y: 350 },
+    walls: [
+      { x: 280, y: 0, w: 26, h: 460 },
+      { x: 280, y: 580, w: 26, h: 120 },
+      { x: 560, y: 240, w: 26, h: 460 },
+      { x: 560, y: 0, w: 26, h: 140 },
+      { x: 840, y: 0, w: 26, h: 460 },
+      { x: 840, y: 580, w: 26, h: 120 },
+      { x: 1120, y: 200, w: 26, h: 500 },
+    ],
+  },
+  {
+    courseW: 1700, courseH: 820,
+    start: { x: 60, y: 60 }, hole: { x: 1620, y: 760 },
+    walls: [
+      { x: 220, y: 120, w: 26, h: 620 },
+      { x: 460, y: 0, w: 26, h: 620 },
+      { x: 700, y: 200, w: 26, h: 620 },
+      { x: 940, y: 0, w: 26, h: 620 },
+      { x: 1180, y: 200, w: 26, h: 620 },
+      { x: 1420, y: 0, w: 26, h: 560 },
+    ],
+  },
+  {
+    courseW: 1900, courseH: 900,
+    start: { x: 60, y: 450 }, hole: { x: 1820, y: 450 },
+    walls: [
+      { x: 240, y: 0, w: 26, h: 380 },
+      { x: 240, y: 520, w: 26, h: 380 },
+      { x: 480, y: 200, w: 26, h: 500 },
+      { x: 480, y: 0, w: 26, h: 100 },
+      { x: 720, y: 0, w: 26, h: 380 },
+      { x: 720, y: 520, w: 26, h: 380 },
+      { x: 960, y: 200, w: 26, h: 500 },
+      { x: 1200, y: 0, w: 26, h: 380 },
+      { x: 1200, y: 520, w: 26, h: 380 },
+      { x: 1440, y: 200, w: 26, h: 500 },
+      { x: 1680, y: 0, w: 26, h: 400 },
+    ],
+  },
 ];
 
 function memShownCountForRound(round) {
@@ -557,6 +596,7 @@ const solo = {
   golfHoleStartedAt: 0,
   golfAdvanceTimeoutId: null,
   golfBallEl: null,
+  golfWorldEl: null,
   golfKeydownHandler: null,
   golfKeyupHandler: null,
   cardActive: false,
@@ -2220,6 +2260,12 @@ function finishPacman(won) {
 function golfRenderHole() {
   const hole = GOLF_HOLES[solo.golfHoleIndex];
   els.golfCourse.innerHTML = "";
+  solo.golfWorldEl = document.createElement("div");
+  solo.golfWorldEl.className = "golf-world";
+  solo.golfWorldEl.style.width = `${hole.courseW}px`;
+  solo.golfWorldEl.style.height = `${hole.courseH}px`;
+  els.golfCourse.appendChild(solo.golfWorldEl);
+
   hole.walls.forEach((w) => {
     const el = document.createElement("div");
     el.className = "golf-wall";
@@ -2227,22 +2273,32 @@ function golfRenderHole() {
     el.style.top = `${w.y}px`;
     el.style.width = `${w.w}px`;
     el.style.height = `${w.h}px`;
-    els.golfCourse.appendChild(el);
+    solo.golfWorldEl.appendChild(el);
   });
   const holeEl = document.createElement("div");
   holeEl.className = "golf-hole";
   holeEl.style.left = `${hole.hole.x}px`;
   holeEl.style.top = `${hole.hole.y}px`;
-  els.golfCourse.appendChild(holeEl);
+  solo.golfWorldEl.appendChild(holeEl);
 
   solo.golfBallEl = document.createElement("div");
   solo.golfBallEl.className = "golf-ball";
-  els.golfCourse.appendChild(solo.golfBallEl);
+  solo.golfWorldEl.appendChild(solo.golfBallEl);
 }
 
+// Move a bola dentro do mundo E desloca a câmara (o .golf-world inteiro)
+// para a bola ficar sempre centrada na parte visível do ecrã — o percurso
+// é maior do que o ecrã, tal como um jogo de ação normal.
 function golfUpdateBallEl() {
   solo.golfBallEl.style.left = `${solo.golfBallX}px`;
   solo.golfBallEl.style.top = `${solo.golfBallY}px`;
+
+  const hole = GOLF_HOLES[solo.golfHoleIndex];
+  const viewportW = els.golfCourse.clientWidth;
+  const viewportH = els.golfCourse.clientHeight;
+  const camX = Math.max(0, Math.min(solo.golfBallX - viewportW / 2, hole.courseW - viewportW));
+  const camY = Math.max(0, Math.min(solo.golfBallY - viewportH / 2, hole.courseH - viewportH));
+  solo.golfWorldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
 }
 
 function golfStartHole() {
@@ -2312,10 +2368,10 @@ function golfTick(now) {
     }
   });
 
-  if (newX <= GOLF_BALL_RADIUS || newX >= GOLF_COURSE_W - GOLF_BALL_RADIUS) solo.golfVX *= -0.6;
-  if (newY <= GOLF_BALL_RADIUS || newY >= GOLF_COURSE_H - GOLF_BALL_RADIUS) solo.golfVY *= -0.6;
-  newX = Math.max(GOLF_BALL_RADIUS, Math.min(GOLF_COURSE_W - GOLF_BALL_RADIUS, newX));
-  newY = Math.max(GOLF_BALL_RADIUS, Math.min(GOLF_COURSE_H - GOLF_BALL_RADIUS, newY));
+  if (newX <= GOLF_BALL_RADIUS || newX >= hole.courseW - GOLF_BALL_RADIUS) solo.golfVX *= -0.6;
+  if (newY <= GOLF_BALL_RADIUS || newY >= hole.courseH - GOLF_BALL_RADIUS) solo.golfVY *= -0.6;
+  newX = Math.max(GOLF_BALL_RADIUS, Math.min(hole.courseW - GOLF_BALL_RADIUS, newX));
+  newY = Math.max(GOLF_BALL_RADIUS, Math.min(hole.courseH - GOLF_BALL_RADIUS, newY));
 
   solo.golfBallX = newX;
   solo.golfBallY = newY;
