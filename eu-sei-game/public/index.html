@@ -668,6 +668,18 @@
     </div>
   </div>
 
+  <!-- Comandos no ecrã (telemóvel/tablet): enviam eventos de teclado
+       sintéticos, por isso os jogos não precisam de saber que existem. -->
+  <div id="touch-controls" class="touch-controls hidden">
+    <div class="touch-dpad">
+      <button type="button" class="touch-btn touch-up" data-touch-key="ArrowUp" aria-label="Cima">▲</button>
+      <button type="button" class="touch-btn touch-left" data-touch-key="ArrowLeft" aria-label="Esquerda">◀</button>
+      <button type="button" class="touch-btn touch-right" data-touch-key="ArrowRight" aria-label="Direita">▶</button>
+      <button type="button" class="touch-btn touch-down" data-touch-key="ArrowDown" aria-label="Baixo">▼</button>
+    </div>
+    <button type="button" id="touch-action-btn" class="touch-btn touch-action hidden" data-touch-key=" ">Atacar</button>
+  </div>
+
   <!-- Botão flutuante de Opções (classificação + rabisco), visível em qualquer ecrã dentro de uma sala multijogador -->
   <button id="options-fab" type="button" class="options-fab hidden" title="Classificação e rabisco">⚙️</button>
   <div id="options-overlay" class="pause-overlay hidden">

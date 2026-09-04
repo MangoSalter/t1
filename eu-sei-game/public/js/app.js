@@ -1,4 +1,5 @@
 import { getUid, serverNow } from "./firebase-init.js";
+import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG,
@@ -1306,11 +1307,13 @@ function tagEnter(room) {
   document.addEventListener("keydown", tagState.keydownHandler);
   document.addEventListener("keyup", tagState.keyupHandler);
 
+  showTouchControls();
   tagState.lastFrame = performance.now();
   tagState.rafId = requestAnimationFrame(tagTick);
 }
 
 function tagExit() {
+  hideTouchControls();
   tagState.active = false;
   if (tagState.rafId) cancelAnimationFrame(tagState.rafId);
   tagState.rafId = null;
@@ -1614,11 +1617,13 @@ function battleEnter(room) {
   document.addEventListener("keydown", battleState.keydownHandler);
   document.addEventListener("keyup", battleState.keyupHandler);
 
+  showTouchControls({ action: { key: " ", label: "Atacar" } });
   battleState.lastFrame = performance.now();
   battleState.rafId = requestAnimationFrame(battleTick);
 }
 
 function battleExit() {
+  hideTouchControls();
   battleState.active = false;
   if (battleState.rafId) cancelAnimationFrame(battleState.rafId);
   battleState.rafId = null;

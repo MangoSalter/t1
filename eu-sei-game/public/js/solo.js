@@ -8,6 +8,7 @@ import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
 } from "./data.js";
+import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
@@ -2134,10 +2135,33 @@ function finishLandmarkMinigame() {
 // --- Kota Corre!: renderiza o labirinto uma vez (paredes/pastilhas fixas),
 // depois só atualiza a posição do jogador/fantasmas a cada tick. ---
 
+// O labirinto tem tamanho fixo em píxeis (as paredes/pastilhas são
+// posicionadas em absoluto), por isso num telemóvel estreito saía fora do
+// ecrã. Encolhe-o proporcionalmente para caber na largura disponível.
+function fitPacmanMaze() {
+  const mazeW = PAC_COLS * PAC_CELL_PX;
+  const mazeH = PAC_ROWS * PAC_CELL_PX;
+  const parent = els.pacMaze.parentElement;
+  // clientWidth inclui o padding do cartão — descontá-lo, senão a escala
+  // fica otimista e o labirinto sai cortado do lado direito.
+  let available = mazeW;
+  if (parent) {
+    const cs = getComputedStyle(parent);
+    available = parent.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+  }
+  const scale = Math.min(1, available / mazeW);
+  els.pacMaze.style.transformOrigin = "top left";
+  els.pacMaze.style.transform = scale < 1 ? `scale(${scale})` : "";
+  // O transform não altera o espaço ocupado no layout: reserva-o à mão para
+  // o resto do cartão não ficar por cima do labirinto encolhido.
+  els.pacMaze.style.marginBottom = scale < 1 ? `${-(mazeH * (1 - scale))}px` : "";
+}
+
 function renderPacmanMaze() {
   els.pacMaze.innerHTML = "";
   els.pacMaze.style.width = `${PAC_COLS * PAC_CELL_PX}px`;
   els.pacMaze.style.height = `${PAC_ROWS * PAC_CELL_PX}px`;
+  fitPacmanMaze();
   solo.pacCellEls = {};
 
   for (let r = 0; r < PAC_ROWS; r++) {
@@ -2368,6 +2392,9 @@ function startPacman() {
 
   showGameHud(() => solo.pacScore);
   solo.pacKeyHandler = handlePacmanKeydown;
+  showTouchControls();
+  solo.pacResizeHandler = () => { if (solo.pacActive) fitPacmanMaze(); };
+  window.addEventListener("resize", solo.pacResizeHandler);
   document.addEventListener("keydown", solo.pacKeyHandler);
   clearInterval(solo.pacTickId);
   solo.pacTickId = setInterval(pacTick, PAC_TICK_MS);
@@ -2379,6 +2406,8 @@ function startPacman() {
       solo.pacActive = false;
       clearInterval(solo.pacTickId);
       document.removeEventListener("keydown", solo.pacKeyHandler);
+      window.removeEventListener("resize", solo.pacResizeHandler);
+      hideTouchControls();
     },
   });
 }
@@ -2388,6 +2417,8 @@ function finishPacman(won) {
   solo.pacActive = false;
   clearInterval(solo.pacTickId);
   document.removeEventListener("keydown", solo.pacKeyHandler);
+  window.removeEventListener("resize", solo.pacResizeHandler);
+  hideTouchControls();
 
   const bonus = Math.min(solo.pacScore, PAC_MAX_BONUS);
   solo.runScore += bonus;
@@ -2565,6 +2596,7 @@ function startGolf() {
   showGameHud(() => solo.golfScore);
 
   solo.golfKeydownHandler = (e) => golfHandleKey(e, true);
+  showTouchControls();
   solo.golfKeyupHandler = (e) => golfHandleKey(e, false);
   document.addEventListener("keydown", solo.golfKeydownHandler);
   document.addEventListener("keyup", solo.golfKeyupHandler);
@@ -2575,6 +2607,7 @@ function startGolf() {
       solo.golfActive = false;
       clearTimeout(solo.golfAdvanceTimeoutId);
       document.removeEventListener("keydown", solo.golfKeydownHandler);
+      hideTouchControls();
       document.removeEventListener("keyup", solo.golfKeyupHandler);
     },
   });
@@ -2587,6 +2620,7 @@ function finishGolf(wonAll) {
   solo.golfActive = false;
   clearTimeout(solo.golfAdvanceTimeoutId);
   document.removeEventListener("keydown", solo.golfKeydownHandler);
+  hideTouchControls();
   document.removeEventListener("keyup", solo.golfKeyupHandler);
 
   const bonus = Math.min(solo.golfScore, GOLF_MAX_BONUS);
@@ -3091,6 +3125,7 @@ function startCarGame() {
   showGameHud(() => Math.round(solo.carScore));
 
   solo.carKeyHandler = (e) => carHandleKey(e, true);
+  showTouchControls();
   document.addEventListener("keydown", solo.carKeyHandler);
 
   registerActiveGame({
@@ -3098,6 +3133,7 @@ function startCarGame() {
     cleanup: () => {
       solo.carActive = false;
       document.removeEventListener("keydown", solo.carKeyHandler);
+      hideTouchControls();
     },
   });
 
@@ -3183,6 +3219,7 @@ function finishCarGame() {
   if (!solo.carActive) return;
   solo.carActive = false;
   document.removeEventListener("keydown", solo.carKeyHandler);
+  hideTouchControls();
   const scoreRounded = Math.round(solo.carScore);
   const bonus = Math.min(scoreRounded, CAR_MAX_BONUS);
   solo.runScore += bonus;
