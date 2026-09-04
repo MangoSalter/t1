@@ -39,6 +39,9 @@ const els = {
   homeError: document.getElementById("home-error"),
 };
 
+els.createBtn.disabled = true;
+els.joinBtn.disabled = true;
+
 els.createBtn.addEventListener("click", async () => {
   const name = els.nameInput.value.trim();
   if (!name) return showHomeError("Escreve o teu nome primeiro.");
@@ -535,7 +538,16 @@ async function runHostLoopTick(room) {
 
 async function init() {
   showScreen("home");
-  state.uid = await getUid();
+  showHomeError("A ligar ao servidor...");
+  try {
+    state.uid = await getUid();
+  } catch (err) {
+    showHomeError("Não foi possível ligar ao servidor. Verifica a configuração do Firebase (firebase-config.js) e se o login anónimo está ativado.");
+    return;
+  }
+  showHomeError("");
+  els.createBtn.disabled = false;
+  els.joinBtn.disabled = false;
   // Verificação periódica: garante que transições por tempo (fim de ronda,
   // fim de votação, bola sem resposta) acontecem mesmo que ninguém escreva
   // nada na base de dados entretanto.
