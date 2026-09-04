@@ -12,6 +12,9 @@ import {
   HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
   MAP_TRIVIA_RESULT_DISPLAY_MS,
+  updateTagPosition, claimTagInfection, claimTagPowerup, spawnTagPowerup, resolveTagRound, finishTagRound,
+  TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS, TAG_POWERUP_MAX_ACTIVE, TAG_POWERUP_SPAWN_INTERVAL_MS,
+  TAG_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -100,6 +103,7 @@ function onRoomUpdate(room) {
   if (room.state !== lastRenderedState) {
     lastRenderedState = room.state;
   }
+  if (room.state !== "tag" && tagState.active) tagExit();
 
   switch (room.state) {
     case "lobby": renderLobby(room); showScreen("lobby"); break;
@@ -118,6 +122,7 @@ function onRoomUpdate(room) {
       }
       break;
     case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
+    case "tag": renderTag(room); showScreen("tag"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -130,6 +135,7 @@ function leaveToHome() {
   state.unsubscribe = null;
   state.code = null;
   state.room = null;
+  if (tagState.active) tagExit();
   showScreen("home");
 }
 
@@ -789,6 +795,249 @@ function renderMapTrivia(room) {
   }
 }
 
+// ---------- FUGA DA INFEÇÃO EM EQUIPA ----------
+// Cada cliente controla e transmite só a sua própria posição (a um ritmo
+// limitado), e deteta contacto/apanha power-ups localmente — tal como o
+// resto do jogo, isto é "por confiança" entre os jogadores, não física
+// corrida no servidor. A câmara segue sempre o PRÓPRIO jogador (cada
+// cliente vê o mundo centrado em si, não numa vista partilhada).
+
+const TAG_ACCEL = 900;
+const TAG_DRAG = 3.2;
+const TAG_MAX_SPEED = 260;
+const TAG_SPEED_BOOST_MULT = 1.6;
+const TAG_BROADCAST_INTERVAL_MS = 120;
+
+const tagEls = {
+  statusLine: document.getElementById("tag-status-line"),
+  timer: document.getElementById("tag-timer"),
+  arena: document.getElementById("tag-arena"),
+  results: document.getElementById("tag-results"),
+  continueBtn: document.getElementById("tag-continue-btn"),
+};
+
+const tagState = {
+  active: false,
+  x: 0, y: 0, vx: 0, vy: 0,
+  keys: { up: false, down: false, left: false, right: false },
+  lastFrame: 0,
+  lastBroadcastAt: 0,
+  keydownHandler: null,
+  keyupHandler: null,
+  rafId: null,
+  worldEl: null,
+  playerEls: {},
+  powerupEls: {},
+};
+
+tagEls.continueBtn.addEventListener("click", () => {
+  finishTagRound(state.code, state.room);
+});
+
+function tagHandleKey(e, isDown) {
+  const map = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
+  const dir = map[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  tagState.keys[dir] = isDown;
+}
+
+function tagEnter(room) {
+  tagState.active = true;
+  const myPos = room.tag?.positions?.[state.uid];
+  tagState.x = myPos?.x ?? (room.tag?.arenaW || 1400) / 2;
+  tagState.y = myPos?.y ?? (room.tag?.arenaH || 900) / 2;
+  tagState.vx = 0;
+  tagState.vy = 0;
+  tagState.keys = { up: false, down: false, left: false, right: false };
+  tagState.playerEls = {};
+  tagState.powerupEls = {};
+
+  tagEls.arena.innerHTML = "";
+  tagState.worldEl = document.createElement("div");
+  tagState.worldEl.className = "tag-world";
+  tagState.worldEl.style.width = `${room.tag?.arenaW || 1400}px`;
+  tagState.worldEl.style.height = `${room.tag?.arenaH || 900}px`;
+  tagEls.arena.appendChild(tagState.worldEl);
+
+  tagState.keydownHandler = (e) => tagHandleKey(e, true);
+  tagState.keyupHandler = (e) => tagHandleKey(e, false);
+  document.addEventListener("keydown", tagState.keydownHandler);
+  document.addEventListener("keyup", tagState.keyupHandler);
+
+  tagState.lastFrame = performance.now();
+  tagState.rafId = requestAnimationFrame(tagTick);
+}
+
+function tagExit() {
+  tagState.active = false;
+  if (tagState.rafId) cancelAnimationFrame(tagState.rafId);
+  tagState.rafId = null;
+  if (tagState.keydownHandler) document.removeEventListener("keydown", tagState.keydownHandler);
+  if (tagState.keyupHandler) document.removeEventListener("keyup", tagState.keyupHandler);
+  tagState.keydownHandler = null;
+  tagState.keyupHandler = null;
+}
+
+function tagPlayerEl(uid, name) {
+  if (tagState.playerEls[uid]) return tagState.playerEls[uid];
+  const el = document.createElement("div");
+  el.className = "tag-player";
+  const label = document.createElement("span");
+  label.className = "tag-player-name";
+  label.textContent = name;
+  el.appendChild(label);
+  tagState.worldEl.appendChild(el);
+  tagState.playerEls[uid] = el;
+  return el;
+}
+
+function tagRenderPowerups(powerups) {
+  const seen = new Set();
+  Object.entries(powerups || {}).forEach(([id, p]) => {
+    seen.add(id);
+    let el = tagState.powerupEls[id];
+    if (!el) {
+      el = document.createElement("div");
+      el.className = `tag-powerup tag-powerup-${p.type}`;
+      el.textContent = p.type === "shield" ? "🛡" : "⚡";
+      tagState.worldEl.appendChild(el);
+      tagState.powerupEls[id] = el;
+    }
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+  });
+  Object.keys(tagState.powerupEls).forEach((id) => {
+    if (!seen.has(id)) {
+      tagState.powerupEls[id].remove();
+      delete tagState.powerupEls[id];
+    }
+  });
+}
+
+function tagTick(now) {
+  if (!tagState.active) return;
+  const room = state.room;
+  const tag = room?.tag;
+  if (!tag) { tagState.rafId = requestAnimationFrame(tagTick); return; }
+
+  const dt = Math.min((now - tagState.lastFrame) / 1000, 0.05);
+  tagState.lastFrame = now;
+
+  if (!tag.resolved) {
+    let ax = 0, ay = 0;
+    if (tagState.keys.up) ay -= 1;
+    if (tagState.keys.down) ay += 1;
+    if (tagState.keys.left) ax -= 1;
+    if (tagState.keys.right) ax += 1;
+    if (ax !== 0 || ay !== 0) {
+      const len = Math.hypot(ax, ay);
+      tagState.vx += (ax / len) * TAG_ACCEL * dt;
+      tagState.vy += (ay / len) * TAG_ACCEL * dt;
+    }
+    const dragFactor = Math.max(0, 1 - TAG_DRAG * dt);
+    tagState.vx *= dragFactor;
+    tagState.vy *= dragFactor;
+
+    const speedBoosted = (tag.effects?.[state.uid]?.speedUntil || 0) > serverNow();
+    const maxSpeed = TAG_MAX_SPEED * (speedBoosted ? TAG_SPEED_BOOST_MULT : 1);
+    const speed = Math.hypot(tagState.vx, tagState.vy);
+    if (speed > maxSpeed) {
+      tagState.vx = (tagState.vx / speed) * maxSpeed;
+      tagState.vy = (tagState.vy / speed) * maxSpeed;
+    }
+
+    const arenaW = tag.arenaW || 1400;
+    const arenaH = tag.arenaH || 900;
+    tagState.x = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaW - TAG_PLAYER_RADIUS, tagState.x + tagState.vx * dt));
+    tagState.y = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaH - TAG_PLAYER_RADIUS, tagState.y + tagState.vy * dt));
+
+    if (now - tagState.lastBroadcastAt > TAG_BROADCAST_INTERVAL_MS) {
+      tagState.lastBroadcastAt = now;
+      updateTagPosition(state.code, state.uid, Math.round(tagState.x), Math.round(tagState.y));
+    }
+
+    const amInfected = !!tag.infected?.[state.uid];
+    if (amInfected) {
+      Object.entries(tag.positions || {}).forEach(([uid, pos]) => {
+        if (uid === state.uid || tag.infected?.[uid]) return;
+        const targetShielded = (tag.effects?.[uid]?.shieldUntil || 0) > serverNow();
+        if (targetShielded) return;
+        const dist = Math.hypot(tagState.x - pos.x, tagState.y - pos.y);
+        if (dist < TAG_PLAYER_RADIUS * 2) claimTagInfection(state.code, uid);
+      });
+    } else {
+      Object.entries(tag.powerups || {}).forEach(([id, p]) => {
+        const dist = Math.hypot(tagState.x - p.x, tagState.y - p.y);
+        if (dist < TAG_PLAYER_RADIUS + TAG_POWERUP_RADIUS) claimTagPowerup(state.code, state.uid, id, p.type);
+      });
+    }
+  }
+
+  // Renderiza todos os jogadores (posições mais recentes conhecidas via room).
+  Object.keys(room.players || {}).forEach((uid) => {
+    const pos = uid === state.uid ? { x: tagState.x, y: tagState.y } : tag.positions?.[uid];
+    if (!pos) return;
+    const el = tagPlayerEl(uid, room.players[uid].name || "?");
+    const infected = !!tag.infected?.[uid];
+    const shielded = (tag.effects?.[uid]?.shieldUntil || 0) > serverNow();
+    el.classList.toggle("tag-player-infected", infected);
+    el.classList.toggle("tag-player-survivor", !infected);
+    el.classList.toggle("tag-player-me", uid === state.uid);
+    el.classList.toggle("tag-player-shield", shielded);
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y}px`;
+  });
+  tagRenderPowerups(tag.powerups);
+
+  const viewportW = tagEls.arena.clientWidth;
+  const viewportH = tagEls.arena.clientHeight;
+  const arenaW = tag.arenaW || 1400;
+  const arenaH = tag.arenaH || 900;
+  const camX = Math.max(0, Math.min(tagState.x - viewportW / 2, arenaW - viewportW));
+  const camY = Math.max(0, Math.min(tagState.y - viewportH / 2, arenaH - viewportH));
+  tagState.worldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
+
+  tagState.rafId = requestAnimationFrame(tagTick);
+}
+
+function renderTag(room) {
+  const tag = room.tag;
+  if (!tag) return;
+  if (!tagState.active) tagEnter(room);
+
+  const amInfected = !!tag.infected?.[state.uid];
+  if (!tag.resolved) {
+    const msLeft = Math.max(0, (tag.endAt || 0) - serverNow());
+    tagEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
+    tagEls.statusLine.textContent = amInfected
+      ? "Estás INFETADO — encosta aos outros para os apanhar!"
+      : "Foge dos infetados! Apanha os power-ups no chão.";
+    tagEls.results.classList.add("hidden");
+    tagEls.continueBtn.classList.add("hidden");
+  } else {
+    tagEls.timer.textContent = "";
+    tagEls.statusLine.textContent = "Ronda terminada!";
+    tagEls.results.classList.remove("hidden");
+    tagEls.results.innerHTML = "";
+    const startedAt = tag.startedAt || 0;
+    Object.entries(room.players || {}).forEach(([uid, p]) => {
+      const survived = tag.survived ? !!tag.survived[uid] : !tag.infected?.[uid];
+      const infectedAt = tag.infectedAt?.[uid];
+      const detail = survived
+        ? "sobreviveu à ronda toda!"
+        : `apanhado aos ${Math.max(0, Math.round(((infectedAt || startedAt) - startedAt) / 1000))}s`;
+      const row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = `<span class="score-name">${p.name}</span>
+        <span class="score-round">${detail}</span>
+        <span class="score-total">+${tag.roundPoints?.[uid] || 0} pts</span>`;
+      tagEls.results.appendChild(row);
+    });
+    tagEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
+}
+
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -874,6 +1123,23 @@ async function runHostLoopTick(room) {
       } else if (mt && mt.resolved) {
         if (now - (mt.resolvedAt || 0) > MAP_TRIVIA_RESULT_DISPLAY_MS) {
           await advanceMapTriviaRoundOrFinish(state.code, room);
+        }
+      }
+    } else if (room.state === "tag") {
+      const tag = room.tag;
+      if (tag && !tag.resolved) {
+        const activePowerups = Object.keys(tag.powerups || {}).length;
+        if (activePowerups < TAG_POWERUP_MAX_ACTIVE && now - (tag.lastPowerupSpawnAt || 0) > TAG_POWERUP_SPAWN_INTERVAL_MS) {
+          await spawnTagPowerup(state.code, room);
+        }
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const allInfected = connectedIds.length > 0 && connectedIds.every((uid) => tag.infected?.[uid]);
+        if (now >= (tag.endAt || 0) || allInfected) {
+          await resolveTagRound(state.code, room);
+        }
+      } else if (tag && tag.resolved) {
+        if (now - (tag.resolvedAt || 0) > TAG_RESULT_DISPLAY_MS) {
+          await finishTagRound(state.code, room);
         }
       }
     }

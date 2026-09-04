@@ -27,10 +27,10 @@ export const MAP_TRIVIA_RESULT_DISPLAY_MS = 9000;
 // a deteção de contacto e a apanha de power-ups são feitas localmente por
 // cada cliente e escritas de volta — não há "física" corrida no servidor,
 // tal como o resto deste jogo (ver nota de confiança acima da Forca). ---
-export const TAG_ARENA_W = 640;
-export const TAG_ARENA_H = 400;
+export const TAG_ARENA_W = 1400;
+export const TAG_ARENA_H = 900;
 export const TAG_PLAYER_RADIUS = 16;
-export const TAG_ROUND_MS = 45000;
+export const TAG_ROUND_MS = 60000;
 export const TAG_SURVIVOR_BONUS = 25;
 export const TAG_POINTS_PER_SECOND = 1;
 export const TAG_POWERUP_RADIUS = 14;
@@ -39,6 +39,7 @@ export const TAG_POWERUP_SPAWN_INTERVAL_MS = 6000;
 export const TAG_SHIELD_MS = 4000;
 export const TAG_SPEED_MS = 4000;
 export const TAG_POWERUP_TYPES = ["shield", "speed"];
+export const TAG_RESULT_DISPLAY_MS = 6000;
 
 export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag"];
 
@@ -741,7 +742,7 @@ export async function resolveTagRound(code, room) {
   if (!tag || tag.resolved) return;
   const now = serverNow();
   const { roundPoints, survived } = computeTagResults(room, now);
-  const updates = { "tag/resolved": true, "tag/resolvedAt": now, "tag/survived": survived };
+  const updates = { "tag/resolved": true, "tag/resolvedAt": now, "tag/survived": survived, "tag/roundPoints": roundPoints };
   Object.entries(roundPoints).forEach(([uid, pts]) => {
     if (pts > 0) {
       const prevScore = room.players?.[uid]?.score || 0;

@@ -411,6 +411,7 @@
         <div class="marathon-picker">
           <label><input type="checkbox" data-bonus-game="hangman" checked /> Forca em equipa</label>
           <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
+          <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa (experimental, tempo real)</label>
         </div>
       </details>
 
@@ -533,6 +534,19 @@
       <div id="map-trivia-results" class="score-table hidden"></div>
       <p id="map-trivia-vote-hint" class="hint small hidden">Uma resposta errada pode ser aceite se a maioria da equipa votar que sim.</p>
       <button id="map-trivia-continue-btn" class="primary hidden">Continuar</button>
+    </div>
+  </section>
+
+  <!-- FUGA DA INFEÇÃO EM EQUIPA -->
+  <section data-screen="tag" class="screen fullscreen-game">
+    <div class="card wide center golf-wide-card">
+      <h2>Fuga da Infeção!</h2>
+      <p class="hint small">Setas ou WASD para fugir/apanhar. Quem está infetado tem de encostar aos outros para os infetar também — sobrevive quem escapar até ao fim.</p>
+      <p id="tag-status-line" class="hint"></p>
+      <div class="round-timer" id="tag-timer"></div>
+      <div id="tag-arena" class="tag-arena"></div>
+      <div id="tag-results" class="score-table hidden"></div>
+      <button id="tag-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
 
