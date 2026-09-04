@@ -31,6 +31,10 @@
       <h1>Eu sei!</h1>
       <p class="subtitle">Dona Manga mandou-te competir. Mostra que sabes.</p>
       <input id="name-input" type="text" placeholder="O teu nome" maxlength="18" />
+      <div class="avatar-picker-row">
+        <img id="avatar-preview" class="avatar-preview" alt="O teu avatar" />
+        <button id="avatar-edit-btn" type="button" class="ghost">Desenhar o meu avatar</button>
+      </div>
       <button id="create-room-btn" class="primary">Criar sala</button>
       <div class="divider">ou</div>
       <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
@@ -590,6 +594,25 @@
       <p class="hint">O jogo está parado — ninguém a ver.</p>
       <button type="button" id="pause-resume-btn" class="primary">Continuar</button>
       <button type="button" id="pause-exit-btn" class="ghost">Sair para o menu</button>
+    </div>
+  </div>
+
+  <!-- Editor do avatar (desenho em pixels) -->
+  <div id="avatar-editor-overlay" class="pause-overlay hidden">
+    <div class="card center avatar-editor-card">
+      <h2>Desenha o teu avatar</h2>
+      <p class="hint small">Aparece ao lado do teu nome nas salas multijogador.</p>
+      <canvas id="avatar-canvas" width="16" height="16" class="avatar-canvas"></canvas>
+      <div class="avatar-tools">
+        <button type="button" id="avatar-tool-pencil" class="avatar-tool-btn active" title="Lápis">Lápis</button>
+        <button type="button" id="avatar-tool-eraser" class="avatar-tool-btn" title="Borracha">Borracha</button>
+        <button type="button" id="avatar-clear-btn" class="ghost" title="Limpar tudo">Limpar</button>
+      </div>
+      <div id="avatar-palette" class="avatar-palette"></div>
+      <div class="row-buttons">
+        <button type="button" id="avatar-save-btn" class="primary">Guardar</button>
+        <button type="button" id="avatar-cancel-btn" class="ghost">Fechar sem guardar</button>
+      </div>
     </div>
   </div>
 

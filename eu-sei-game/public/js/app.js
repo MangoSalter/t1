@@ -55,7 +55,7 @@ els.createBtn.addEventListener("click", async () => {
   if (!name) return showHomeError("Escreve o teu nome primeiro.");
   try {
     state.name = name;
-    const code = await createRoom(state.uid, name);
+    const code = await createRoom(state.uid, name, loadAvatar());
     enterRoom(code);
   } catch (err) {
     showHomeError(err.message);
@@ -69,12 +69,153 @@ els.joinBtn.addEventListener("click", async () => {
   if (!code) return showHomeError("Escreve o código da sala.");
   try {
     state.name = name;
-    const joinedCode = await joinRoom(code, state.uid, name);
+    const joinedCode = await joinRoom(code, state.uid, name, loadAvatar());
     enterRoom(joinedCode);
   } catch (err) {
     showHomeError(err.message);
   }
 });
+
+// ---------- AVATAR (desenho em pixels, mostrado ao lado do nome nas salas) ----------
+
+const AVATAR_SIZE = 16;
+const AVATAR_KEY = "euSei_avatar";
+const AVATAR_PALETTE = ["#3a3126", "#c65d4a", "#e3a53d", "#6c8a4f", "#5c7e91", "#8a6bb0", "#ffffff"];
+const AVATAR_BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
+
+const avatarEls = {
+  preview: document.getElementById("avatar-preview"),
+  editBtn: document.getElementById("avatar-edit-btn"),
+  overlay: document.getElementById("avatar-editor-overlay"),
+  canvas: document.getElementById("avatar-canvas"),
+  toolPencil: document.getElementById("avatar-tool-pencil"),
+  toolEraser: document.getElementById("avatar-tool-eraser"),
+  clearBtn: document.getElementById("avatar-clear-btn"),
+  palette: document.getElementById("avatar-palette"),
+  saveBtn: document.getElementById("avatar-save-btn"),
+  cancelBtn: document.getElementById("avatar-cancel-btn"),
+};
+
+const avatarState = { tool: "pencil", color: AVATAR_PALETTE[0], drawing: false };
+const avatarCtx = avatarEls.canvas.getContext("2d", { willReadFrequently: true });
+avatarCtx.imageSmoothingEnabled = false;
+
+function loadAvatar() {
+  try {
+    return localStorage.getItem(AVATAR_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAvatar(dataUrl) {
+  try {
+    localStorage.setItem(AVATAR_KEY, dataUrl);
+  } catch {
+    // sem localStorage (modo privado, etc.) — o avatar só não persiste entre visitas.
+  }
+}
+
+avatarEls.preview.src = loadAvatar() || AVATAR_BLANK_PNG;
+
+AVATAR_PALETTE.forEach((color) => {
+  const swatch = document.createElement("button");
+  swatch.type = "button";
+  swatch.className = "avatar-swatch";
+  swatch.style.background = color;
+  swatch.classList.toggle("active", color === avatarState.color);
+  swatch.addEventListener("click", () => {
+    avatarState.color = color;
+    avatarState.tool = "pencil";
+    avatarEls.toolPencil.classList.add("active");
+    avatarEls.toolEraser.classList.remove("active");
+    avatarEls.palette.querySelectorAll(".avatar-swatch").forEach((s) => s.classList.toggle("active", s === swatch));
+  });
+  avatarEls.palette.appendChild(swatch);
+});
+
+avatarEls.toolPencil.addEventListener("click", () => {
+  avatarState.tool = "pencil";
+  avatarEls.toolPencil.classList.add("active");
+  avatarEls.toolEraser.classList.remove("active");
+});
+avatarEls.toolEraser.addEventListener("click", () => {
+  avatarState.tool = "eraser";
+  avatarEls.toolEraser.classList.add("active");
+  avatarEls.toolPencil.classList.remove("active");
+});
+avatarEls.clearBtn.addEventListener("click", () => {
+  avatarCtx.clearRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
+});
+
+function avatarPixelFromEvent(e) {
+  const rect = avatarEls.canvas.getBoundingClientRect();
+  const point = e.touches ? e.touches[0] : e;
+  const x = Math.floor(((point.clientX - rect.left) / rect.width) * AVATAR_SIZE);
+  const y = Math.floor(((point.clientY - rect.top) / rect.height) * AVATAR_SIZE);
+  return { x: Math.max(0, Math.min(AVATAR_SIZE - 1, x)), y: Math.max(0, Math.min(AVATAR_SIZE - 1, y)) };
+}
+
+function avatarPaintAt(e) {
+  const { x, y } = avatarPixelFromEvent(e);
+  if (avatarState.tool === "eraser") {
+    avatarCtx.clearRect(x, y, 1, 1);
+  } else {
+    avatarCtx.fillStyle = avatarState.color;
+    avatarCtx.fillRect(x, y, 1, 1);
+  }
+}
+
+["mousedown", "touchstart"].forEach((evt) => {
+  avatarEls.canvas.addEventListener(evt, (e) => {
+    e.preventDefault();
+    avatarState.drawing = true;
+    avatarPaintAt(e);
+  });
+});
+["mousemove", "touchmove"].forEach((evt) => {
+  avatarEls.canvas.addEventListener(evt, (e) => {
+    if (!avatarState.drawing) return;
+    e.preventDefault();
+    avatarPaintAt(e);
+  });
+});
+["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((evt) => {
+  avatarEls.canvas.addEventListener(evt, () => { avatarState.drawing = false; });
+});
+
+avatarEls.editBtn.addEventListener("click", () => {
+  avatarCtx.clearRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
+  const saved = loadAvatar();
+  if (saved) {
+    const img = new Image();
+    img.onload = () => avatarCtx.drawImage(img, 0, 0);
+    img.src = saved;
+  }
+  avatarEls.overlay.classList.remove("hidden");
+});
+
+avatarEls.saveBtn.addEventListener("click", () => {
+  const dataUrl = avatarEls.canvas.toDataURL("image/png");
+  saveAvatar(dataUrl);
+  avatarEls.preview.src = dataUrl;
+  avatarEls.overlay.classList.add("hidden");
+});
+avatarEls.cancelBtn.addEventListener("click", () => {
+  avatarEls.overlay.classList.add("hidden");
+});
+
+function avatarImgHtml(avatarDataUrl, size) {
+  // avatarDataUrl vem de outro jogador (via Firebase) — valida que é mesmo
+  // um data URI de imagem antes de o meter num atributo src, e escapa na
+  // mesma por defesa extra (um jogador tecnicamente curioso podia escrever
+  // lá o que quisesse diretamente na base de dados, tal como o resto deste
+  // jogo "por confiança" — ver nota acima da Forca).
+  const isValidDataUrl = typeof avatarDataUrl === "string" && /^data:image\/(png|gif|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(avatarDataUrl);
+  const src = isValidDataUrl ? avatarDataUrl : AVATAR_BLANK_PNG;
+  const cls = size === "sm" ? "avatar-thumb-sm" : "avatar-thumb";
+  return `<img class="${cls}" src="${escapeHtml(src)}" alt="" />`;
+}
 
 function showHomeError(msg) {
   els.homeError.textContent = msg;
@@ -150,6 +291,14 @@ document.querySelectorAll("[data-leave]").forEach((btn) => {
 
 function isHost(room) {
   return room.hostId === state.uid;
+}
+
+// Nomes de jogadores são escritos por eles próprios — sempre escapar antes
+// de meter em innerHTML (textContent já é seguro por si só).
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text ?? "";
+  return div.innerHTML;
 }
 
 // ---------- LOBBY ----------
@@ -265,7 +414,8 @@ function renderLobby(room) {
   lobbyEls.players.innerHTML = "";
   players.forEach(([uid, p]) => {
     const li = document.createElement("li");
-    li.textContent = p.name + (uid === room.hostId ? " 👑" : "") + (p.connected ? "" : " (desligado)");
+    li.innerHTML = avatarImgHtml(p.avatar, "sm")
+      + escapeHtml(p.name) + (uid === room.hostId ? " 👑" : "") + (p.connected ? "" : " (desligado)");
     lobbyEls.players.appendChild(li);
   });
 
@@ -562,7 +712,7 @@ function renderRoundScore(room) {
     const row = document.createElement("div");
     row.className = "score-row";
     const roundPts = rr?.roundPoints?.[uid] || 0;
-    row.innerHTML = `<span class="score-name">${p.name}</span>
+    row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
       <span class="score-round">+${roundPts} nesta ronda</span>
       <span class="score-total">${p.score || 0} pts</span>`;
     roundScoreEls.table.appendChild(row);
@@ -769,12 +919,13 @@ function renderMapTrivia(room) {
     Object.entries(mt.roundResults || {}).forEach(([uid, r]) => {
       const row = document.createElement("div");
       row.className = "score-row";
-      const name = room.players?.[uid]?.name || "?";
+      const p = room.players?.[uid];
+      const name = escapeHtml(p?.name || "?");
       const statusLabel = r.correct
         ? (r.votedIn ? "✓ aceite pela equipa! +8 pts" : "✓ +8 pts")
         : "✕ 0 pts";
-      row.innerHTML = `<span class="score-name">${name}</span>
-        <span class="score-round">${r.answer || "(sem resposta)"}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p?.avatar, "sm")}${name}</span>
+        <span class="score-round">${escapeHtml(r.answer) || "(sem resposta)"}</span>
         <span class="score-total">${statusLabel}</span>`;
       if (!r.correct && r.answer && uid !== state.uid) {
         anyChallengeable = true;
@@ -1029,7 +1180,7 @@ function renderTag(room) {
         : `apanhado aos ${Math.max(0, Math.round(((infectedAt || startedAt) - startedAt) / 1000))}s`;
       const row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${p.name}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
         <span class="score-round">${detail}</span>
         <span class="score-total">+${tag.roundPoints?.[uid] || 0} pts</span>`;
       tagEls.results.appendChild(row);
@@ -1057,7 +1208,7 @@ function renderFinal(room) {
     const row = document.createElement("div");
     row.className = "final-row";
     row.innerHTML = `<span class="final-pos">${i === 0 ? "👑" : `#${i + 1}`}</span>
-      <span class="final-name">${p.name}</span>
+      <span class="final-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
       <span class="final-score">${p.score || 0} pts</span>`;
     finalEls.ranking.appendChild(row);
   });

@@ -171,6 +171,18 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .car-player { background: var(--accent); z-index: 2; }
 .car-obstacle { transition: none; }
 
+/* Avatar desenhado à mão (pixel art), usado nas listas multijogador */
+.avatar-picker-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 4px 0; }
+.avatar-preview, .avatar-thumb { width: 36px; height: 36px; border: 2px solid var(--ink); border-radius: 6px; background: var(--paper-soft); image-rendering: pixelated; }
+.avatar-thumb-sm { width: 24px; height: 24px; border: 1.5px solid var(--ink); border-radius: 4px; background: var(--paper-soft); image-rendering: pixelated; vertical-align: middle; margin-right: 6px; }
+.avatar-editor-card { max-width: 340px; }
+.avatar-canvas { width: 224px; height: 224px; image-rendering: pixelated; border: 2px solid var(--ink); border-radius: 8px; background: #fff; cursor: crosshair; touch-action: none; margin: 8px 0; }
+.avatar-tools { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+.avatar-tool-btn.active { background: var(--accent); }
+.avatar-palette { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+.avatar-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); padding: 0; cursor: pointer; }
+.avatar-swatch.active { box-shadow: 0 0 0 3px var(--accent); }
+
 .pac-maze { position: relative; margin: 10px auto; background: var(--paper-soft); border: 2px solid var(--paper-line); border-radius: 10px; overflow: hidden; }
 .pac-wall { position: absolute; background: var(--paper-line); border: 1.5px solid var(--ink); border-radius: 4px; box-sizing: border-box; }
 .pac-dot { position: absolute; width: 5px; height: 5px; margin: -2.5px; background: var(--muted); border-radius: 50%; }

@@ -70,7 +70,7 @@ function roomRef(code) {
   return ref(db, `rooms/${code}`);
 }
 
-export async function createRoom(uid, name) {
+export async function createRoom(uid, name, avatar) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateRoomCode();
     const r = roomRef(code);
@@ -83,7 +83,7 @@ export async function createRoom(uid, name) {
       round: 0,
       config: DEFAULT_CONFIG,
       players: {
-        [uid]: { name, score: 0, connected: true, joinedAt: serverTimestamp() },
+        [uid]: { name, avatar: avatar || null, score: 0, connected: true, joinedAt: serverTimestamp() },
       },
       usedLetters: {},
       usedCategories: {},
@@ -94,7 +94,7 @@ export async function createRoom(uid, name) {
   throw new Error("Não foi possível criar a sala. Tenta novamente.");
 }
 
-export async function joinRoom(code, uid, name) {
+export async function joinRoom(code, uid, name, avatar) {
   code = code.trim().toUpperCase();
   const r = roomRef(code);
   const snap = await get(r);
@@ -106,7 +106,8 @@ export async function joinRoom(code, uid, name) {
     throw new Error("Essa sala já está cheia (máx. 10 jogadores).");
   }
   await update(ref(db, `rooms/${code}/players/${uid}`), {
-    name, score: room.players?.[uid]?.score || 0, connected: true, joinedAt: serverTimestamp(),
+    name, avatar: avatar || room.players?.[uid]?.avatar || null,
+    score: room.players?.[uid]?.score || 0, connected: true, joinedAt: serverTimestamp(),
   });
   attachPresence(code, uid);
   return code;
