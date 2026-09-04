@@ -1,16 +1,16 @@
 import { getUid, serverNow } from "./firebase-init.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
-  MAP_COUNTRIES, MAP_BACKGROUND_SVG,
+  MAP_BACKGROUND_SVG,
 } from "./data.js";
 import {
   createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost,
   startGame, startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
-  submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman,
+  submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman, giveUpHangman,
   HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
-  submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
+  submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
   MAP_TRIVIA_RESULT_DISPLAY_MS,
 } from "./room.js";
 
@@ -589,6 +589,7 @@ const hangmanEls = {
   guessLetterBtn: document.getElementById("hangman-guess-letter-btn"),
   wordGuessInput: document.getElementById("hangman-word-guess-input"),
   guessWordBtn: document.getElementById("hangman-guess-word-btn"),
+  giveupBtn: document.getElementById("hangman-giveup-btn"),
   result: document.getElementById("hangman-result"),
   resultText: document.getElementById("hangman-result-text"),
   continueBtn: document.getElementById("hangman-continue-btn"),
@@ -614,6 +615,10 @@ hangmanEls.guessWordBtn.addEventListener("click", () => {
   if (!guess) return;
   hangmanEls.wordGuessInput.value = "";
   guessHangmanWord(state.code, state.room, state.uid, guess);
+});
+
+hangmanEls.giveupBtn.addEventListener("click", () => {
+  giveUpHangman(state.code, state.room, state.uid);
 });
 
 hangmanEls.continueBtn.addEventListener("click", () => {
@@ -672,10 +677,12 @@ function renderHangmanPlay(room) {
     const turnName = room.players?.[currentTurnUid]?.name || "Alguém";
     hangmanEls.turnInfo.textContent = myTurn ? "É a tua vez!" : `Vez de ${turnName}...`;
     hangmanEls.guessControls.classList.toggle("hidden", !isGuesser || !myTurn);
+    hangmanEls.giveupBtn.classList.toggle("hidden", !isGuesser);
     hangmanEls.result.classList.add("hidden");
   } else {
     hangmanEls.turnInfo.textContent = "";
     hangmanEls.guessControls.classList.add("hidden");
+    hangmanEls.giveupBtn.classList.add("hidden");
     hangmanEls.result.classList.remove("hidden");
     hangmanEls.resultText.textContent = hangman.status === "won"
       ? `A equipa acertou! A palavra era "${word}". 🎉`
@@ -691,35 +698,35 @@ const mapTriviaEls = {
   prompt: document.getElementById("map-trivia-prompt"),
   timer: document.getElementById("map-trivia-timer"),
   arena: document.getElementById("map-trivia-arena"),
+  answerRow: document.getElementById("map-trivia-answer-row"),
+  answerInput: document.getElementById("map-trivia-answer-input"),
+  answerSubmitBtn: document.getElementById("map-trivia-answer-submit-btn"),
   answered: document.getElementById("map-trivia-answered"),
   results: document.getElementById("map-trivia-results"),
+  voteHint: document.getElementById("map-trivia-vote-hint"),
   continueBtn: document.getElementById("map-trivia-continue-btn"),
 };
 
-const mapTriviaMarkerEls = {};
-(function buildMapTriviaMarkers() {
+(function buildMapTriviaBackground() {
   const bg = document.createElement("div");
   bg.className = "map-bg";
   bg.innerHTML = MAP_BACKGROUND_SVG;
   mapTriviaEls.arena.appendChild(bg);
-  MAP_COUNTRIES.forEach((c) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "map-pin";
-    btn.style.left = `${c.x}%`;
-    btn.style.top = `${c.y}%`;
-    btn.title = c.name;
-    btn.addEventListener("click", () => {
-      const room = state.room;
-      const mt = room?.mapTrivia;
-      if (!mt || mt.resolved) return;
-      if (mt.answers?.[state.uid]) return; // já respondeste esta ronda
-      submitMapTriviaAnswer(state.code, state.uid, c.name);
-    });
-    mapTriviaEls.arena.appendChild(btn);
-    mapTriviaMarkerEls[c.name] = btn;
-  });
 })();
+
+function submitMyMapTriviaAnswer() {
+  const room = state.room;
+  const mt = room?.mapTrivia;
+  if (!mt || mt.resolved) return;
+  if (mt.answers?.[state.uid]) return; // já respondeste esta ronda
+  const text = mapTriviaEls.answerInput.value.trim();
+  if (!text) return;
+  submitMapTriviaAnswer(state.code, state.uid, text);
+}
+mapTriviaEls.answerSubmitBtn.addEventListener("click", submitMyMapTriviaAnswer);
+mapTriviaEls.answerInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") submitMyMapTriviaAnswer();
+});
 
 mapTriviaEls.continueBtn.addEventListener("click", () => {
   advanceMapTriviaRoundOrFinish(state.code, state.room);
@@ -732,15 +739,6 @@ function renderMapTrivia(room) {
   mapTriviaEls.prompt.textContent = mt.criteria?.promptText || "";
 
   const myAnswer = mt.answers?.[state.uid];
-  Object.entries(mapTriviaMarkerEls).forEach(([name, btn]) => {
-    btn.classList.remove("correct-flash", "wrong-flash");
-    if (mt.resolved) {
-      if ((mt.criteria?.matchNames || []).includes(name)) btn.classList.add("correct-flash");
-      else if (myAnswer === name) btn.classList.add("wrong-flash");
-    } else if (myAnswer === name) {
-      btn.classList.add("correct-flash"); // usa o verde só como "escolhido", antes de resolver
-    }
-  });
 
   if (!mt.resolved) {
     const msLeft = Math.max(0, (mt.endAt || 0) - serverNow());
@@ -748,24 +746,45 @@ function renderMapTrivia(room) {
     const answeredCount = Object.keys(mt.answers || {}).length;
     const totalPlayers = Object.keys(room.players || {}).length;
     mapTriviaEls.answered.textContent = myAnswer
-      ? `Já respondeste! (${answeredCount}/${totalPlayers} responderam)`
-      : `Clica no país certo. (${answeredCount}/${totalPlayers} responderam)`;
+      ? `Já respondeste "${myAnswer}"! (${answeredCount}/${totalPlayers} responderam)`
+      : `Escreve a tua resposta e envia. (${answeredCount}/${totalPlayers} responderam)`;
+    mapTriviaEls.answerRow.classList.toggle("hidden", !!myAnswer);
     mapTriviaEls.results.classList.add("hidden");
+    mapTriviaEls.voteHint.classList.add("hidden");
     mapTriviaEls.continueBtn.classList.add("hidden");
   } else {
     mapTriviaEls.timer.textContent = "";
     mapTriviaEls.answered.textContent = "";
+    mapTriviaEls.answerRow.classList.add("hidden");
+    mapTriviaEls.answerInput.value = "";
     mapTriviaEls.results.classList.remove("hidden");
     mapTriviaEls.results.innerHTML = "";
+    let anyChallengeable = false;
     Object.entries(mt.roundResults || {}).forEach(([uid, r]) => {
       const row = document.createElement("div");
       row.className = "score-row";
       const name = room.players?.[uid]?.name || "?";
+      const statusLabel = r.correct
+        ? (r.votedIn ? "✓ aceite pela equipa! +8 pts" : "✓ +8 pts")
+        : "✕ 0 pts";
       row.innerHTML = `<span class="score-name">${name}</span>
         <span class="score-round">${r.answer || "(sem resposta)"}</span>
-        <span class="score-total">${r.correct ? "✓ +8 pts" : "✕ 0 pts"}</span>`;
+        <span class="score-total">${statusLabel}</span>`;
+      if (!r.correct && r.answer && uid !== state.uid) {
+        anyChallengeable = true;
+        const alreadyVoted = !!mt.votes?.[uid]?.[state.uid];
+        const voteBtn = document.createElement("button");
+        voteBtn.className = "vote-btn";
+        voteBtn.textContent = alreadyVoted ? "Votaste para aceitar" : "Aceitar resposta";
+        voteBtn.disabled = alreadyVoted;
+        voteBtn.addEventListener("click", () => {
+          voteAcceptMapTriviaAnswer(state.code, state.room, uid, state.uid);
+        });
+        row.appendChild(voteBtn);
+      }
       mapTriviaEls.results.appendChild(row);
     });
+    mapTriviaEls.voteHint.classList.toggle("hidden", !anyChallengeable);
     mapTriviaEls.continueBtn.classList.toggle("hidden", !isHost(room));
   }
 }

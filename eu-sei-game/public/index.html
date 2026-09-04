@@ -173,6 +173,7 @@
         <button id="solo-hangman-guess-word-btn" class="primary">Arriscar!</button>
       </div>
       <p id="solo-hangman-status" class="hint"></p>
+      <button id="solo-hangman-giveup-btn" class="ghost">Desistir e ver a resposta</button>
       <button data-solo-leave class="ghost">Sair</button>
     </div>
   </section>
@@ -303,6 +304,10 @@
       <p id="map-round-info" class="hint small"></p>
       <div class="round-timer" id="map-timer"></div>
       <div id="map-arena" class="map-arena"></div>
+      <div class="map-answer-row">
+        <input id="map-answer-input" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
+        <button id="map-answer-submit-btn" class="primary">Responder</button>
+      </div>
       <p id="map-status" class="hint"></p>
     </div>
   </section>
@@ -503,6 +508,7 @@
         <input id="hangman-word-guess-input" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
         <button id="hangman-guess-word-btn" class="primary">Arriscar!</button>
       </div>
+      <button id="hangman-giveup-btn" class="ghost hidden">Desistir e ver a resposta</button>
 
       <div id="hangman-result" class="hangman-result hidden">
         <p id="hangman-result-text" class="hint"></p>
@@ -519,8 +525,13 @@
       <p id="map-trivia-prompt" class="hint"></p>
       <div class="round-timer" id="map-trivia-timer"></div>
       <div id="map-trivia-arena" class="map-arena"></div>
+      <div id="map-trivia-answer-row" class="map-answer-row">
+        <input id="map-trivia-answer-input" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
+        <button id="map-trivia-answer-submit-btn" class="primary">Responder</button>
+      </div>
       <p id="map-trivia-answered" class="hint small"></p>
       <div id="map-trivia-results" class="score-table hidden"></div>
+      <p id="map-trivia-vote-hint" class="hint small hidden">Uma resposta errada pode ser aceite se a maioria da equipa votar que sim.</p>
       <button id="map-trivia-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
@@ -553,6 +564,15 @@
       <p class="hint">O jogo está parado — ninguém a ver.</p>
       <button type="button" id="pause-resume-btn" class="primary">Continuar</button>
       <button type="button" id="pause-exit-btn" class="ghost">Sair para o menu</button>
+    </div>
+  </div>
+
+  <!-- Ecrã partilhado "pronto?" antes de cada mini-jogo começar a contar o tempo -->
+  <div id="ready-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2 id="ready-title"></h2>
+      <p class="hint">Prepara-te — o cronómetro só começa depois de clicares em Começar.</p>
+      <button type="button" id="ready-start-btn" class="primary">Começar!</button>
     </div>
   </div>
 

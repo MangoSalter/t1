@@ -8,17 +8,39 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray,
+  pickMapCriteria, shuffleArray, normalizeCountryName,
 } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
 // à Forca) ---
 export const MAP_TRIVIA_ROUNDS = 4;
-export const MAP_TRIVIA_ROUND_MS = 12000;
+export const MAP_TRIVIA_ROUND_MS = 20000;
 export const MAP_TRIVIA_POINTS = 8;
-export const MAP_TRIVIA_RESULT_DISPLAY_MS = 5000;
+// Fica mais tempo nos resultados do que a Forca/o normal, para dar espaço
+// à equipa votar se aceita respostas escritas com erros/variações.
+export const MAP_TRIVIA_RESULT_DISPLAY_MS = 9000;
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia"];
+// --- Fuga da Infeção em equipa (bónus de fim de partida) — perseguição em
+// tempo real: um jogador começa "infetado", quem encosta noutro jogador
+// infeta-o também, sobrevive quem escapar até ao fim da ronda. Cada cliente
+// controla e transmite a sua própria posição (como um jogo de ação normal);
+// a deteção de contacto e a apanha de power-ups são feitas localmente por
+// cada cliente e escritas de volta — não há "física" corrida no servidor,
+// tal como o resto deste jogo (ver nota de confiança acima da Forca). ---
+export const TAG_ARENA_W = 640;
+export const TAG_ARENA_H = 400;
+export const TAG_PLAYER_RADIUS = 16;
+export const TAG_ROUND_MS = 45000;
+export const TAG_SURVIVOR_BONUS = 25;
+export const TAG_POINTS_PER_SECOND = 1;
+export const TAG_POWERUP_RADIUS = 14;
+export const TAG_POWERUP_MAX_ACTIVE = 3;
+export const TAG_POWERUP_SPAWN_INTERVAL_MS = 6000;
+export const TAG_SHIELD_MS = 4000;
+export const TAG_SPEED_MS = 4000;
+export const TAG_POWERUP_TYPES = ["shield", "speed"];
+
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag"];
 
 // --- Forca em equipa (bónus de fim de partida) ---
 // NOTA: a palavra fica guardada em texto simples na sala — tal como o resto
@@ -317,6 +339,8 @@ export async function startNextBonusGame(code, room) {
   const nextRoom = { ...room, bonusQueue: rest };
   if (key === "mapTrivia") {
     await startMapTriviaTeam(code, nextRoom);
+  } else if (key === "tag") {
+    await startTagTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -339,6 +363,7 @@ export async function resetForRematch(code, room) {
     bonusProgress: null,
     hangman: null,
     mapTrivia: null,
+    tag: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;
@@ -472,6 +497,20 @@ export async function skipHangmanTurn(code, room) {
   await update(ref(db, `rooms/${code}/hangman`), { turnIndex, turnStartedAt: serverNow() });
 }
 
+// Qualquer jogador da equipa (não o autor da palavra) pode desistir em vez
+// de continuar a tentar — revela a palavra e termina a ronda como derrota,
+// sem pontos, tal como esgotar os erros permitidos.
+export async function giveUpHangman(code, room, uid) {
+  const hangman = room.hangman;
+  if (!hangman || hangman.status !== "playing") return;
+  if (!(hangman.turnOrder || []).includes(uid)) return;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    status: "lost",
+    resolvedAt: serverNow(),
+    lastAction: { type: "giveup", uid },
+  });
+}
+
 export async function finishHangman(code, room) {
   const scores = computeHangmanScoring(room);
   const updates = {};
@@ -495,6 +534,7 @@ function buildMapTriviaRound() {
     startedAt: serverNow(),
     endAt: serverNow() + MAP_TRIVIA_ROUND_MS,
     answers: {},
+    votes: {},
     resolved: false,
     resolvedAt: null,
     roundResults: null,
@@ -512,16 +552,17 @@ export async function submitMapTriviaAnswer(code, uid, countryName) {
   await set(ref(db, `rooms/${code}/mapTrivia/answers/${uid}`), countryName);
 }
 
-// Função pura — fácil de testar sem Firebase.
+// Função pura — fácil de testar sem Firebase. A comparação ignora
+// maiúsculas/acentos, para não penalizar pequenas variações de escrita.
 export function computeMapTriviaRoundResults(room) {
   const mt = room.mapTrivia || {};
-  const matchNames = mt.criteria?.matchNames || [];
+  const matchNamesNormalized = (mt.criteria?.matchNames || []).map(normalizeCountryName);
   const players = Object.keys(room.players || {});
   const roundResults = {};
   const roundPoints = {};
   players.forEach((uid) => {
     const answer = mt.answers?.[uid] || null;
-    const correct = !!answer && matchNames.includes(answer);
+    const correct = !!answer && matchNamesNormalized.includes(normalizeCountryName(answer));
     roundResults[uid] = { answer, correct };
     roundPoints[uid] = correct ? MAP_TRIVIA_POINTS : 0;
   });
@@ -546,6 +587,35 @@ export async function resolveMapTriviaRound(code, room) {
   await update(roomRef(code), updates);
 }
 
+// Depois de resolvida a ronda, uma resposta escrita que não bateu certo
+// automaticamente (erro de escrita, variação de nome, etc.) pode ainda
+// ser aceite se a maioria dos OUTROS jogadores ligados votar que sim —
+// tal como a votação de "inválida"/"engraçada" nas categorias clássicas.
+// Sem transação: uma corrida rara entre dois votos que cruzam a maioria
+// ao mesmo tempo podia, no pior caso, contar pontos a mais — aceitável
+// dado o resto do jogo já ser "por confiança" (ver nota acima da Forca).
+export async function voteAcceptMapTriviaAnswer(code, room, targetUid, voterUid) {
+  const mt = room.mapTrivia;
+  if (!mt || !mt.resolved || targetUid === voterUid) return;
+  const existing = mt.roundResults?.[targetUid];
+  if (!existing || existing.correct) return; // já certo, não precisa de voto
+  await set(ref(db, `rooms/${code}/mapTrivia/votes/${targetUid}/${voterUid}`), true);
+  const votes = { ...(mt.votes?.[targetUid] || {}), [voterUid]: true };
+  const connectedOthers = Object.keys(room.players || {}).filter(
+    (uid) => uid !== targetUid && room.players[uid].connected
+  );
+  const acceptCount = connectedOthers.filter((uid) => votes[uid]).length;
+  const needed = Math.floor(connectedOthers.length / 2) + 1;
+  if (connectedOthers.length > 0 && acceptCount >= needed) {
+    const prevScore = room.players?.[targetUid]?.score || 0;
+    await update(roomRef(code), {
+      [`mapTrivia/roundResults/${targetUid}/correct`]: true,
+      [`mapTrivia/roundResults/${targetUid}/votedIn`]: true,
+      [`players/${targetUid}/score`]: prevScore + MAP_TRIVIA_POINTS,
+    });
+  }
+}
+
 export async function advanceMapTriviaRoundOrFinish(code, room) {
   const mt = room.mapTrivia;
   if (!mt) return;
@@ -556,4 +626,131 @@ export async function advanceMapTriviaRoundOrFinish(code, room) {
   await update(roomRef(code), {
     mapTrivia: { roundIndex: mt.roundIndex + 1, roundsTotal: mt.roundsTotal, ...buildMapTriviaRound() },
   });
+}
+
+// --- Fuga da Infeção em equipa ---
+
+// Posições de partida espalhadas pelos cantos/meios da arena, para nunca
+// começarem encostados uns aos outros.
+const TAG_SPAWN_POINTS = [
+  { x: 0.15, y: 0.15 }, { x: 0.85, y: 0.15 }, { x: 0.15, y: 0.85 }, { x: 0.85, y: 0.85 },
+  { x: 0.5, y: 0.15 }, { x: 0.5, y: 0.85 }, { x: 0.15, y: 0.5 }, { x: 0.85, y: 0.5 },
+  { x: 0.5, y: 0.5 }, { x: 0.3, y: 0.3 },
+];
+
+export async function startTagTeam(code, room) {
+  const playerIds = Object.keys(room.players || {});
+  const shuffled = shuffleArray(playerIds);
+  const startInfected = shuffled[0];
+  const positions = {};
+  playerIds.forEach((uid, i) => {
+    const spot = TAG_SPAWN_POINTS[i % TAG_SPAWN_POINTS.length];
+    positions[uid] = { x: Math.round(spot.x * TAG_ARENA_W), y: Math.round(spot.y * TAG_ARENA_H), updatedAt: serverNow() };
+  });
+  await update(roomRef(code), {
+    state: "tag",
+    tag: {
+      arenaW: TAG_ARENA_W, arenaH: TAG_ARENA_H,
+      infected: { [startInfected]: true },
+      infectedAt: { [startInfected]: serverNow() },
+      positions,
+      powerups: {},
+      effects: {},
+      startedAt: serverNow(),
+      endAt: serverNow() + TAG_ROUND_MS,
+      lastPowerupSpawnAt: serverNow(),
+      resolved: false,
+    },
+  });
+}
+
+export async function updateTagPosition(code, uid, x, y) {
+  await update(ref(db, `rooms/${code}/tag/positions/${uid}`), { x, y, updatedAt: serverNow() });
+}
+
+// Idempotente por natureza (marcar "infetado" duas vezes não perde dados),
+// por isso não precisa de transação mesmo que dois infetados apanhem o
+// mesmo alvo quase ao mesmo tempo.
+export async function claimTagInfection(code, targetUid) {
+  await update(roomRef(code), {
+    [`tag/infected/${targetUid}`]: true,
+    [`tag/infectedAt/${targetUid}`]: serverNow(),
+  });
+}
+
+function randomTagPowerupSpot() {
+  const margin = 0.12;
+  return {
+    x: Math.round((margin + Math.random() * (1 - margin * 2)) * TAG_ARENA_W),
+    y: Math.round((margin + Math.random() * (1 - margin * 2)) * TAG_ARENA_H),
+  };
+}
+
+export async function spawnTagPowerup(code, room) {
+  const tag = room.tag;
+  if (!tag || tag.resolved) return;
+  const activeCount = Object.keys(tag.powerups || {}).length;
+  if (activeCount >= TAG_POWERUP_MAX_ACTIVE) return;
+  const id = `p${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const type = TAG_POWERUP_TYPES[Math.floor(Math.random() * TAG_POWERUP_TYPES.length)];
+  const spot = randomTagPowerupSpot();
+  await update(roomRef(code), {
+    [`tag/powerups/${id}`]: { type, x: spot.x, y: spot.y },
+    "tag/lastPowerupSpawnAt": serverNow(),
+  });
+}
+
+// Uma transação garante que, se dois jogadores chegarem ao mesmo power-up
+// quase ao mesmo tempo, só um o "gasta" — o outro recebe committed:false.
+export async function claimTagPowerup(code, uid, powerupId, type) {
+  const result = await runTransaction(ref(db, `rooms/${code}/tag/powerups/${powerupId}`), (current) => {
+    if (!current) return current; // já foi apanhado por outro
+    return null;
+  });
+  if (!result.committed || result.snapshot.val() !== null) return false;
+  const effectField = type === "speed" ? "speedUntil" : "shieldUntil";
+  const duration = type === "speed" ? TAG_SPEED_MS : TAG_SHIELD_MS;
+  await update(ref(db, `rooms/${code}/tag/effects/${uid}`), { [effectField]: serverNow() + duration });
+  return true;
+}
+
+// Função pura — fácil de testar sem Firebase. Pontos = segundos
+// sobrevividos (até ao fim da ronda), com bónus extra para quem nunca foi
+// infetado.
+export function computeTagResults(room, now) {
+  const tag = room.tag || {};
+  const players = Object.keys(room.players || {});
+  const startedAt = tag.startedAt || now;
+  const endAt = tag.endAt || now;
+  const roundMs = Math.max(endAt - startedAt, 1);
+  const roundPoints = {};
+  const survived = {};
+  players.forEach((uid) => {
+    const infectedAt = tag.infectedAt?.[uid];
+    const survivedMs = infectedAt ? Math.max(0, infectedAt - startedAt) : roundMs;
+    const seconds = Math.round(Math.min(survivedMs, roundMs) / 1000);
+    const neverInfected = !infectedAt;
+    survived[uid] = neverInfected;
+    roundPoints[uid] = seconds * TAG_POINTS_PER_SECOND + (neverInfected ? TAG_SURVIVOR_BONUS : 0);
+  });
+  return { roundPoints, survived };
+}
+
+export async function resolveTagRound(code, room) {
+  const tag = room.tag;
+  if (!tag || tag.resolved) return;
+  const now = serverNow();
+  const { roundPoints, survived } = computeTagResults(room, now);
+  const updates = { "tag/resolved": true, "tag/resolvedAt": now, "tag/survived": survived };
+  Object.entries(roundPoints).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = room.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  await update(roomRef(code), updates);
+}
+
+export async function finishTagRound(code, room) {
+  await startNextBonusGame(code, room);
 }

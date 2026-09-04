@@ -6,7 +6,7 @@
 
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
-  MAP_COUNTRIES, MAP_BACKGROUND_SVG, pickMapCriteria,
+  MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName,
 } from "./data.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
@@ -425,7 +425,7 @@ function saveAccount() {
 }
 
 const GAME_LABELS = {
-  reflex: "Reflexos",
+  reflex: "Olho de Lince",
   word: "Palavra Relâmpago",
   bug: "Mata o Inseto",
   monkey: "Cada Macaco no Seu Galho",
@@ -521,7 +521,6 @@ const solo = {
   mapCriteria: null,
   mapRoundStartAt: 0,
   mapRoundEndAt: 0,
-  mapMarkerEls: {},
   mapAdvanceTimeoutId: null,
   bugEndAt: 0,
   monkeyStartedAt: 0,
@@ -573,6 +572,7 @@ const solo = {
   cardJokers: [],
   cardTotalChips: 0,
   cardShopOffers: [],
+  cardHandSize: 0,
 };
 
 const els = {
@@ -630,6 +630,8 @@ const els = {
   mapRoundInfo: document.getElementById("map-round-info"),
   mapTimer: document.getElementById("map-timer"),
   mapStatus: document.getElementById("map-status"),
+  mapAnswerInput: document.getElementById("map-answer-input"),
+  mapAnswerSubmitBtn: document.getElementById("map-answer-submit-btn"),
   soloHangmanCategory: document.getElementById("solo-hangman-category"),
   soloHangmanWordDisplay: document.getElementById("solo-hangman-word-display"),
   soloHangmanWrongLetters: document.getElementById("solo-hangman-wrong-letters"),
@@ -639,6 +641,7 @@ const els = {
   soloHangmanGuessLetterBtn: document.getElementById("solo-hangman-guess-letter-btn"),
   soloHangmanWordGuessInput: document.getElementById("solo-hangman-word-guess-input"),
   soloHangmanGuessWordBtn: document.getElementById("solo-hangman-guess-word-btn"),
+  soloHangmanGiveupBtn: document.getElementById("solo-hangman-giveup-btn"),
   soloHangmanStatus: document.getElementById("solo-hangman-status"),
   letterInfo: document.getElementById("solo-letter-info"),
   letterButtons: document.getElementById("solo-letter-buttons"),
@@ -697,6 +700,9 @@ const els = {
   pauseResumeBtn: document.getElementById("pause-resume-btn"),
   pauseExitBtn: document.getElementById("pause-exit-btn"),
   accountXpLabel: document.getElementById("solo-account-xp"),
+  readyOverlay: document.getElementById("ready-overlay"),
+  readyTitle: document.getElementById("ready-title"),
+  readyStartBtn: document.getElementById("ready-start-btn"),
 };
 
 const catCheckboxes = CATEGORIES.map((name, i) => {
@@ -947,13 +953,30 @@ els.setupStartBtn.addEventListener("click", () => {
   startRun();
 });
 
-function launchStandalone(startFn) {
+// Ecrã partilhado "pronto?" — mostra-se antes de QUALQUER mini-jogo (e antes
+// de cada "jogar novamente"/próximo jogo da maratona) e só chama onStart()
+// quando o jogador clica em Começar, para o cronómetro nunca correr antes
+// de haver tempo de preparação.
+function showReadyOverlay(label, onStart) {
+  els.readyTitle.textContent = label;
+  els.readyOverlay.classList.remove("hidden");
+  const handler = () => {
+    els.readyOverlay.classList.add("hidden");
+    els.readyStartBtn.removeEventListener("click", handler);
+    onStart();
+  };
+  els.readyStartBtn.addEventListener("click", handler);
+}
+
+function launchStandalone(startFn, gameKey) {
   // "Continuar" no ecrã de fim volta a jogar o mesmo jogo (jogar novamente
   // sem ter de voltar ao menu) — "Sair" continua sempre disponível à parte.
-  solo.afterMinigame = startFn;
+  const label = GAME_LABELS[gameKey] || "Mini-jogo";
+  const gated = () => showReadyOverlay(label, startFn);
+  solo.afterMinigame = gated;
   solo.runScore = 0;
   solo.round = Math.max(solo.round, 1);
-  startFn();
+  gated();
 }
 function returnToSoloMenu() { showScreen("solo-menu"); }
 
@@ -964,11 +987,11 @@ els.playReflexBtn.addEventListener("click", () => {
 els.reflexSetupStartBtn.addEventListener("click", () => {
   solo.reflexTheme = els.reflexThemeSelect.value;
   saveReflexTheme(solo.reflexTheme);
-  launchStandalone(startReflexMinigame);
+  launchStandalone(startReflexMinigame, "reflex");
 });
-els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordFlashMinigame));
-els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame));
-els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame));
+els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordFlashMinigame, "word"));
+els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame, "bug"));
+els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame, "monkey"));
 els.playMemoryBtn.addEventListener("click", () => {
   els.memoryThemeSelect.value = solo.memoryTheme;
   showScreen("solo-memory-setup");
@@ -976,7 +999,7 @@ els.playMemoryBtn.addEventListener("click", () => {
 els.memorySetupStartBtn.addEventListener("click", () => {
   solo.memoryTheme = els.memoryThemeSelect.value;
   saveMemoryTheme(solo.memoryTheme);
-  launchStandalone(startMemoryMinigame);
+  launchStandalone(startMemoryMinigame, "memory");
 });
 els.playHangmanBtn.addEventListener("click", () => showScreen("solo-hangman-setup"));
 els.hangmanSetupStartBtn.addEventListener("click", () => {
@@ -988,12 +1011,16 @@ els.hangmanSetupStartBtn.addEventListener("click", () => {
     solo.hangmanStreak = 0;
     solo.hangmanUsedWords = new Set();
     startSoloHangman();
-  });
+  }, "hangman");
 });
-els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame));
-els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman));
-els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf));
-els.playCardsBtn.addEventListener("click", () => launchStandalone(startCardGame));
+els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame, "map"));
+els.mapAnswerSubmitBtn.addEventListener("click", submitMapAnswer);
+els.mapAnswerInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") submitMapAnswer();
+});
+els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman, "pacman"));
+els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf, "golf"));
+els.playCardsBtn.addEventListener("click", () => launchStandalone(startCardGame, "cards"));
 els.cardPlayBtn.addEventListener("click", () => cardPlaySelected());
 els.cardDiscardBtn.addEventListener("click", () => cardDiscardSelected());
 
@@ -1022,6 +1049,7 @@ els.soloHangmanGuessWordBtn.addEventListener("click", () => {
   els.soloHangmanWordGuessInput.value = "";
   if (guess) soloHangmanGuessWord(guess);
 });
+els.soloHangmanGiveupBtn.addEventListener("click", () => finishSoloHangman(false));
 
 function startRun() {
   solo.round = 0;
@@ -1759,7 +1787,7 @@ function runNextMarathonGame() {
   }
   const key = solo.marathonQueue.shift();
   const startFn = MARATHON_GAMES[key];
-  if (startFn) startFn();
+  if (startFn) showReadyOverlay(GAME_LABELS[key] || "Mini-jogo", startFn);
   else runNextMarathonGame();
 }
 
@@ -1816,27 +1844,16 @@ function renderLeaderboard() {
   });
 }
 
-// --- Mapa-Múndi: acha, entre vários países marcados no mapa, um que cumpra
-// o critério pedido (um país específico, um continente, língua ou moeda). ---
+// --- Mapa-Múndi: o jogador ESCREVE o nome de um país que cumpra o critério
+// pedido (um continente, língua ou moeda — há sempre mais do que uma
+// resposta certa possível). O mapa é só contexto visual, não é clicável. ---
 
-function renderMapMarkers() {
+function renderMapBackground() {
   els.mapArena.innerHTML = "";
   const bg = document.createElement("div");
   bg.className = "map-bg";
   bg.innerHTML = MAP_BACKGROUND_SVG;
   els.mapArena.appendChild(bg);
-  solo.mapMarkerEls = {};
-  MAP_COUNTRIES.forEach((c) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "map-pin";
-    btn.style.left = `${c.x}%`;
-    btn.style.top = `${c.y}%`;
-    btn.title = c.name;
-    btn.addEventListener("click", () => handleMapPinClick(c));
-    els.mapArena.appendChild(btn);
-    solo.mapMarkerEls[c.name] = btn;
-  });
 }
 
 function startMapMinigame() {
@@ -1845,7 +1862,7 @@ function startMapMinigame() {
   solo.mapRoundIndex = 0;
   solo.mapScore = 0;
   els.mapStatus.textContent = "";
-  renderMapMarkers();
+  renderMapBackground();
   showScreen("solo-minigame-map");
   showGameHud(() => solo.mapScore);
   registerActiveGame({
@@ -1860,27 +1877,27 @@ function startMapMinigame() {
   nextMapRound();
 }
 
-function handleMapPinClick(country) {
+function submitMapAnswer() {
   if (!solo.mapActive || !solo.mapCriteria || solo.paused) return;
-  const btn = solo.mapMarkerEls[country.name];
-  if (solo.mapCriteria.matchNames.includes(country.name)) {
+  const raw = els.mapAnswerInput.value;
+  els.mapAnswerInput.value = "";
+  if (!raw.trim()) return;
+  const normalized = normalizeCountryName(raw);
+  const match = solo.mapCriteria.matchNames.find((n) => normalizeCountryName(n) === normalized);
+  if (match) {
     const reactionMs = Date.now() - solo.mapRoundStartAt;
     const speedBonus = Math.max(0, Math.round(MAP_HIT_SPEED_BONUS_MAX - reactionMs / 1500));
     const points = MAP_HIT_BASE_POINTS + speedBonus;
     solo.mapScore += points;
     updateGameHudScore();
-    btn.classList.add("correct-flash");
-    els.mapStatus.textContent = `Certo! ${country.name} — +${points} pts`;
+    els.mapStatus.textContent = `Certo! ${match} — +${points} pts`;
     solo.mapCriteria = null;
-    setTimeout(() => btn.classList.remove("correct-flash"), 600);
     clearTimeout(solo.mapAdvanceTimeoutId);
-    solo.mapAdvanceTimeoutId = setTimeout(() => nextMapRound(), 700);
+    solo.mapAdvanceTimeoutId = setTimeout(() => nextMapRound(), 900);
   } else {
     solo.mapScore = Math.max(0, solo.mapScore - MAP_WRONG_PENALTY);
     updateGameHudScore();
-    btn.classList.add("wrong-flash");
-    els.mapStatus.textContent = `"${country.name}" não é isso — -${MAP_WRONG_PENALTY} pts.`;
-    setTimeout(() => btn.classList.remove("wrong-flash"), 400);
+    els.mapStatus.textContent = `"${raw}" não é isso — -${MAP_WRONG_PENALTY} pts. Tenta outra vez!`;
   }
 }
 
@@ -1897,6 +1914,8 @@ function nextMapRound() {
   els.mapPrompt.textContent = solo.mapCriteria.promptText;
   els.mapRoundInfo.textContent = `Ronda ${solo.mapRoundIndex}/${MAP_ROUNDS_COUNT}`;
   els.mapStatus.textContent = "";
+  els.mapAnswerInput.value = "";
+  els.mapAnswerInput.focus();
 
   function tick() {
     if (!solo.mapActive || !solo.mapCriteria) return;
@@ -2440,8 +2459,8 @@ const CARD_JOKER_POOL = [
   },
   {
     key: "ases", name: "Colecionador de Ases",
-    desc: "+3 de mult. por cada Ás jogado.",
-    apply: (ctx) => { ctx.mult += 3 * ctx.cards.filter((c) => c.rank === "A").length; },
+    desc: "+3 de mult. por cada Ás que contar para a jogada.",
+    apply: (ctx) => { ctx.mult += 3 * ctx.scoringCards.filter((c) => c.rank === "A").length; },
   },
   {
     key: "parceiro", name: "Parceiro Fiel",
@@ -2453,7 +2472,35 @@ const CARD_JOKER_POOL = [
     desc: "15% de hipótese de duplicar o mult. em cada jogada.",
     apply: (ctx) => { if (Math.random() < 0.15) ctx.mult *= 2; },
   },
+  // Coringas que mudam as REGRAS do blind (não só a pontuação) — aplicados
+  // uma vez no início de cada blind, em cardComputeBlindSetup().
+  {
+    key: "turbo", name: "Baralho Turbo",
+    desc: "+1 jogada em cada blind.",
+    setupModifier: (setup) => { setup.plays += 1; },
+  },
+  {
+    key: "reciclagem", name: "Reciclagem Rápida",
+    desc: "+1 descarte em cada blind.",
+    setupModifier: (setup) => { setup.discards += 1; },
+  },
+  {
+    key: "maomaior", name: "Mão Maior",
+    desc: "+2 cartas na mão em cada blind.",
+    setupModifier: (setup) => { setup.handSize += 2; },
+  },
 ];
+
+// Aplica os coringas que mudam as regras (jogadas/descartes/tamanho da
+// mão) para o blind que está a começar — chamado uma vez por blind.
+function cardComputeBlindSetup() {
+  const setup = { plays: CARD_MAX_PLAYS, discards: CARD_MAX_DISCARDS, handSize: CARD_HAND_SIZE };
+  solo.cardJokers.forEach((key) => {
+    const joker = CARD_JOKER_POOL.find((j) => j.key === key);
+    if (joker?.setupModifier) joker.setupModifier(setup);
+  });
+  return setup;
+}
 
 function cardBuildDeck() {
   const deck = [];
@@ -2493,16 +2540,40 @@ function cardEvaluateHand(cards) {
   return cardHandTypeByKey(key);
 }
 
+// Tal como no Balatro, só as cartas que FORMAM a combinação contam fichas
+// — um kicker que não faz parte do par/trinca/etc. não soma nada.
+function cardScoringCards(cards, handType) {
+  const key = handType.key;
+  if (key === "straight" || key === "flush" || key === "fullhouse" || key === "straightflush") {
+    return cards; // a mão inteira faz parte da combinação
+  }
+  const counts = {};
+  cards.forEach((c) => { counts[c.rank] = (counts[c.rank] || 0) + 1; });
+  if (key === "quads" || key === "trips" || key === "pair") {
+    const n = key === "quads" ? 4 : key === "trips" ? 3 : 2;
+    const rank = Object.keys(counts).find((r) => counts[r] === n);
+    return cards.filter((c) => c.rank === rank);
+  }
+  if (key === "twopair") {
+    const ranks = Object.keys(counts).filter((r) => counts[r] === 2);
+    return cards.filter((c) => ranks.includes(c.rank));
+  }
+  // carta alta: só a carta de maior valor conta
+  const best = [...cards].sort((a, b) => cardChipValue(b.rank) - cardChipValue(a.rank))[0];
+  return [best];
+}
+
 function cardScorePlay(cards) {
   const handType = cardEvaluateHand(cards);
-  const ctx = { cards, handType, chips: handType.baseChips, mult: handType.baseMult };
-  cards.forEach((c) => { ctx.chips += cardChipValue(c.rank); });
+  const scoringCards = cardScoringCards(cards, handType);
+  const ctx = { cards, scoringCards, handType, chips: handType.baseChips, mult: handType.baseMult };
+  scoringCards.forEach((c) => { ctx.chips += cardChipValue(c.rank); });
   solo.cardJokers.forEach((jokerKey) => {
     const joker = CARD_JOKER_POOL.find((j) => j.key === jokerKey);
-    if (joker) joker.apply(ctx);
+    if (joker?.apply) joker.apply(ctx);
   });
   const total = Math.round(ctx.chips * ctx.mult);
-  return { handType, chips: ctx.chips, mult: ctx.mult, total };
+  return { handType, chips: ctx.chips, mult: ctx.mult, total, scoringCards };
 }
 
 function cardRenderCardEl(card, index, { selectable, onClick }) {
@@ -2524,8 +2595,11 @@ function cardRenderHandTypePreview() {
     return;
   }
   const preview = cardScorePlay(selectedCards);
+  const countLabel = preview.scoringCards.length < selectedCards.length
+    ? ` (${preview.scoringCards.length}/${selectedCards.length} cartas contam)`
+    : "";
   els.cardHandTypePreview.textContent =
-    `${preview.handType.label} — ${preview.chips} fichas x ${preview.mult.toFixed(1).replace(/\.0$/, "")} mult. = ${preview.total} pts`;
+    `${preview.handType.label}${countLabel} — ${preview.chips} fichas x ${preview.mult.toFixed(1).replace(/\.0$/, "")} mult. = ${preview.total} pts`;
 }
 
 function cardRenderJokerRow() {
@@ -2575,7 +2649,8 @@ function cardToggleSelect(index) {
 }
 
 function cardDrawUpToHandSize() {
-  while (solo.cardHand.length < CARD_HAND_SIZE && solo.cardDeck.length > 0) {
+  const handSize = solo.cardHandSize || CARD_HAND_SIZE;
+  while (solo.cardHand.length < handSize && solo.cardDeck.length > 0) {
     solo.cardHand.push(solo.cardDeck.pop());
   }
 }
@@ -2682,8 +2757,10 @@ els.cardShopContinueBtn.addEventListener("click", () => {
   solo.cardPhase = "playing";
   solo.cardBlindIndex += 1;
   solo.cardBlindScore = 0;
-  solo.cardPlaysLeft = CARD_MAX_PLAYS;
-  solo.cardDiscardsLeft = CARD_MAX_DISCARDS;
+  const setup = cardComputeBlindSetup();
+  solo.cardPlaysLeft = setup.plays;
+  solo.cardDiscardsLeft = setup.discards;
+  solo.cardHandSize = setup.handSize;
   solo.cardDeck = cardBuildDeck();
   solo.cardHand = [];
   solo.cardSelected.clear();
@@ -2698,11 +2775,13 @@ function startCardGame() {
   solo.cardPhase = "playing";
   solo.cardBlindIndex = 0;
   solo.cardBlindScore = 0;
-  solo.cardPlaysLeft = CARD_MAX_PLAYS;
-  solo.cardDiscardsLeft = CARD_MAX_DISCARDS;
   solo.cardMoney = 0;
   solo.cardJokers = [];
   solo.cardTotalChips = 0;
+  const setup = cardComputeBlindSetup(); // sem coringas ainda no 1º blind, mas mantém a lógica única
+  solo.cardPlaysLeft = setup.plays;
+  solo.cardDiscardsLeft = setup.discards;
+  solo.cardHandSize = setup.handSize;
   solo.cardDeck = cardBuildDeck();
   solo.cardHand = [];
   solo.cardSelected = new Set();
@@ -2841,18 +2920,18 @@ function finishSoloHangman(won) {
         account.bestHangmanStreak = solo.hangmanStreak;
         saveAccount();
       }
-      solo.afterMinigame = startSoloHangman;
+      solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, startSoloHangman);
     } else {
       bonus = Math.round(base * challengeMult);
       resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
     }
   } else if (solo.hangmanStreakMode) {
     resultText = `A sequência acabou em ${solo.hangmanStreak} palavra(s) — a palavra era "${solo.hangmanWord}". Recorde: ${account.bestHangmanStreak || 0}.`;
-    solo.afterMinigame = () => {
+    solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, () => {
       solo.hangmanStreak = 0;
       solo.hangmanUsedWords = new Set();
       startSoloHangman();
-    };
+    });
   } else {
     resultText = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
   }

@@ -122,36 +122,63 @@ export const MAP_COUNTRIES = [
   { name: "Arábia Saudita", x: 62.5, y: 36.7, continent: "Ásia", english: false, euro: false },
 ];
 
-export const MAP_BACKGROUND_SVG = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M 14,14 C 10,20 8,30 14,36 C 12,40 18,42 22,38 C 26,42 32,40 30,34 C 36,32 38,24 32,18 C 34,12 26,8 20,12 C 18,8 14,10 14,14 Z" class="map-blob" />
-  <path d="M 28,46 C 24,52 22,60 26,66 C 24,70 28,74 32,70 C 36,74 40,68 36,62 C 40,56 38,48 32,46 C 30,44 28,44 28,46 Z" class="map-blob" />
-  <path d="M 46,14 C 44,18 44,24 48,26 C 46,30 50,32 54,28 C 58,30 62,26 58,22 C 60,18 56,14 52,16 C 50,12 46,12 46,14 Z" class="map-blob" />
-  <path d="M 48,34 C 44,40 44,50 48,56 C 46,62 50,68 56,66 C 60,70 64,64 60,58 C 64,52 62,44 56,40 C 58,36 52,32 48,34 Z" class="map-blob" />
-  <path d="M 62,14 C 58,20 60,28 66,26 C 64,32 68,38 74,34 C 78,40 86,38 84,30 C 90,32 94,26 88,20 C 92,14 84,10 78,14 C 74,10 66,10 62,14 Z" class="map-blob" />
-  <path d="M 82,60 C 80,64 82,70 88,70 C 90,74 96,72 94,66 C 96,62 90,58 86,60 C 84,58 82,58 82,60 Z" class="map-blob" />
-  <path d="M 96,70 C 95,72 96,75 98,74 C 99,76 100,74 99,72 Z" class="map-blob" />
+// Mapa-múndi estilizado (não é geograficamente exato, mas as massas de
+// terra estão nas posições relativas certas e são coloridas por
+// continente, com fronteiras a tinta — para dar contexto visual à ronda,
+// já que a resposta agora é escrita, não clicada). viewBox 2:1 para bater
+// certo com o aspect-ratio do .map-arena (sem preserveAspectRatio="none",
+// para não esticar as formas).
+export const MAP_BACKGROUND_SVG = `<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="var(--paper-line)" stroke-width="0.4" opacity="0.6">
+    <line x1="0" y1="20" x2="200" y2="20" /><line x1="0" y1="40" x2="200" y2="40" />
+    <line x1="0" y1="60" x2="200" y2="60" /><line x1="0" y1="80" x2="200" y2="80" />
+    <line x1="25" y1="0" x2="25" y2="100" /><line x1="50" y1="0" x2="50" y2="100" />
+    <line x1="75" y1="0" x2="75" y2="100" /><line x1="100" y1="0" x2="100" y2="100" />
+    <line x1="125" y1="0" x2="125" y2="100" /><line x1="150" y1="0" x2="150" y2="100" />
+    <line x1="175" y1="0" x2="175" y2="100" />
+  </g>
+  <path d="M 20,12 C 14,10 8,14 9,20 C 5,24 6,32 12,34 C 10,38 14,42 19,40 C 18,44 22,48 26,44 C 30,48 36,44 34,38 C 40,36 42,28 36,24 C 40,20 36,12 30,14 C 28,9 22,8 20,12 Z
+    M 22,46 C 18,50 20,58 26,60 C 24,68 30,84 34,88 C 37,92 41,88 39,82 C 43,76 41,66 37,62 C 39,56 35,48 29,48 C 27,44 24,43 22,46 Z"
+    class="map-land map-land-americas" />
+  <path d="M 96,10 C 92,9 88,12 89,16 C 85,18 86,24 90,26 C 88,30 92,34 96,31 C 100,34 104,30 101,26 C 105,24 104,18 99,17 C 100,12 99,10 96,10 Z"
+    class="map-land map-land-europe" />
+  <path d="M 92,28 C 87,32 86,40 90,44 C 87,50 89,58 93,60 C 91,66 94,74 98,78 C 100,84 106,86 108,80 C 112,78 112,70 108,66 C 112,60 110,50 105,46 C 108,42 106,34 100,32 C 100,28 96,26 92,28 Z"
+    class="map-land map-land-africa" />
+  <path d="M 108,14 C 104,20 106,28 112,26 C 110,32 116,36 120,32 C 124,40 134,42 138,36 C 148,38 158,32 156,24 C 164,26 172,20 166,14 C 170,8 162,6 156,10 C 150,6 140,8 138,14 C 130,10 118,10 114,16 C 112,12 110,12 108,14 Z
+    M 128,44 C 124,48 126,56 132,58 C 130,62 134,66 138,62 C 142,58 140,50 136,46 C 134,42 130,41 128,44 Z"
+    class="map-land map-land-asia" />
+  <path d="M 158,68 C 154,70 152,76 156,80 C 154,84 158,88 164,86 C 170,90 178,86 176,80 C 182,78 180,70 174,70 C 172,66 162,66 158,68 Z"
+    class="map-land map-land-oceania" />
 </svg>`;
 
-// Critério aleatório para uma ronda de Mapa-Múndi: um país específico, um
-// continente, "fala inglês" ou "usa o Euro". `matchNames` é um array (não
-// Set) para poder ir direto para a Realtime Database.
+// Remove acentos e normaliza para comparar respostas escritas sem exigir
+// que o jogador acerte a acentuação exata (ex.: "frança" == "França").
+export function normalizeCountryName(text) {
+  return (text || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+// Critério aleatório para uma ronda de Mapa-Múndi: um continente, "fala
+// inglês" ou "usa o Euro" — o jogador escreve o nome de QUALQUER país que
+// cumpra o critério (mais do que uma resposta certa possível, por ser
+// escrita e não clicada). `matchNames` é um array (não Set) para poder ir
+// direto para a Realtime Database.
 export function pickMapCriteria() {
-  const types = ["country", "language", "continent", "currency"];
+  const types = ["language", "continent", "currency"];
   const type = types[Math.floor(Math.random() * types.length)];
-  if (type === "country") {
-    const country = MAP_COUNTRIES[Math.floor(Math.random() * MAP_COUNTRIES.length)];
-    return { type, matchNames: [country.name], promptText: `Onde fica ${country.name}?` };
-  }
   if (type === "language") {
     const matchNames = MAP_COUNTRIES.filter((c) => c.english).map((c) => c.name);
-    return { type, matchNames, promptText: "Clica num país onde a maioria fala inglês." };
+    return { type, matchNames, promptText: "Escreve o nome de um país onde a maioria fala inglês." };
   }
   if (type === "currency") {
     const matchNames = MAP_COUNTRIES.filter((c) => c.euro).map((c) => c.name);
-    return { type, matchNames, promptText: "Clica num país que usa o Euro." };
+    return { type, matchNames, promptText: "Escreve o nome de um país que usa o Euro." };
   }
   const continents = [...new Set(MAP_COUNTRIES.map((c) => c.continent))];
   const continent = continents[Math.floor(Math.random() * continents.length)];
   const matchNames = MAP_COUNTRIES.filter((c) => c.continent === continent).map((c) => c.name);
-  return { type, matchNames, promptText: `Clica num país da ${continent}.` };
+  return { type, matchNames, promptText: `Escreve o nome de um país da ${continent}.` };
 }
