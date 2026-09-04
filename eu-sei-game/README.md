@@ -4,11 +4,11 @@ Versão digital multiplayer do jogo de papel "Stop"/Scattergories. Jogado no
 browser, sincronizado em tempo real via Firebase — pensado para depois ser
 embrulhado em Electron/Tauri e publicado na Steam.
 
-Este é o primeiro build funcional: mecânica completa de uma partida
-multiplayer (bola → escolha da letra → categorias → votação → pontuação →
-ronda seguinte → resultados finais), até 10 jogadores, configurável.
-Ainda não inclui: modo single-player roguelike, Electron/Steamworks,
-cosméticos/DLC. Ver secção "O que falta" no fundo.
+Inclui dois modos: **multiplayer** (bola → escolha da letra → categorias →
+votação → pontuação → ronda seguinte → resultados finais, até 10 jogadores,
+configurável) e **solo** (runs com dificuldade crescente, totalmente
+offline). Ainda não inclui: Electron/Steamworks, cosméticos/DLC. Ver secção
+"O que falta" no fundo.
 
 ## Como pôr isto a funcionar (sem programar)
 
@@ -84,6 +84,15 @@ definitivo (`eu-sei` ou parecido):
   votos.
 - **Categorias e letras não repetem** dentro da mesma partida (evita calhar
   a mesma letra ou categoria duas vezes numa partida de 5 rondas).
+- **Modo solo** (`js/solo.js`) não usa Firebase nenhum — corre inteiramente
+  no browser, mesmo sem internet. Cada "run" começa com 5 categorias e 75s
+  por ronda; a cada ronda o tempo desce 5s (mínimo 30s) e a partir da 3ª
+  ronda entra mais 1 categoria a cada 2 rondas (máximo 12). Só se valida a
+  letra (sem lista de palavras, igual ao multiplayer); precisas de acertar
+  pelo menos metade das categorias da ronda para continuar a run — senão
+  acaba e mostra a pontuação final. O recorde fica guardado no
+  `localStorage` do browser (por isso é por aparelho/browser, não
+  partilhado entre dispositivos).
 
 ### Ficheiros
 
@@ -98,7 +107,8 @@ eu-sei-game/
 │       ├── data.js           # pool de 40 categorias, alfabeto, letras difíceis, limites de configuração
 │       ├── firebase-init.js  # ligação ao Firebase, autenticação anónima, relógio do servidor
 │       ├── room.js           # todas as leituras/escritas na sala (única camada que fala com o Firebase)
-│       └── app.js            # máquina de estados da UI, um ecrã por fase do jogo
+│       ├── app.js            # máquina de estados da UI multiplayer, um ecrã por fase do jogo
+│       └── solo.js           # modo single-player, offline, independente do resto
 ```
 
 ## Decisões tomadas neste build (a confirmar)
@@ -116,7 +126,6 @@ eu-sei-game/
 
 ## O que falta (próximos passos sugeridos)
 
-- Modo single-player roguelike (progressão entre rondas, "runs").
 - Wrap em Electron/Tauri e integração Steamworks (achievements, lobbies via
   Steam em vez de código de sala, etc.).
 - Mini-jogos extra / easter eggs do modo multiplayer "de variedade".

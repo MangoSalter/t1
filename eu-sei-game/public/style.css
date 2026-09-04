@@ -72,6 +72,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.primary { background: var(--primary); color: white; }
 button.primary:hover:not(:disabled) { background: var(--primary-dark); }
 button.ghost { background: transparent; color: var(--muted); text-decoration: underline; }
+button.ghost-primary { background: var(--accent); color: var(--text); }
+button.ghost-primary:hover:not(:disabled) { filter: brightness(0.95); }
 .hidden { display: none !important; }
 
 .divider { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }

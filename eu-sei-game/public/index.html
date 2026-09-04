@@ -19,7 +19,44 @@
       <div class="divider">ou</div>
       <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
       <button id="join-room-btn">Entrar na sala</button>
+      <div class="divider">ou</div>
+      <button id="solo-start-btn" class="ghost-primary">Jogar sozinho</button>
       <p id="home-error" class="error"></p>
+    </div>
+  </section>
+
+  <!-- SOLO: LETTER PICK -->
+  <section data-screen="solo-letterpick" class="screen">
+    <div class="card center">
+      <h2>Escolhe a letra</h2>
+      <p id="solo-letter-info" class="hint"></p>
+      <div id="solo-letter-buttons" class="letter-buttons"></div>
+      <button data-solo-leave class="ghost">Sair</button>
+    </div>
+  </section>
+
+  <!-- SOLO: ROUND -->
+  <section data-screen="solo-round" class="screen">
+    <div class="card wide">
+      <div class="round-header">
+        <div class="round-letter">Letra: <span id="solo-cat-letter"></span></div>
+        <div class="round-timer" id="solo-cat-timer"></div>
+      </div>
+      <p class="hint" id="solo-round-info"></p>
+      <div id="solo-cat-list" class="cat-list"></div>
+      <button id="solo-finish-btn" class="primary">Acabei!</button>
+    </div>
+  </section>
+
+  <!-- SOLO: RESULT -->
+  <section data-screen="solo-result" class="screen">
+    <div class="card wide center">
+      <h2 id="solo-result-title"></h2>
+      <p id="solo-result-summary" class="hint"></p>
+      <div id="solo-result-table" class="score-table"></div>
+      <button id="solo-continue-btn" class="primary hidden">Próxima ronda</button>
+      <button id="solo-restart-btn" class="primary hidden">Jogar outra vez</button>
+      <button data-solo-leave class="ghost">Sair</button>
     </div>
   </section>
 
@@ -117,5 +154,6 @@
   </section>
 
   <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/solo.js"></script>
 </body>
 </html>
