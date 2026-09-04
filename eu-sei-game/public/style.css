@@ -338,6 +338,28 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .final-name { flex: 1; font-weight: 700; text-align: left; }
 .final-score { font-weight: 700; color: var(--primary-dark); }
 
+/* Descartando Juntos (cartas) */
+.card-hand-area { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0; min-height: 90px; }
+.playing-card {
+  width: 56px; height: 78px; border-radius: 8px; border: 2px solid var(--ink); background: #fbf6e9;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-weight: 700; box-shadow: 2px 2px 0 rgba(58, 49, 38, 0.2); transition: transform 0.1s ease;
+}
+.playing-card:hover:not(:disabled) { transform: translateY(-4px); }
+.playing-card.selected { border-color: var(--primary); background: var(--accent-soft); transform: translateY(-8px); }
+.playing-card-rank { font-size: 1.1rem; }
+.playing-card-suit { font-size: 1.3rem; }
+.playing-card-red { color: var(--danger); }
+.playing-card-dark { color: var(--ink); }
+.card-hand-type-preview { font-weight: 700; min-height: 1.3em; }
+.card-play-area { min-height: 1.5em; }
+.row-buttons { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
+.joker-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0; }
+.joker-chip { background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 20px; padding: 5px 10px; font-size: 0.8rem; font-weight: 700; cursor: help; }
+.card-shop-panel { background: var(--paper-soft); border: 2px solid var(--paper-line); border-radius: 12px; padding: 16px; margin-top: 14px; }
+.card-shop-offers { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 10px 0; }
+.joker-shop-card { background: var(--paper); border: 1.5px solid var(--paper-line); border-radius: 10px; padding: 10px 14px; width: 180px; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+
 @media (max-width: 480px) {
   .card { padding: 22px; }
   h1 { font-size: 2.1rem; }

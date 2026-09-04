@@ -60,6 +60,7 @@
         <button id="solo-play-map-btn">Mapa-Múndi</button>
         <button id="solo-play-pac-btn">Kota Corre!</button>
         <button id="solo-play-golf-btn">Mini-Golfe</button>
+        <button id="solo-play-cards-btn">Descartando Juntos</button>
       </div>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
@@ -325,6 +326,33 @@
       <p id="golf-hole-info" class="hint"></p>
       <div id="golf-course" class="golf-course"></div>
       <p id="golf-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- SOLO: DESCARTANDO JUNTOS (cartas) -->
+  <section data-screen="solo-cards" class="screen fullscreen-game">
+    <div class="card wide center">
+      <h2>Descartando Juntos</h2>
+      <p class="hint small">Seleciona até 5 cartas e joga a melhor combinação de póquer que conseguires. Descarta para trocar cartas sem gastar uma jogada.</p>
+      <p id="card-blind-info" class="hint"></p>
+      <p id="card-stats" class="hint"></p>
+      <div id="card-joker-row" class="joker-row hidden"></div>
+      <div id="card-table">
+        <div id="card-play-area" class="card-play-area"></div>
+        <p id="card-hand-type-preview" class="hint card-hand-type-preview"></p>
+        <div id="card-hand-area" class="card-hand-area"></div>
+        <div class="row-buttons">
+          <button id="card-play-btn" class="primary">Jogar</button>
+          <button id="card-discard-btn" class="ghost">Descartar</button>
+        </div>
+      </div>
+
+      <div id="card-shop-panel" class="card-shop-panel hidden">
+        <h3>Loja de coringas</h3>
+        <p id="card-shop-money" class="hint"></p>
+        <div id="card-shop-offers" class="card-shop-offers"></div>
+        <button id="card-shop-continue-btn" class="primary">Continuar para o próximo blind</button>
+      </div>
     </div>
   </section>
 

@@ -223,6 +223,9 @@ function startHangmanSingle() {
   startSoloHangman();
 }
 
+// "Descartando Juntos" fica de fora da maratona de propósito — é um jogo
+// mais longo e estratégico, pensado para se jogar por inteiro a partir do
+// menu principal, não como uma paragem rápida entre outros mini-jogos.
 const MARATHON_GAMES = {
   reflex: startReflexMinigame,
   word: startWordFlashMinigame,
@@ -431,6 +434,7 @@ const GAME_LABELS = {
   map: "Mapa-Múndi",
   pacman: "Kota Corre!",
   golf: "Mini-Golfe",
+  cards: "Descartando Juntos",
 };
 
 const account = loadAccount();
@@ -556,6 +560,19 @@ const solo = {
   golfBallEl: null,
   golfKeydownHandler: null,
   golfKeyupHandler: null,
+  cardActive: false,
+  cardPhase: "playing",
+  cardDeck: [],
+  cardHand: [],
+  cardSelected: new Set(),
+  cardBlindIndex: 0,
+  cardBlindScore: 0,
+  cardPlaysLeft: 0,
+  cardDiscardsLeft: 0,
+  cardMoney: 0,
+  cardJokers: [],
+  cardTotalChips: 0,
+  cardShopOffers: [],
 };
 
 const els = {
@@ -594,6 +611,20 @@ const els = {
   golfCourse: document.getElementById("golf-course"),
   golfHoleInfo: document.getElementById("golf-hole-info"),
   golfStatus: document.getElementById("golf-status"),
+  playCardsBtn: document.getElementById("solo-play-cards-btn"),
+  cardBlindInfo: document.getElementById("card-blind-info"),
+  cardStats: document.getElementById("card-stats"),
+  cardHandTypePreview: document.getElementById("card-hand-type-preview"),
+  cardTable: document.getElementById("card-table"),
+  cardHandArea: document.getElementById("card-hand-area"),
+  cardPlayBtn: document.getElementById("card-play-btn"),
+  cardDiscardBtn: document.getElementById("card-discard-btn"),
+  cardJokerRow: document.getElementById("card-joker-row"),
+  cardPlayArea: document.getElementById("card-play-area"),
+  cardShopPanel: document.getElementById("card-shop-panel"),
+  cardShopMoney: document.getElementById("card-shop-money"),
+  cardShopOffers: document.getElementById("card-shop-offers"),
+  cardShopContinueBtn: document.getElementById("card-shop-continue-btn"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
   mapRoundInfo: document.getElementById("map-round-info"),
@@ -962,6 +993,9 @@ els.hangmanSetupStartBtn.addEventListener("click", () => {
 els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame));
 els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman));
 els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf));
+els.playCardsBtn.addEventListener("click", () => launchStandalone(startCardGame));
+els.cardPlayBtn.addEventListener("click", () => cardPlaySelected());
+els.cardDiscardBtn.addEventListener("click", () => cardDiscardSelected());
 
 els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
 els.marathonStartBtn.addEventListener("click", startMarathon);
@@ -2343,6 +2377,359 @@ function finishGolf(wonAll) {
     ? `Acabaste os ${GOLF_HOLES.length} buracos! +${bonus} pts bónus!`
     : `+${bonus} pts bónus pelos buracos que fizeste.`;
   showMinigameEnd({ gameLabel: "Mini-Golfe", points: bonus, favoriteKey: "golf", resultText });
+}
+
+// --- "Descartando Juntos": mini-jogo de cartas inspirado no Balatro. Junta
+// cartas de um baralho de 52 para formar combinações de póquer, ganha
+// fichas para bater a pontuação-alvo de cada "blind" antes de esgotares
+// as jogadas, e usa o dinheiro ganho para comprar coringas que reforçam a
+// pontuação das jogadas seguintes. ---
+const CARD_SUITS = [
+  { key: "espadas", symbol: "♠", color: "dark" },
+  { key: "copas", symbol: "♥", color: "red" },
+  { key: "ouros", symbol: "♦", color: "red" },
+  { key: "paus", symbol: "♣", color: "dark" },
+];
+const CARD_RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+
+function cardChipValue(rank) {
+  if (rank === "A") return 11;
+  if (rank === "J" || rank === "Q" || rank === "K") return 10;
+  return parseInt(rank, 10);
+}
+
+const CARD_HAND_TYPES = [
+  { key: "high", label: "Carta Alta", baseChips: 5, baseMult: 1 },
+  { key: "pair", label: "Par", baseChips: 10, baseMult: 2 },
+  { key: "twopair", label: "Duplo Par", baseChips: 20, baseMult: 2 },
+  { key: "trips", label: "Trinca", baseChips: 30, baseMult: 3 },
+  { key: "straight", label: "Sequência", baseChips: 30, baseMult: 4 },
+  { key: "flush", label: "Flush", baseChips: 35, baseMult: 4 },
+  { key: "fullhouse", label: "Full House", baseChips: 40, baseMult: 4 },
+  { key: "quads", label: "Poker (4 iguais)", baseChips: 60, baseMult: 7 },
+  { key: "straightflush", label: "Straight Flush", baseChips: 100, baseMult: 8 },
+];
+function cardHandTypeByKey(key) {
+  return CARD_HAND_TYPES.find((h) => h.key === key);
+}
+
+const CARD_BLINDS = [90, 180, 320, 480, 700];
+const CARD_HAND_SIZE = 7;
+const CARD_MAX_PLAYS = 4;
+const CARD_MAX_DISCARDS = 3;
+const CARD_MAX_SELECT = 5;
+const CARD_JOKER_PRICE = 4;
+const CARD_JOKER_SLOTS = 5;
+const CARD_MAX_BONUS = 150;
+
+const CARD_JOKER_POOL = [
+  {
+    key: "ganancioso", name: "Palhaço Ganancioso",
+    desc: "+4 de mult. se a jogada tiver par ou melhor.",
+    apply: (ctx) => { if (ctx.handType.key !== "high") ctx.mult += 4; },
+  },
+  {
+    key: "rei", name: "Rei do Ouro",
+    desc: "+20 fichas em cada jogada.",
+    apply: (ctx) => { ctx.chips += 20; },
+  },
+  {
+    key: "sorte", name: "Sorte do Principiante",
+    desc: "x1.5 no mult. em jogadas de Flush.",
+    apply: (ctx) => { if (ctx.handType.key === "flush" || ctx.handType.key === "straightflush") ctx.mult *= 1.5; },
+  },
+  {
+    key: "ases", name: "Colecionador de Ases",
+    desc: "+3 de mult. por cada Ás jogado.",
+    apply: (ctx) => { ctx.mult += 3 * ctx.cards.filter((c) => c.rank === "A").length; },
+  },
+  {
+    key: "parceiro", name: "Parceiro Fiel",
+    desc: "+1 de mult. por cada carta jogada.",
+    apply: (ctx) => { ctx.mult += ctx.cards.length; },
+  },
+  {
+    key: "sortudo", name: "Sortudo",
+    desc: "15% de hipótese de duplicar o mult. em cada jogada.",
+    apply: (ctx) => { if (Math.random() < 0.15) ctx.mult *= 2; },
+  },
+];
+
+function cardBuildDeck() {
+  const deck = [];
+  CARD_SUITS.forEach((suit) => {
+    CARD_RANKS.forEach((rank) => {
+      deck.push({ suit: suit.key, symbol: suit.symbol, color: suit.color, rank });
+    });
+  });
+  return shuffleArray(deck);
+}
+
+// Avalia exatamente as cartas selecionadas (não a melhor combinação de 5
+// dentro da mão inteira) — tal como no Balatro, cabe ao jogador escolher
+// bem o que joga.
+function cardEvaluateHand(cards) {
+  const counts = {};
+  cards.forEach((c) => { counts[c.rank] = (counts[c.rank] || 0) + 1; });
+  const groups = Object.values(counts).sort((a, b) => b - a);
+  const isFlush = cards.length >= 5 && cards.every((c) => c.suit === cards[0].suit);
+  const orders = [...new Set(cards.map((c) => CARD_RANKS.indexOf(c.rank)))].sort((a, b) => a - b);
+  let isStraight = false;
+  if (cards.length >= 5 && orders.length === cards.length) {
+    isStraight = orders[orders.length - 1] - orders[0] === cards.length - 1;
+  }
+
+  let key;
+  if (isStraight && isFlush) key = "straightflush";
+  else if (groups[0] === 4) key = "quads";
+  else if (groups[0] === 3 && groups[1] === 2) key = "fullhouse";
+  else if (isFlush) key = "flush";
+  else if (isStraight) key = "straight";
+  else if (groups[0] === 3) key = "trips";
+  else if (groups[0] === 2 && groups[1] === 2) key = "twopair";
+  else if (groups[0] === 2) key = "pair";
+  else key = "high";
+
+  return cardHandTypeByKey(key);
+}
+
+function cardScorePlay(cards) {
+  const handType = cardEvaluateHand(cards);
+  const ctx = { cards, handType, chips: handType.baseChips, mult: handType.baseMult };
+  cards.forEach((c) => { ctx.chips += cardChipValue(c.rank); });
+  solo.cardJokers.forEach((jokerKey) => {
+    const joker = CARD_JOKER_POOL.find((j) => j.key === jokerKey);
+    if (joker) joker.apply(ctx);
+  });
+  const total = Math.round(ctx.chips * ctx.mult);
+  return { handType, chips: ctx.chips, mult: ctx.mult, total };
+}
+
+function cardRenderCardEl(card, index, { selectable, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `playing-card ${card.color === "red" ? "playing-card-red" : "playing-card-dark"}`;
+  btn.innerHTML = `<span class="playing-card-rank">${card.rank}</span><span class="playing-card-suit">${card.symbol}</span>`;
+  if (selectable) {
+    btn.classList.toggle("selected", solo.cardSelected.has(index));
+    btn.addEventListener("click", () => onClick(index));
+  }
+  return btn;
+}
+
+function cardRenderHandTypePreview() {
+  const selectedCards = [...solo.cardSelected].map((i) => solo.cardHand[i]);
+  if (selectedCards.length === 0) {
+    els.cardHandTypePreview.textContent = "Seleciona até 5 cartas.";
+    return;
+  }
+  const preview = cardScorePlay(selectedCards);
+  els.cardHandTypePreview.textContent =
+    `${preview.handType.label} — ${preview.chips} fichas x ${preview.mult.toFixed(1).replace(/\.0$/, "")} mult. = ${preview.total} pts`;
+}
+
+function cardRenderJokerRow() {
+  els.cardJokerRow.innerHTML = "";
+  if (solo.cardJokers.length === 0) {
+    els.cardJokerRow.classList.add("hidden");
+    return;
+  }
+  els.cardJokerRow.classList.remove("hidden");
+  solo.cardJokers.forEach((key) => {
+    const joker = CARD_JOKER_POOL.find((j) => j.key === key);
+    if (!joker) return;
+    const chip = document.createElement("span");
+    chip.className = "joker-chip";
+    chip.title = joker.desc;
+    chip.textContent = joker.name;
+    els.cardJokerRow.appendChild(chip);
+  });
+}
+
+function cardRenderHand() {
+  els.cardHandArea.innerHTML = "";
+  solo.cardHand.forEach((card, i) => {
+    const el = cardRenderCardEl(card, i, { selectable: true, onClick: cardToggleSelect });
+    els.cardHandArea.appendChild(el);
+  });
+  cardRenderHandTypePreview();
+  cardRenderJokerRow();
+  els.cardPlayBtn.disabled = solo.cardSelected.size === 0 || solo.cardPlaysLeft <= 0;
+  els.cardDiscardBtn.disabled = solo.cardSelected.size === 0 || solo.cardDiscardsLeft <= 0;
+}
+
+function cardRenderStats() {
+  const target = CARD_BLINDS[solo.cardBlindIndex];
+  els.cardBlindInfo.textContent = `Blind ${solo.cardBlindIndex + 1}/${CARD_BLINDS.length} — alvo: ${target} pts`;
+  els.cardStats.textContent =
+    `Pontos: ${solo.cardBlindScore}/${target} · Jogadas: ${solo.cardPlaysLeft} · Descartes: ${solo.cardDiscardsLeft} · 💰 ${solo.cardMoney}`;
+}
+
+function cardToggleSelect(index) {
+  if (solo.cardSelected.has(index)) {
+    solo.cardSelected.delete(index);
+  } else if (solo.cardSelected.size < CARD_MAX_SELECT) {
+    solo.cardSelected.add(index);
+  }
+  cardRenderHand();
+}
+
+function cardDrawUpToHandSize() {
+  while (solo.cardHand.length < CARD_HAND_SIZE && solo.cardDeck.length > 0) {
+    solo.cardHand.push(solo.cardDeck.pop());
+  }
+}
+
+function cardPlaySelected() {
+  if (!solo.cardActive || solo.cardPhase !== "playing") return;
+  if (solo.cardSelected.size === 0 || solo.cardPlaysLeft <= 0) return;
+  const indexes = [...solo.cardSelected].sort((a, b) => b - a);
+  const playedCards = indexes.map((i) => solo.cardHand[i]).reverse();
+  const result = cardScorePlay(playedCards);
+
+  indexes.forEach((i) => solo.cardHand.splice(i, 1));
+  solo.cardSelected.clear();
+  solo.cardPlaysLeft -= 1;
+  solo.cardBlindScore += result.total;
+  solo.cardTotalChips += result.total;
+  updateGameHudScore();
+
+  els.cardPlayArea.innerHTML = "";
+  const summary = document.createElement("p");
+  summary.className = "hint";
+  summary.textContent = `${result.handType.label}: ${result.chips} fichas x ${result.mult.toFixed(1).replace(/\.0$/, "")} = +${result.total} pts`;
+  els.cardPlayArea.appendChild(summary);
+  cardRenderStats();
+
+  if (solo.cardBlindScore >= CARD_BLINDS[solo.cardBlindIndex]) {
+    cardWinBlind();
+    return;
+  }
+  if (solo.cardPlaysLeft <= 0) {
+    finishCardGame(false);
+    return;
+  }
+  cardDrawUpToHandSize();
+  cardRenderHand();
+}
+
+function cardDiscardSelected() {
+  if (!solo.cardActive || solo.cardPhase !== "playing") return;
+  if (solo.cardSelected.size === 0 || solo.cardDiscardsLeft <= 0) return;
+  const indexes = [...solo.cardSelected].sort((a, b) => b - a);
+  indexes.forEach((i) => solo.cardHand.splice(i, 1));
+  solo.cardSelected.clear();
+  solo.cardDiscardsLeft -= 1;
+  cardDrawUpToHandSize();
+  cardRenderHand();
+  cardRenderStats();
+}
+
+function cardWinBlind() {
+  const money = 3 + solo.cardPlaysLeft + solo.cardDiscardsLeft;
+  solo.cardMoney += money;
+  if (solo.cardBlindIndex >= CARD_BLINDS.length - 1) {
+    finishCardGame(true);
+    return;
+  }
+  cardOpenShop(money);
+}
+
+function cardOpenShop(moneyEarned) {
+  solo.cardPhase = "shop";
+  const available = CARD_JOKER_POOL.filter((j) => !solo.cardJokers.includes(j.key));
+  solo.cardShopOffers = shuffleArray(available).slice(0, 2);
+  els.cardShopMoney.textContent = `Ganhaste 💰 ${moneyEarned} por vencer o blind. Tens 💰 ${solo.cardMoney} no total.`;
+  els.cardShopOffers.innerHTML = "";
+  if (solo.cardShopOffers.length === 0 || solo.cardJokers.length >= CARD_JOKER_SLOTS) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = solo.cardJokers.length >= CARD_JOKER_SLOTS
+      ? "Já tens o máximo de coringas — segue em frente!"
+      : "Sem coringas novos disponíveis desta vez.";
+    els.cardShopOffers.appendChild(p);
+  } else {
+    solo.cardShopOffers.forEach((joker) => {
+      const card = document.createElement("div");
+      card.className = "joker-shop-card";
+      const canAfford = solo.cardMoney >= CARD_JOKER_PRICE;
+      card.innerHTML = `<strong>${joker.name}</strong><p class="hint small">${joker.desc}</p>`;
+      const buyBtn = document.createElement("button");
+      buyBtn.textContent = `Comprar (💰 ${CARD_JOKER_PRICE})`;
+      buyBtn.disabled = !canAfford;
+      buyBtn.addEventListener("click", () => cardBuyJoker(joker.key));
+      card.appendChild(buyBtn);
+      els.cardShopOffers.appendChild(card);
+    });
+  }
+  els.cardTable.classList.add("hidden");
+  els.cardShopPanel.classList.remove("hidden");
+}
+
+function cardBuyJoker(key) {
+  if (solo.cardMoney < CARD_JOKER_PRICE || solo.cardJokers.length >= CARD_JOKER_SLOTS) return;
+  if (solo.cardJokers.includes(key)) return;
+  solo.cardMoney -= CARD_JOKER_PRICE;
+  solo.cardJokers.push(key);
+  cardRenderJokerRow();
+  cardOpenShop(0);
+  els.cardShopMoney.textContent = `Tens 💰 ${solo.cardMoney} no total.`;
+}
+
+els.cardShopContinueBtn.addEventListener("click", () => {
+  els.cardShopPanel.classList.add("hidden");
+  els.cardTable.classList.remove("hidden");
+  solo.cardPhase = "playing";
+  solo.cardBlindIndex += 1;
+  solo.cardBlindScore = 0;
+  solo.cardPlaysLeft = CARD_MAX_PLAYS;
+  solo.cardDiscardsLeft = CARD_MAX_DISCARDS;
+  solo.cardDeck = cardBuildDeck();
+  solo.cardHand = [];
+  solo.cardSelected.clear();
+  cardDrawUpToHandSize();
+  els.cardPlayArea.innerHTML = "";
+  cardRenderHand();
+  cardRenderStats();
+});
+
+function startCardGame() {
+  solo.cardActive = true;
+  solo.cardPhase = "playing";
+  solo.cardBlindIndex = 0;
+  solo.cardBlindScore = 0;
+  solo.cardPlaysLeft = CARD_MAX_PLAYS;
+  solo.cardDiscardsLeft = CARD_MAX_DISCARDS;
+  solo.cardMoney = 0;
+  solo.cardJokers = [];
+  solo.cardTotalChips = 0;
+  solo.cardDeck = cardBuildDeck();
+  solo.cardHand = [];
+  solo.cardSelected = new Set();
+  els.cardShopPanel.classList.add("hidden");
+  els.cardTable.classList.remove("hidden");
+  els.cardPlayArea.innerHTML = "";
+  cardDrawUpToHandSize();
+  showScreen("solo-cards");
+  showGameHud(() => solo.cardTotalChips);
+  cardRenderHand();
+  cardRenderStats();
+
+  registerActiveGame({
+    skip: () => finishCardGame(false),
+    cleanup: () => { solo.cardActive = false; },
+  });
+}
+
+function finishCardGame(wonAll) {
+  if (!solo.cardActive) return;
+  solo.cardActive = false;
+  const bonus = Math.min(Math.round(solo.cardTotalChips / 10), CARD_MAX_BONUS);
+  solo.runScore += bonus;
+  const resultText = wonAll
+    ? `Venceste todos os ${CARD_BLINDS.length} blinds! ${solo.cardTotalChips} pts em jogadas — +${bonus} pts bónus!`
+    : `Chegaste ao blind ${solo.cardBlindIndex + 1}/${CARD_BLINDS.length}. ${solo.cardTotalChips} pts em jogadas — +${bonus} pts bónus.`;
+  showMinigameEnd({ gameLabel: "Descartando Juntos", points: bonus, favoriteKey: "cards", resultText });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
