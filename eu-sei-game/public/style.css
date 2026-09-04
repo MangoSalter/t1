@@ -98,6 +98,34 @@ select {
 }
 select:focus { outline: none; border-color: var(--primary); }
 
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 5px 6px 5px 6px;
+  background: var(--paper);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+input[type="checkbox"]:checked { background: var(--accent); }
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--ink);
+  border-width: 0 2.2px 2.2px 0;
+  transform: rotate(40deg);
+}
+input[type="checkbox"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
 button {
   padding: 13px 18px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
@@ -185,6 +213,12 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .fullscreen-game .card { width: 100%; max-width: 1000px; transform: none; margin: 12px auto; }
 
 .account-xp { font-weight: 700; color: var(--primary-dark); }
+
+.solo-menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.solo-menu-grid button { font-size: 0.92rem; padding: 12px 10px; }
+@media (max-width: 420px) {
+  .solo-menu-grid { grid-template-columns: 1fr; }
+}
 
 /* HUD fixo: pontos em tempo real + pausar/saltar, comum a todos os mini-jogos */
 .game-hud {
