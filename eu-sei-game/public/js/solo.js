@@ -7,6 +7,7 @@
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
+  ACHIEVEMENTS,
 } from "./data.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 
@@ -16,6 +17,7 @@ const REFLEX_THEME_KEY = "euSei_reflexTheme";
 const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
 const SCORE_HISTORY_MAX = 20;
 const ACCOUNT_KEY = "euSei_soloAccount";
+const ACHIEVEMENTS_KEY = "euSei_soloAchievements";
 const XP_PER_POINT = 1;
 
 const SOLO_BASE_CATEGORIES = 5;
@@ -491,17 +493,32 @@ function loadAccount() {
   try {
     const raw = localStorage.getItem(ACCOUNT_KEY);
     const acc = raw ? JSON.parse(raw) : {};
-    return { xp: acc.xp || 0, gamesPlayed: acc.gamesPlayed || 0, bestCombo: acc.bestCombo || 0 };
+    return {
+      xp: acc.xp || 0,
+      gamesPlayed: acc.gamesPlayed || 0,
+      bestCombo: acc.bestCombo || 0,
+      bestHangmanStreak: acc.bestHangmanStreak || 0,
+      favorites: acc.favorites || {},
+    };
   } catch {
-    return { xp: 0, gamesPlayed: 0, bestCombo: 0 };
+    return { xp: 0, gamesPlayed: 0, bestCombo: 0, bestHangmanStreak: 0, favorites: {} };
   }
 }
 
 function saveAccount() {
   try {
+    // favorites/bestHangmanStreak faziam falta aqui: eram escritos em memória
+    // mas nunca guardados, por isso o "jogo favorito" voltava a zero em cada
+    // recarregamento — e as conquistas que dependem deles nunca aconteciam.
     localStorage.setItem(
       ACCOUNT_KEY,
-      JSON.stringify({ xp: account.xp, gamesPlayed: account.gamesPlayed, bestCombo: account.bestCombo })
+      JSON.stringify({
+        xp: account.xp,
+        gamesPlayed: account.gamesPlayed,
+        bestCombo: account.bestCombo,
+        bestHangmanStreak: account.bestHangmanStreak || 0,
+        favorites: account.favorites || {},
+      })
     );
   } catch {
     // sem drama, a conta só não persiste entre sessões.
@@ -693,6 +710,10 @@ const els = {
   marathonSummary: document.getElementById("marathon-result-summary"),
   leaderboardBtn: document.getElementById("solo-leaderboard-btn"),
   leaderboardList: document.getElementById("solo-leaderboard-list"),
+  achievementsBtn: document.getElementById("solo-achievements-btn"),
+  achievementsList: document.getElementById("solo-achievements-list"),
+  achievementsCount: document.getElementById("solo-achievements-count"),
+  achievementsHint: document.getElementById("solo-achievements-hint"),
   leaderboardStats: document.getElementById("solo-leaderboard-stats"),
   playReflexBtn: document.getElementById("solo-play-reflex-btn"),
   playWordflashBtn: document.getElementById("solo-play-wordflash-btn"),
@@ -968,7 +989,15 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
   els.mgeTitle.textContent = `${gameLabel} — fim!`;
   els.mgePoints.textContent = resultText || `+${points} pts bónus.`;
   els.mgeXp.textContent = `+${gained} XP — conta: ${account.xp} XP (${account.gamesPlayed} jogos)`;
-  if (solo.marathonQueue.length > 0) {
+  // Uma conquista nova rouba o lugar à boca do costume: é mais raro e é a
+  // única altura em que a Dona Manga admite que reparou em ti.
+  const fresh = checkAchievements();
+  if (fresh.length > 0) {
+    const a = fresh[0];
+    const extra = fresh.length > 1 ? ` (+${fresh.length - 1})` : "";
+    els.mgeQuip.textContent = `${a.icon} Conquista: ${a.name}${extra} — ${a.who}: “${a.quip}”`;
+    els.mgeQuip.classList.remove("hidden");
+  } else if (solo.marathonQueue.length > 0) {
     const quip = randomMascotQuip();
     els.mgeQuip.textContent = `${quip.who}: "${quip.text}"`;
     els.mgeQuip.classList.remove("hidden");
@@ -1149,6 +1178,10 @@ els.marathonRestartBtn.addEventListener("click", () => showScreen("solo-marathon
 els.leaderboardBtn.addEventListener("click", () => {
   renderLeaderboard();
   showScreen("solo-leaderboard");
+});
+els.achievementsBtn.addEventListener("click", () => {
+  renderAchievements();
+  showScreen("solo-achievements");
 });
 
 els.finishBtn.addEventListener("click", finishRound);
@@ -1944,6 +1977,87 @@ function showMarathonResult() {
 function formatHistoryDate(ts) {
   const d = new Date(ts);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// --- Conquistas ---
+//
+// São recalculadas a partir da conta local no fim de cada mini-jogo. Guardar
+// só os IDs desbloqueados (e não o estado inteiro) faz com que acrescentar
+// uma conquista nova a atribua retroativamente a quem já cumpriu o critério —
+// ninguém tem de rejogar o que já jogou.
+
+function loadUnlockedAchievements() {
+  try {
+    const raw = localStorage.getItem(ACHIEVEMENTS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveUnlockedAchievements(set) {
+  try {
+    localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify([...set]));
+  } catch {
+    // sem drama: as conquistas só não persistem entre sessões.
+  }
+}
+
+function achievementContext() {
+  const history = loadScoreHistory();
+  const favorites = account.favorites || {};
+  return {
+    xp: account.xp,
+    gamesPlayed: account.gamesPlayed,
+    bestCombo: account.bestCombo || 0,
+    bestHangmanStreak: account.bestHangmanStreak || 0,
+    favorites,
+    distinctGames: Object.keys(favorites).length,
+    totalGames: Object.keys(GAME_LABELS).length,
+    runs: history.length,
+    bestScore: history.length ? Math.max(...history.map((h) => h.score || 0)) : 0,
+  };
+}
+
+// Devolve as conquistas desbloqueadas AGORA (para as anunciar), não todas.
+function checkAchievements() {
+  const unlocked = loadUnlockedAchievements();
+  const ctx = achievementContext();
+  const fresh = ACHIEVEMENTS.filter((a) => !unlocked.has(a.id) && a.check(ctx));
+  if (fresh.length > 0) {
+    fresh.forEach((a) => unlocked.add(a.id));
+    saveUnlockedAchievements(unlocked);
+  }
+  return fresh;
+}
+
+function renderAchievements() {
+  // Avalia ao abrir, não só no fim de um jogo: quem já cumpre o critério (ou
+  // quem cumpriu antes de a conquista existir) via-a como bloqueada até
+  // jogar mais uma vez sem razão nenhuma.
+  checkAchievements();
+  const unlocked = loadUnlockedAchievements();
+  const ctx = achievementContext();
+  els.achievementsCount.textContent = `${unlocked.size} de ${ACHIEVEMENTS.length} conquistas`;
+  els.achievementsList.innerHTML = "";
+  ACHIEVEMENTS.forEach((a) => {
+    const got = unlocked.has(a.id);
+    const row = document.createElement("div");
+    row.className = `achievement-row${got ? "" : " achievement-locked"}`;
+    row.innerHTML = `<span class="achievement-icon">${got ? a.icon : "🔒"}</span>
+      <span class="achievement-text">
+        <strong>${a.name}</strong>
+        <span class="hint small">${a.desc}</span>
+        ${got ? `<span class="achievement-quip">${a.who}: “${a.quip}”</span>` : ""}
+      </span>`;
+    els.achievementsList.appendChild(row);
+  });
+  // Uma pista do que falta, para não ser só uma parede de cadeados.
+  const next = ACHIEVEMENTS.find((a) => !unlocked.has(a.id));
+  els.achievementsHint.textContent = next
+    ? `A seguir: ${next.name} — ${next.desc}`
+    : "Apanhaste tudo. A Dona Manga finge que não reparou.";
 }
 
 function renderLeaderboard() {

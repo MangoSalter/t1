@@ -560,3 +560,11 @@ button.hud-btn .icon-inline { color: var(--ink); }
   [data-screen="race"] .hint.small { display: none; }
   [data-screen="race"] #race-status-line { font-size: 0.85rem; margin: 0; }
 }
+
+/* --- Conquistas: mesma folha de papel do resto, com as bloqueadas a esbater --- */
+.achievement-list { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 10px 0; text-align: left; }
+.achievement-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 10px; background: var(--paper-soft); }
+.achievement-row.achievement-locked { opacity: 0.5; border-style: dashed; }
+.achievement-icon { font-size: 1.5rem; line-height: 1; }
+.achievement-text { display: flex; flex-direction: column; gap: 2px; }
+.achievement-quip { font-style: italic; font-size: 0.85rem; opacity: 0.85; }

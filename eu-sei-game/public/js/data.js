@@ -324,3 +324,90 @@ export function pickDrawWord(usedWords) {
   const pool = available.length > 0 ? available : DRAW_WORDS;
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+// --- Conquistas ---
+//
+// Só usam números que a conta local já guarda (XP, jogos jogados, favoritos,
+// histórico de pontuações), para não ser preciso instrumentar cada mini-jogo
+// outra vez. Cada uma traz uma fala da Dona Manga ou do Brasa: é o momento
+// em que a gata se lembra que existes.
+export const ACHIEVEMENTS = [
+  {
+    id: "primeiroJogo", icon: "🐣", name: "Primeira vez",
+    desc: "Termina o teu primeiro mini-jogo.",
+    who: "Brasa", quip: "Vieste! A Dona Manga disse que não vinhas.",
+    check: (c) => c.gamesPlayed >= 1,
+  },
+  {
+    id: "dezJogos", icon: "🎮", name: "Já cá anda",
+    desc: "Termina 10 mini-jogos.",
+    who: "Dona Manga", quip: "Dez? Está bem. Continua, que eu vou dormindo.",
+    check: (c) => c.gamesPlayed >= 10,
+  },
+  {
+    id: "cinquentaJogos", icon: "🏟️", name: "Habitué",
+    desc: "Termina 50 mini-jogos.",
+    who: "Dona Manga", quip: "Cinquenta. Já não vale a pena fingir que não te conheço.",
+    check: (c) => c.gamesPlayed >= 50,
+  },
+  {
+    id: "xp500", icon: "⭐", name: "Meio milhar",
+    desc: "Junta 500 XP na conta deste browser.",
+    who: "Brasa", quip: "Guardei os teus pontos debaixo do sofá. Ninguém os rouba lá.",
+    check: (c) => c.xp >= 500,
+  },
+  {
+    id: "xp2000", icon: "🌟", name: "Cofre cheio",
+    desc: "Junta 2000 XP na conta deste browser.",
+    who: "Dona Manga", quip: "Dois mil. Vou ter de roubar mais depressa.",
+    check: (c) => c.xp >= 2000,
+  },
+  {
+    id: "curioso", icon: "🧭", name: "Curioso",
+    desc: "Joga 5 mini-jogos diferentes.",
+    who: "Brasa", quip: "Já experimentaste cinco! Eu ainda só sei dormir.",
+    check: (c) => c.distinctGames >= 5,
+  },
+  {
+    id: "colecionador", icon: "🗺️", name: "Provaste tudo",
+    desc: "Joga todos os mini-jogos pelo menos uma vez.",
+    who: "Dona Manga", quip: "Jogaste tudo. Agora joga outra vez, mas melhor.",
+    check: (c) => c.distinctGames >= c.totalGames,
+  },
+  {
+    id: "viciado", icon: "🔁", name: "Aquele jogo",
+    desc: "Joga o mesmo mini-jogo 15 vezes.",
+    who: "Dona Manga", quip: "Sempre o mesmo. Percebo-te: eu durmo sempre no mesmo sítio.",
+    check: (c) => Math.max(0, ...Object.values(c.favorites || {})) >= 15,
+  },
+  {
+    id: "run100", icon: "💯", name: "Cem à campainha",
+    desc: "Termina uma run com 100 pontos ou mais.",
+    who: "Brasa", quip: "Cem! Escondi a folha para a Dona Manga não ver.",
+    check: (c) => c.bestScore >= 100,
+  },
+  {
+    id: "run250", icon: "🔥", name: "Isto já é exibição",
+    desc: "Termina uma run com 250 pontos ou mais.",
+    who: "Dona Manga", quip: "Duzentos e cinquenta. Devolve metade, é meu.",
+    check: (c) => c.bestScore >= 250,
+  },
+  {
+    id: "dezRuns", icon: "📚", name: "Tabela cheia",
+    desc: "Guarda 10 runs na tabela de recordes.",
+    who: "Brasa", quip: "Dez folhas! Fiz uma pilha e dormi em cima.",
+    check: (c) => c.runs >= 10,
+  },
+  {
+    id: "combo8", icon: "⚡", name: "Em brasa",
+    desc: "Chega a um combo de 8 seguidas.",
+    who: "Brasa", quip: "Oito seguidas! Foi por isso que me puseram este nome.",
+    check: (c) => c.bestCombo >= 8,
+  },
+  {
+    id: "forca5", icon: "🪢", name: "Sequência na Forca",
+    desc: "Acerta 5 palavras seguidas na Forca.",
+    who: "Dona Manga", quip: "Cinco palavras seguidas? Alguém te anda a soprar.",
+    check: (c) => c.bestHangmanStreak >= 5,
+  },
+];
