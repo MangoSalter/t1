@@ -8,7 +8,17 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
+  pickMapCriteria, shuffleArray,
 } from "./data.js";
+
+// --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
+// à Forca) ---
+export const MAP_TRIVIA_ROUNDS = 4;
+export const MAP_TRIVIA_ROUND_MS = 12000;
+export const MAP_TRIVIA_POINTS = 8;
+export const MAP_TRIVIA_RESULT_DISPLAY_MS = 5000;
+
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia"];
 
 // --- Forca em equipa (bónus de fim de partida) ---
 // NOTA: a palavra fica guardada em texto simples na sala — tal como o resto
@@ -274,14 +284,41 @@ export async function nextRoundOrFinal(code, room) {
   if (room.round >= numRounds) {
     const players = Object.keys(room.players || {});
     if (players.length >= 3) {
-      await startHangman(code, room);
+      // Forca/Mapa-Múndi em equipa precisam de pelo menos 1 "autor"/tempo +
+      // 2 jogadores a jogar. Escolhe a ordem dos jogos bónus ativados na
+      // configuração da sala (por omissão, só a Forca, como antes).
+      const enabledBonus = (room.config?.bonusGames && room.config.bonusGames.length > 0)
+        ? room.config.bonusGames
+        : ["hangman"];
+      const queue = shuffleArray(enabledBonus);
+      await update(roomRef(code), { bonusQueue: queue, bonusQueueTotal: queue.length });
+      await startNextBonusGame(code, { ...room, bonusQueue: queue, bonusQueueTotal: queue.length });
     } else {
-      // Forca em equipa precisa de pelo menos 1 "autor" + 2 adivinhadores.
       await update(roomRef(code), { state: "final" });
     }
   } else {
     await update(roomRef(code), { round: room.round + 1 });
     await startBallPhase(code);
+  }
+}
+
+// Avança para o próximo jogo bónus da fila (fila é sorteada uma vez em
+// nextRoundOrFinal), ou termina a partida quando a fila esvazia.
+export async function startNextBonusGame(code, room) {
+  const queue = room.bonusQueue || [];
+  if (queue.length === 0) {
+    await update(roomRef(code), { state: "final" });
+    return;
+  }
+  const [key, ...rest] = queue;
+  const total = room.bonusQueueTotal || queue.length;
+  const index = total - rest.length;
+  await update(roomRef(code), { bonusQueue: rest, bonusProgress: { index, total } });
+  const nextRoom = { ...room, bonusQueue: rest };
+  if (key === "mapTrivia") {
+    await startMapTriviaTeam(code, nextRoom);
+  } else {
+    await startHangman(code, nextRoom);
   }
 }
 
@@ -297,6 +334,11 @@ export async function resetForRematch(code, room) {
     answers: null,
     votes: null,
     roundResults: null,
+    bonusQueue: null,
+    bonusQueueTotal: null,
+    bonusProgress: null,
+    hangman: null,
+    mapTrivia: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;
@@ -432,7 +474,7 @@ export async function skipHangmanTurn(code, room) {
 
 export async function finishHangman(code, room) {
   const scores = computeHangmanScoring(room);
-  const updates = { state: "final" };
+  const updates = {};
   Object.entries(scores).forEach(([uid, pts]) => {
     if (pts > 0) {
       const prevScore = room.players?.[uid]?.score || 0;
@@ -441,4 +483,77 @@ export async function finishHangman(code, room) {
   });
   updates["hangman/finalScores"] = scores;
   await update(roomRef(code), updates);
+  await startNextBonusGame(code, room);
+}
+
+// --- Mapa-Múndi em equipa ---
+
+function buildMapTriviaRound() {
+  const criteria = pickMapCriteria();
+  return {
+    criteria,
+    startedAt: serverNow(),
+    endAt: serverNow() + MAP_TRIVIA_ROUND_MS,
+    answers: {},
+    resolved: false,
+    resolvedAt: null,
+    roundResults: null,
+  };
+}
+
+export async function startMapTriviaTeam(code, room) {
+  await update(roomRef(code), {
+    state: "mapTrivia",
+    mapTrivia: { roundIndex: 1, roundsTotal: MAP_TRIVIA_ROUNDS, ...buildMapTriviaRound() },
+  });
+}
+
+export async function submitMapTriviaAnswer(code, uid, countryName) {
+  await set(ref(db, `rooms/${code}/mapTrivia/answers/${uid}`), countryName);
+}
+
+// Função pura — fácil de testar sem Firebase.
+export function computeMapTriviaRoundResults(room) {
+  const mt = room.mapTrivia || {};
+  const matchNames = mt.criteria?.matchNames || [];
+  const players = Object.keys(room.players || {});
+  const roundResults = {};
+  const roundPoints = {};
+  players.forEach((uid) => {
+    const answer = mt.answers?.[uid] || null;
+    const correct = !!answer && matchNames.includes(answer);
+    roundResults[uid] = { answer, correct };
+    roundPoints[uid] = correct ? MAP_TRIVIA_POINTS : 0;
+  });
+  return { roundResults, roundPoints };
+}
+
+export async function resolveMapTriviaRound(code, room) {
+  const mt = room.mapTrivia;
+  if (!mt || mt.resolved) return;
+  const { roundResults, roundPoints } = computeMapTriviaRoundResults(room);
+  const updates = {
+    "mapTrivia/resolved": true,
+    "mapTrivia/resolvedAt": serverNow(),
+    "mapTrivia/roundResults": roundResults,
+  };
+  Object.entries(roundPoints).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = room.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  await update(roomRef(code), updates);
+}
+
+export async function advanceMapTriviaRoundOrFinish(code, room) {
+  const mt = room.mapTrivia;
+  if (!mt) return;
+  if (mt.roundIndex >= mt.roundsTotal) {
+    await startNextBonusGame(code, room);
+    return;
+  }
+  await update(roomRef(code), {
+    mapTrivia: { roundIndex: mt.roundIndex + 1, roundsTotal: mt.roundsTotal, ...buildMapTriviaRound() },
+  });
 }

@@ -372,6 +372,15 @@
         <div id="cfg-cat-grid" class="cat-picker-grid"></div>
       </details>
 
+      <details class="cat-picker" open>
+        <summary>Mini-jogos bónus de fim de partida (a partir de 3 jogadores)</summary>
+        <p class="hint small">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
+        <div class="marathon-picker">
+          <label><input type="checkbox" data-bonus-game="hangman" checked /> Forca em equipa</label>
+          <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
+        </div>
+      </details>
+
       <button id="start-game-btn" class="primary">Iniciar jogo</button>
       <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>
       <button data-leave class="ghost">Sair da sala</button>
@@ -469,8 +478,22 @@
 
       <div id="hangman-result" class="hangman-result hidden">
         <p id="hangman-result-text" class="hint"></p>
-        <button id="hangman-continue-btn" class="primary hidden">Ver resultados finais</button>
+        <button id="hangman-continue-btn" class="primary hidden">Continuar</button>
       </div>
+    </div>
+  </section>
+
+  <!-- MAPA-MÚNDI EM EQUIPA -->
+  <section data-screen="map-trivia" class="screen">
+    <div class="card wide center">
+      <h2>Mapa-Múndi em equipa!</h2>
+      <p id="map-trivia-round-info" class="hint small"></p>
+      <p id="map-trivia-prompt" class="hint"></p>
+      <div class="round-timer" id="map-trivia-timer"></div>
+      <div id="map-trivia-arena" class="map-arena"></div>
+      <p id="map-trivia-answered" class="hint small"></p>
+      <div id="map-trivia-results" class="score-table hidden"></div>
+      <button id="map-trivia-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
 

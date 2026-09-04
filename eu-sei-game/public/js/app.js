@@ -1,6 +1,7 @@
 import { getUid, serverNow } from "./firebase-init.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
+  MAP_COUNTRIES, MAP_BACKGROUND_SVG,
 } from "./data.js";
 import {
   createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost,
@@ -9,6 +10,8 @@ import {
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman,
   HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
+  submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
+  MAP_TRIVIA_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -114,6 +117,7 @@ function onRoomUpdate(room) {
         showScreen("hangman-play");
       }
       break;
+    case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -159,6 +163,20 @@ const lobbyEls = {
   catSelectAll: document.getElementById("cfg-cat-selectall"),
   catClear: document.getElementById("cfg-cat-clear"),
 };
+
+const bonusGameCheckboxes = Array.from(document.querySelectorAll("[data-bonus-game]"));
+
+bonusGameCheckboxes.forEach((cb) => {
+  cb.addEventListener("change", () => {
+    if (!state.room || !isHost(state.room)) return;
+    const selected = bonusGameCheckboxes.filter((c) => c.checked);
+    if (selected.length === 0) {
+      cb.checked = true; // não deixa ficar sem nenhum jogo bónus escolhido
+      return;
+    }
+    updateConfig(state.code, { bonusGames: selected.map((c) => c.dataset.bonusGame) });
+  });
+});
 
 const catCheckboxes = CATEGORIES.map((name, i) => {
   const label = document.createElement("label");
@@ -259,11 +277,17 @@ function renderLobby(room) {
   });
   lobbyEls.catCount.textContent = hasCustomSelection ? enabledCats.length : CATEGORIES.length;
 
+  const enabledBonusGames = room.config?.bonusGames?.length ? room.config.bonusGames : ["hangman"];
+  bonusGameCheckboxes.forEach((cb) => {
+    cb.checked = enabledBonusGames.includes(cb.dataset.bonusGame);
+  });
+
   const amHost = isHost(room);
   [lobbyEls.numCategories, lobbyEls.timeLimit, lobbyEls.excludeHard, lobbyEls.numRounds].forEach((el) => {
     el.disabled = !amHost;
   });
   catCheckboxes.forEach((cb) => { cb.disabled = !amHost; });
+  bonusGameCheckboxes.forEach((cb) => { cb.disabled = !amHost; });
   lobbyEls.catSelectAll.classList.toggle("hidden", !amHost);
   lobbyEls.catClear.classList.toggle("hidden", !amHost);
   lobbyEls.startBtn.classList.toggle("hidden", !amHost);
@@ -660,6 +684,92 @@ function renderHangmanPlay(room) {
   }
 }
 
+// ---------- MAPA-MÚNDI EM EQUIPA ----------
+
+const mapTriviaEls = {
+  roundInfo: document.getElementById("map-trivia-round-info"),
+  prompt: document.getElementById("map-trivia-prompt"),
+  timer: document.getElementById("map-trivia-timer"),
+  arena: document.getElementById("map-trivia-arena"),
+  answered: document.getElementById("map-trivia-answered"),
+  results: document.getElementById("map-trivia-results"),
+  continueBtn: document.getElementById("map-trivia-continue-btn"),
+};
+
+const mapTriviaMarkerEls = {};
+(function buildMapTriviaMarkers() {
+  const bg = document.createElement("div");
+  bg.className = "map-bg";
+  bg.innerHTML = MAP_BACKGROUND_SVG;
+  mapTriviaEls.arena.appendChild(bg);
+  MAP_COUNTRIES.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "map-pin";
+    btn.style.left = `${c.x}%`;
+    btn.style.top = `${c.y}%`;
+    btn.title = c.name;
+    btn.addEventListener("click", () => {
+      const room = state.room;
+      const mt = room?.mapTrivia;
+      if (!mt || mt.resolved) return;
+      if (mt.answers?.[state.uid]) return; // já respondeste esta ronda
+      submitMapTriviaAnswer(state.code, state.uid, c.name);
+    });
+    mapTriviaEls.arena.appendChild(btn);
+    mapTriviaMarkerEls[c.name] = btn;
+  });
+})();
+
+mapTriviaEls.continueBtn.addEventListener("click", () => {
+  advanceMapTriviaRoundOrFinish(state.code, state.room);
+});
+
+function renderMapTrivia(room) {
+  const mt = room.mapTrivia;
+  if (!mt) return;
+  mapTriviaEls.roundInfo.textContent = `Ronda ${mt.roundIndex}/${mt.roundsTotal}`;
+  mapTriviaEls.prompt.textContent = mt.criteria?.promptText || "";
+
+  const myAnswer = mt.answers?.[state.uid];
+  Object.entries(mapTriviaMarkerEls).forEach(([name, btn]) => {
+    btn.classList.remove("correct-flash", "wrong-flash");
+    if (mt.resolved) {
+      if ((mt.criteria?.matchNames || []).includes(name)) btn.classList.add("correct-flash");
+      else if (myAnswer === name) btn.classList.add("wrong-flash");
+    } else if (myAnswer === name) {
+      btn.classList.add("correct-flash"); // usa o verde só como "escolhido", antes de resolver
+    }
+  });
+
+  if (!mt.resolved) {
+    const msLeft = Math.max(0, (mt.endAt || 0) - serverNow());
+    mapTriviaEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
+    const answeredCount = Object.keys(mt.answers || {}).length;
+    const totalPlayers = Object.keys(room.players || {}).length;
+    mapTriviaEls.answered.textContent = myAnswer
+      ? `Já respondeste! (${answeredCount}/${totalPlayers} responderam)`
+      : `Clica no país certo. (${answeredCount}/${totalPlayers} responderam)`;
+    mapTriviaEls.results.classList.add("hidden");
+    mapTriviaEls.continueBtn.classList.add("hidden");
+  } else {
+    mapTriviaEls.timer.textContent = "";
+    mapTriviaEls.answered.textContent = "";
+    mapTriviaEls.results.classList.remove("hidden");
+    mapTriviaEls.results.innerHTML = "";
+    Object.entries(mt.roundResults || {}).forEach(([uid, r]) => {
+      const row = document.createElement("div");
+      row.className = "score-row";
+      const name = room.players?.[uid]?.name || "?";
+      row.innerHTML = `<span class="score-name">${name}</span>
+        <span class="score-round">${r.answer || "(sem resposta)"}</span>
+        <span class="score-total">${r.correct ? "✓ +8 pts" : "✕ 0 pts"}</span>`;
+      mapTriviaEls.results.appendChild(row);
+    });
+    mapTriviaEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
+}
+
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -731,6 +841,20 @@ async function runHostLoopTick(room) {
       } else if (hangman?.status === "won" || hangman?.status === "lost") {
         if (now - (hangman.resolvedAt || 0) > 60000) {
           await finishHangman(state.code, room);
+        }
+      }
+    } else if (room.state === "mapTrivia") {
+      const mt = room.mapTrivia;
+      if (mt && !mt.resolved) {
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const allAnswered = connectedIds.length > 0
+          && connectedIds.every((uid) => mt.answers && mt.answers[uid] !== undefined);
+        if (now >= (mt.endAt || 0) || allAnswered) {
+          await resolveMapTriviaRound(state.code, room);
+        }
+      } else if (mt && mt.resolved) {
+        if (now - (mt.resolvedAt || 0) > MAP_TRIVIA_RESULT_DISPLAY_MS) {
+          await advanceMapTriviaRoundOrFinish(state.code, room);
         }
       }
     }
