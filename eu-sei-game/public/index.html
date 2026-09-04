@@ -57,6 +57,7 @@
       <button id="solo-play-memory-btn">Memória</button>
       <button id="solo-play-hangman-btn">Forca</button>
       <button id="solo-play-map-btn">Mapa-Múndi</button>
+      <button id="solo-play-pac-btn">Kota Corre!</button>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -87,6 +88,7 @@
         <label><input type="checkbox" data-marathon-game="memory" checked /> Memória</label>
         <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
         <label><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
+        <label><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -297,6 +299,17 @@
       <div class="round-timer" id="map-timer"></div>
       <div id="map-arena" class="map-arena"></div>
       <p id="map-status" class="hint"></p>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: KOTA CORRE! -->
+  <section data-screen="solo-pacman" class="screen fullscreen-game">
+    <div class="card wide center">
+      <h2>Kota Corre!</h2>
+      <p class="hint small">Setas ou WASD para andar. Come as pastilhas grandes para poderes comer os fantasmas por uns segundos!</p>
+      <p id="pac-lives" class="hint"></p>
+      <div id="pac-maze" class="pac-maze"></div>
+      <p id="pac-status" class="hint"></p>
     </div>
   </section>
 

@@ -293,7 +293,68 @@ const MARATHON_GAMES = {
   memory: startMemoryMinigame,
   hangman: startHangmanSingle,
   map: startMapMinigame,
+  pacman: startPacman,
 };
+
+// --- Kota Corre!: labirinto ao estilo Pac-Man com tempero angolano — foge
+// dos fantasmas com nomes de comidas, come as pastilhas, usa os túneis. ---
+const PAC_COLS = 17;
+const PAC_ROWS = 13;
+const PAC_CELL_PX = 26;
+const PAC_TICK_MS = 160;
+const PAC_FRIGHTEN_MS = 6000;
+const PAC_LIVES = 3;
+const PAC_DOT_POINTS = 1;
+const PAC_PELLET_POINTS = 5;
+const PAC_GHOST_POINTS = 20;
+const PAC_MAX_BONUS = 80;
+// Começam perto do centro (junto ao bloco central), não colados ao
+// jogador — dá um respiro inicial antes da perseguição começar a sério.
+const PAC_GHOSTS_INFO = [
+  { name: "Muamba", color: "#c65d4a", home: { row: 5, col: 7 } },
+  { name: "Kizaka", color: "#5c7e91", home: { row: 5, col: 9 } },
+  { name: "Funji", color: "#e3a53d", home: { row: 8, col: 7 } },
+  { name: "Jindungo", color: "#6c8a4f", home: { row: 8, col: 9 } },
+];
+const PAC_TUNNEL_ROW = Math.floor(PAC_ROWS / 2);
+const PAC_DIRS = {
+  ArrowUp: { r: -1, c: 0 }, w: { r: -1, c: 0 }, W: { r: -1, c: 0 },
+  ArrowDown: { r: 1, c: 0 }, s: { r: 1, c: 0 }, S: { r: 1, c: 0 },
+  ArrowLeft: { r: 0, c: -1 }, a: { r: 0, c: -1 }, A: { r: 0, c: -1 },
+  ArrowRight: { r: 0, c: 1 }, d: { r: 0, c: 1 }, D: { r: 0, c: 1 },
+};
+
+function buildPacmanMaze() {
+  const grid = [];
+  for (let r = 0; r < PAC_ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < PAC_COLS; c++) {
+      let wall = false;
+      if (r === 0 || r === PAC_ROWS - 1) wall = true;
+      if (c === 0 || c === PAC_COLS - 1) {
+        wall = true;
+        if (r === PAC_TUNNEL_ROW) wall = false;
+      }
+      row.push(wall ? "#" : ".");
+    }
+    grid.push(row);
+  }
+  const blocks = [
+    [2, 2], [2, 3], [3, 2], [2, 13], [2, 14], [3, 14],
+    [4, 5], [4, 6], [4, 10], [4, 11],
+    [5, 2], [5, 3], [5, 13], [5, 14],
+    [6, 7], [6, 8], [6, 9], [7, 7], [7, 8], [7, 9],
+    [7, 2], [7, 3], [7, 13], [7, 14],
+    [8, 5], [8, 6], [8, 10], [8, 11],
+    [9, 2], [9, 14], [10, 2], [10, 3], [10, 13], [10, 14],
+  ];
+  blocks.forEach(([r, c]) => { if (grid[r] && grid[r][c] !== undefined) grid[r][c] = "#"; });
+  // pastilhas grandes nos quatro cantos jogáveis
+  [[1, 1], [1, PAC_COLS - 2], [PAC_ROWS - 2, 1], [PAC_ROWS - 2, PAC_COLS - 2]].forEach(([r, c]) => {
+    grid[r][c] = "o";
+  });
+  return grid;
+}
 
 function memShownCountForRound(round) {
   return Math.min(MEM_SHOWN_BASE + Math.floor((round - 1) / 3), MEM_SHOWN_MAX);
@@ -410,6 +471,7 @@ const GAME_LABELS = {
   memory: "Memória",
   hangman: "Forca",
   map: "Mapa-Múndi",
+  pacman: "Kota Corre!",
 };
 
 const account = loadAccount();
@@ -508,6 +570,19 @@ const solo = {
   activeSkip: null,
   activeCleanup: null,
   hudScoreGetter: null,
+  pacGrid: [],
+  pacActive: false,
+  pacScore: 0,
+  pacLives: PAC_LIVES,
+  pacPlayer: null,
+  pacGhosts: [],
+  pacFrightenUntil: 0,
+  pacTickId: null,
+  pacDotsRemaining: 0,
+  pacKeyHandler: null,
+  pacCellEls: {},
+  pacPlayerEl: null,
+  pacGhostEls: [],
 };
 
 const els = {
@@ -538,6 +613,10 @@ const els = {
   hangmanChallengeModeCb: document.getElementById("hangman-challenge-mode"),
   hangmanStreakInfo: document.getElementById("solo-hangman-streak-info"),
   playMapBtn: document.getElementById("solo-play-map-btn"),
+  playPacBtn: document.getElementById("solo-play-pac-btn"),
+  pacMaze: document.getElementById("pac-maze"),
+  pacLivesLabel: document.getElementById("pac-lives"),
+  pacStatus: document.getElementById("pac-status"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
   mapRoundInfo: document.getElementById("map-round-info"),
@@ -904,6 +983,7 @@ els.hangmanSetupStartBtn.addEventListener("click", () => {
   });
 });
 els.playMapBtn.addEventListener("click", () => launchStandalone(startMapMinigame));
+els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman));
 
 els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
 els.marathonStartBtn.addEventListener("click", startMarathon);
@@ -1835,6 +1915,272 @@ function finishMapMinigame() {
   els.mapPrompt.textContent = "Jogo terminado!";
   els.mapRoundInfo.textContent = "";
   showMinigameEnd({ gameLabel: "Mapa-Múndi", points: bonus, favoriteKey: "map", resultText: `+${bonus} pts bónus!` });
+}
+
+// --- Kota Corre!: renderiza o labirinto uma vez (paredes/pastilhas fixas),
+// depois só atualiza a posição do jogador/fantasmas a cada tick. ---
+
+function renderPacmanMaze() {
+  els.pacMaze.innerHTML = "";
+  els.pacMaze.style.width = `${PAC_COLS * PAC_CELL_PX}px`;
+  els.pacMaze.style.height = `${PAC_ROWS * PAC_CELL_PX}px`;
+  solo.pacCellEls = {};
+
+  for (let r = 0; r < PAC_ROWS; r++) {
+    for (let c = 0; c < PAC_COLS; c++) {
+      const ch = solo.pacGrid[r][c];
+      if (ch === "#") {
+        const wall = document.createElement("div");
+        wall.className = "pac-wall";
+        wall.style.left = `${c * PAC_CELL_PX}px`;
+        wall.style.top = `${r * PAC_CELL_PX}px`;
+        wall.style.width = `${PAC_CELL_PX}px`;
+        wall.style.height = `${PAC_CELL_PX}px`;
+        els.pacMaze.appendChild(wall);
+      } else if (ch === "." || ch === "o") {
+        const dot = document.createElement("div");
+        dot.className = ch === "o" ? "pac-pellet" : "pac-dot";
+        dot.style.left = `${c * PAC_CELL_PX + PAC_CELL_PX / 2}px`;
+        dot.style.top = `${r * PAC_CELL_PX + PAC_CELL_PX / 2}px`;
+        els.pacMaze.appendChild(dot);
+        solo.pacCellEls[`${r},${c}`] = dot;
+      }
+    }
+  }
+
+  solo.pacPlayerEl = document.createElement("div");
+  solo.pacPlayerEl.className = "pac-player";
+  solo.pacPlayerEl.textContent = "😋";
+  els.pacMaze.appendChild(solo.pacPlayerEl);
+
+  solo.pacGhostEls = PAC_GHOSTS_INFO.map((info) => {
+    const el = document.createElement("div");
+    el.className = "pac-ghost";
+    el.style.background = info.color;
+    el.title = info.name;
+    el.textContent = "👻";
+    els.pacMaze.appendChild(el);
+    return el;
+  });
+}
+
+function pacIsWall(row, col) {
+  const c = ((col % PAC_COLS) + PAC_COLS) % PAC_COLS;
+  return solo.pacGrid[row][c] === "#";
+}
+
+// Devolve a posição resultante se o movimento for válido (paredes e túnel
+// nas pontas incluídos), ou null se não se pode mover para lá.
+function pacMoveEntity(entity, dir) {
+  if (dir.r === 0 && dir.c === 0) return null;
+  const newRow = entity.row + dir.r;
+  let newCol = entity.col + dir.c;
+  if (newRow < 0 || newRow >= PAC_ROWS) return null;
+  if (newCol < 0) {
+    if (newRow === PAC_TUNNEL_ROW) newCol = PAC_COLS - 1;
+    else return null;
+  } else if (newCol >= PAC_COLS) {
+    if (newRow === PAC_TUNNEL_ROW) newCol = 0;
+    else return null;
+  }
+  if (pacIsWall(newRow, newCol)) return null;
+  return { row: newRow, col: newCol };
+}
+
+function pacUpdateEntityEl(el, entity) {
+  el.style.left = `${entity.col * PAC_CELL_PX + PAC_CELL_PX / 2}px`;
+  el.style.top = `${entity.row * PAC_CELL_PX + PAC_CELL_PX / 2}px`;
+}
+
+function pacEatAt(row, col) {
+  const key = `${row},${col}`;
+  const ch = solo.pacGrid[row][col];
+  if (ch === "." || ch === "o") {
+    solo.pacGrid[row][col] = " ";
+    const el = solo.pacCellEls[key];
+    if (el) el.remove();
+    delete solo.pacCellEls[key];
+    solo.pacDotsRemaining -= 1;
+    if (ch === "o") {
+      solo.pacScore += PAC_PELLET_POINTS;
+      solo.pacFrightenUntil = Date.now() + PAC_FRIGHTEN_MS;
+    } else {
+      solo.pacScore += PAC_DOT_POINTS;
+    }
+    updateGameHudScore();
+  }
+}
+
+function pacValidDirs(entity, excludeReverse) {
+  const dirs = [{ r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }];
+  return dirs.filter((d) => {
+    if (excludeReverse && d.r === -excludeReverse.r && d.c === -excludeReverse.c) return false;
+    return pacMoveEntity(entity, d) !== null;
+  });
+}
+
+// IA simples: a maior parte do tempo persegue (ou foge, se assustado) o
+// jogador por distância de Manhattan; de vez em quando escolhe ao acaso
+// para não ficar previsível demais.
+function pacGhostChooseDir(ghost) {
+  const frightened = Date.now() < solo.pacFrightenUntil;
+  let candidates = pacValidDirs(ghost, ghost.dir);
+  if (candidates.length === 0) candidates = pacValidDirs(ghost, null);
+  if (candidates.length === 0) return { r: 0, c: 0 };
+
+  if (Math.random() < 0.25) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  let best = candidates[0];
+  let bestDist = frightened ? -Infinity : Infinity;
+  candidates.forEach((d) => {
+    const next = pacMoveEntity(ghost, d);
+    if (!next) return;
+    const dist = Math.abs(next.row - solo.pacPlayer.row) + Math.abs(next.col - solo.pacPlayer.col);
+    if (frightened ? dist > bestDist : dist < bestDist) {
+      bestDist = dist;
+      best = d;
+    }
+  });
+  return best;
+}
+
+function pacCheckCollisions() {
+  const frightened = Date.now() < solo.pacFrightenUntil;
+  solo.pacGhosts.forEach((ghost, i) => {
+    if (ghost.row === solo.pacPlayer.row && ghost.col === solo.pacPlayer.col) {
+      if (frightened) {
+        solo.pacScore += PAC_GHOST_POINTS;
+        updateGameHudScore();
+        ghost.row = ghost.home.row;
+        ghost.col = ghost.home.col;
+        ghost.dir = { r: 0, c: 0 };
+        pacUpdateEntityEl(solo.pacGhostEls[i], ghost);
+        els.pacStatus.textContent = `Comeste a ${ghost.name}! +${PAC_GHOST_POINTS} pts`;
+      } else {
+        pacLoseLife();
+      }
+    }
+  });
+}
+
+function pacLoseLife() {
+  solo.pacLives -= 1;
+  els.pacLivesLabel.textContent = `Vidas: ${"❤️".repeat(Math.max(0, solo.pacLives))}`;
+  if (solo.pacLives <= 0) {
+    finishPacman(false);
+    return;
+  }
+  els.pacStatus.textContent = "Apanhado! Cuidado da próxima vez...";
+  solo.pacPlayer.row = PAC_ROWS - 2;
+  solo.pacPlayer.col = Math.floor(PAC_COLS / 2);
+  solo.pacPlayer.dir = { r: 0, c: 0 };
+  solo.pacPlayer.nextDir = { r: 0, c: 0 };
+  solo.pacGhosts.forEach((g, i) => {
+    g.row = g.home.row;
+    g.col = g.home.col;
+    g.dir = { r: 0, c: 0 };
+    pacUpdateEntityEl(solo.pacGhostEls[i], g);
+  });
+  pacUpdateEntityEl(solo.pacPlayerEl, solo.pacPlayer);
+}
+
+function pacTick() {
+  if (!solo.pacActive || solo.paused) return;
+
+  let moved = pacMoveEntity(solo.pacPlayer, solo.pacPlayer.nextDir);
+  if (moved) {
+    solo.pacPlayer.dir = solo.pacPlayer.nextDir;
+  } else {
+    moved = pacMoveEntity(solo.pacPlayer, solo.pacPlayer.dir);
+  }
+  if (moved) {
+    solo.pacPlayer.row = moved.row;
+    solo.pacPlayer.col = moved.col;
+    pacEatAt(moved.row, moved.col);
+    pacUpdateEntityEl(solo.pacPlayerEl, solo.pacPlayer);
+  }
+
+  els.pacMaze.classList.toggle("frighten-mode", Date.now() < solo.pacFrightenUntil);
+
+  solo.pacGhosts.forEach((ghost, i) => {
+    const dir = pacGhostChooseDir(ghost);
+    const next = pacMoveEntity(ghost, dir);
+    if (next) {
+      ghost.dir = dir;
+      ghost.row = next.row;
+      ghost.col = next.col;
+      pacUpdateEntityEl(solo.pacGhostEls[i], ghost);
+    }
+  });
+
+  pacCheckCollisions();
+
+  if (solo.pacActive && solo.pacDotsRemaining <= 0) {
+    finishPacman(true);
+  }
+}
+
+function handlePacmanKeydown(e) {
+  if (!solo.pacActive) return;
+  const dir = PAC_DIRS[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  solo.pacPlayer.nextDir = dir;
+}
+
+function startPacman() {
+  solo.pacGrid = buildPacmanMaze();
+  solo.pacDotsRemaining = 0;
+  solo.pacGrid.forEach((row) => row.forEach((ch) => {
+    if (ch === "." || ch === "o") solo.pacDotsRemaining += 1;
+  }));
+  solo.pacScore = 0;
+  solo.pacLives = PAC_LIVES;
+  solo.pacFrightenUntil = 0;
+  solo.pacPlayer = { row: PAC_ROWS - 2, col: Math.floor(PAC_COLS / 2), dir: { r: 0, c: 0 }, nextDir: { r: 0, c: 0 } };
+  solo.pacGhosts = PAC_GHOSTS_INFO.map((info) => ({
+    name: info.name, home: info.home, row: info.home.row, col: info.home.col, dir: { r: 0, c: 0 },
+  }));
+  solo.pacActive = true;
+
+  els.pacStatus.textContent = "";
+  els.pacLivesLabel.textContent = `Vidas: ${"❤️".repeat(PAC_LIVES)}`;
+  showScreen("solo-pacman");
+  renderPacmanMaze();
+  pacUpdateEntityEl(solo.pacPlayerEl, solo.pacPlayer);
+  solo.pacGhosts.forEach((g, i) => pacUpdateEntityEl(solo.pacGhostEls[i], g));
+
+  showGameHud(() => solo.pacScore);
+  solo.pacKeyHandler = handlePacmanKeydown;
+  document.addEventListener("keydown", solo.pacKeyHandler);
+  clearInterval(solo.pacTickId);
+  solo.pacTickId = setInterval(pacTick, PAC_TICK_MS);
+
+  registerActiveGame({
+    pauseShift: (ms) => { solo.pacFrightenUntil += ms; },
+    skip: () => finishPacman(false),
+    cleanup: () => {
+      solo.pacActive = false;
+      clearInterval(solo.pacTickId);
+      document.removeEventListener("keydown", solo.pacKeyHandler);
+    },
+  });
+}
+
+function finishPacman(won) {
+  if (!solo.pacActive) return;
+  solo.pacActive = false;
+  clearInterval(solo.pacTickId);
+  document.removeEventListener("keydown", solo.pacKeyHandler);
+
+  const bonus = Math.min(solo.pacScore, PAC_MAX_BONUS);
+  solo.runScore += bonus;
+  const resultText = won
+    ? `Comeste tudo! +${bonus} pts bónus!`
+    : `As comidas apanharam-te — +${bonus} pts bónus mesmo assim.`;
+  showMinigameEnd({ gameLabel: "Kota Corre!", points: bonus, favoriteKey: "pacman", resultText });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
