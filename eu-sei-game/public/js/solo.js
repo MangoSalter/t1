@@ -54,6 +54,39 @@ const MEM_DECOY_COUNT = 5;
 const MEM_POINTS_CORRECT = 4;
 const MEM_POINTS_WRONG = 2;
 
+const SOLO_HANGMAN_MAX_WRONG = 6;
+const SOLO_HANGMAN_WORD_PENALTY = 2;
+const SOLO_HANGMAN_MIN_BONUS = 6;
+const SOLO_HANGMAN_POINTS_PER_LIFE = 3;
+// Lista de reserva para quando ainda não há respostas próprias nesta sessão
+// (ex.: a jogar "Forca" avulso, sem ter feito nenhuma ronda do modo clássico).
+const HANGMAN_FALLBACK_WORDS = [
+  { categoryName: "Países", word: "PORTUGAL" },
+  { categoryName: "Países", word: "ANGOLA" },
+  { categoryName: "Cor", word: "AMARELO" },
+  { categoryName: "Fruta", word: "MANGA" },
+  { categoryName: "Animal", word: "ELEFANTE" },
+  { categoryName: "Filme", word: "TITANIC" },
+  { categoryName: "Desporto", word: "FUTEBOL" },
+  { categoryName: "Bebida", word: "AGUA" },
+  { categoryName: "Instrumento musical", word: "GUITARRA" },
+  { categoryName: "Profissão", word: "PROFESSOR" },
+  { categoryName: "Capital", word: "LISBOA" },
+  { categoryName: "Peixe", word: "ATUM" },
+  { categoryName: "Rede social", word: "INSTAGRAM" },
+  { categoryName: "Sobremesa", word: "PUDIM" },
+  { categoryName: "Super-herói", word: "BATMAN" },
+];
+
+const MARATHON_GAMES = {
+  reflex: startReflexMinigame,
+  word: startWordFlashMinigame,
+  bug: startBugSmashMinigame,
+  monkey: startMonkeyRescueMinigame,
+  memory: startMemoryMinigame,
+  hangman: startSoloHangman,
+};
+
 function memShownCountForRound(round) {
   return Math.min(MEM_SHOWN_BASE + Math.floor((round - 1) / 3), MEM_SHOWN_MAX);
 }
@@ -160,10 +193,40 @@ const solo = {
   memActive: false,
   memShownIndexes: new Set(),
   memSelected: new Set(),
+  afterMinigame: nextRound,
+  pastValidAnswers: [],
+  hangmanWord: "",
+  hangmanCategoryName: "",
+  hangmanGuessedLetters: {},
+  hangmanWrongCount: 0,
+  hangmanActive: false,
+  marathonQueue: [],
 };
 
 const els = {
-  startBtn: document.getElementById("solo-start-btn"),
+  menuBtn: document.getElementById("solo-menu-btn"),
+  classicBtn: document.getElementById("solo-classic-btn"),
+  setupStartBtn: document.getElementById("solo-setup-start-btn"),
+  marathonMenuBtn: document.getElementById("solo-marathon-menu-btn"),
+  marathonStartBtn: document.getElementById("solo-marathon-start-btn"),
+  marathonRestartBtn: document.getElementById("marathon-restart-btn"),
+  marathonSummary: document.getElementById("marathon-result-summary"),
+  playReflexBtn: document.getElementById("solo-play-reflex-btn"),
+  playWordflashBtn: document.getElementById("solo-play-wordflash-btn"),
+  playBugBtn: document.getElementById("solo-play-bug-btn"),
+  playMonkeyBtn: document.getElementById("solo-play-monkey-btn"),
+  playMemoryBtn: document.getElementById("solo-play-memory-btn"),
+  playHangmanBtn: document.getElementById("solo-play-hangman-btn"),
+  soloHangmanCategory: document.getElementById("solo-hangman-category"),
+  soloHangmanWordDisplay: document.getElementById("solo-hangman-word-display"),
+  soloHangmanWrongLetters: document.getElementById("solo-hangman-wrong-letters"),
+  soloHangmanLives: document.getElementById("solo-hangman-lives"),
+  soloHangmanGuessControls: document.getElementById("solo-hangman-guess-controls"),
+  soloHangmanLetterInput: document.getElementById("solo-hangman-letter-input"),
+  soloHangmanGuessLetterBtn: document.getElementById("solo-hangman-guess-letter-btn"),
+  soloHangmanWordGuessInput: document.getElementById("solo-hangman-word-guess-input"),
+  soloHangmanGuessWordBtn: document.getElementById("solo-hangman-guess-word-btn"),
+  soloHangmanStatus: document.getElementById("solo-hangman-status"),
   letterInfo: document.getElementById("solo-letter-info"),
   letterButtons: document.getElementById("solo-letter-buttons"),
   catLetter: document.getElementById("solo-cat-letter"),
@@ -265,13 +328,43 @@ function formatSeconds(total) {
   return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
 }
 
-els.startBtn.addEventListener("click", startRun);
+els.menuBtn.addEventListener("click", () => showScreen("solo-menu"));
+document.querySelectorAll("[data-solo-home]").forEach((btn) => {
+  btn.addEventListener("click", () => showScreen("home"));
+});
 document.querySelectorAll("[data-solo-leave]").forEach((btn) => {
   btn.addEventListener("click", () => {
     solo.inRound = false;
-    showScreen("home");
+    solo.hangmanActive = false;
+    showScreen("solo-menu");
   });
 });
+
+els.classicBtn.addEventListener("click", () => showScreen("solo-setup"));
+els.setupStartBtn.addEventListener("click", () => {
+  solo.afterMinigame = nextRound;
+  startRun();
+});
+
+function launchStandalone(startFn) {
+  solo.afterMinigame = returnToSoloMenu;
+  solo.runScore = 0;
+  solo.round = Math.max(solo.round, 1);
+  startFn();
+}
+function returnToSoloMenu() { showScreen("solo-menu"); }
+
+els.playReflexBtn.addEventListener("click", () => launchStandalone(startReflexMinigame));
+els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordFlashMinigame));
+els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame));
+els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame));
+els.playMemoryBtn.addEventListener("click", () => launchStandalone(startMemoryMinigame));
+els.playHangmanBtn.addEventListener("click", () => launchStandalone(startSoloHangman));
+
+els.marathonMenuBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
+els.marathonStartBtn.addEventListener("click", startMarathon);
+els.marathonRestartBtn.addEventListener("click", () => showScreen("solo-marathon-setup"));
+
 els.finishBtn.addEventListener("click", finishRound);
 els.continueBtn.addEventListener("click", startMinigame);
 els.restartBtn.addEventListener("click", startRun);
@@ -283,6 +376,16 @@ els.wfInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitWfWord();
 });
 els.memConfirmBtn.addEventListener("click", finishMemory);
+els.soloHangmanGuessLetterBtn.addEventListener("click", () => {
+  const letter = els.soloHangmanLetterInput.value.trim();
+  els.soloHangmanLetterInput.value = "";
+  if (letter) soloHangmanGuessLetter(letter);
+});
+els.soloHangmanGuessWordBtn.addEventListener("click", () => {
+  const guess = els.soloHangmanWordGuessInput.value.trim();
+  els.soloHangmanWordGuessInput.value = "";
+  if (guess) soloHangmanGuessWord(guess);
+});
 
 function startRun() {
   solo.round = 0;
@@ -375,7 +478,12 @@ function finishRound() {
   const rows = solo.categoryIndexes.map((ci) => {
     const text = (solo.answers[ci] || "").trim();
     const valid = text.length > 0 && text[0].toUpperCase() === letter;
-    if (valid) correctCount += 1;
+    if (valid) {
+      correctCount += 1;
+      // Guardado para a Forca conseguir mais tarde perguntar-te de volta as
+      // tuas próprias respostas desta sessão.
+      solo.pastValidAnswers.push({ categoryName: CATEGORIES[ci], word: text.toUpperCase() });
+    }
     return { ci, text, valid };
   });
 
@@ -473,7 +581,7 @@ function resolveMinigame(clickedAt) {
   }
   solo.runScore += bonus;
 
-  setTimeout(nextRound, 1400);
+  setTimeout(() => solo.afterMinigame(), 1400);
 }
 
 // --- Palavra Relâmpago: escreve o máximo de palavras possível numa letra
@@ -545,7 +653,7 @@ function finishWordFlash() {
   const bonus = Math.min(solo.wfPoints, WF_MAX_BONUS);
   solo.runScore += bonus;
   els.wfStatus.textContent = `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`;
-  setTimeout(nextRound, 1600);
+  setTimeout(() => solo.afterMinigame(), 1600);
 }
 
 // --- Mata o Inseto: apanha só o inseto-alvo entre insetos "inocentes"
@@ -634,7 +742,7 @@ function finishBugSmash() {
   const bonus = Math.min(solo.bugScore, BUG_MAX_BONUS);
   solo.runScore += bonus;
   els.bugStatus.textContent = `+${bonus} pts bónus!`;
-  setTimeout(nextRound, 1400);
+  setTimeout(() => solo.afterMinigame(), 1400);
 }
 
 // --- Cada Macaco no Seu Galho: apanha os macacos que caem, movendo o
@@ -743,7 +851,7 @@ function finishMonkeyRescue() {
   const bonus = Math.min(solo.monkeyScore, MONKEY_MAX_BONUS);
   solo.runScore += bonus;
   els.monkeyStatus.textContent = `+${bonus} pts bónus!`;
-  setTimeout(nextRound, 1400);
+  setTimeout(() => solo.afterMinigame(), 1400);
 }
 
 // --- Memória: memoriza categorias mostradas por breves segundos, depois
@@ -810,5 +918,121 @@ function finishMemory() {
   const bonus = Math.max(0, correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG);
   solo.runScore += bonus;
   els.memStatus.textContent = `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`;
-  setTimeout(nextRound, 1600);
+  setTimeout(() => solo.afterMinigame(), 1600);
+}
+
+// --- Maratona de mini-jogos: escolhes quais entram, jogas-nos um a um por
+// ordem sorteada, pontuação soma-se até acabarem todos. ---
+
+function startMarathon() {
+  const keys = Array.from(document.querySelectorAll("[data-marathon-game]:checked"))
+    .map((cb) => cb.dataset.marathonGame);
+  if (keys.length === 0) return;
+  solo.marathonQueue = shuffleArray(keys);
+  solo.runScore = 0;
+  solo.round = 1;
+  solo.afterMinigame = runNextMarathonGame;
+  runNextMarathonGame();
+}
+
+function runNextMarathonGame() {
+  if (solo.marathonQueue.length === 0) {
+    showMarathonResult();
+    return;
+  }
+  const key = solo.marathonQueue.shift();
+  const startFn = MARATHON_GAMES[key];
+  if (startFn) startFn();
+  else runNextMarathonGame();
+}
+
+function showMarathonResult() {
+  els.marathonSummary.textContent = `Pontuação total: ${solo.runScore} pts.`;
+  showScreen("solo-marathon-result");
+}
+
+// --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
+// sessão como "palavra secreta" (não te lembras do que escreveste há 4
+// rondas?), ou uma palavra da lista de reserva se ainda não jogaste nada. ---
+
+function pickHangmanWord() {
+  if (solo.pastValidAnswers.length > 0 && Math.random() < 0.7) {
+    const pick = solo.pastValidAnswers[Math.floor(Math.random() * solo.pastValidAnswers.length)];
+    return pick;
+  }
+  return HANGMAN_FALLBACK_WORDS[Math.floor(Math.random() * HANGMAN_FALLBACK_WORDS.length)];
+}
+
+function startSoloHangman() {
+  const { categoryName, word } = pickHangmanWord();
+  solo.hangmanWord = word;
+  solo.hangmanCategoryName = categoryName;
+  solo.hangmanGuessedLetters = {};
+  solo.hangmanWrongCount = 0;
+  solo.hangmanActive = true;
+  els.soloHangmanStatus.textContent = "";
+  els.soloHangmanGuessControls.classList.remove("hidden");
+  renderSoloHangman();
+  showScreen("solo-hangman");
+}
+
+function soloHangmanRevealed() {
+  return [...solo.hangmanWord].every((ch) => solo.hangmanGuessedLetters[ch]);
+}
+
+function renderSoloHangman() {
+  els.soloHangmanCategory.textContent = `Categoria: ${solo.hangmanCategoryName}`;
+  const revealAll = !solo.hangmanActive;
+  els.soloHangmanWordDisplay.textContent = [...solo.hangmanWord]
+    .map((ch) => (revealAll || solo.hangmanGuessedLetters[ch] ? ch : "_"))
+    .join(" ");
+  const wrong = Object.keys(solo.hangmanGuessedLetters).filter((l) => !solo.hangmanWord.includes(l));
+  els.soloHangmanWrongLetters.textContent = wrong.length ? `Letras erradas: ${wrong.join(", ")}` : "";
+  els.soloHangmanLives.textContent = `Erros: ${solo.hangmanWrongCount} / ${SOLO_HANGMAN_MAX_WRONG}`;
+}
+
+function soloHangmanGuessLetter(letterRaw) {
+  if (!solo.hangmanActive) return;
+  const letter = letterRaw.toUpperCase();
+  if (solo.hangmanGuessedLetters[letter]) return;
+  solo.hangmanGuessedLetters[letter] = true;
+  if (!solo.hangmanWord.includes(letter)) solo.hangmanWrongCount += 1;
+  resolveSoloHangmanTurn();
+}
+
+function soloHangmanGuessWord(guessRaw) {
+  if (!solo.hangmanActive) return;
+  const guess = guessRaw.trim().toUpperCase();
+  if (guess === solo.hangmanWord) {
+    [...solo.hangmanWord].forEach((ch) => { solo.hangmanGuessedLetters[ch] = true; });
+  } else {
+    solo.hangmanWrongCount += SOLO_HANGMAN_WORD_PENALTY;
+  }
+  resolveSoloHangmanTurn();
+}
+
+function resolveSoloHangmanTurn() {
+  renderSoloHangman();
+  if (soloHangmanRevealed()) {
+    finishSoloHangman(true);
+  } else if (solo.hangmanWrongCount >= SOLO_HANGMAN_MAX_WRONG) {
+    finishSoloHangman(false);
+  }
+}
+
+function finishSoloHangman(won) {
+  solo.hangmanActive = false;
+  els.soloHangmanGuessControls.classList.add("hidden");
+  renderSoloHangman();
+
+  let bonus = 0;
+  if (won) {
+    const livesLeft = SOLO_HANGMAN_MAX_WRONG - solo.hangmanWrongCount;
+    bonus = Math.max(SOLO_HANGMAN_MIN_BONUS, livesLeft * SOLO_HANGMAN_POINTS_PER_LIFE);
+    els.soloHangmanStatus.textContent = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
+  } else {
+    els.soloHangmanStatus.textContent = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
+  }
+  solo.runScore += bonus;
+  setTimeout(() => solo.afterMinigame(), 1800);
 }

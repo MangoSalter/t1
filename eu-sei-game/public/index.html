@@ -12,26 +12,115 @@
   <!-- HOME -->
   <section data-screen="home" class="screen active">
     <div class="card">
+      <svg class="mascot" viewBox="0 0 220 150" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <ellipse cx="130" cy="128" rx="80" ry="8" fill="#3a3126" opacity="0.08"/>
+        <path d="M198 88 C 214 78, 216 56, 200 46 C 190 40, 183 48, 188 58 C 178 54, 172 62, 180 70" stroke="#3a3126" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M36 88 C 18 62, 44 36, 78 40 C 108 26, 168 34, 186 62 C 198 82, 182 112, 130 116 C 78 120, 40 112, 36 88 Z" fill="#f0cf8f" stroke="#3a3126" stroke-width="2.8" stroke-linejoin="round"/>
+        <path d="M60 44 L 50 20 L 74 38 Z" fill="#f0cf8f" stroke="#3a3126" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M92 36 L 96 12 L 112 32 Z" fill="#f0cf8f" stroke="#3a3126" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M40 58 C 38 48, 46 42, 56 44" stroke="#3a3126" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <path d="M58 50 C 62 46, 68 46, 72 50" stroke="#3a3126" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <path d="M50 66 C 52 70, 58 70, 60 66" stroke="#3a3126" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        <path d="M24 60 L 4 56 M24 66 L 2 68 M46 74 L 40 92" stroke="#3a3126" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+        <ellipse cx="188" cy="98" rx="15" ry="11" fill="#e3a53d" stroke="#3a3126" stroke-width="2.4" transform="rotate(18 188 98)"/>
+        <path d="M180 88 C 182 82, 190 80, 194 84" stroke="#4a6b3a" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        <circle cx="183" cy="95" r="1.3" fill="#fbf6e9"/>
+        <circle cx="190" cy="100" r="1.3" fill="#fbf6e9"/>
+        <circle cx="186" cy="104" r="1.3" fill="#fbf6e9"/>
+      </svg>
       <h1>Eu sei!</h1>
-      <p class="subtitle">O clássico jogo de letras, agora online.</p>
+      <p class="subtitle">Dona Manga mandou-te competir. Mostra que sabes.</p>
       <input id="name-input" type="text" placeholder="O teu nome" maxlength="18" />
       <button id="create-room-btn" class="primary">Criar sala</button>
       <div class="divider">ou</div>
       <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
-      <button id="solo-start-btn" class="ghost-primary">Jogar sozinho</button>
+      <button id="solo-menu-btn" class="ghost-primary">Jogar sozinho</button>
+      <p id="home-error" class="error"></p>
+    </div>
+  </section>
 
-      <details class="cat-picker">
-        <summary>Categorias do modo solo (<span id="solo-cat-count">40</span>/40)</summary>
+  <!-- SOLO: MENU (escolher o modo/mini-jogo antes de mais nada) -->
+  <section data-screen="solo-menu" class="screen">
+    <div class="card">
+      <h2>Jogar sozinho</h2>
+      <p class="hint">Escolhe o que queres jogar.</p>
+      <button id="solo-classic-btn" class="primary">Eu sei — modo clássico</button>
+      <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
+      <div class="divider">jogar avulso</div>
+      <button id="solo-play-reflex-btn">Reflexos</button>
+      <button id="solo-play-wordflash-btn">Palavra Relâmpago</button>
+      <button id="solo-play-bug-btn">Mata o Inseto</button>
+      <button id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
+      <button id="solo-play-memory-btn">Memória</button>
+      <button id="solo-play-hangman-btn">Forca</button>
+      <button data-solo-home class="ghost">Voltar</button>
+    </div>
+  </section>
+
+  <!-- SOLO: MARATONA — escolher que mini-jogos entram -->
+  <section data-screen="solo-marathon-setup" class="screen">
+    <div class="card">
+      <h2>Maratona de mini-jogos</h2>
+      <p class="hint">Escolhe quais entram — a ordem é sorteada, um de cada vez, até todos terem sido jogados.</p>
+      <div class="marathon-picker">
+        <label><input type="checkbox" data-marathon-game="reflex" checked /> Reflexos</label>
+        <label><input type="checkbox" data-marathon-game="word" checked /> Palavra Relâmpago</label>
+        <label><input type="checkbox" data-marathon-game="bug" checked /> Mata o Inseto</label>
+        <label><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
+        <label><input type="checkbox" data-marathon-game="memory" checked /> Memória</label>
+        <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
+      </div>
+      <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
+      <button data-solo-home class="ghost">Voltar</button>
+    </div>
+  </section>
+
+  <!-- SOLO: MARATONA — resultado final -->
+  <section data-screen="solo-marathon-result" class="screen">
+    <div class="card center">
+      <h2>Maratona terminada!</h2>
+      <p id="marathon-result-summary" class="hint"></p>
+      <button id="marathon-restart-btn" class="primary">Jogar outra vez</button>
+      <button data-solo-home class="ghost">Voltar ao menu</button>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: FORCA -->
+  <section data-screen="solo-hangman" class="screen">
+    <div class="card wide center">
+      <h2>Forca!</h2>
+      <p id="solo-hangman-category" class="hint"></p>
+      <div id="solo-hangman-word-display" class="hangman-word-display"></div>
+      <p id="solo-hangman-wrong-letters" class="hint small"></p>
+      <p id="solo-hangman-lives" class="hint"></p>
+
+      <div id="solo-hangman-guess-controls" class="hangman-guess-controls">
+        <input id="solo-hangman-letter-input" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
+        <button id="solo-hangman-guess-letter-btn" class="primary">Adivinhar letra</button>
+        <input id="solo-hangman-word-guess-input" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
+        <button id="solo-hangman-guess-word-btn" class="primary">Arriscar!</button>
+      </div>
+      <p id="solo-hangman-status" class="hint"></p>
+      <button data-solo-leave class="ghost">Sair</button>
+    </div>
+  </section>
+
+  <!-- SOLO: SETUP (categorias do modo clássico) -->
+  <section data-screen="solo-setup" class="screen">
+    <div class="card">
+      <h2>Configurar o modo clássico</h2>
+      <details class="cat-picker" open>
+        <summary>Categorias (<span id="solo-cat-count">40</span>/40)</summary>
         <div class="cat-picker-actions">
           <button type="button" id="solo-cat-selectall" class="ghost">Selecionar todas</button>
           <button type="button" id="solo-cat-clear" class="ghost">Limpar</button>
         </div>
         <div id="solo-cat-grid" class="cat-picker-grid"></div>
       </details>
-
-      <p id="home-error" class="error"></p>
+      <button id="solo-setup-start-btn" class="primary">Começar</button>
+      <button data-solo-home class="ghost">Voltar</button>
     </div>
   </section>
 
