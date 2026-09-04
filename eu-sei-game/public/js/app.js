@@ -116,7 +116,11 @@ function saveAvatar(dataUrl) {
   }
 }
 
-avatarEls.preview.src = loadAvatar() || AVATAR_BLANK_PNG;
+function updateAvatarPreview(dataUrl) {
+  avatarEls.preview.src = dataUrl || AVATAR_BLANK_PNG;
+  avatarEls.preview.classList.toggle("avatar-preview-empty", !dataUrl);
+}
+updateAvatarPreview(loadAvatar());
 
 AVATAR_PALETTE.forEach((color) => {
   const swatch = document.createElement("button");
@@ -198,7 +202,7 @@ avatarEls.editBtn.addEventListener("click", () => {
 avatarEls.saveBtn.addEventListener("click", () => {
   const dataUrl = avatarEls.canvas.toDataURL("image/png");
   saveAvatar(dataUrl);
-  avatarEls.preview.src = dataUrl;
+  updateAvatarPreview(dataUrl);
   avatarEls.overlay.classList.add("hidden");
 });
 avatarEls.cancelBtn.addEventListener("click", () => {
