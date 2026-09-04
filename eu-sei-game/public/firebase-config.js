@@ -9,7 +9,7 @@
 // 1. Consola Firebase → Definições do projeto → As tuas apps → App Web.
 // 2. Copia o objeto "firebaseConfig" que lá aparece e cola aqui.
 export const firebaseConfig = {
-  apiKey: "AIzaSyAB•••••••••••••••••••••••••••••••",
+  apiKey: "AIzaSyAiYGxad6xo2Wz9UiAOgJwVoMoqglXVCPQ",
   authDomain: "jogo-1-ababa.firebaseapp.com",
   databaseURL: "https://jogo-1-ababa-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "jogo-1-ababa",
