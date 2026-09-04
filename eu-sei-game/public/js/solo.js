@@ -32,6 +32,14 @@ const BUG_HIT_POINTS = 3;
 const BUG_MISS_PENALTY = 2;
 const BUG_MAX_BONUS = 24;
 
+const MONKEY_GAME_MS = 10000;
+const MONKEY_SPAWN_INTERVAL_MS = 800;
+const MONKEY_CATCH_POINTS = 4;
+const MONKEY_MAX_BONUS = 28;
+const MONKEY_CATCHER_HALF_WIDTH = 24;
+const MONKEY_BASE_FALL_SPEED = 60; // px/s
+const MONKEY_SPEED_INCREASE_PER_SEC = 4; // px/s a mais por cada segundo decorrido
+
 function difficultyForRound(round) {
   const numCategories = Math.min(
     SOLO_BASE_CATEGORIES + Math.floor((round - 1) / 2),
@@ -78,6 +86,12 @@ const solo = {
   bugActive: false,
   bugScore: 0,
   bugSpawnIntervalId: null,
+  monkeyActive: false,
+  monkeyScore: 0,
+  monkeyCatcherX: 0,
+  monkeys: [],
+  monkeySpawnIntervalId: null,
+  monkeyMoveHandler: null,
 };
 
 const els = {
@@ -106,6 +120,10 @@ const els = {
   bugTimer: document.getElementById("bug-timer"),
   bugArena: document.getElementById("bug-arena"),
   bugStatus: document.getElementById("bug-status"),
+  monkeyTimer: document.getElementById("monkey-timer"),
+  monkeyArena: document.getElementById("monkey-arena"),
+  monkeyCatcher: document.getElementById("monkey-catcher"),
+  monkeyStatus: document.getElementById("monkey-status"),
 };
 
 function showScreen(name) {
@@ -276,7 +294,7 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
 // --- Mini-jogos bónus entre rondas: escolhido ao acaso a cada ronda, para
 // dar variedade em vez de repetir sempre o mesmo. ---
 
-const MINIGAMES = [startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame];
+const MINIGAMES = [startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame, startMonkeyRescueMinigame];
 
 function startMinigame() {
   const chosen = MINIGAMES[Math.floor(Math.random() * MINIGAMES.length)];
@@ -467,5 +485,103 @@ function finishBugSmash() {
   const bonus = Math.min(solo.bugScore, BUG_MAX_BONUS);
   solo.runScore += bonus;
   els.bugStatus.textContent = `+${bonus} pts bónus!`;
+  setTimeout(nextRound, 1400);
+}
+
+// --- Cada Macaco no Seu Galho: apanha os macacos que caem, movendo o
+// bombeiro-macaco com o rato. ---
+
+function startMonkeyRescueMinigame() {
+  solo.monkeyActive = true;
+  solo.monkeyScore = 0;
+  solo.monkeys = [];
+  els.monkeyStatus.textContent = "";
+  showScreen("solo-minigame-monkey");
+
+  const arenaW = els.monkeyArena.clientWidth || 320;
+  solo.monkeyCatcherX = arenaW / 2;
+  els.monkeyCatcher.style.left = `${solo.monkeyCatcherX}px`;
+
+  function onMove(e) {
+    if (!solo.monkeyActive) return;
+    const rect = els.monkeyArena.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let x = clientX - rect.left;
+    x = Math.max(MONKEY_CATCHER_HALF_WIDTH, Math.min(rect.width - MONKEY_CATCHER_HALF_WIDTH, x));
+    solo.monkeyCatcherX = x;
+    els.monkeyCatcher.style.left = `${x}px`;
+  }
+  solo.monkeyMoveHandler = onMove;
+  els.monkeyArena.addEventListener("pointermove", onMove);
+
+  const startedAt = Date.now();
+  const endAt = startedAt + MONKEY_GAME_MS;
+  let lastFrame = startedAt;
+
+  function spawnMonkey() {
+    if (!solo.monkeyActive) return;
+    const arenaWidth = els.monkeyArena.clientWidth || 320;
+    const x = 20 + Math.random() * Math.max(arenaWidth - 40, 1);
+    const el = document.createElement("div");
+    el.className = "falling-monkey";
+    el.textContent = "🐒";
+    el.style.left = `${x}px`;
+    el.style.top = "-20px";
+    els.monkeyArena.appendChild(el);
+    const elapsedSec = (Date.now() - startedAt) / 1000;
+    const speed = MONKEY_BASE_FALL_SPEED + elapsedSec * MONKEY_SPEED_INCREASE_PER_SEC;
+    solo.monkeys.push({ el, x, y: -20, speed });
+  }
+
+  function frame() {
+    if (!solo.monkeyActive) return;
+    const now = Date.now();
+    const dt = (now - lastFrame) / 1000;
+    lastFrame = now;
+    const arenaHeight = els.monkeyArena.clientHeight || 240;
+
+    solo.monkeys = solo.monkeys.filter((m) => {
+      m.y += m.speed * dt;
+      m.el.style.top = `${m.y}px`;
+
+      const inCatchZone = m.y >= arenaHeight - 40;
+      const alignedWithCatcher = Math.abs(m.x - solo.monkeyCatcherX) <= MONKEY_CATCHER_HALF_WIDTH + 14;
+      if (inCatchZone && alignedWithCatcher) {
+        solo.monkeyScore += MONKEY_CATCH_POINTS;
+        m.el.remove();
+        return false;
+      }
+      if (m.y >= arenaHeight) {
+        m.el.remove();
+        return false;
+      }
+      return true;
+    });
+
+    els.monkeyTimer.textContent = formatSeconds(Math.max(0, Math.ceil((endAt - now) / 1000)));
+
+    if (now >= endAt) {
+      finishMonkeyRescue();
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  solo.monkeySpawnIntervalId = setInterval(spawnMonkey, MONKEY_SPAWN_INTERVAL_MS);
+  spawnMonkey();
+  requestAnimationFrame(frame);
+}
+
+function finishMonkeyRescue() {
+  if (!solo.monkeyActive) return;
+  solo.monkeyActive = false;
+  clearInterval(solo.monkeySpawnIntervalId);
+  els.monkeyArena.removeEventListener("pointermove", solo.monkeyMoveHandler);
+  solo.monkeys.forEach((m) => m.el.remove());
+  solo.monkeys = [];
+
+  const bonus = Math.min(solo.monkeyScore, MONKEY_MAX_BONUS);
+  solo.runScore += bonus;
+  els.monkeyStatus.textContent = `+${bonus} pts bónus!`;
   setTimeout(nextRound, 1400);
 }
