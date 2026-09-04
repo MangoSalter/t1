@@ -510,56 +510,15 @@
     </div>
   </section>
 
-  <!-- FORCA EM EQUIPA: PREPARAÇÃO -->
-  <section data-screen="hangman-setup" class="screen">
-    <div class="card wide center">
-      <h2>Forca em equipa!</h2>
-      <p id="hangman-setup-info" class="hint"></p>
-
-      <form id="hangman-setup-form" class="hangman-setup-form hidden">
-        <label>Categoria
-          <select id="hangman-category-select"></select>
-        </label>
-        <label>Palavra secreta
-          <input id="hangman-word-input" type="text" autocomplete="off" placeholder="Ex: Angola" />
-        </label>
-        <button type="submit" class="primary">Confirmar palavra</button>
-      </form>
+  <!-- FORCA EM EQUIPA: quadro branco em ecrã inteiro, só o anfitrião escreve -->
+  <section data-screen="hangman" class="screen hangman-board">
+    <div class="hangman-toolbar">
+      <span class="hangman-title">Forca em equipa</span>
+      <span id="hangman-status" class="hint small"></span>
+      <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
+      <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
     </div>
-  </section>
-
-  <!-- FORCA EM EQUIPA: JOGO -->
-  <section data-screen="hangman-play" class="screen fullscreen-game">
-    <div class="card wide center golf-wide-card">
-      <h2>Forca em equipa!</h2>
-      <p id="hangman-category-label" class="hint"></p>
-      <div id="hangman-word-display" class="hangman-word-display"></div>
-      <p id="hangman-wrong-letters" class="hint small"></p>
-      <p id="hangman-lives" class="hint"></p>
-      <p id="hangman-turn-info" class="hint"></p>
-
-      <div id="hangman-guess-controls" class="hangman-guess-controls hidden">
-        <input id="hangman-letter-input" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
-        <button id="hangman-guess-letter-btn" class="primary">Adivinhar letra</button>
-        <input id="hangman-word-guess-input" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
-        <button id="hangman-guess-word-btn" class="primary">Arriscar!</button>
-      </div>
-      <button id="hangman-giveup-btn" class="ghost hidden">Desistir e ver a resposta</button>
-
-      <div class="hangman-doodle-toolbar">
-        <span id="hangman-doodle-status" class="hint small"></span>
-        <button id="hangman-doodle-claim-btn" type="button" class="ghost-primary">✋ É a minha vez de desenhar</button>
-        <button id="hangman-doodle-random-btn" type="button" class="ghost">🎲 Ao calhas</button>
-        <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
-      </div>
-      <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
-      <p class="hint small">A folha é de todos — só quem tiver a caneta consegue desenhar, e os traços mais antigos vão apagando-se para dar lugar aos novos.</p>
-
-      <div id="hangman-result" class="hangman-result hidden">
-        <p id="hangman-result-text" class="hint"></p>
-        <button id="hangman-continue-btn" class="primary hidden">Continuar</button>
-      </div>
-    </div>
+    <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
   </section>
 
   <!-- MAPA-MÚNDI EM EQUIPA -->

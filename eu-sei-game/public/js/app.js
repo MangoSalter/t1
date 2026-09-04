@@ -8,9 +8,7 @@ import {
   startGame, startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
-  submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman, giveUpHangman,
-  claimHangmanPen, randomizeHangmanPen, clearHangmanDoodle, pushHangmanDoodlePoints,
-  HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
+  finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
   MAP_TRIVIA_RESULT_DISPLAY_MS,
   updateTagPosition, claimTagInfection, claimTagPowerup, spawnTagPowerup, resolveTagRound, finishTagRound,
@@ -269,15 +267,7 @@ function onRoomUpdate(room) {
     case "categories": renderCategories(room); showScreen("categories"); break;
     case "voting": renderVoting(room); showScreen("voting"); break;
     case "roundScore": renderRoundScore(room); showScreen("roundscore"); break;
-    case "hangman":
-      if (room.hangman?.status === "settingUp") {
-        renderHangmanSetup(room);
-        showScreen("hangman-setup");
-      } else {
-        renderHangmanPlay(room);
-        showScreen("hangman-play");
-      }
-      break;
+    case "hangman": renderHangman(room); showScreen("hangman"); break;
     case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
     case "tag": renderTag(room); showScreen("tag"); break;
     case "battle": renderBattle(room); showScreen("battle"); break;
@@ -750,144 +740,24 @@ function renderRoundScore(room) {
 }
 
 // ---------- FORCA EM EQUIPA ----------
+// Já não é o jogo de adivinhar letra a letra — é um quadro branco em ecrã
+// inteiro (fora da moldura/cartão normal da app, ocupa o espaço todo do
+// browser) onde só o anfitrião da sala ("líder") escreve/desenha; o resto
+// da equipa vê e adivinha em voz alta à volta do ecrã, como um jogo de
+// charadas tradicional — o nome "Forca" ficou só como identificador deste
+// mini-jogo. Os pontos mais antigos vão saindo à medida que se desenham
+// novos (ver HANGMAN_DOODLE_MAX_POINTS em room.js), como tinta limitada.
+
+const HANGMAN_DOODLE_INK = "#3a3126";
+const HANGMAN_DOODLE_BROADCAST_INTERVAL_MS = 90;
+const HANGMAN_DOODLE_MIN_DIST = 0.004;
 
 const hangmanEls = {
-  setupInfo: document.getElementById("hangman-setup-info"),
-  setupForm: document.getElementById("hangman-setup-form"),
-  categorySelect: document.getElementById("hangman-category-select"),
-  wordInput: document.getElementById("hangman-word-input"),
-  categoryLabel: document.getElementById("hangman-category-label"),
-  wordDisplay: document.getElementById("hangman-word-display"),
-  wrongLetters: document.getElementById("hangman-wrong-letters"),
-  lives: document.getElementById("hangman-lives"),
-  turnInfo: document.getElementById("hangman-turn-info"),
-  guessControls: document.getElementById("hangman-guess-controls"),
-  letterInput: document.getElementById("hangman-letter-input"),
-  guessLetterBtn: document.getElementById("hangman-guess-letter-btn"),
-  wordGuessInput: document.getElementById("hangman-word-guess-input"),
-  guessWordBtn: document.getElementById("hangman-guess-word-btn"),
-  giveupBtn: document.getElementById("hangman-giveup-btn"),
-  result: document.getElementById("hangman-result"),
-  resultText: document.getElementById("hangman-result-text"),
-  continueBtn: document.getElementById("hangman-continue-btn"),
+  status: document.getElementById("hangman-status"),
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
-  doodleStatus: document.getElementById("hangman-doodle-status"),
-  doodleClaimBtn: document.getElementById("hangman-doodle-claim-btn"),
-  doodleRandomBtn: document.getElementById("hangman-doodle-random-btn"),
-  doodleClearBtn: document.getElementById("hangman-doodle-clear-btn"),
+  clearBtn: document.getElementById("hangman-doodle-clear-btn"),
+  continueBtn: document.getElementById("hangman-continue-btn"),
 };
-
-hangmanEls.setupForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const categoryIndex = parseInt(hangmanEls.categorySelect.value, 10);
-  const word = hangmanEls.wordInput.value;
-  if (!word.trim()) return;
-  submitHangmanWord(state.code, categoryIndex, word);
-});
-
-hangmanEls.guessLetterBtn.addEventListener("click", () => {
-  const letter = hangmanEls.letterInput.value.trim();
-  if (!letter) return;
-  hangmanEls.letterInput.value = "";
-  guessHangmanLetter(state.code, state.room, state.uid, letter);
-});
-
-hangmanEls.guessWordBtn.addEventListener("click", () => {
-  const guess = hangmanEls.wordGuessInput.value.trim();
-  if (!guess) return;
-  hangmanEls.wordGuessInput.value = "";
-  guessHangmanWord(state.code, state.room, state.uid, guess);
-});
-
-hangmanEls.giveupBtn.addEventListener("click", () => {
-  giveUpHangman(state.code, state.room, state.uid);
-});
-
-hangmanEls.continueBtn.addEventListener("click", () => {
-  finishHangman(state.code, state.room);
-});
-
-let hangmanCategoriesPopulated = false;
-
-function renderHangmanSetup(room) {
-  const amSetter = room.hangman?.setterId === state.uid;
-  hangmanEls.setupForm.classList.toggle("hidden", !amSetter);
-
-  if (amSetter) {
-    hangmanEls.setupInfo.textContent = "És tu que escolhes! Escolhe uma categoria e escreve uma palavra secreta — os outros vão tentar adivinhar.";
-    if (!hangmanCategoriesPopulated) {
-      const enabledCats = room.config?.enabledCategories?.length
-        ? room.config.enabledCategories
-        : CATEGORIES.map((_, i) => i);
-      hangmanEls.categorySelect.innerHTML = "";
-      enabledCats.forEach((ci) => {
-        const opt = document.createElement("option");
-        opt.value = String(ci);
-        opt.textContent = CATEGORIES[ci];
-        hangmanEls.categorySelect.appendChild(opt);
-      });
-      hangmanCategoriesPopulated = true;
-    }
-  } else {
-    const setterName = room.players?.[room.hangman?.setterId]?.name || "Alguém";
-    hangmanEls.setupInfo.textContent = `${setterName} está a escolher a categoria e a palavra secreta...`;
-  }
-}
-
-function renderHangmanPlay(room) {
-  const hangman = room.hangman;
-  if (!hangman) return;
-  hangmanCategoriesPopulated = false; // próxima vez que houver setup, repopula (config pode ter mudado)
-
-  hangmanEls.categoryLabel.textContent = `Categoria: ${CATEGORIES[hangman.categoryIndex] || "?"}`;
-  const word = hangman.word || "";
-  const guessed = hangman.guessedLetters || {};
-  const revealAll = hangman.status !== "playing";
-  hangmanEls.wordDisplay.textContent = [...word]
-    .map((ch) => (revealAll || guessed[ch] ? ch : "_"))
-    .join(" ");
-
-  const wrong = Object.keys(guessed).filter((l) => !word.includes(l));
-  hangmanEls.wrongLetters.textContent = wrong.length ? `Letras erradas: ${wrong.join(", ")}` : "";
-  hangmanEls.lives.textContent = `Erros: ${hangman.wrongCount || 0} / ${HANGMAN_MAX_WRONG}`;
-
-  const isGuesser = (hangman.turnOrder || []).includes(state.uid);
-  const currentTurnUid = hangman.turnOrder?.[hangman.turnIndex];
-  const myTurn = currentTurnUid === state.uid && hangman.status === "playing";
-
-  if (hangman.status === "playing") {
-    const turnName = room.players?.[currentTurnUid]?.name || "Alguém";
-    hangmanEls.turnInfo.textContent = myTurn ? "É a tua vez!" : `Vez de ${turnName}...`;
-    hangmanEls.guessControls.classList.toggle("hidden", !isGuesser || !myTurn);
-    hangmanEls.giveupBtn.classList.toggle("hidden", !isGuesser);
-    hangmanEls.result.classList.add("hidden");
-  } else {
-    hangmanEls.turnInfo.textContent = "";
-    hangmanEls.guessControls.classList.add("hidden");
-    hangmanEls.giveupBtn.classList.add("hidden");
-    hangmanEls.result.classList.remove("hidden");
-    hangmanEls.resultText.textContent = hangman.status === "won"
-      ? `A equipa acertou! A palavra era "${word}". 🎉`
-      : `A equipa não conseguiu — a palavra era "${word}".`;
-    hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
-  }
-
-  renderHangmanDoodleStatus(room);
-}
-
-// ---------- FORCA: FOLHA DE DESENHO COLETIVA ----------
-// O ecrã da Forca funciona também como um quadro branco partilhado: só quem
-// tem "a caneta" (hangman.doodle.penHolder) consegue desenhar, à vez —
-// pega-se nela ou passa-se ao calhas — para não ficarem todos a desenhar em
-// cima uns dos outros ao mesmo tempo. Cada traço fica na cor de quem o
-// desenhou; os pontos mais antigos vão saindo à medida que se desenham
-// novos (ver HANGMAN_DOODLE_MAX_POINTS em room.js), por isso a folha nunca
-// fica definitivamente cheia — não é preciso limpar manualmente, ainda que
-// haja um botão para isso.
-
-const HANGMAN_DOODLE_PALETTE = ["#c0524a", "#3f7d5c", "#3a5f8a", "#b8862f", "#7a4f9e", "#2f8a86", "#a15a2e", "#5a6b3a"];
-const HANGMAN_DOODLE_BROADCAST_INTERVAL_MS = 90;
-const HANGMAN_DOODLE_MIN_DIST = 0.006;
 
 const hangmanDoodleState = {
   drawing: false,
@@ -899,10 +769,8 @@ const hangmanDoodleState = {
   rectH: 0,
 };
 
-function hangmanDoodleColorForUid(room, uid) {
-  const ids = Object.keys(room?.players || {});
-  const idx = Math.max(0, ids.indexOf(uid));
-  return HANGMAN_DOODLE_PALETTE[idx % HANGMAN_DOODLE_PALETTE.length];
+function hangmanAmLeader() {
+  return !!state.room?.hangman && state.room.hangman.leaderId === state.uid;
 }
 
 function hangmanDoodleSyncCanvasSize() {
@@ -931,9 +799,10 @@ function hangmanDoodleRedraw() {
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
   const points = [...(room?.hangman?.doodle?.points || []), ...hangmanDoodleState.pending];
+  ctx.strokeStyle = HANGMAN_DOODLE_INK;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   let prev = null;
   points.forEach((p) => {
     const x = p.x * rectW;
@@ -942,30 +811,12 @@ function hangmanDoodleRedraw() {
       prev = { x, y };
       return;
     }
-    ctx.strokeStyle = hangmanDoodleColorForUid(room, p.uid);
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(x, y);
     ctx.stroke();
     prev = { x, y };
   });
-}
-
-function renderHangmanDoodleStatus(room) {
-  const doodle = room.hangman?.doodle;
-  const penHolder = doodle?.penHolder;
-  const iHavePen = !!penHolder && penHolder === state.uid;
-  if (!penHolder) {
-    hangmanEls.doodleStatus.textContent = "Ninguém tem a caneta agora — quem quiser desenhar, pega nela!";
-  } else if (iHavePen) {
-    hangmanEls.doodleStatus.textContent = "És tu que tens a caneta! 🖊️";
-  } else {
-    const holderName = room.players?.[penHolder]?.name || "Alguém";
-    hangmanEls.doodleStatus.textContent = `${holderName} tem a caneta.`;
-  }
-  hangmanEls.doodleClaimBtn.classList.toggle("hidden", iHavePen);
-  hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", iHavePen);
-  hangmanDoodleRedraw();
 }
 
 function hangmanDoodlePointFromEvent(e) {
@@ -984,14 +835,13 @@ function hangmanDoodleFlush() {
 }
 
 hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
-  const room = state.room;
-  if (!room?.hangman?.doodle || room.hangman.doodle.penHolder !== state.uid) return;
+  if (!hangmanAmLeader()) return;
   e.preventDefault();
   hangmanEls.doodleCanvas.setPointerCapture(e.pointerId);
   hangmanDoodleState.drawing = true;
   const p = hangmanDoodlePointFromEvent(e);
   hangmanDoodleState.lastPoint = p;
-  hangmanDoodleState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: true });
+  hangmanDoodleState.pending.push({ x: p.x, y: p.y, newStroke: true });
   hangmanDoodleRedraw();
 });
 
@@ -1002,7 +852,7 @@ hangmanEls.doodleCanvas.addEventListener("pointermove", (e) => {
   const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
   if (dist < HANGMAN_DOODLE_MIN_DIST) return;
   hangmanDoodleState.lastPoint = p;
-  hangmanDoodleState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: false });
+  hangmanDoodleState.pending.push({ x: p.x, y: p.y, newStroke: false });
   hangmanDoodleRedraw();
   if (performance.now() - hangmanDoodleState.lastBroadcastAt > HANGMAN_DOODLE_BROADCAST_INTERVAL_MS) {
     hangmanDoodleFlush();
@@ -1019,19 +869,30 @@ hangmanEls.doodleCanvas.addEventListener("pointerup", hangmanDoodleEndStroke);
 hangmanEls.doodleCanvas.addEventListener("pointercancel", hangmanDoodleEndStroke);
 hangmanEls.doodleCanvas.addEventListener("pointerleave", hangmanDoodleEndStroke);
 
-hangmanEls.doodleClaimBtn.addEventListener("click", () => {
-  claimHangmanPen(state.code, state.uid);
-});
-hangmanEls.doodleRandomBtn.addEventListener("click", () => {
-  randomizeHangmanPen(state.code, state.room);
-});
-hangmanEls.doodleClearBtn.addEventListener("click", () => {
+hangmanEls.clearBtn.addEventListener("click", () => {
   clearHangmanDoodle(state.code);
+});
+hangmanEls.continueBtn.addEventListener("click", () => {
+  finishHangman(state.code, state.room);
 });
 
 window.addEventListener("resize", () => {
-  if (screens["hangman-play"]?.classList.contains("active")) hangmanDoodleRedraw();
+  if (screens["hangman"]?.classList.contains("active")) hangmanDoodleRedraw();
 });
+
+function renderHangman(room) {
+  const hangman = room.hangman;
+  if (!hangman) return;
+  const amLeader = hangman.leaderId === state.uid;
+  const leaderName = room.players?.[hangman.leaderId]?.name || "O anfitrião";
+  hangmanEls.status.textContent = amLeader
+    ? "És o líder — desenha ou escreve uma pista para a equipa adivinhar em voz alta!"
+    : `${leaderName} está a desenhar — adivinhem em voz alta!`;
+  hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amLeader);
+  hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
+  hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  hangmanDoodleRedraw();
+}
 
 // ---------- MAPA-MÚNDI EM EQUIPA ----------
 
@@ -1756,22 +1617,6 @@ async function runHostLoopTick(room) {
     } else if (room.state === "voting") {
       if (room.voting && now >= room.voting.endAt) {
         await finishVoting(state.code, room);
-      }
-    } else if (room.state === "hangman") {
-      const hangman = room.hangman;
-      if (hangman?.status === "settingUp") {
-        if (now - (hangman.setupStartedAt || 0) > HANGMAN_SETUP_TIMEOUT_MS) {
-          // Ninguém escreveu a palavra a tempo — salta a fase bónus, sem pontos.
-          await finishHangman(state.code, room);
-        }
-      } else if (hangman?.status === "playing") {
-        if (now - (hangman.turnStartedAt || 0) > HANGMAN_TURN_TIMEOUT_MS) {
-          await skipHangmanTurn(state.code, room);
-        }
-      } else if (hangman?.status === "won" || hangman?.status === "lost") {
-        if (now - (hangman.resolvedAt || 0) > 60000) {
-          await finishHangman(state.code, room);
-        }
       }
     } else if (room.state === "mapTrivia") {
       const mt = room.mapTrivia;

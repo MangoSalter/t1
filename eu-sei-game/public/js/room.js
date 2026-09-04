@@ -84,26 +84,14 @@ export const BATTLE_WALLS = [
 export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle"];
 
 // --- Forca em equipa (bónus de fim de partida) ---
-// NOTA: a palavra fica guardada em texto simples na sala — tal como o resto
-// do jogo, não há servidor próprio a esconder dados de uns jogadores dos
-// outros, por isso isto é "por confiança" (um jogador tecnicamente curioso
-// podia espreitar a resposta na consola do browser). Aceitável para jogar
-// com amigos; ver README para a mesma ressalva aplicada ao resto do jogo.
-export const HANGMAN_MAX_WRONG = 6;
-export const HANGMAN_WORD_WRONG_PENALTY = 2;
-export const HANGMAN_TEAM_WIN_POINTS = 15;
-export const HANGMAN_SETTER_BONUS = 5;
-export const HANGMAN_SETUP_TIMEOUT_MS = 45000;
-export const HANGMAN_TURN_TIMEOUT_MS = 25000;
-
-// Folha de desenho coletiva partilhada por todos durante a Forca (o ecrã
-// todo agora funciona como quadro branco em tempo real, não só a palavra).
-// Só quem tem "a caneta" (doodle.penHolder) pode desenhar — dá-se a caneta a
-// si próprio ou passa-se ao calhas — evitando escrever todos ao mesmo tempo
-// por cima uns dos outros. Sem limite de traços guardados para sempre: os
-// pontos mais antigos vão saindo à medida que se desenham novos (tal como
-// uma tinta limitada), por isso a folha nunca fica permanentemente cheia.
-export const HANGMAN_DOODLE_MAX_POINTS = 600;
+// Já não é o jogo digital de adivinhar letra a letra — passou a ser um
+// quadro branco em ecrã inteiro (ocupa o espaço todo do browser, fora do
+// cartão/moldura normal da app) onde só o anfitrião da sala ("líder")
+// escreve/desenha, e a equipa adivinha em voz alta à volta do ecrã, como
+// um jogo de charadas/desenho tradicional — o nome "Forca" ficou só como
+// identificador do mini-jogo. Sem pontuação própria: serve de intervalo
+// social entre os outros jogos bónus.
+export const HANGMAN_DOODLE_MAX_POINTS = 800;
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem O/0/I/1 para evitar confusão
 
@@ -457,182 +445,37 @@ export async function leaveRoom(code, uid) {
 }
 
 // --- Forca em equipa ---
+// Quadro branco em ecrã inteiro: só o anfitrião da sala escreve/desenha,
+// o resto da equipa vê e adivinha em voz alta (fora da app). Sem mais
+// estado do que isto — nenhuma pontuação, nenhuma palavra guardada.
 
 export async function startHangman(code, room) {
-  const setterId = room.hostId;
-  const turnOrder = Object.keys(room.players || {}).filter((uid) => uid !== setterId);
   await update(roomRef(code), {
     state: "hangman",
     hangman: {
-      setterId,
-      turnOrder,
-      turnIndex: 0,
-      status: "settingUp",
-      categoryIndex: null,
-      word: null,
-      guessedLetters: {},
-      wrongCount: 0,
-      setupStartedAt: serverNow(),
-      turnStartedAt: null,
-      lastAction: null,
-      doodle: { points: [], penHolder: null },
+      leaderId: room.hostId,
+      doodle: { points: [] },
     },
   });
 }
 
-export async function submitHangmanWord(code, categoryIndex, word) {
-  const cleanWord = word.trim().toUpperCase();
-  if (!cleanWord) return;
-  await update(ref(db, `rooms/${code}/hangman`), {
-    categoryIndex,
-    word: cleanWord,
-    status: "playing",
-    turnStartedAt: serverNow(),
-  });
-}
-
-// Funções puras (sem Firebase) — fáceis de testar isoladamente.
-
-export function hangmanIsRevealed(word, guessedLetters) {
-  if (!word) return false;
-  return [...word].every((ch) => ch === " " || guessedLetters?.[ch]);
-}
-
-export function computeHangmanLetterGuess(hangman, letterRaw) {
-  const letter = letterRaw.toUpperCase();
-  const word = hangman.word || "";
-  const already = !!hangman.guessedLetters?.[letter];
-  const isInWord = word.includes(letter);
-  const guessedLetters = { ...(hangman.guessedLetters || {}), [letter]: true };
-  const wrongCount = (hangman.wrongCount || 0) + (!already && !isInWord ? 1 : 0);
-  let status = "playing";
-  if (hangmanIsRevealed(word, guessedLetters)) status = "won";
-  else if (wrongCount >= HANGMAN_MAX_WRONG) status = "lost";
-  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
-  const turnIndex = status === "playing" ? ((hangman.turnIndex || 0) + 1) % orderLen : hangman.turnIndex;
-  return {
-    guessedLetters, wrongCount, status, turnIndex,
-    lastAction: { type: "letter", value: letter, correct: !already && isInWord },
-  };
-}
-
-export function computeHangmanWordGuess(hangman, guessRaw) {
-  const guess = guessRaw.trim().toUpperCase();
-  const word = hangman.word || "";
-  const correct = guess.length > 0 && guess === word;
-  const guessedLetters = correct
-    ? { ...(hangman.guessedLetters || {}), ...Object.fromEntries([...word].map((ch) => [ch, true])) }
-    : { ...(hangman.guessedLetters || {}) };
-  const wrongCount = (hangman.wrongCount || 0) + (correct ? 0 : HANGMAN_WORD_WRONG_PENALTY);
-  let status = "playing";
-  if (correct) status = "won";
-  else if (wrongCount >= HANGMAN_MAX_WRONG) status = "lost";
-  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
-  const turnIndex = status === "playing" ? ((hangman.turnIndex || 0) + 1) % orderLen : hangman.turnIndex;
-  return {
-    guessedLetters, wrongCount, status, turnIndex,
-    lastAction: { type: "word", value: guess, correct },
-  };
-}
-
-export function computeHangmanScoring(room) {
-  const hangman = room.hangman || {};
-  const players = Object.keys(room.players || {});
-  const scores = {};
-  players.forEach((uid) => { scores[uid] = 0; });
-  if (hangman.status === "won") {
-    (hangman.turnOrder || []).forEach((uid) => { scores[uid] = HANGMAN_TEAM_WIN_POINTS; });
-    if (hangman.setterId) scores[hangman.setterId] = HANGMAN_SETTER_BONUS;
-  }
-  return scores;
-}
-
-export async function guessHangmanLetter(code, room, uid, letter) {
-  const hangman = room.hangman;
-  if (!hangman || hangman.status !== "playing") return;
-  const currentTurnUid = hangman.turnOrder[hangman.turnIndex];
-  if (currentTurnUid !== uid) return;
-  const result = computeHangmanLetterGuess(hangman, letter);
-  const updates = { ...result, lastAction: { ...result.lastAction, uid } };
-  if (result.status === "playing") updates.turnStartedAt = serverNow();
-  else updates.resolvedAt = serverNow();
-  await update(ref(db, `rooms/${code}/hangman`), updates);
-}
-
-export async function guessHangmanWord(code, room, uid, guess) {
-  const hangman = room.hangman;
-  if (!hangman || hangman.status !== "playing") return;
-  const currentTurnUid = hangman.turnOrder[hangman.turnIndex];
-  if (currentTurnUid !== uid) return;
-  const result = computeHangmanWordGuess(hangman, guess);
-  const updates = { ...result, lastAction: { ...result.lastAction, uid } };
-  if (result.status === "playing") updates.turnStartedAt = serverNow();
-  else updates.resolvedAt = serverNow();
-  await update(ref(db, `rooms/${code}/hangman`), updates);
-}
-
-export async function skipHangmanTurn(code, room) {
-  const hangman = room.hangman;
-  if (!hangman || hangman.status !== "playing") return;
-  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
-  const turnIndex = (hangman.turnIndex + 1) % orderLen;
-  await update(ref(db, `rooms/${code}/hangman`), { turnIndex, turnStartedAt: serverNow() });
-}
-
-// Qualquer jogador da equipa (não o autor da palavra) pode desistir em vez
-// de continuar a tentar — revela a palavra e termina a ronda como derrota,
-// sem pontos, tal como esgotar os erros permitidos.
-export async function giveUpHangman(code, room, uid) {
-  const hangman = room.hangman;
-  if (!hangman || hangman.status !== "playing") return;
-  if (!(hangman.turnOrder || []).includes(uid)) return;
-  await update(ref(db, `rooms/${code}/hangman`), {
-    status: "lost",
-    resolvedAt: serverNow(),
-    lastAction: { type: "giveup", uid },
-  });
-}
-
 export async function finishHangman(code, room) {
-  const scores = computeHangmanScoring(room);
-  const updates = {};
-  Object.entries(scores).forEach(([uid, pts]) => {
-    if (pts > 0) {
-      const prevScore = room.players?.[uid]?.score || 0;
-      updates[`players/${uid}/score`] = prevScore + pts;
-    }
-  });
-  updates["hangman/finalScores"] = scores;
-  await update(roomRef(code), updates);
   await startNextBonusGame(code, room);
-}
-
-// Qualquer jogador pode pegar na caneta para si (não é preciso ser a vez de
-// adivinhar — é só um quadro branco social, joga-se ou não com ele).
-export async function claimHangmanPen(code, uid) {
-  await update(ref(db, `rooms/${code}/hangman/doodle`), { penHolder: uid });
-}
-
-export async function randomizeHangmanPen(code, room) {
-  const connected = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
-  if (connected.length === 0) return;
-  const pick = connected[Math.floor(Math.random() * connected.length)];
-  await claimHangmanPen(code, pick);
 }
 
 export async function clearHangmanDoodle(code) {
   await update(ref(db, `rooms/${code}/hangman/doodle`), { points: [] });
 }
 
-// Só quem tem a caneta pode escrever (verificação por confiança, como o
-// resto do jogo). Recebe os pontos novos (já em coordenadas 0–1, para
-// funcionar em qualquer tamanho de ecrã) e escreve a lista completa
+// Só o líder (anfitrião da sala) pode escrever (verificação por confiança,
+// como o resto do jogo). Recebe os pontos novos (já em coordenadas 0–1,
+// para funcionar em qualquer tamanho de ecrã) e escreve a lista completa
 // resultante, cortada ao limite — os traços mais antigos vão desaparecendo
-// para dar lugar aos novos.
+// para dar lugar aos novos, como tinta limitada.
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
-  const doodle = room.hangman?.doodle;
-  if (!doodle || doodle.penHolder !== uid) return;
-  const combined = [...(doodle.points || []), ...newPoints];
+  const hangman = room.hangman;
+  if (!hangman || hangman.leaderId !== uid) return;
+  const combined = [...(hangman.doodle?.points || []), ...newPoints];
   const trimmed = combined.length > HANGMAN_DOODLE_MAX_POINTS
     ? combined.slice(combined.length - HANGMAN_DOODLE_MAX_POINTS)
     : combined;

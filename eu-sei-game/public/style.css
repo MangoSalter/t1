@@ -226,14 +226,14 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .monkey-lifesaver { position: absolute; bottom: 26px; font-size: 1.9rem; transform: translateX(-50%); pointer-events: none; animation: lifesaver-bob 0.6s ease-in-out infinite alternate; }
 @keyframes lifesaver-bob { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-4px); } }
 
-.hangman-setup-form { display: flex; flex-direction: column; gap: 12px; text-align: left; margin: 12px 0; }
-.hangman-setup-form label { font-size: 0.95rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
-.hangman-setup-form select { padding: 10px; border-radius: 10px; border: 2px solid var(--paper-line); background: var(--paper); color: var(--ink); font-family: inherit; font-size: 1rem; }
-
-.hangman-word-display { font-size: 2.2rem; font-weight: 700; letter-spacing: 6px; margin: 16px 0; word-break: break-all; color: var(--primary-dark); }
-.hangman-guess-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 12px 0; }
-.hangman-guess-controls input { padding: 10px; border-radius: 10px; border: 2px solid var(--paper-line); font-family: inherit; font-size: 1rem; }
-.hangman-result { margin-top: 12px; }
+/* Forca em equipa — quadro branco em ecrã inteiro (fora da moldura/cartão
+   normal da app: ocupa o browser todo, de ponta a ponta), só o anfitrião
+   da sala desenha, os outros vêem e adivinham em voz alta. */
+.screen.hangman-board.active { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 8; padding: 0; margin: 0; }
+.hangman-doodle-canvas { display: block; width: 100%; flex: 1 1 auto; min-height: 0; background: #fffdf7; cursor: default; touch-action: none; }
+.hangman-doodle-canvas-active { cursor: crosshair; }
+.hangman-toolbar { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; padding: 8px 14px; background: var(--paper); border-bottom: 2px solid var(--ink); }
+.hangman-title { font-weight: 700; }
 
 .marathon-picker { display: flex; flex-direction: column; gap: 8px; text-align: left; margin: 8px 0; }
 .marathon-picker label { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
@@ -282,13 +282,6 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .battle-player-lives { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; white-space: nowrap; letter-spacing: 1px; }
 .battle-weapon { position: absolute; width: 24px; height: 24px; margin: -12px; border-radius: 6px; border: 2px solid var(--ink); background: var(--paper-soft); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; animation: battle-weapon-bob 1.2s ease-in-out infinite; }
 @keyframes battle-weapon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-
-/* Forca em equipa — folha de desenho coletiva partilhada por todos, tal
-   como a arena do Mini-Golfe/Fuga da Infeção mas sem câmara (o quadro
-   inteiro cabe sempre no ecrã, não há mundo maior do que a vista). */
-.hangman-doodle-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; }
-.hangman-doodle-canvas { display: block; width: 100%; height: min(55vh, 500px); margin: 0 auto; border: 2px solid var(--ink); border-radius: 10px; background: #fffdf7; cursor: default; touch-action: none; opacity: 0.85; }
-.hangman-doodle-canvas-active { cursor: crosshair; opacity: 1; box-shadow: 0 0 0 3px var(--accent); }
 
 /* Mini-jogos a full-screen: ocupam o browser todo em vez de um cartão pequeno */
 .screen.fullscreen-game.active { position: fixed; inset: 0; z-index: 8; padding: 16px; overflow-y: auto; align-items: flex-start; }
