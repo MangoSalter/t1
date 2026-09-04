@@ -90,6 +90,7 @@ button.ghost-primary:hover:not(:disabled) { filter: brightness(0.95); }
 .monkey-arena { position: relative; width: 100%; max-width: 320px; height: 240px; background: linear-gradient(to bottom, #cfe8ff, #f4f2fa); border-radius: 14px; margin: 12px auto; overflow: hidden; cursor: none; }
 .monkey-catcher { position: absolute; bottom: 6px; font-size: 2.4rem; transform: translateX(-50%); pointer-events: none; }
 .falling-monkey { position: absolute; font-size: 1.8rem; transform: translateX(-50%); pointer-events: none; }
+.falling-monkey.golden { filter: drop-shadow(0 0 6px gold) drop-shadow(0 0 2px gold); }
 .hidden { display: none !important; }
 
 .divider { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }

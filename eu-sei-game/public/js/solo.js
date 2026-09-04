@@ -8,6 +8,7 @@ import { CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES } from 
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
+const BEST_REACTION_KEY = "euSei_soloBestReaction";
 
 const SOLO_BASE_CATEGORIES = 5;
 const SOLO_MAX_CATEGORIES = 12;
@@ -32,9 +33,14 @@ const BUG_VISIBLE_MS = 900;
 const BUG_HIT_POINTS = 3;
 const BUG_MISS_PENALTY = 2;
 const BUG_MAX_BONUS = 24;
+const BUG_MAX_COMBO_BONUS = 4;
 
 const MONKEY_GAME_MS = 10000;
 const MONKEY_SPAWN_INTERVAL_MS = 800;
+const MONKEY_MIN_SPAWN_INTERVAL_MS = 350;
+const MONKEY_SPAWN_SPEEDUP_PER_SEC = 40; // ms a menos de intervalo por segundo decorrido
+const MONKEY_GOLDEN_CHANCE = 0.15;
+const MONKEY_GOLDEN_MULTIPLIER = 2;
 const MONKEY_CATCH_POINTS = 4;
 const MONKEY_MAX_BONUS = 28;
 const MONKEY_CATCHER_HALF_WIDTH = 24;
@@ -42,11 +48,15 @@ const MONKEY_BASE_FALL_SPEED = 60; // px/s
 const MONKEY_SPEED_INCREASE_PER_SEC = 4; // px/s a mais por cada segundo decorrido
 
 const MEM_PREVIEW_MS = 3000;
-const MEM_SHOWN_COUNT = 5;
+const MEM_SHOWN_BASE = 5;
+const MEM_SHOWN_MAX = 8;
 const MEM_DECOY_COUNT = 5;
 const MEM_POINTS_CORRECT = 4;
 const MEM_POINTS_WRONG = 2;
-const MEM_MAX_BONUS = 20;
+
+function memShownCountForRound(round) {
+  return Math.min(MEM_SHOWN_BASE + Math.floor((round - 1) / 3), MEM_SHOWN_MAX);
+}
 
 function shuffleArray(array) {
   const a = array.slice();
@@ -102,6 +112,23 @@ function saveEnabledCategories(indexes) {
   }
 }
 
+function loadBestReaction() {
+  try {
+    const raw = localStorage.getItem(BEST_REACTION_KEY);
+    return raw ? parseInt(raw, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBestReaction(ms) {
+  try {
+    localStorage.setItem(BEST_REACTION_KEY, String(ms));
+  } catch {
+    // sem drama, só perde o recorde entre sessões.
+  }
+}
+
 const solo = {
   round: 0,
   runScore: 0,
@@ -116,17 +143,19 @@ const solo = {
   mgResolved: false,
   wfLetter: "",
   wfWords: new Set(),
+  wfPoints: 0,
   wfEndAt: 0,
   wfActive: false,
   bugTarget: "",
   bugActive: false,
   bugScore: 0,
+  bugCombo: 0,
   bugSpawnIntervalId: null,
   monkeyActive: false,
   monkeyScore: 0,
   monkeyCatcherX: 0,
   monkeys: [],
-  monkeySpawnIntervalId: null,
+  monkeySpawnTimeoutId: null,
   monkeyMoveHandler: null,
   memActive: false,
   memShownIndexes: new Set(),
@@ -434,7 +463,13 @@ function resolveMinigame(clickedAt) {
   } else {
     const reactionMs = clickedAt - solo.mgAppearAt;
     bonus = Math.max(0, Math.round(MG_MAX_BONUS - reactionMs / 100));
-    els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus!`;
+    const best = loadBestReaction();
+    if (best === null || reactionMs < best) {
+      saveBestReaction(reactionMs);
+      els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! Novo recorde pessoal! ⚡`;
+    } else {
+      els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! (recorde: ${best}ms)`;
+    }
   }
   solo.runScore += bonus;
 
@@ -447,6 +482,7 @@ function resolveMinigame(clickedAt) {
 function startWordFlashMinigame() {
   solo.wfLetter = pickLetters(1, new Set(), true)[0];
   solo.wfWords = new Set();
+  solo.wfPoints = 0;
   solo.wfEndAt = Date.now() + WF_TIME_SECONDS * 1000;
   solo.wfActive = true;
 
@@ -493,16 +529,20 @@ function submitWfWord() {
   }
 
   solo.wfWords.add(key);
+  // Palavras mais longas valem mais — recompensa esforço, não só velocidade.
+  const lengthBonus = Math.min(raw.length - WF_MIN_LENGTH, 4);
+  const points = WF_POINTS_PER_WORD + lengthBonus;
+  solo.wfPoints += points;
   els.wfFeedback.textContent = "";
   const chip = document.createElement("span");
   chip.className = "wf-word-chip";
-  chip.textContent = raw;
+  chip.textContent = `${raw} (+${points})`;
   els.wfWords.appendChild(chip);
 }
 
 function finishWordFlash() {
   solo.wfActive = false;
-  const bonus = Math.min(solo.wfWords.size * WF_POINTS_PER_WORD, WF_MAX_BONUS);
+  const bonus = Math.min(solo.wfPoints, WF_MAX_BONUS);
   solo.runScore += bonus;
   els.wfStatus.textContent = `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`;
   setTimeout(nextRound, 1600);
@@ -514,6 +554,7 @@ function finishWordFlash() {
 function startBugSmashMinigame() {
   solo.bugTarget = BUG_TARGET_POOL[Math.floor(Math.random() * BUG_TARGET_POOL.length)];
   solo.bugScore = 0;
+  solo.bugCombo = 0;
   solo.bugActive = true;
   els.bugTargetLabel.textContent = solo.bugTarget;
   els.bugArena.innerHTML = "";
@@ -554,9 +595,14 @@ function startBugSmashMinigame() {
       btn.remove();
       if (!solo.bugActive) return;
       if (emoji === solo.bugTarget) {
-        solo.bugScore += BUG_HIT_POINTS;
+        const comboBonus = Math.min(solo.bugCombo, BUG_MAX_COMBO_BONUS);
+        solo.bugScore += BUG_HIT_POINTS + comboBonus;
+        solo.bugCombo += 1;
+        els.bugStatus.textContent = solo.bugCombo > 1 ? `Combo x${solo.bugCombo}! 🔥` : "";
       } else {
+        solo.bugCombo = 0;
         solo.bugScore = Math.max(0, solo.bugScore - BUG_MISS_PENALTY);
+        els.bugStatus.textContent = "Combo perdido!";
       }
     });
 
@@ -625,15 +671,27 @@ function startMonkeyRescueMinigame() {
     if (!solo.monkeyActive) return;
     const arenaWidth = els.monkeyArena.clientWidth || 320;
     const x = 20 + Math.random() * Math.max(arenaWidth - 40, 1);
+    const golden = Math.random() < MONKEY_GOLDEN_CHANCE;
     const el = document.createElement("div");
-    el.className = "falling-monkey";
-    el.textContent = "🐒";
+    el.className = golden ? "falling-monkey golden" : "falling-monkey";
+    el.textContent = golden ? "🐵" : "🐒";
     el.style.left = `${x}px`;
     el.style.top = "-20px";
     els.monkeyArena.appendChild(el);
     const elapsedSec = (Date.now() - startedAt) / 1000;
     const speed = MONKEY_BASE_FALL_SPEED + elapsedSec * MONKEY_SPEED_INCREASE_PER_SEC;
-    solo.monkeys.push({ el, x, y: -20, speed });
+    solo.monkeys.push({ el, x, y: -20, speed, golden });
+  }
+
+  function scheduleNextSpawn() {
+    if (!solo.monkeyActive) return;
+    spawnMonkey();
+    const elapsedSec = (Date.now() - startedAt) / 1000;
+    const interval = Math.max(
+      MONKEY_SPAWN_INTERVAL_MS - elapsedSec * MONKEY_SPAWN_SPEEDUP_PER_SEC,
+      MONKEY_MIN_SPAWN_INTERVAL_MS
+    );
+    solo.monkeySpawnTimeoutId = setTimeout(scheduleNextSpawn, interval);
   }
 
   function frame() {
@@ -650,7 +708,7 @@ function startMonkeyRescueMinigame() {
       const inCatchZone = m.y >= arenaHeight - 40;
       const alignedWithCatcher = Math.abs(m.x - solo.monkeyCatcherX) <= MONKEY_CATCHER_HALF_WIDTH + 14;
       if (inCatchZone && alignedWithCatcher) {
-        solo.monkeyScore += MONKEY_CATCH_POINTS;
+        solo.monkeyScore += MONKEY_CATCH_POINTS * (m.golden ? MONKEY_GOLDEN_MULTIPLIER : 1);
         m.el.remove();
         return false;
       }
@@ -670,15 +728,14 @@ function startMonkeyRescueMinigame() {
     requestAnimationFrame(frame);
   }
 
-  solo.monkeySpawnIntervalId = setInterval(spawnMonkey, MONKEY_SPAWN_INTERVAL_MS);
-  spawnMonkey();
+  scheduleNextSpawn();
   requestAnimationFrame(frame);
 }
 
 function finishMonkeyRescue() {
   if (!solo.monkeyActive) return;
   solo.monkeyActive = false;
-  clearInterval(solo.monkeySpawnIntervalId);
+  clearTimeout(solo.monkeySpawnTimeoutId);
   els.monkeyArena.removeEventListener("pointermove", solo.monkeyMoveHandler);
   solo.monkeys.forEach((m) => m.el.remove());
   solo.monkeys = [];
@@ -699,9 +756,10 @@ function startMemoryMinigame() {
   els.memConfirmBtn.classList.add("hidden");
   showScreen("solo-minigame-memory");
 
+  const shownCount = memShownCountForRound(solo.round);
   const shuffled = shuffleArray(CATEGORIES.map((_, i) => i));
-  const shown = shuffled.slice(0, MEM_SHOWN_COUNT);
-  const decoys = shuffled.slice(MEM_SHOWN_COUNT, MEM_SHOWN_COUNT + MEM_DECOY_COUNT);
+  const shown = shuffled.slice(0, shownCount);
+  const decoys = shuffled.slice(shownCount, shownCount + MEM_DECOY_COUNT);
   solo.memShownIndexes = new Set(shown);
   const gridIndexes = shuffleArray([...shown, ...decoys]);
 
@@ -716,7 +774,7 @@ function startMemoryMinigame() {
 
   setTimeout(() => {
     if (!solo.memActive) return;
-    els.memInstructions.textContent = `Clica nas ${MEM_SHOWN_COUNT} categorias que estavam lá antes.`;
+    els.memInstructions.textContent = `Clica nas ${shownCount} categorias que estavam lá antes.`;
     els.memGrid.innerHTML = "";
     gridIndexes.forEach((ci) => {
       const card = document.createElement("div");
@@ -749,7 +807,7 @@ function finishMemory() {
     if (solo.memShownIndexes.has(ci)) correct += 1;
     else wrong += 1;
   });
-  const bonus = Math.max(0, Math.min(correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG, MEM_MAX_BONUS));
+  const bonus = Math.max(0, correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG);
   solo.runScore += bonus;
   els.memStatus.textContent = `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`;
   setTimeout(nextRound, 1600);
