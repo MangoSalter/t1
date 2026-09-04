@@ -2,7 +2,7 @@ import { getUid, serverNow } from "./firebase-init.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
-  MAP_BACKGROUND_SVG,
+  MAP_BACKGROUND_SVG, LANDMARKS,
 } from "./data.js";
 import {
   createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
@@ -11,6 +11,7 @@ import {
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints, pointsObjectToArray,
+  passHangmanPen, passHangmanPenRandom,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -26,6 +27,8 @@ import {
   raceSpawnIntervalAt, raceSpeedAt,
   RACE_LANES, RACE_CAR_W, RACE_CAR_H, RACE_ROAD_H, RACE_PLAYER_Y, RACE_BASE_SPEED,
   RACE_SPAWN_INTERVAL_START_MS, RACE_BROADCAST_MS, RACE_RESULT_DISPLAY_MS,
+  submitLandmarkAnswer, resolveLandmarkRound, advanceLandmarkRoundOrFinish,
+  LANDMARK_TEAM_POINTS, LANDMARK_TEAM_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -296,6 +299,7 @@ function onRoomUpdate(room) {
     case "tag": renderTag(room); showScreen("tag"); break;
     case "battle": renderBattle(room); showScreen("battle"); break;
     case "race": renderRace(room); showScreen("race"); break;
+    case "landmark": renderLandmarkTeam(room); showScreen("landmark"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -363,7 +367,7 @@ const lobbyEls = {
 // de bónus de fim de partida), o que deixava os quadros de desenho mortos
 // numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
 // o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
-const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2 };
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1 };
 
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
@@ -828,6 +832,11 @@ const hangmanEls = {
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
   clearBtn: document.getElementById("hangman-doodle-clear-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
+  passPenBtn: document.getElementById("hangman-pass-pen-btn"),
+  penOverlay: document.getElementById("hangman-pen-overlay"),
+  penList: document.getElementById("hangman-pen-list"),
+  penRandomBtn: document.getElementById("hangman-pen-random-btn"),
+  penCancelBtn: document.getElementById("hangman-pen-cancel-btn"),
 };
 
 const hangmanDoodleState = {
@@ -947,6 +956,43 @@ hangmanEls.continueBtn.addEventListener("click", () => {
   finishHangman(state.code, state.room);
 });
 
+// --- Passar a caneta ---
+// O quadro é uma folha coletiva, mas escreve um de cada vez. Quem tem a
+// caneta (ou o anfitrião, para destravar) escolhe quem escreve a seguir.
+
+function hangmanOpenPenPicker() {
+  const room = state.room;
+  if (!room) return;
+  hangmanEls.penList.innerHTML = "";
+  Object.entries(room.players || {})
+    .filter(([uid, p]) => uid !== room.hangman?.leaderId && p.connected)
+    .forEach(([uid, p]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.innerHTML = `${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}`;
+      btn.addEventListener("click", () => {
+        passHangmanPen(state.code, state.room, state.uid, uid);
+        hangmanClosePenPicker();
+      });
+      hangmanEls.penList.appendChild(btn);
+    });
+  if (hangmanEls.penList.children.length === 0) {
+    hangmanEls.penList.innerHTML = '<p class="hint small">Não há mais ninguém ligado para receber a caneta.</p>';
+  }
+  hangmanEls.penOverlay.classList.remove("hidden");
+}
+
+function hangmanClosePenPicker() {
+  hangmanEls.penOverlay.classList.add("hidden");
+}
+
+hangmanEls.passPenBtn.addEventListener("click", hangmanOpenPenPicker);
+hangmanEls.penCancelBtn.addEventListener("click", hangmanClosePenPicker);
+hangmanEls.penRandomBtn.addEventListener("click", async () => {
+  await passHangmanPenRandom(state.code, state.room, state.uid);
+  hangmanClosePenPicker();
+});
+
 window.addEventListener("resize", () => {
   if (screens["hangman"]?.classList.contains("active")) hangmanDoodleRedraw();
 });
@@ -957,11 +1003,17 @@ function renderHangman(room) {
   const amLeader = hangman.leaderId === state.uid;
   const leaderName = room.players?.[hangman.leaderId]?.name || "O anfitrião";
   hangmanEls.status.textContent = amLeader
-    ? "És o líder — desenha ou escreve uma pista para a equipa adivinhar em voz alta!"
-    : `${leaderName} está a desenhar — adivinhem em voz alta!`;
+    ? "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa."
+    : `${leaderName} tem a caneta. Combinem as regras em voz alta — a vez passa quando ${leaderName} quiser.`;
   hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amLeader);
   hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
+  // O anfitrião também pode passar a caneta: se quem estava a escrever sair
+  // ou se distrair, mais ninguém conseguiria destravar o quadro.
+  hangmanEls.passPenBtn.classList.toggle("hidden", !amLeader && !isHost(room));
   hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  // Se a caneta passou para outra pessoa enquanto o seletor estava aberto,
+  // fecha-o — a lista mostrada já não corresponde a nada.
+  if (!amLeader && !isHost(room)) hangmanClosePenPicker();
   hangmanDoodleRedraw();
 }
 
@@ -2138,6 +2190,89 @@ function renderRace(room) {
   }
 }
 
+// ---------- ONDE FICA ISTO? EM EQUIPA ----------
+// Ronda simultânea: todos veem o mesmo desenho (o SVG vem do data.js local, só
+// o ID viaja pela rede) e as mesmas opções. A primeira resposta é a que conta.
+
+const landmarkTeamEls = {
+  roundInfo: document.getElementById("landmark-team-round-info"),
+  timer: document.getElementById("landmark-team-timer"),
+  image: document.getElementById("landmark-team-image"),
+  options: document.getElementById("landmark-team-options"),
+  status: document.getElementById("landmark-team-status"),
+  results: document.getElementById("landmark-team-results"),
+};
+
+// Guarda o que já está desenhado no ecrã para não recriar os botões a cada
+// atualização da sala — senão o rato "perdia" o botão a meio do clique.
+const landmarkTeamState = { renderedKey: null };
+
+function renderLandmarkTeam(room) {
+  const lm = room.landmark;
+  if (!lm) return;
+  const landmark = LANDMARKS.find((l) => l.id === lm.landmarkId);
+  const myAnswer = lm.answers?.[state.uid]?.option || null;
+  const key = `${lm.roundIndex}|${lm.landmarkId}|${myAnswer}|${lm.resolved}`;
+
+  landmarkTeamEls.roundInfo.textContent = `Ronda ${lm.roundIndex}/${lm.roundsTotal}`;
+
+  if (landmarkTeamState.renderedKey !== key) {
+    landmarkTeamState.renderedKey = key;
+    landmarkTeamEls.image.innerHTML = landmark?.svg || "";
+    landmarkTeamEls.options.innerHTML = "";
+    (lm.options || []).forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "landmark-option-btn";
+      btn.textContent = opt;
+      if (lm.resolved) {
+        if (opt === lm.correctAnswer) btn.classList.add("correct");
+        else if (opt === myAnswer) btn.classList.add("wrong");
+        btn.disabled = true;
+      } else if (myAnswer) {
+        btn.disabled = true;
+        if (opt === myAnswer) btn.classList.add("chosen");
+      } else {
+        btn.addEventListener("click", () => submitLandmarkAnswer(state.code, state.room, state.uid, opt));
+      }
+      landmarkTeamEls.options.appendChild(btn);
+    });
+  }
+
+  if (!lm.resolved) {
+    const msLeft = Math.max(0, (lm.endAt || 0) - serverNow());
+    landmarkTeamEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
+    const answered = Object.keys(lm.answers || {}).length;
+    const total = Object.keys(room.players || {}).length;
+    landmarkTeamEls.status.textContent = myAnswer
+      ? `Respondeste "${myAnswer}". Já responderam ${answered}/${total}.`
+      : `Onde fica este marco? (${answered}/${total} já responderam)`;
+    landmarkTeamEls.results.classList.add("hidden");
+  } else {
+    landmarkTeamEls.timer.textContent = "";
+    landmarkTeamEls.status.textContent = landmark
+      ? `É ${landmark.name} — ${lm.correctAnswer}.`
+      : `Resposta certa: ${lm.correctAnswer}.`;
+    landmarkTeamEls.results.classList.remove("hidden");
+    landmarkTeamEls.results.innerHTML = "";
+    Object.entries(room.players || {}).forEach(([uid, p]) => {
+      const r = lm.roundResults?.[uid] || {};
+      const detail = !r.answer
+        ? "não respondeu"
+        : r.correct
+          ? `${r.answer} ✅ em ${(r.elapsedMs / 1000).toFixed(1)}s`
+          : `${r.answer} ❌`;
+      const pts = r.correct ? LANDMARK_TEAM_POINTS + (r.speedBonus || 0) : 0;
+      const row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+        <span class="score-round">${escapeHtml(detail)}</span>
+        <span class="score-total">+${pts} pts</span>`;
+      landmarkTeamEls.results.appendChild(row);
+    });
+  }
+}
+
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -2434,12 +2569,28 @@ async function runHostLoopTick(room) {
         // outros não ficam presos à espera de um carro que já não corre.
         const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
         const aliveCount = connectedIds.filter((uid) => race.racers?.[uid]?.alive !== false).length;
-        if (now >= (race.endAt || 0) || aliveCount === 0) {
+        // connectedIds.length > 0 é essencial: numa janela em que ninguém
+        // conste como ligado (entrada/saída, reconexão), aliveCount seria 0 e
+        // a corrida terminava sozinha logo aos poucos segundos.
+        if (now >= (race.endAt || 0) || (connectedIds.length > 0 && aliveCount === 0)) {
           await resolveRaceRound(state.code, room);
         }
       } else if (race && race.resolved) {
         if (now - (race.resolvedAt || 0) > RACE_RESULT_DISPLAY_MS) {
           await finishRaceRound(state.code, room);
+        }
+      }
+    } else if (room.state === "landmark") {
+      const lm = room.landmark;
+      if (lm && !lm.resolved) {
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const allAnswered = connectedIds.length > 0 && connectedIds.every((uid) => lm.answers?.[uid]);
+        if (now >= (lm.endAt || 0) || allAnswered) {
+          await resolveLandmarkRound(state.code, room);
+        }
+      } else if (lm && lm.resolved) {
+        if (now - (lm.resolvedAt || 0) > LANDMARK_TEAM_RESULT_DISPLAY_MS) {
+          await advanceLandmarkRoundOrFinish(state.code, room);
         }
       }
     }

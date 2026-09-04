@@ -192,6 +192,12 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .landmark-option-btn { padding: 14px; font-size: 1rem; }
 .landmark-option-btn.correct-flash { background: var(--success); color: var(--paper); }
 .landmark-option-btn.wrong-flash { background: var(--danger); color: var(--paper); }
+/* Versão em equipa: o estado fica (não é um flash), porque a ronda só avança
+   passados alguns segundos e toda a gente tem de ver o que era certo. */
+.landmark-option-btn.correct { background: var(--success); color: var(--paper); }
+.landmark-option-btn.wrong { background: var(--danger); color: var(--paper); }
+.landmark-option-btn.chosen { background: var(--accent); }
+.landmark-option-btn:disabled { opacity: 1; }
 
 .pac-maze { position: relative; margin: 10px auto; background: var(--paper-soft); border: 2px solid var(--paper-line); border-radius: 10px; overflow: hidden; }
 .pac-wall { position: absolute; background: var(--paper-line); border: 1.5px solid var(--ink); border-radius: 4px; box-sizing: border-box; }
@@ -515,7 +521,10 @@ button.hud-btn .icon-inline { color: var(--ink); }
    baixo da estrada, fora do ecrã. */
 .race-layout { display: flex; width: 100%; gap: 16px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
 .race-standings { flex: 0 1 260px; min-width: 200px; text-align: left; background: var(--card-bg, #fff); border: 2px solid var(--ink); border-radius: 10px; padding: 8px 10px; }
-#race-results { width: 100%; }
+#race-results, #landmark-team-results { width: 100%; }
+/* A pilula do cronómetro fica vazia quando a ronda resolve — sem isto ficava
+   lá um risco cinzento sem significado nenhum. */
+.round-timer:empty { display: none; }
 /* A estrada tem tamanho fixo em píxeis (a lógica do jogo depende disso).
    Num telemóvel isso punha o carro do jogador — que está lá em baixo, a 430px
    — por trás dos comandos ou fora do ecrã. Em vez de mexer na lógica,

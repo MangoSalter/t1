@@ -427,6 +427,7 @@
         <button type="button" data-mp-game="tag">Fuga da Infeção</button>
         <button type="button" data-mp-game="battle">Labirinto: Batalha</button>
         <button type="button" data-mp-game="race">Estrada Maluca</button>
+        <button type="button" data-mp-game="landmark">Onde Fica Isto?</button>
       </div>
 
       <div class="divider"></div>
@@ -467,6 +468,7 @@
             <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
             <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
             <label><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
+            <label><input type="checkbox" data-bonus-game="landmark" /> Onde Fica Isto? em equipa</label>
           </div>
         </details>
       </details>
@@ -536,6 +538,7 @@
     <div class="hangman-toolbar">
       <span class="hangman-title">Forca em equipa</span>
       <span id="hangman-status" class="hint small"></span>
+      <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
       <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
       <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
     </div>
@@ -617,6 +620,20 @@
     </div>
   </section>
 
+  <!-- ONDE FICA ISTO? EM EQUIPA -->
+  <section data-screen="landmark" class="screen">
+    <div class="card wide center">
+      <h2>Onde Fica Isto?</h2>
+      <p class="hint small">Todos veem o mesmo desenho ao mesmo tempo. Acerta o país — e quanto mais depressa responderes, mais pontos levas.</p>
+      <p id="landmark-team-round-info" class="hint"></p>
+      <div class="round-timer" id="landmark-team-timer"></div>
+      <div id="landmark-team-image" class="landmark-image"></div>
+      <div id="landmark-team-options" class="landmark-options"></div>
+      <p id="landmark-team-status" class="hint"></p>
+      <div id="landmark-team-results" class="score-table hidden"></div>
+    </div>
+  </section>
+
   <!-- FINAL -->
   <section data-screen="final" class="screen">
     <div class="card wide center">
@@ -677,6 +694,18 @@
   </div>
 
   <!-- Escolher quem acertou primeiro (Desenha e Adivinha) -->
+  <!-- Passar a caneta do quadro branco: quem escreve é um de cada vez; as
+       regras do jogo em si combinam-se por voz entre os jogadores. -->
+  <div id="hangman-pen-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Quem escreve a seguir?</h2>
+      <p class="hint small">Escolhe alguém, ou deixa a sorte decidir.</p>
+      <button type="button" id="hangman-pen-random-btn" class="primary">🎲 Aleatório</button>
+      <div id="hangman-pen-list" class="draw-winner-list"></div>
+      <button type="button" id="hangman-pen-cancel-btn" class="ghost">Cancelar</button>
+    </div>
+  </div>
+
   <div id="draw-winner-overlay" class="pause-overlay hidden">
     <div class="card center">
       <h2>Quem acertou primeiro?</h2>
