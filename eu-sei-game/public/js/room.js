@@ -6,9 +6,22 @@ import {
   onDisconnect, serverTimestamp, runTransaction, serverNow,
 } from "./firebase-init.js";
 import {
-  DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey,
+  DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
 } from "./data.js";
+
+// --- Forca em equipa (bónus de fim de partida) ---
+// NOTA: a palavra fica guardada em texto simples na sala — tal como o resto
+// do jogo, não há servidor próprio a esconder dados de uns jogadores dos
+// outros, por isso isto é "por confiança" (um jogador tecnicamente curioso
+// podia espreitar a resposta na consola do browser). Aceitável para jogar
+// com amigos; ver README para a mesma ressalva aplicada ao resto do jogo.
+export const HANGMAN_MAX_WRONG = 6;
+export const HANGMAN_WORD_WRONG_PENALTY = 2;
+export const HANGMAN_TEAM_WIN_POINTS = 15;
+export const HANGMAN_SETTER_BONUS = 5;
+export const HANGMAN_SETUP_TIMEOUT_MS = 45000;
+export const HANGMAN_TURN_TIMEOUT_MS = 25000;
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem O/0/I/1 para evitar confusão
 
@@ -259,7 +272,13 @@ export function computeRoundResults(room) {
 export async function nextRoundOrFinal(code, room) {
   const numRounds = room.config?.numRounds || DEFAULT_CONFIG.numRounds;
   if (room.round >= numRounds) {
-    await update(roomRef(code), { state: "final" });
+    const players = Object.keys(room.players || {});
+    if (players.length >= 3) {
+      await startHangman(code, room);
+    } else {
+      // Forca em equipa precisa de pelo menos 1 "autor" + 2 adivinhadores.
+      await update(roomRef(code), { state: "final" });
+    }
   } else {
     await update(roomRef(code), { round: room.round + 1 });
     await startBallPhase(code);
@@ -287,4 +306,139 @@ export async function resetForRematch(code, room) {
 
 export async function leaveRoom(code, uid) {
   await remove(ref(db, `rooms/${code}/players/${uid}`));
+}
+
+// --- Forca em equipa ---
+
+export async function startHangman(code, room) {
+  const setterId = room.hostId;
+  const turnOrder = Object.keys(room.players || {}).filter((uid) => uid !== setterId);
+  await update(roomRef(code), {
+    state: "hangman",
+    hangman: {
+      setterId,
+      turnOrder,
+      turnIndex: 0,
+      status: "settingUp",
+      categoryIndex: null,
+      word: null,
+      guessedLetters: {},
+      wrongCount: 0,
+      setupStartedAt: serverNow(),
+      turnStartedAt: null,
+      lastAction: null,
+    },
+  });
+}
+
+export async function submitHangmanWord(code, categoryIndex, word) {
+  const cleanWord = word.trim().toUpperCase();
+  if (!cleanWord) return;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    categoryIndex,
+    word: cleanWord,
+    status: "playing",
+    turnStartedAt: serverNow(),
+  });
+}
+
+// Funções puras (sem Firebase) — fáceis de testar isoladamente.
+
+export function hangmanIsRevealed(word, guessedLetters) {
+  if (!word) return false;
+  return [...word].every((ch) => ch === " " || guessedLetters?.[ch]);
+}
+
+export function computeHangmanLetterGuess(hangman, letterRaw) {
+  const letter = letterRaw.toUpperCase();
+  const word = hangman.word || "";
+  const already = !!hangman.guessedLetters?.[letter];
+  const isInWord = word.includes(letter);
+  const guessedLetters = { ...(hangman.guessedLetters || {}), [letter]: true };
+  const wrongCount = (hangman.wrongCount || 0) + (!already && !isInWord ? 1 : 0);
+  let status = "playing";
+  if (hangmanIsRevealed(word, guessedLetters)) status = "won";
+  else if (wrongCount >= HANGMAN_MAX_WRONG) status = "lost";
+  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
+  const turnIndex = status === "playing" ? ((hangman.turnIndex || 0) + 1) % orderLen : hangman.turnIndex;
+  return {
+    guessedLetters, wrongCount, status, turnIndex,
+    lastAction: { type: "letter", value: letter, correct: !already && isInWord },
+  };
+}
+
+export function computeHangmanWordGuess(hangman, guessRaw) {
+  const guess = guessRaw.trim().toUpperCase();
+  const word = hangman.word || "";
+  const correct = guess.length > 0 && guess === word;
+  const guessedLetters = correct
+    ? { ...(hangman.guessedLetters || {}), ...Object.fromEntries([...word].map((ch) => [ch, true])) }
+    : { ...(hangman.guessedLetters || {}) };
+  const wrongCount = (hangman.wrongCount || 0) + (correct ? 0 : HANGMAN_WORD_WRONG_PENALTY);
+  let status = "playing";
+  if (correct) status = "won";
+  else if (wrongCount >= HANGMAN_MAX_WRONG) status = "lost";
+  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
+  const turnIndex = status === "playing" ? ((hangman.turnIndex || 0) + 1) % orderLen : hangman.turnIndex;
+  return {
+    guessedLetters, wrongCount, status, turnIndex,
+    lastAction: { type: "word", value: guess, correct },
+  };
+}
+
+export function computeHangmanScoring(room) {
+  const hangman = room.hangman || {};
+  const players = Object.keys(room.players || {});
+  const scores = {};
+  players.forEach((uid) => { scores[uid] = 0; });
+  if (hangman.status === "won") {
+    (hangman.turnOrder || []).forEach((uid) => { scores[uid] = HANGMAN_TEAM_WIN_POINTS; });
+    if (hangman.setterId) scores[hangman.setterId] = HANGMAN_SETTER_BONUS;
+  }
+  return scores;
+}
+
+export async function guessHangmanLetter(code, room, uid, letter) {
+  const hangman = room.hangman;
+  if (!hangman || hangman.status !== "playing") return;
+  const currentTurnUid = hangman.turnOrder[hangman.turnIndex];
+  if (currentTurnUid !== uid) return;
+  const result = computeHangmanLetterGuess(hangman, letter);
+  const updates = { ...result, lastAction: { ...result.lastAction, uid } };
+  if (result.status === "playing") updates.turnStartedAt = serverNow();
+  else updates.resolvedAt = serverNow();
+  await update(ref(db, `rooms/${code}/hangman`), updates);
+}
+
+export async function guessHangmanWord(code, room, uid, guess) {
+  const hangman = room.hangman;
+  if (!hangman || hangman.status !== "playing") return;
+  const currentTurnUid = hangman.turnOrder[hangman.turnIndex];
+  if (currentTurnUid !== uid) return;
+  const result = computeHangmanWordGuess(hangman, guess);
+  const updates = { ...result, lastAction: { ...result.lastAction, uid } };
+  if (result.status === "playing") updates.turnStartedAt = serverNow();
+  else updates.resolvedAt = serverNow();
+  await update(ref(db, `rooms/${code}/hangman`), updates);
+}
+
+export async function skipHangmanTurn(code, room) {
+  const hangman = room.hangman;
+  if (!hangman || hangman.status !== "playing") return;
+  const orderLen = Math.max((hangman.turnOrder || []).length, 1);
+  const turnIndex = (hangman.turnIndex + 1) % orderLen;
+  await update(ref(db, `rooms/${code}/hangman`), { turnIndex, turnStartedAt: serverNow() });
+}
+
+export async function finishHangman(code, room) {
+  const scores = computeHangmanScoring(room);
+  const updates = { state: "final" };
+  Object.entries(scores).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = room.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  updates["hangman/finalScores"] = scores;
+  await update(roomRef(code), updates);
 }

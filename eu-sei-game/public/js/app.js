@@ -7,6 +7,8 @@ import {
   startGame, startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
+  submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman,
+  HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
 } from "./room.js";
 
 const screens = {};
@@ -103,6 +105,15 @@ function onRoomUpdate(room) {
     case "categories": renderCategories(room); showScreen("categories"); break;
     case "voting": renderVoting(room); showScreen("voting"); break;
     case "roundScore": renderRoundScore(room); showScreen("roundscore"); break;
+    case "hangman":
+      if (room.hangman?.status === "settingUp") {
+        renderHangmanSetup(room);
+        showScreen("hangman-setup");
+      } else {
+        renderHangmanPlay(room);
+        showScreen("hangman-play");
+      }
+      break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -530,7 +541,123 @@ function renderRoundScore(room) {
   const amHost = isHost(room);
   roundScoreEls.nextBtn.classList.toggle("hidden", !amHost);
   const numRounds = room.config?.numRounds || DEFAULT_CONFIG.numRounds;
-  roundScoreEls.nextBtn.textContent = room.round >= numRounds ? "Ver resultados finais" : "Próxima ronda";
+  const isLastRound = room.round >= numRounds;
+  const playerCount = Object.keys(room.players || {}).length;
+  roundScoreEls.nextBtn.textContent = isLastRound
+    ? (playerCount >= 3 ? "Forca em equipa (bónus)" : "Ver resultados finais")
+    : "Próxima ronda";
+}
+
+// ---------- FORCA EM EQUIPA ----------
+
+const hangmanEls = {
+  setupInfo: document.getElementById("hangman-setup-info"),
+  setupForm: document.getElementById("hangman-setup-form"),
+  categorySelect: document.getElementById("hangman-category-select"),
+  wordInput: document.getElementById("hangman-word-input"),
+  categoryLabel: document.getElementById("hangman-category-label"),
+  wordDisplay: document.getElementById("hangman-word-display"),
+  wrongLetters: document.getElementById("hangman-wrong-letters"),
+  lives: document.getElementById("hangman-lives"),
+  turnInfo: document.getElementById("hangman-turn-info"),
+  guessControls: document.getElementById("hangman-guess-controls"),
+  letterInput: document.getElementById("hangman-letter-input"),
+  guessLetterBtn: document.getElementById("hangman-guess-letter-btn"),
+  wordGuessInput: document.getElementById("hangman-word-guess-input"),
+  guessWordBtn: document.getElementById("hangman-guess-word-btn"),
+  result: document.getElementById("hangman-result"),
+  resultText: document.getElementById("hangman-result-text"),
+  continueBtn: document.getElementById("hangman-continue-btn"),
+};
+
+hangmanEls.setupForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const categoryIndex = parseInt(hangmanEls.categorySelect.value, 10);
+  const word = hangmanEls.wordInput.value;
+  if (!word.trim()) return;
+  submitHangmanWord(state.code, categoryIndex, word);
+});
+
+hangmanEls.guessLetterBtn.addEventListener("click", () => {
+  const letter = hangmanEls.letterInput.value.trim();
+  if (!letter) return;
+  hangmanEls.letterInput.value = "";
+  guessHangmanLetter(state.code, state.room, state.uid, letter);
+});
+
+hangmanEls.guessWordBtn.addEventListener("click", () => {
+  const guess = hangmanEls.wordGuessInput.value.trim();
+  if (!guess) return;
+  hangmanEls.wordGuessInput.value = "";
+  guessHangmanWord(state.code, state.room, state.uid, guess);
+});
+
+hangmanEls.continueBtn.addEventListener("click", () => {
+  finishHangman(state.code, state.room);
+});
+
+let hangmanCategoriesPopulated = false;
+
+function renderHangmanSetup(room) {
+  const amSetter = room.hangman?.setterId === state.uid;
+  hangmanEls.setupForm.classList.toggle("hidden", !amSetter);
+
+  if (amSetter) {
+    hangmanEls.setupInfo.textContent = "És tu que escolhes! Escolhe uma categoria e escreve uma palavra secreta — os outros vão tentar adivinhar.";
+    if (!hangmanCategoriesPopulated) {
+      const enabledCats = room.config?.enabledCategories?.length
+        ? room.config.enabledCategories
+        : CATEGORIES.map((_, i) => i);
+      hangmanEls.categorySelect.innerHTML = "";
+      enabledCats.forEach((ci) => {
+        const opt = document.createElement("option");
+        opt.value = String(ci);
+        opt.textContent = CATEGORIES[ci];
+        hangmanEls.categorySelect.appendChild(opt);
+      });
+      hangmanCategoriesPopulated = true;
+    }
+  } else {
+    const setterName = room.players?.[room.hangman?.setterId]?.name || "Alguém";
+    hangmanEls.setupInfo.textContent = `${setterName} está a escolher a categoria e a palavra secreta...`;
+  }
+}
+
+function renderHangmanPlay(room) {
+  const hangman = room.hangman;
+  if (!hangman) return;
+  hangmanCategoriesPopulated = false; // próxima vez que houver setup, repopula (config pode ter mudado)
+
+  hangmanEls.categoryLabel.textContent = `Categoria: ${CATEGORIES[hangman.categoryIndex] || "?"}`;
+  const word = hangman.word || "";
+  const guessed = hangman.guessedLetters || {};
+  const revealAll = hangman.status !== "playing";
+  hangmanEls.wordDisplay.textContent = [...word]
+    .map((ch) => (revealAll || guessed[ch] ? ch : "_"))
+    .join(" ");
+
+  const wrong = Object.keys(guessed).filter((l) => !word.includes(l));
+  hangmanEls.wrongLetters.textContent = wrong.length ? `Letras erradas: ${wrong.join(", ")}` : "";
+  hangmanEls.lives.textContent = `Erros: ${hangman.wrongCount || 0} / ${HANGMAN_MAX_WRONG}`;
+
+  const isGuesser = (hangman.turnOrder || []).includes(state.uid);
+  const currentTurnUid = hangman.turnOrder?.[hangman.turnIndex];
+  const myTurn = currentTurnUid === state.uid && hangman.status === "playing";
+
+  if (hangman.status === "playing") {
+    const turnName = room.players?.[currentTurnUid]?.name || "Alguém";
+    hangmanEls.turnInfo.textContent = myTurn ? "É a tua vez!" : `Vez de ${turnName}...`;
+    hangmanEls.guessControls.classList.toggle("hidden", !isGuesser || !myTurn);
+    hangmanEls.result.classList.add("hidden");
+  } else {
+    hangmanEls.turnInfo.textContent = "";
+    hangmanEls.guessControls.classList.add("hidden");
+    hangmanEls.result.classList.remove("hidden");
+    hangmanEls.resultText.textContent = hangman.status === "won"
+      ? `A equipa acertou! A palavra era "${word}". 🎉`
+      : `A equipa não conseguiu — a palavra era "${word}".`;
+    hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
 }
 
 // ---------- FINAL ----------
@@ -589,6 +716,22 @@ async function runHostLoopTick(room) {
     } else if (room.state === "voting") {
       if (room.voting && now >= room.voting.endAt) {
         await finishVoting(state.code, room);
+      }
+    } else if (room.state === "hangman") {
+      const hangman = room.hangman;
+      if (hangman?.status === "settingUp") {
+        if (now - (hangman.setupStartedAt || 0) > HANGMAN_SETUP_TIMEOUT_MS) {
+          // Ninguém escreveu a palavra a tempo — salta a fase bónus, sem pontos.
+          await finishHangman(state.code, room);
+        }
+      } else if (hangman?.status === "playing") {
+        if (now - (hangman.turnStartedAt || 0) > HANGMAN_TURN_TIMEOUT_MS) {
+          await skipHangmanTurn(state.code, room);
+        }
+      } else if (hangman?.status === "won" || hangman?.status === "lost") {
+        if (now - (hangman.resolvedAt || 0) > 60000) {
+          await finishHangman(state.code, room);
+        }
       }
     }
   } finally {

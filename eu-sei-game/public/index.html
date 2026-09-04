@@ -220,6 +220,48 @@
     </div>
   </section>
 
+  <!-- FORCA EM EQUIPA: PREPARAÇÃO -->
+  <section data-screen="hangman-setup" class="screen">
+    <div class="card wide center">
+      <h2>Forca em equipa!</h2>
+      <p id="hangman-setup-info" class="hint"></p>
+
+      <form id="hangman-setup-form" class="hangman-setup-form hidden">
+        <label>Categoria
+          <select id="hangman-category-select"></select>
+        </label>
+        <label>Palavra secreta
+          <input id="hangman-word-input" type="text" autocomplete="off" placeholder="Ex: Angola" />
+        </label>
+        <button type="submit" class="primary">Confirmar palavra</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- FORCA EM EQUIPA: JOGO -->
+  <section data-screen="hangman-play" class="screen">
+    <div class="card wide center">
+      <h2>Forca em equipa!</h2>
+      <p id="hangman-category-label" class="hint"></p>
+      <div id="hangman-word-display" class="hangman-word-display"></div>
+      <p id="hangman-wrong-letters" class="hint small"></p>
+      <p id="hangman-lives" class="hint"></p>
+      <p id="hangman-turn-info" class="hint"></p>
+
+      <div id="hangman-guess-controls" class="hangman-guess-controls hidden">
+        <input id="hangman-letter-input" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
+        <button id="hangman-guess-letter-btn" class="primary">Adivinhar letra</button>
+        <input id="hangman-word-guess-input" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
+        <button id="hangman-guess-word-btn" class="primary">Arriscar!</button>
+      </div>
+
+      <div id="hangman-result" class="hangman-result hidden">
+        <p id="hangman-result-text" class="hint"></p>
+        <button id="hangman-continue-btn" class="primary hidden">Ver resultados finais</button>
+      </div>
+    </div>
+  </section>
+
   <!-- FINAL -->
   <section data-screen="final" class="screen">
     <div class="card wide center">
