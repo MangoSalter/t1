@@ -61,6 +61,7 @@
         <button id="solo-play-pac-btn">Kota Corre!</button>
         <button id="solo-play-golf-btn">Mini-Golfe</button>
         <button id="solo-play-cards-btn">Descartando Juntos</button>
+        <button id="solo-play-car-btn">Estrada Maluca</button>
       </div>
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
@@ -94,6 +95,7 @@
         <label><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
         <label><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
         <label><input type="checkbox" data-marathon-game="golf" /> Mini-Golfe</label>
+        <label><input type="checkbox" data-marathon-game="car" /> Estrada Maluca</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -358,6 +360,16 @@
         <div id="card-shop-offers" class="card-shop-offers"></div>
         <button id="card-shop-continue-btn" class="primary">Continuar para o próximo blind</button>
       </div>
+    </div>
+  </section>
+
+  <!-- SOLO: ESTRADA MALUCA -->
+  <section data-screen="solo-cargame" class="screen fullscreen-game">
+    <div class="card wide center">
+      <h2>Estrada Maluca</h2>
+      <p class="hint small">Setas ou WASD para mudar de faixa — desvia dos carros, a velocidade só aumenta!</p>
+      <p id="car-status" class="hint"></p>
+      <div id="car-road" class="car-road"></div>
     </div>
   </section>
 

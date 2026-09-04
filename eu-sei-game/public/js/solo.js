@@ -236,6 +236,7 @@ const MARATHON_GAMES = {
   map: startMapMinigame,
   pacman: startPacman,
   golf: startGolf,
+  car: startCarGame,
 };
 
 // --- Kota Corre!: labirinto ao estilo Pac-Man com tempero angolano — foge
@@ -474,6 +475,7 @@ const GAME_LABELS = {
   pacman: "Kota Corre!",
   golf: "Mini-Golfe",
   cards: "Descartando Juntos",
+  car: "Estrada Maluca",
 };
 
 const account = loadAccount();
@@ -613,6 +615,19 @@ const solo = {
   cardTotalChips: 0,
   cardShopOffers: [],
   cardHandSize: 0,
+  carActive: false,
+  carLane: 1,
+  carScore: 0,
+  carSpeed: 0,
+  carSpawnIntervalMs: 0,
+  carElapsed: 0,
+  carLastSpawnAt: 0,
+  carLastFrame: 0,
+  carObstacles: [],
+  carObstacleEls: {},
+  carNextObstacleId: 1,
+  carPlayerEl: null,
+  carKeyHandler: null,
 };
 
 const els = {
@@ -665,6 +680,9 @@ const els = {
   cardShopMoney: document.getElementById("card-shop-money"),
   cardShopOffers: document.getElementById("card-shop-offers"),
   cardShopContinueBtn: document.getElementById("card-shop-continue-btn"),
+  playCarBtn: document.getElementById("solo-play-car-btn"),
+  carRoad: document.getElementById("car-road"),
+  carStatus: document.getElementById("car-status"),
   mapArena: document.getElementById("map-arena"),
   mapPrompt: document.getElementById("map-prompt"),
   mapRoundInfo: document.getElementById("map-round-info"),
@@ -1061,6 +1079,7 @@ els.mapAnswerInput.addEventListener("keydown", (e) => {
 els.playPacBtn.addEventListener("click", () => launchStandalone(startPacman, "pacman"));
 els.playGolfBtn.addEventListener("click", () => launchStandalone(startGolf, "golf"));
 els.playCardsBtn.addEventListener("click", () => launchStandalone(startCardGame, "cards"));
+els.playCarBtn.addEventListener("click", () => launchStandalone(startCarGame, "car"));
 els.cardPlayBtn.addEventListener("click", () => cardPlaySelected());
 els.cardDiscardBtn.addEventListener("click", () => cardDiscardSelected());
 
@@ -2865,6 +2884,180 @@ function finishCardGame(wonAll) {
     ? `Venceste todos os ${CARD_BLINDS.length} blinds! ${solo.cardTotalChips} pts em jogadas — +${bonus} pts bónus!`
     : `Chegaste ao blind ${solo.cardBlindIndex + 1}/${CARD_BLINDS.length}. ${solo.cardTotalChips} pts em jogadas — +${bonus} pts bónus.`;
   showMinigameEnd({ gameLabel: "Descartando Juntos", points: bonus, favoriteKey: "cards", resultText });
+}
+
+// --- "Estrada Maluca": corrida sem fim em 3 faixas — desvia dos carros que
+// vêm na tua direção, a velocidade sobe com o tempo. Pontos por sobreviver
+// e por cada carro que ultrapassas. ---
+const CAR_LANES = 3;
+const CAR_ROAD_H = 640;
+const CAR_WIDTH = 56;
+const CAR_HEIGHT = 88;
+const CAR_PLAYER_Y = 500;
+const CAR_BASE_SPEED = 240; // px/s
+const CAR_MAX_SPEED = 620;
+const CAR_SPEED_RAMP = 4.5; // px/s por segundo
+const CAR_SPAWN_INTERVAL_START_MS = 950;
+const CAR_SPAWN_INTERVAL_MIN_MS = 380;
+const CAR_SPAWN_RAMP_MS_PER_S = 12;
+const CAR_POINTS_PER_SECOND = 2;
+const CAR_DODGE_BONUS = 3;
+const CAR_MAX_BONUS = 140;
+// Sem tons dourados/laranja perto de var(--accent), para o carro do
+// jogador nunca se confundir visualmente com um obstáculo.
+const CAR_COLORS = ["#c65d4a", "#5c7e91", "#6c8a4f", "#8a6bb0", "#4a7a8c"];
+
+function carRoadWidth() {
+  return CAR_LANES * (CAR_WIDTH + 24) + 24;
+}
+
+function carRenderRoad() {
+  els.carRoad.innerHTML = "";
+  els.carRoad.style.width = `${carRoadWidth()}px`;
+  els.carRoad.style.height = `${CAR_ROAD_H}px`;
+  for (let i = 1; i < CAR_LANES; i++) {
+    const line = document.createElement("div");
+    line.className = "car-lane-line";
+    line.style.left = `${i * (carRoadWidth() / CAR_LANES)}px`;
+    els.carRoad.appendChild(line);
+  }
+  solo.carPlayerEl = document.createElement("div");
+  solo.carPlayerEl.className = "car-player";
+  solo.carPlayerEl.style.width = `${CAR_WIDTH}px`;
+  solo.carPlayerEl.style.height = `${CAR_HEIGHT}px`;
+  solo.carPlayerEl.style.top = `${CAR_PLAYER_Y}px`;
+  els.carRoad.appendChild(solo.carPlayerEl);
+  carUpdatePlayerX();
+}
+
+function carLaneCenterX(lane) {
+  const laneW = carRoadWidth() / CAR_LANES;
+  return lane * laneW + laneW / 2;
+}
+
+function carUpdatePlayerX() {
+  solo.carPlayerEl.style.left = `${carLaneCenterX(solo.carLane) - CAR_WIDTH / 2}px`;
+}
+
+function carHandleKey(e, isDown) {
+  if (!solo.carActive || !isDown) return;
+  const dir = PAC_DIRS[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (dir.c < 0 && solo.carLane > 0) { solo.carLane -= 1; carUpdatePlayerX(); }
+  else if (dir.c > 0 && solo.carLane < CAR_LANES - 1) { solo.carLane += 1; carUpdatePlayerX(); }
+}
+
+function startCarGame() {
+  solo.carActive = true;
+  solo.carLane = 1;
+  solo.carScore = 0;
+  solo.carSpeed = CAR_BASE_SPEED;
+  solo.carSpawnIntervalMs = CAR_SPAWN_INTERVAL_START_MS;
+  solo.carElapsed = 0;
+  solo.carLastSpawnAt = 0;
+  solo.carObstacles = [];
+  solo.carObstacleEls = {};
+  solo.carNextObstacleId = 1;
+  els.carStatus.textContent = "";
+  carRenderRoad();
+  showScreen("solo-cargame");
+  showGameHud(() => Math.round(solo.carScore));
+
+  solo.carKeyHandler = (e) => carHandleKey(e, true);
+  document.addEventListener("keydown", solo.carKeyHandler);
+
+  registerActiveGame({
+    skip: () => finishCarGame(),
+    cleanup: () => {
+      solo.carActive = false;
+      document.removeEventListener("keydown", solo.carKeyHandler);
+    },
+  });
+
+  solo.carLastFrame = performance.now();
+  requestAnimationFrame(carTick);
+}
+
+function carSpawnObstacle() {
+  const lane = Math.floor(Math.random() * CAR_LANES);
+  const id = solo.carNextObstacleId++;
+  const color = CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)];
+  solo.carObstacles.push({ id, lane, y: -CAR_HEIGHT, passed: false });
+  const el = document.createElement("div");
+  el.className = "car-obstacle";
+  el.style.width = `${CAR_WIDTH}px`;
+  el.style.height = `${CAR_HEIGHT}px`;
+  el.style.background = color;
+  els.carRoad.appendChild(el);
+  solo.carObstacleEls[id] = el;
+}
+
+function carTick(now) {
+  if (!solo.carActive) return;
+  if (solo.paused) {
+    solo.carLastFrame = now;
+    requestAnimationFrame(carTick);
+    return;
+  }
+  const dt = Math.min((now - solo.carLastFrame) / 1000, 0.05);
+  solo.carLastFrame = now;
+  solo.carElapsed += dt;
+
+  solo.carSpeed = Math.min(CAR_MAX_SPEED, CAR_BASE_SPEED + solo.carElapsed * CAR_SPEED_RAMP);
+  solo.carSpawnIntervalMs = Math.max(CAR_SPAWN_INTERVAL_MIN_MS, CAR_SPAWN_INTERVAL_START_MS - solo.carElapsed * CAR_SPAWN_RAMP_MS_PER_S);
+
+  if (now - solo.carLastSpawnAt > solo.carSpawnIntervalMs) {
+    solo.carLastSpawnAt = now;
+    carSpawnObstacle();
+  }
+
+  let collided = false;
+  solo.carObstacles.forEach((o) => {
+    o.y += solo.carSpeed * dt;
+    const el = solo.carObstacleEls[o.id];
+    el.style.left = `${carLaneCenterX(o.lane) - CAR_WIDTH / 2}px`;
+    el.style.top = `${o.y}px`;
+
+    const overlapsY = o.y + CAR_HEIGHT > CAR_PLAYER_Y && o.y < CAR_PLAYER_Y + CAR_HEIGHT;
+    if (overlapsY && o.lane === solo.carLane) collided = true;
+
+    if (!o.passed && o.y > CAR_PLAYER_Y + CAR_HEIGHT) {
+      o.passed = true;
+      solo.carScore += CAR_DODGE_BONUS;
+    }
+  });
+
+  if (collided) {
+    finishCarGame();
+    return;
+  }
+
+  solo.carObstacles = solo.carObstacles.filter((o) => {
+    if (o.y > CAR_ROAD_H + CAR_HEIGHT) {
+      solo.carObstacleEls[o.id]?.remove();
+      delete solo.carObstacleEls[o.id];
+      return false;
+    }
+    return true;
+  });
+
+  solo.carScore += CAR_POINTS_PER_SECOND * dt;
+  updateGameHudScore();
+  els.carStatus.textContent = `${Math.floor(solo.carElapsed)}s — velocidade ${Math.round(solo.carSpeed)}`;
+
+  requestAnimationFrame(carTick);
+}
+
+function finishCarGame() {
+  if (!solo.carActive) return;
+  solo.carActive = false;
+  document.removeEventListener("keydown", solo.carKeyHandler);
+  const scoreRounded = Math.round(solo.carScore);
+  const bonus = Math.min(scoreRounded, CAR_MAX_BONUS);
+  solo.runScore += bonus;
+  const resultText = `Aguentaste ${Math.floor(solo.carElapsed)}s na estrada — +${bonus} pts bónus!`;
+  showMinigameEnd({ gameLabel: "Estrada Maluca", points: bonus, favoriteKey: "car", resultText });
 }
 
 // --- Forca (solo): pode usar uma das tuas próprias respostas válidas desta
