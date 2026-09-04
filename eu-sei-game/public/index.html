@@ -471,15 +471,19 @@
 
   <!-- HUD partilhado por todos os mini-jogos solo: pontos em tempo real + pausar/saltar -->
   <div id="game-hud" class="game-hud hidden">
-    <div class="game-hud-score">🏆 <span id="game-hud-score-value">0</span> pts</div>
-    <button type="button" id="game-hud-pause-btn" class="hud-btn" title="Pausar">⏸</button>
-    <button type="button" id="game-hud-skip-btn" class="hud-btn" title="Saltar mini-jogo">⏭</button>
+    <div class="game-hud-score"><svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 L17 4 L16 12 Q16 16 12 17 Q8 16 8 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 6 C3 6 3 11 8 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M17 6 C21 6 21 11 16 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 17 L12 20 M9 20.5 L15 20.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <span id="game-hud-score-value">0</span> pts</div>
+    <button type="button" id="game-hud-pause-btn" class="hud-btn" title="Pausar">
+      <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 C7 5 7 6 7 7 L7 17 C7 18 7 19 8 19 C9 19 9.5 18 9.5 17 L9.5 7 C9.5 6 9 5 8 5 Z" fill="currentColor"/><path d="M16 5 C15 5 15 6 15 7 L15 17 C15 18 15 19 16 19 C17 19 17.5 18 17.5 17 L17.5 7 C17.5 6 17 5 16 5 Z" fill="currentColor"/></svg>
+    </button>
+    <button type="button" id="game-hud-skip-btn" class="hud-btn" title="Saltar mini-jogo">
+      <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L13 12 L5 19 Z" fill="currentColor"/><path d="M12 5 L20 12 L12 19 Z" fill="currentColor"/></svg>
+    </button>
   </div>
 
   <!-- Ecrã de pausa -->
   <div id="pause-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>⏸ Pausa</h2>
+      <h2><svg class="icon-inline icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 C7 5 7 6 7 7 L7 17 C7 18 7 19 8 19 C9 19 9.5 18 9.5 17 L9.5 7 C9.5 6 9 5 8 5 Z" fill="currentColor"/><path d="M16 5 C15 5 15 6 15 7 L15 17 C15 18 15 19 16 19 C17 19 17.5 18 17.5 17 L17.5 7 C17.5 6 17 5 16 5 Z" fill="currentColor"/></svg> Pausa</h2>
       <p class="hint">O jogo está parado — ninguém a ver.</p>
       <button type="button" id="pause-resume-btn" class="primary">Continuar</button>
       <button type="button" id="pause-exit-btn" class="ghost">Sair para o menu</button>

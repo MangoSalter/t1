@@ -193,8 +193,11 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
   background: var(--card-bg); border: 2.5px solid var(--ink); border-radius: 14px;
   padding: 6px 10px; box-shadow: 3px 3px 0 rgba(58,49,38,0.2);
 }
-.game-hud-score { font-size: 0.95rem; font-weight: 700; white-space: nowrap; padding: 0 4px; }
-.hud-btn { padding: 6px 10px; font-size: 1.05rem; box-shadow: none; line-height: 1; }
+.game-hud-score { font-size: 0.95rem; font-weight: 700; white-space: nowrap; padding: 0 4px; display: flex; align-items: center; gap: 4px; }
+.hud-btn { padding: 6px 10px; box-shadow: none; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.icon-inline { width: 18px; height: 18px; color: var(--ink); vertical-align: -4px; flex-shrink: 0; }
+.icon-lg { width: 26px; height: 26px; vertical-align: -6px; color: var(--primary-dark); }
+button.hud-btn .icon-inline { color: var(--ink); }
 
 /* Overlays modais: pausa e fim de mini-jogo */
 .pause-overlay, .minigame-end-overlay {
