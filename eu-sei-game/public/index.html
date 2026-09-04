@@ -446,10 +446,25 @@
           <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
           <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa (experimental, tempo real)</label>
           <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa (experimental, tempo real)</label>
+          <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa (experimental, tempo real)</label>
         </div>
       </details>
 
       <button id="start-game-btn" class="primary">Iniciar jogo</button>
+
+      <details class="cat-picker">
+        <summary>⚡ Ou salta direto para um mini-jogo (sem rondas clássicas)</summary>
+        <p class="hint small">Tal como escolher um jogo avulso no modo sozinho — começa logo neste, sem jogar as rondas do Stop primeiro. Precisa de pelo menos 3 jogadores ligados.</p>
+        <div class="marathon-picker">
+          <label><input type="radio" name="quickgame" value="hangman" checked /> Forca em equipa (quadro branco)</label>
+          <label><input type="radio" name="quickgame" value="mapTrivia" /> Mapa-Múndi em equipa</label>
+          <label><input type="radio" name="quickgame" value="tag" /> Fuga da Infeção em equipa</label>
+          <label><input type="radio" name="quickgame" value="battle" /> Labirinto: Batalha em equipa</label>
+          <label><input type="radio" name="quickgame" value="draw" /> Desenha e Adivinha em equipa</label>
+        </div>
+        <button id="lobby-quickgame-btn" type="button" class="primary">Começar este mini-jogo</button>
+      </details>
+
       <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>
       <button data-leave class="ghost">Sair da sala</button>
     </div>
@@ -519,6 +534,21 @@
       <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
     </div>
     <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+  </section>
+
+  <!-- DESENHA E ADIVINHA EM EQUIPA: quadro branco em ecrã inteiro, a vez de
+       desenhar roda por todos, um por ronda; quem desenha é o juiz. -->
+  <section data-screen="draw" class="screen hangman-board">
+    <div class="hangman-toolbar">
+      <span class="hangman-title">Desenha e Adivinha</span>
+      <span id="draw-status" class="hint small"></span>
+      <button id="draw-clear-btn" type="button" class="ghost hidden">🧹 Limpar</button>
+      <button id="draw-select-winner-btn" type="button" class="ghost-primary hidden">🏆 Alguém acertou!</button>
+      <button id="draw-skip-btn" type="button" class="ghost hidden">🙈 Ninguém acertou</button>
+      <button id="draw-continue-btn" type="button" class="primary hidden">Próxima ronda</button>
+    </div>
+    <canvas id="draw-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+    <div id="draw-result" class="draw-result hidden"></div>
   </section>
 
   <!-- MAPA-MÚNDI EM EQUIPA -->
@@ -622,6 +652,36 @@
       <h2 id="ready-title"></h2>
       <p class="hint">Prepara-te — o cronómetro só começa depois de clicares em Começar.</p>
       <button type="button" id="ready-start-btn" class="primary">Começar!</button>
+    </div>
+  </div>
+
+  <!-- Escolher quem acertou primeiro (Desenha e Adivinha) -->
+  <div id="draw-winner-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Quem acertou primeiro?</h2>
+      <div id="draw-winner-list" class="draw-winner-list"></div>
+      <button type="button" id="draw-winner-cancel-btn" class="ghost">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Botão flutuante de Opções (classificação + rabisco), visível em qualquer ecrã dentro de uma sala multijogador -->
+  <button id="options-fab" type="button" class="options-fab hidden" title="Classificação e rabisco">⚙️</button>
+  <div id="options-overlay" class="pause-overlay hidden">
+    <div class="card center options-card">
+      <h2>Opções</h2>
+      <div class="options-tabs">
+        <button type="button" id="options-tab-leaderboard" class="options-tab-btn active">🏆 Classificação</button>
+        <button type="button" id="options-tab-scratchpad" class="options-tab-btn">🎨 Rabisco</button>
+      </div>
+      <div id="options-panel-leaderboard" class="options-panel">
+        <div id="options-leaderboard-list" class="score-table"></div>
+      </div>
+      <div id="options-panel-scratchpad" class="options-panel hidden">
+        <p class="hint small">Rabisca à vontade, cada jogador na sua cor — é só por diversão, não vale pontos.</p>
+        <canvas id="options-scratchpad-canvas" class="options-scratchpad-canvas"></canvas>
+        <button type="button" id="options-scratchpad-clear-btn" class="ghost">🧹 Limpar</button>
+      </div>
+      <button type="button" id="options-close-btn" class="primary">Fechar</button>
     </div>
   </div>
 

@@ -81,7 +81,28 @@ export const BATTLE_WALLS = [
   { x: 1080, y: 430, w: 220, h: 24 },
 ];
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle"];
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw"];
+
+// --- Rabisco coletivo (menu de Opções, disponível em qualquer ecrã da
+// sala) — ao contrário do quadro da Forca (só o anfitrião, um jogo de
+// charadas), este é só por diversão: qualquer jogador pode desenhar a
+// qualquer momento, cada um na sua cor. Sem "dono"/vez — se dois
+// desenharem ao mesmo tempo, os traços intercalam-se na lista (por
+// confiança, como o resto do jogo). Os pontos mais antigos vão saindo à
+// medida que se desenham novos, tal como o quadro da Forca.
+export const SCRATCHPAD_MAX_POINTS = 500;
+
+export async function pushScratchpadPoints(code, room, newPoints) {
+  const combined = [...(room.scratchpad?.points || []), ...newPoints];
+  const trimmed = combined.length > SCRATCHPAD_MAX_POINTS
+    ? combined.slice(combined.length - SCRATCHPAD_MAX_POINTS)
+    : combined;
+  await set(ref(db, `rooms/${code}/scratchpad/points`), trimmed);
+}
+
+export async function clearScratchpad(code) {
+  await set(ref(db, `rooms/${code}/scratchpad/points`), []);
+}
 
 // --- Forca em equipa (bónus de fim de partida) ---
 // Já não é o jogo digital de adivinhar letra a letra — passou a ser um
@@ -409,6 +430,29 @@ export async function startNextBonusGame(code, room) {
     await startTagTeam(code, nextRoom);
   } else if (key === "battle") {
     await startBattleTeam(code, nextRoom);
+  } else if (key === "draw") {
+    await startDrawGame(code, nextRoom);
+  } else {
+    await startHangman(code, nextRoom);
+  }
+}
+
+// Salta direto para UM mini-jogo bónus específico, sem passar pelas rondas
+// clássicas do Stop — tal como escolher um jogo avulso no modo sozinho.
+// Marca a fila de bónus como "só este, já consumido" para que, no fim,
+// startNextBonusGame (chamado por cada finishXxx) veja a fila vazia e
+// avance naturalmente para o ecrã final, sem duplicar essa lógica aqui.
+export async function startQuickBonusGame(code, room, key) {
+  await update(roomRef(code), { bonusQueue: [], bonusQueueTotal: 1, bonusProgress: { index: 1, total: 1 } });
+  const nextRoom = { ...room, bonusQueue: [] };
+  if (key === "mapTrivia") {
+    await startMapTriviaTeam(code, nextRoom);
+  } else if (key === "tag") {
+    await startTagTeam(code, nextRoom);
+  } else if (key === "battle") {
+    await startBattleTeam(code, nextRoom);
+  } else if (key === "draw") {
+    await startDrawGame(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -433,6 +477,8 @@ export async function resetForRematch(code, room) {
     mapTrivia: null,
     tag: null,
     battle: null,
+    draw: null,
+    scratchpad: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;
@@ -480,6 +526,97 @@ export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
     ? combined.slice(combined.length - HANGMAN_DOODLE_MAX_POINTS)
     : combined;
   await set(ref(db, `rooms/${code}/hangman/doodle/points`), trimmed);
+}
+
+// --- Desenha e Adivinha em equipa (bónus de fim de partida) ---
+// Quadro branco em ecrã inteiro, tal como a Forca, mas com pontuação e
+// rondas: a vez de desenhar roda por todos os jogadores ligados, um por
+// ronda. Os outros veem o traço em tempo real e adivinham em voz alta
+// (fora da app); quem desenha faz também de juiz — quando alguém acerta,
+// clica para escolher quem foi, o que atribui pontos e fecha a ronda
+// (ou pode saltar, se ninguém acertar). Continua até todos terem
+// desenhado uma vez.
+export const DRAW_MAX_POINTS = 800;
+export const DRAW_WINNER_POINTS = 15;
+export const DRAW_DRAWER_BONUS = 8;
+
+export async function startDrawGame(code, room) {
+  const turnOrder = shuffleArray(Object.keys(room.players || {}).filter((uid) => room.players[uid].connected));
+  await update(roomRef(code), {
+    state: "draw",
+    draw: {
+      turnOrder,
+      turnIndex: 0,
+      drawerId: turnOrder[0],
+      doodle: { points: [] },
+      resolved: false,
+      roundWinnerId: null,
+      resolvedAt: null,
+    },
+  });
+}
+
+// Só quem desenha nesta ronda pode escrever (verificação por confiança,
+// como o resto do jogo) — mesmo padrão de tinta limitada da Forca.
+export async function pushDrawDoodlePoints(code, room, uid, newPoints) {
+  const draw = room.draw;
+  if (!draw || draw.drawerId !== uid || draw.resolved) return;
+  const combined = [...(draw.doodle?.points || []), ...newPoints];
+  const trimmed = combined.length > DRAW_MAX_POINTS
+    ? combined.slice(combined.length - DRAW_MAX_POINTS)
+    : combined;
+  await set(ref(db, `rooms/${code}/draw/doodle/points`), trimmed);
+}
+
+export async function clearDrawDoodle(code, room, uid) {
+  if (!room.draw || room.draw.drawerId !== uid) return;
+  await update(ref(db, `rooms/${code}/draw/doodle`), { points: [] });
+}
+
+// Quem desenha escolhe quem acertou primeiro (é o único que sabe a
+// resposta) — atribui pontos ao vencedor e um bónus a quem desenhou.
+export async function selectDrawWinner(code, room, judgeUid, winnerUid) {
+  const draw = room.draw;
+  if (!draw || draw.resolved || draw.drawerId !== judgeUid || winnerUid === judgeUid) return;
+  if (!room.players?.[winnerUid]) return;
+  const prevWinnerScore = room.players?.[winnerUid]?.score || 0;
+  const prevDrawerScore = room.players?.[judgeUid]?.score || 0;
+  await update(roomRef(code), {
+    "draw/resolved": true,
+    "draw/roundWinnerId": winnerUid,
+    "draw/resolvedAt": serverNow(),
+    [`players/${winnerUid}/score`]: prevWinnerScore + DRAW_WINNER_POINTS,
+    [`players/${judgeUid}/score`]: prevDrawerScore + DRAW_DRAWER_BONUS,
+  });
+}
+
+// Ninguém acertou desta vez — fecha a ronda sem atribuir pontos.
+export async function skipDrawRound(code, room, uid) {
+  const draw = room.draw;
+  if (!draw || draw.resolved || draw.drawerId !== uid) return;
+  await update(roomRef(code), {
+    "draw/resolved": true,
+    "draw/roundWinnerId": null,
+    "draw/resolvedAt": serverNow(),
+  });
+}
+
+export async function advanceDrawRound(code, room) {
+  const draw = room.draw;
+  if (!draw) return;
+  const nextIndex = draw.turnIndex + 1;
+  if (nextIndex >= draw.turnOrder.length) {
+    await startNextBonusGame(code, room);
+    return;
+  }
+  await update(ref(db, `rooms/${code}/draw`), {
+    turnIndex: nextIndex,
+    drawerId: draw.turnOrder[nextIndex],
+    doodle: { points: [] },
+    resolved: false,
+    roundWinnerId: null,
+    resolvedAt: null,
+  });
 }
 
 // --- Mapa-Múndi em equipa ---

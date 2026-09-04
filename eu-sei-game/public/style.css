@@ -316,6 +316,25 @@ button.hud-btn .icon-inline { color: var(--ink); }
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .minigame-end-card { max-width: 440px; }
+
+/* Botão flutuante de Opções + o seu quadro (classificação em tempo real e
+   rabisco coletivo, cada jogador na sua cor, disponível em qualquer ecrã
+   dentro de uma sala — ao contrário do quadro da Forca, que é só do
+   anfitrião e serve um propósito diferente (charadas)). */
+.options-fab { position: fixed; bottom: 16px; right: 16px; z-index: 40; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 3px 3px 0 rgba(58,49,38,0.3); }
+.options-card { max-width: 520px; }
+.options-card .score-row { gap: 10px; }
+.options-card .score-name { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.options-card .score-total { white-space: nowrap; }
+.options-tabs { display: flex; gap: 8px; justify-content: center; margin: 10px 0; }
+.options-tab-btn { background: transparent; border: 2px solid var(--paper-line); color: var(--muted); }
+.options-tab-btn.active { background: var(--accent); border-color: var(--ink); color: var(--ink); }
+.options-panel { margin: 8px 0 14px; text-align: left; }
+.options-scratchpad-canvas { display: block; width: 100%; height: 320px; border: 2px solid var(--ink); border-radius: 10px; background: #fffdf7; cursor: crosshair; touch-action: none; margin: 8px 0; }
+
+/* Desenha e Adivinha — reutiliza .hangman-board/.hangman-toolbar/.hangman-doodle-canvas */
+.draw-winner-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 50vh; overflow-y: auto; }
+.draw-result { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 10px 20px; font-weight: 700; box-shadow: 3px 3px 0 rgba(58,49,38,0.3); }
 .minigame-end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .mascot-quip { font-style: italic; }
 

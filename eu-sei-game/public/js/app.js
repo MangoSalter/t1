@@ -5,10 +5,13 @@ import {
 } from "./data.js";
 import {
   createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
-  startGame, startBallPhase, claimBallWin, startLetterPick, voteLetter,
+  startGame, startQuickBonusGame, pushScratchpadPoints, clearScratchpad,
+  startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints,
+  pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
+  DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
   MAP_TRIVIA_RESULT_DISPLAY_MS,
   updateTagPosition, claimTagInfection, claimTagPowerup, spawnTagPowerup, resolveTagRound, finishTagRound,
@@ -239,6 +242,7 @@ function enterRoom(code) {
   showHomeError("");
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = listenRoom(code, onRoomUpdate);
+  optionsEls.fab.classList.remove("hidden");
 }
 
 // ---------- ROOM UPDATE / ROUTER ----------
@@ -268,6 +272,7 @@ function onRoomUpdate(room) {
     case "voting": renderVoting(room); showScreen("voting"); break;
     case "roundScore": renderRoundScore(room); showScreen("roundscore"); break;
     case "hangman": renderHangman(room); showScreen("hangman"); break;
+    case "draw": renderDraw(room); showScreen("draw"); break;
     case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
     case "tag": renderTag(room); showScreen("tag"); break;
     case "battle": renderBattle(room); showScreen("battle"); break;
@@ -275,6 +280,7 @@ function onRoomUpdate(room) {
     default: showScreen("lobby");
   }
 
+  refreshOptionsIfOpen(room);
   runHostLoopTick(room);
 }
 
@@ -285,6 +291,8 @@ function leaveToHome() {
   state.room = null;
   if (tagState.active) tagExit();
   if (battleState.active) battleExit();
+  optionsEls.fab.classList.add("hidden");
+  optionsEls.overlay.classList.add("hidden");
   showScreen("home");
 }
 
@@ -325,6 +333,7 @@ const lobbyEls = {
   catGrid: document.getElementById("cfg-cat-grid"),
   catSelectAll: document.getElementById("cfg-cat-selectall"),
   catClear: document.getElementById("cfg-cat-clear"),
+  quickGameBtn: document.getElementById("lobby-quickgame-btn"),
 };
 
 const bonusGameCheckboxes = Array.from(document.querySelectorAll("[data-bonus-game]"));
@@ -457,7 +466,20 @@ function renderLobby(room) {
   lobbyEls.startBtn.classList.toggle("hidden", !amHost);
   lobbyEls.startBtn.disabled = players.length < 2;
   lobbyEls.waiting.classList.toggle("hidden", amHost);
+
+  lobbyEls.quickGameBtn.classList.toggle("hidden", !amHost);
+  const connectedCount = players.filter(([, p]) => p.connected).length;
+  lobbyEls.quickGameBtn.disabled = connectedCount < 3;
 }
+
+// Salta direto para um mini-jogo bónus escolhido, sem passar pelas rondas
+// clássicas — tal como escolher um jogo avulso no menu do modo sozinho.
+lobbyEls.quickGameBtn.addEventListener("click", () => {
+  const room = state.room;
+  if (!room || !isHost(room)) return;
+  const key = document.querySelector('input[name="quickgame"]:checked')?.value || "hangman";
+  startQuickBonusGame(state.code, room, key);
+});
 
 // ---------- BALL MINIGAME ----------
 
@@ -892,6 +914,214 @@ function renderHangman(room) {
   hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
   hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
   hangmanDoodleRedraw();
+}
+
+// ---------- DESENHA E ADIVINHA EM EQUIPA ----------
+// Mesmo padrão de quadro branco em ecrã inteiro da Forca, mas com pontuação
+// e vez a rodar: um jogador desenha por ronda (turnOrder sorteado uma vez
+// no início), os outros veem o traço em tempo real e adivinham em voz alta
+// (fora da app). Quem desenha faz de juiz — escolhe quem acertou primeiro
+// (ou salta, se ninguém acertou), o que fecha a ronda e passa a vez ao
+// próximo jogador. Continua até todos terem desenhado uma vez.
+
+const DRAW_DOODLE_INK = "#3a3126";
+const DRAW_DOODLE_BROADCAST_INTERVAL_MS = 90;
+const DRAW_DOODLE_MIN_DIST = 0.004;
+
+const drawEls = {
+  status: document.getElementById("draw-status"),
+  doodleCanvas: document.getElementById("draw-doodle-canvas"),
+  clearBtn: document.getElementById("draw-clear-btn"),
+  selectWinnerBtn: document.getElementById("draw-select-winner-btn"),
+  skipBtn: document.getElementById("draw-skip-btn"),
+  continueBtn: document.getElementById("draw-continue-btn"),
+  result: document.getElementById("draw-result"),
+  winnerOverlay: document.getElementById("draw-winner-overlay"),
+  winnerList: document.getElementById("draw-winner-list"),
+  winnerCancelBtn: document.getElementById("draw-winner-cancel-btn"),
+};
+
+const drawDoodleState = {
+  drawing: false,
+  lastPoint: null,
+  pending: [],
+  lastBroadcastAt: 0,
+  dpr: 1,
+  rectW: 0,
+  rectH: 0,
+};
+
+function drawAmDrawer() {
+  return !!state.room?.draw && state.room.draw.drawerId === state.uid;
+}
+
+function drawDoodleSyncCanvasSize() {
+  const canvas = drawEls.doodleCanvas;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  drawDoodleState.dpr = dpr;
+  drawDoodleState.rectW = rect.width;
+  drawDoodleState.rectH = rect.height;
+  return true;
+}
+
+function drawDoodleRedraw() {
+  if (!drawDoodleSyncCanvasSize()) return;
+  const canvas = drawEls.doodleCanvas;
+  const ctx = canvas.getContext("2d");
+  const { dpr, rectW, rectH } = drawDoodleState;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rectW, rectH);
+  const room = state.room;
+  const points = [...(room?.draw?.doodle?.points || []), ...drawDoodleState.pending];
+  ctx.strokeStyle = DRAW_DOODLE_INK;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 4;
+  let prev = null;
+  points.forEach((p) => {
+    const x = p.x * rectW;
+    const y = p.y * rectH;
+    if (p.newStroke || !prev) {
+      prev = { x, y };
+      return;
+    }
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    prev = { x, y };
+  });
+}
+
+function drawDoodlePointFromEvent(e) {
+  const rect = drawEls.doodleCanvas.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+  return { x, y };
+}
+
+function drawDoodleFlush() {
+  if (drawDoodleState.pending.length === 0) return;
+  const toSend = drawDoodleState.pending;
+  drawDoodleState.pending = [];
+  drawDoodleState.lastBroadcastAt = performance.now();
+  pushDrawDoodlePoints(state.code, state.room, state.uid, toSend);
+}
+
+drawEls.doodleCanvas.addEventListener("pointerdown", (e) => {
+  if (!drawAmDrawer() || state.room.draw.resolved) return;
+  e.preventDefault();
+  drawEls.doodleCanvas.setPointerCapture(e.pointerId);
+  drawDoodleState.drawing = true;
+  const p = drawDoodlePointFromEvent(e);
+  drawDoodleState.lastPoint = p;
+  drawDoodleState.pending.push({ x: p.x, y: p.y, newStroke: true });
+  drawDoodleRedraw();
+});
+
+drawEls.doodleCanvas.addEventListener("pointermove", (e) => {
+  if (!drawDoodleState.drawing) return;
+  const p = drawDoodlePointFromEvent(e);
+  const last = drawDoodleState.lastPoint;
+  const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
+  if (dist < DRAW_DOODLE_MIN_DIST) return;
+  drawDoodleState.lastPoint = p;
+  drawDoodleState.pending.push({ x: p.x, y: p.y, newStroke: false });
+  drawDoodleRedraw();
+  if (performance.now() - drawDoodleState.lastBroadcastAt > DRAW_DOODLE_BROADCAST_INTERVAL_MS) {
+    drawDoodleFlush();
+  }
+});
+
+function drawDoodleEndStroke() {
+  if (!drawDoodleState.drawing) return;
+  drawDoodleState.drawing = false;
+  drawDoodleState.lastPoint = null;
+  drawDoodleFlush();
+}
+drawEls.doodleCanvas.addEventListener("pointerup", drawDoodleEndStroke);
+drawEls.doodleCanvas.addEventListener("pointercancel", drawDoodleEndStroke);
+drawEls.doodleCanvas.addEventListener("pointerleave", drawDoodleEndStroke);
+
+drawEls.clearBtn.addEventListener("click", () => {
+  clearDrawDoodle(state.code, state.room, state.uid);
+});
+
+drawEls.selectWinnerBtn.addEventListener("click", () => {
+  const room = state.room;
+  if (!room) return;
+  drawEls.winnerList.innerHTML = "";
+  Object.entries(room.players || {})
+    .filter(([uid]) => uid !== room.draw.drawerId)
+    .forEach(([uid, p]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "primary";
+      btn.innerHTML = avatarImgHtml(p.avatar, "sm") + escapeHtml(p.name);
+      btn.addEventListener("click", () => {
+        selectDrawWinner(state.code, state.room, state.uid, uid);
+        drawEls.winnerOverlay.classList.add("hidden");
+      });
+      drawEls.winnerList.appendChild(btn);
+    });
+  drawEls.winnerOverlay.classList.remove("hidden");
+});
+drawEls.winnerCancelBtn.addEventListener("click", () => {
+  drawEls.winnerOverlay.classList.add("hidden");
+});
+
+drawEls.skipBtn.addEventListener("click", () => {
+  skipDrawRound(state.code, state.room, state.uid);
+});
+
+drawEls.continueBtn.addEventListener("click", () => {
+  advanceDrawRound(state.code, state.room);
+});
+
+window.addEventListener("resize", () => {
+  if (screens["draw"]?.classList.contains("active")) drawDoodleRedraw();
+});
+
+function renderDraw(room) {
+  const draw = room.draw;
+  if (!draw) return;
+  const amDrawer = draw.drawerId === state.uid;
+  const drawerName = room.players?.[draw.drawerId]?.name || "Alguém";
+  const roundLabel = `Ronda ${draw.turnIndex + 1}/${draw.turnOrder.length}`;
+
+  if (!draw.resolved) {
+    drawEls.status.textContent = amDrawer
+      ? `${roundLabel} — és tu que desenhas! Desenha uma pista para a equipa adivinhar em voz alta.`
+      : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`;
+    drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
+    drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.skipBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.continueBtn.classList.add("hidden");
+    drawEls.result.classList.add("hidden");
+  } else {
+    drawEls.doodleCanvas.classList.remove("hangman-doodle-canvas-active");
+    drawEls.clearBtn.classList.add("hidden");
+    drawEls.selectWinnerBtn.classList.add("hidden");
+    drawEls.skipBtn.classList.add("hidden");
+    drawEls.continueBtn.classList.toggle("hidden", !isHost(room));
+    drawEls.result.classList.remove("hidden");
+    if (draw.roundWinnerId) {
+      const winnerName = room.players?.[draw.roundWinnerId]?.name || "Alguém";
+      drawEls.result.textContent = `🎉 ${winnerName} acertou! +${DRAW_WINNER_POINTS} pts (e +${DRAW_DRAWER_BONUS} para ${drawerName})`;
+    } else {
+      drawEls.result.textContent = "Ninguém acertou desta vez...";
+    }
+  }
+  drawDoodleRedraw();
 }
 
 // ---------- MAPA-MÚNDI EM EQUIPA ----------
@@ -1585,6 +1815,189 @@ function renderFinal(room) {
     finalEls.ranking.appendChild(row);
   });
   finalEls.rematchBtn.classList.toggle("hidden", !isHost(room));
+}
+
+// ---------- OPÇÕES (classificação + rabisco coletivo) ----------
+// Botão flutuante disponível em qualquer ecrã dentro de uma sala — mostra
+// a classificação em tempo real e um quadro de rabisco só por diversão
+// (cada jogador na sua cor, sem "vez"/dono — ao contrário do Desenha e
+// Adivinha, aqui todos podem escrever ao mesmo tempo, não vale pontos).
+
+const SCRATCHPAD_PALETTE = ["#c0524a", "#3f7d5c", "#3a5f8a", "#b8862f", "#7a4f9e", "#2f8a86", "#a15a2e", "#5a6b3a"];
+const SCRATCHPAD_BROADCAST_INTERVAL_MS = 90;
+const SCRATCHPAD_MIN_DIST = 0.006;
+
+const optionsEls = {
+  fab: document.getElementById("options-fab"),
+  overlay: document.getElementById("options-overlay"),
+  tabLeaderboard: document.getElementById("options-tab-leaderboard"),
+  tabScratchpad: document.getElementById("options-tab-scratchpad"),
+  panelLeaderboard: document.getElementById("options-panel-leaderboard"),
+  panelScratchpad: document.getElementById("options-panel-scratchpad"),
+  leaderboardList: document.getElementById("options-leaderboard-list"),
+  canvas: document.getElementById("options-scratchpad-canvas"),
+  clearBtn: document.getElementById("options-scratchpad-clear-btn"),
+  closeBtn: document.getElementById("options-close-btn"),
+};
+
+const scratchpadState = {
+  drawing: false,
+  lastPoint: null,
+  pending: [],
+  lastBroadcastAt: 0,
+  dpr: 1,
+  rectW: 0,
+  rectH: 0,
+};
+
+function scratchpadColorForUid(room, uid) {
+  const ids = Object.keys(room?.players || {});
+  const idx = Math.max(0, ids.indexOf(uid));
+  return SCRATCHPAD_PALETTE[idx % SCRATCHPAD_PALETTE.length];
+}
+
+function renderOptionsLeaderboard(room) {
+  const players = Object.entries(room.players || {});
+  players.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+  optionsEls.leaderboardList.innerHTML = "";
+  players.forEach(([uid, p], i) => {
+    const row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = `<span class="score-name">${i === 0 ? "👑 " : `#${i + 1} `}${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      <span class="score-total">${p.score || 0} pts</span>`;
+    optionsEls.leaderboardList.appendChild(row);
+  });
+}
+
+function scratchpadSyncCanvasSize() {
+  const canvas = optionsEls.canvas;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  scratchpadState.dpr = dpr;
+  scratchpadState.rectW = rect.width;
+  scratchpadState.rectH = rect.height;
+  return true;
+}
+
+function scratchpadRedraw() {
+  if (!scratchpadSyncCanvasSize()) return;
+  const canvas = optionsEls.canvas;
+  const ctx = canvas.getContext("2d");
+  const { dpr, rectW, rectH } = scratchpadState;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rectW, rectH);
+  const room = state.room;
+  const points = [...(room?.scratchpad?.points || []), ...scratchpadState.pending];
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3;
+  let prev = null;
+  points.forEach((p) => {
+    const x = p.x * rectW;
+    const y = p.y * rectH;
+    if (p.newStroke || !prev) {
+      prev = { x, y };
+      return;
+    }
+    ctx.strokeStyle = scratchpadColorForUid(room, p.uid);
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    prev = { x, y };
+  });
+}
+
+function scratchpadPointFromEvent(e) {
+  const rect = optionsEls.canvas.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+  return { x, y };
+}
+
+function scratchpadFlush() {
+  if (scratchpadState.pending.length === 0) return;
+  const toSend = scratchpadState.pending;
+  scratchpadState.pending = [];
+  scratchpadState.lastBroadcastAt = performance.now();
+  pushScratchpadPoints(state.code, state.room, toSend);
+}
+
+optionsEls.canvas.addEventListener("pointerdown", (e) => {
+  if (!state.code) return;
+  e.preventDefault();
+  optionsEls.canvas.setPointerCapture(e.pointerId);
+  scratchpadState.drawing = true;
+  const p = scratchpadPointFromEvent(e);
+  scratchpadState.lastPoint = p;
+  scratchpadState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: true });
+  scratchpadRedraw();
+});
+optionsEls.canvas.addEventListener("pointermove", (e) => {
+  if (!scratchpadState.drawing) return;
+  const p = scratchpadPointFromEvent(e);
+  const last = scratchpadState.lastPoint;
+  const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
+  if (dist < SCRATCHPAD_MIN_DIST) return;
+  scratchpadState.lastPoint = p;
+  scratchpadState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: false });
+  scratchpadRedraw();
+  if (performance.now() - scratchpadState.lastBroadcastAt > SCRATCHPAD_BROADCAST_INTERVAL_MS) {
+    scratchpadFlush();
+  }
+});
+function scratchpadEndStroke() {
+  if (!scratchpadState.drawing) return;
+  scratchpadState.drawing = false;
+  scratchpadState.lastPoint = null;
+  scratchpadFlush();
+}
+optionsEls.canvas.addEventListener("pointerup", scratchpadEndStroke);
+optionsEls.canvas.addEventListener("pointercancel", scratchpadEndStroke);
+optionsEls.canvas.addEventListener("pointerleave", scratchpadEndStroke);
+
+optionsEls.clearBtn.addEventListener("click", () => {
+  clearScratchpad(state.code);
+});
+
+function optionsShowTab(tab) {
+  const isLeaderboard = tab === "leaderboard";
+  optionsEls.tabLeaderboard.classList.toggle("active", isLeaderboard);
+  optionsEls.tabScratchpad.classList.toggle("active", !isLeaderboard);
+  optionsEls.panelLeaderboard.classList.toggle("hidden", !isLeaderboard);
+  optionsEls.panelScratchpad.classList.toggle("hidden", isLeaderboard);
+  if (!isLeaderboard) scratchpadRedraw();
+}
+optionsEls.tabLeaderboard.addEventListener("click", () => optionsShowTab("leaderboard"));
+optionsEls.tabScratchpad.addEventListener("click", () => optionsShowTab("scratchpad"));
+
+optionsEls.fab.addEventListener("click", () => {
+  if (!state.room) return;
+  optionsShowTab("leaderboard");
+  renderOptionsLeaderboard(state.room);
+  optionsEls.overlay.classList.remove("hidden");
+});
+optionsEls.closeBtn.addEventListener("click", () => {
+  optionsEls.overlay.classList.add("hidden");
+});
+
+window.addEventListener("resize", () => {
+  if (!optionsEls.overlay.classList.contains("hidden")) scratchpadRedraw();
+});
+
+// Chamado a cada atualização da sala para manter a classificação e o
+// rabisco em tempo real enquanto o overlay estiver aberto.
+function refreshOptionsIfOpen(room) {
+  if (optionsEls.overlay.classList.contains("hidden")) return;
+  renderOptionsLeaderboard(room);
+  scratchpadRedraw();
 }
 
 // ---------- HOST LOOP: transições dirigidas por tempo ----------
