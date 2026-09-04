@@ -29,6 +29,12 @@ import {
   RACE_SPAWN_INTERVAL_START_MS, RACE_BROADCAST_MS, RACE_RESULT_DISPLAY_MS,
   submitLandmarkAnswer, resolveLandmarkRound, advanceLandmarkRoundOrFinish,
   LANDMARK_TEAM_POINTS, LANDMARK_TEAM_RESULT_DISPLAY_MS,
+  updateGolfBall, claimGolfFinish, claimGolfPowerup, useGolfCharge, spawnGolfPowerup,
+  pruneGolfBarriers, golfActiveWalls, resolveGolfRound, finishGolfRound,
+  GOLF_MP_COURSE_W, GOLF_MP_COURSE_H, GOLF_MP_BALL_RADIUS, GOLF_MP_HOLE_RADIUS,
+  GOLF_MP_START, GOLF_MP_HOLE, GOLF_MP_WALLS, GOLF_MP_POWERUP_RADIUS,
+  GOLF_MP_POWERUP_MAX_ACTIVE, GOLF_MP_POWERUP_SPAWN_INTERVAL_MS,
+  GOLF_MP_BROADCAST_MS, GOLF_MP_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -285,6 +291,7 @@ function onRoomUpdate(room) {
   if (room.state !== "tag" && tagState.active) tagExit();
   if (room.state !== "battle" && battleState.active) battleExit();
   if (room.state !== "race" && raceState.active) raceExit();
+  if (room.state !== "golf" && golfMpState.active) golfMpExit();
 
   switch (room.state) {
     case "lobby": renderLobby(room); showScreen("lobby"); break;
@@ -300,6 +307,7 @@ function onRoomUpdate(room) {
     case "battle": renderBattle(room); showScreen("battle"); break;
     case "race": renderRace(room); showScreen("race"); break;
     case "landmark": renderLandmarkTeam(room); showScreen("landmark"); break;
+    case "golf": renderGolfMp(room); showScreen("golf"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -316,6 +324,7 @@ function leaveToHome() {
   if (tagState.active) tagExit();
   if (battleState.active) battleExit();
   if (raceState.active) raceExit();
+  if (golfMpState.active) golfMpExit();
   optionsEls.fab.classList.add("hidden");
   optionsEls.overlay.classList.add("hidden");
   showScreen("home");
@@ -367,7 +376,7 @@ const lobbyEls = {
 // de bónus de fim de partida), o que deixava os quadros de desenho mortos
 // numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
 // o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
-const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1 };
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1, golf: 2 };
 
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
@@ -2190,6 +2199,320 @@ function renderRace(room) {
   }
 }
 
+// ---------- MINI-GOLFE EM EQUIPA ----------
+// Mesmo padrão de tempo real "por confiança" da Fuga/Batalha: cada cliente
+// simula e transmite só a SUA bola, e a câmara segue-a. As bolas não colidem
+// entre si — o que os jogadores usam uns contra os outros são os power-ups:
+// a barreira (parede temporária, estado partilhado, vale para todos) e o
+// interruptor (congela os comandos de toda a gente menos de quem o usou).
+
+const GOLF_MP_ACCEL = 470;
+const GOLF_MP_DRAG = 1.3;
+const GOLF_MP_MAX_SPEED = 330;
+const GOLF_MP_BOUNCE_LOSS = 0.7;
+
+const golfMpEls = {
+  statusLine: document.getElementById("golf-mp-status-line"),
+  timer: document.getElementById("golf-mp-timer"),
+  arena: document.getElementById("golf-mp-arena"),
+  results: document.getElementById("golf-mp-results"),
+  continueBtn: document.getElementById("golf-mp-continue-btn"),
+};
+
+const golfMpState = {
+  active: false,
+  x: 0, y: 0, vx: 0, vy: 0,
+  keys: { up: false, down: false, left: false, right: false },
+  lastFrame: 0,
+  lastBroadcastAt: 0,
+  finished: false,
+  keydownHandler: null,
+  keyupHandler: null,
+  rafId: null,
+  worldEl: null,
+  ballEls: {},
+  powerupEls: {},
+  barrierEls: {},
+};
+
+golfMpEls.continueBtn.addEventListener("click", () => {
+  finishGolfRound(state.code, state.room);
+});
+
+function golfMpHandleKey(e, isDown) {
+  const map = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
+  if (e.key === " ") {
+    e.preventDefault();
+    if (isDown && !golfMpState.finished) useGolfCharge(state.code, state.room, state.uid, golfMpState.x, golfMpState.y);
+    return;
+  }
+  const dir = map[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  golfMpState.keys[dir] = isDown;
+}
+
+function golfMpEnter(room) {
+  const golf = room.golf || {};
+  golfMpState.active = true;
+  const myBall = golf.balls?.[state.uid];
+  golfMpState.x = myBall?.x ?? GOLF_MP_START.x;
+  golfMpState.y = myBall?.y ?? GOLF_MP_START.y;
+  golfMpState.vx = 0;
+  golfMpState.vy = 0;
+  golfMpState.keys = { up: false, down: false, left: false, right: false };
+  golfMpState.finished = golf.finished?.[state.uid] !== undefined;
+  golfMpState.ballEls = {};
+  golfMpState.powerupEls = {};
+  golfMpState.barrierEls = {};
+
+  golfMpEls.arena.innerHTML = "";
+  golfMpState.worldEl = document.createElement("div");
+  golfMpState.worldEl.className = "golf-world";
+  golfMpState.worldEl.style.width = `${GOLF_MP_COURSE_W}px`;
+  golfMpState.worldEl.style.height = `${GOLF_MP_COURSE_H}px`;
+  GOLF_MP_WALLS.forEach((w) => {
+    const el = document.createElement("div");
+    el.className = "golf-wall";
+    el.style.left = `${w.x}px`;
+    el.style.top = `${w.y}px`;
+    el.style.width = `${w.w}px`;
+    el.style.height = `${w.h}px`;
+    golfMpState.worldEl.appendChild(el);
+  });
+  const holeEl = document.createElement("div");
+  holeEl.className = "golf-hole golf-mp-hole";
+  holeEl.style.left = `${GOLF_MP_HOLE.x - GOLF_MP_HOLE_RADIUS}px`;
+  holeEl.style.top = `${GOLF_MP_HOLE.y - GOLF_MP_HOLE_RADIUS}px`;
+  holeEl.style.width = `${GOLF_MP_HOLE_RADIUS * 2}px`;
+  holeEl.style.height = `${GOLF_MP_HOLE_RADIUS * 2}px`;
+  golfMpState.worldEl.appendChild(holeEl);
+  golfMpEls.arena.appendChild(golfMpState.worldEl);
+
+  golfMpState.keydownHandler = (e) => golfMpHandleKey(e, true);
+  golfMpState.keyupHandler = (e) => golfMpHandleKey(e, false);
+  document.addEventListener("keydown", golfMpState.keydownHandler);
+  document.addEventListener("keyup", golfMpState.keyupHandler);
+  showTouchControls({ action: { key: " ", label: "Usar" } });
+  golfMpState.lastFrame = performance.now();
+  golfMpState.rafId = requestAnimationFrame(golfMpTick);
+}
+
+function golfMpExit() {
+  hideTouchControls();
+  golfMpState.active = false;
+  if (golfMpState.rafId) cancelAnimationFrame(golfMpState.rafId);
+  golfMpState.rafId = null;
+  if (golfMpState.keydownHandler) document.removeEventListener("keydown", golfMpState.keydownHandler);
+  if (golfMpState.keyupHandler) document.removeEventListener("keyup", golfMpState.keyupHandler);
+  golfMpState.keydownHandler = null;
+  golfMpState.keyupHandler = null;
+}
+
+function golfMpBallEl(uid, name) {
+  if (golfMpState.ballEls[uid]) return golfMpState.ballEls[uid];
+  const el = document.createElement("div");
+  el.className = "golf-mp-ball";
+  el.style.width = `${GOLF_MP_BALL_RADIUS * 2}px`;
+  el.style.height = `${GOLF_MP_BALL_RADIUS * 2}px`;
+  const label = document.createElement("span");
+  label.className = "golf-mp-ball-name";
+  label.textContent = name;
+  el.appendChild(label);
+  golfMpState.worldEl.appendChild(el);
+  golfMpState.ballEls[uid] = el;
+  return el;
+}
+
+function golfMpTick(now) {
+  if (!golfMpState.active) return;
+  const room = state.room;
+  const golf = room?.golf;
+  if (!golf) { golfMpState.rafId = requestAnimationFrame(golfMpTick); return; }
+
+  const dt = Math.min((now - golfMpState.lastFrame) / 1000, 0.05);
+  golfMpState.lastFrame = now;
+  const serverNowMs = serverNow();
+  const frozen = (golf.frozenUntil?.[state.uid] || 0) > serverNowMs;
+  if (golf.finished?.[state.uid] !== undefined) golfMpState.finished = true;
+
+  if (!golf.resolved && !golfMpState.finished && !frozen) {
+    let ax = 0, ay = 0;
+    if (golfMpState.keys.left) ax -= 1;
+    if (golfMpState.keys.right) ax += 1;
+    if (golfMpState.keys.up) ay -= 1;
+    if (golfMpState.keys.down) ay += 1;
+    const len = Math.hypot(ax, ay);
+    if (len > 0) {
+      golfMpState.vx += (ax / len) * GOLF_MP_ACCEL * dt;
+      golfMpState.vy += (ay / len) * GOLF_MP_ACCEL * dt;
+    }
+  }
+
+  const dragFactor = Math.max(0, 1 - GOLF_MP_DRAG * dt);
+  golfMpState.vx *= dragFactor;
+  golfMpState.vy *= dragFactor;
+  const speed = Math.hypot(golfMpState.vx, golfMpState.vy);
+  if (speed > GOLF_MP_MAX_SPEED) {
+    golfMpState.vx = (golfMpState.vx / speed) * GOLF_MP_MAX_SPEED;
+    golfMpState.vy = (golfMpState.vy / speed) * GOLF_MP_MAX_SPEED;
+  }
+
+  let newX = golfMpState.x + golfMpState.vx * dt;
+  let newY = golfMpState.y + golfMpState.vy * dt;
+
+  // As barreiras largadas por outros jogadores entram aqui, exatamente como
+  // as paredes fixas: é o que faz o power-up doer mesmo.
+  golfActiveWalls(golf, serverNowMs).forEach((w) => {
+    const closestX = Math.max(w.x, Math.min(newX, w.x + w.w));
+    const closestY = Math.max(w.y, Math.min(newY, w.y + w.h));
+    const dx = newX - closestX;
+    const dy = newY - closestY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < GOLF_MP_BALL_RADIUS * GOLF_MP_BALL_RADIUS) {
+      const dist = Math.sqrt(distSq) || 0.001;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      newX = closestX + nx * GOLF_MP_BALL_RADIUS;
+      newY = closestY + ny * GOLF_MP_BALL_RADIUS;
+      const vDotN = golfMpState.vx * nx + golfMpState.vy * ny;
+      golfMpState.vx -= 2 * vDotN * nx * GOLF_MP_BOUNCE_LOSS;
+      golfMpState.vy -= 2 * vDotN * ny * GOLF_MP_BOUNCE_LOSS;
+    }
+  });
+
+  if (newX <= GOLF_MP_BALL_RADIUS || newX >= GOLF_MP_COURSE_W - GOLF_MP_BALL_RADIUS) golfMpState.vx *= -0.6;
+  if (newY <= GOLF_MP_BALL_RADIUS || newY >= GOLF_MP_COURSE_H - GOLF_MP_BALL_RADIUS) golfMpState.vy *= -0.6;
+  golfMpState.x = Math.max(GOLF_MP_BALL_RADIUS, Math.min(GOLF_MP_COURSE_W - GOLF_MP_BALL_RADIUS, newX));
+  golfMpState.y = Math.max(GOLF_MP_BALL_RADIUS, Math.min(GOLF_MP_COURSE_H - GOLF_MP_BALL_RADIUS, newY));
+
+  // Apanhar power-ups: deteção local, como as armas da Batalha.
+  if (!golfMpState.finished && !golf.resolved && !golf.charges?.[state.uid]) {
+    Object.entries(golf.powerups || {}).forEach(([id, p]) => {
+      if (Math.hypot(p.x - golfMpState.x, p.y - golfMpState.y) < GOLF_MP_POWERUP_RADIUS + GOLF_MP_BALL_RADIUS) {
+        claimGolfPowerup(state.code, state.uid, id, p.type);
+      }
+    });
+  }
+
+  if (!golfMpState.finished && !golf.resolved
+      && Math.hypot(GOLF_MP_HOLE.x - golfMpState.x, GOLF_MP_HOLE.y - golfMpState.y) < GOLF_MP_HOLE_RADIUS) {
+    golfMpState.finished = true;
+    claimGolfFinish(state.code, room, state.uid);
+  }
+
+  if (!golfMpState.finished && serverNowMs - golfMpState.lastBroadcastAt > GOLF_MP_BROADCAST_MS) {
+    golfMpState.lastBroadcastAt = serverNowMs;
+    updateGolfBall(state.code, state.uid, Math.round(golfMpState.x), Math.round(golfMpState.y));
+  }
+
+  golfMpRenderWorld(room, serverNowMs);
+  golfMpState.rafId = requestAnimationFrame(golfMpTick);
+}
+
+function golfMpRenderWorld(room, nowMs) {
+  const golf = room.golf || {};
+  Object.entries(room.players || {}).forEach(([uid, p]) => {
+    const isMe = uid === state.uid;
+    const pos = isMe
+      ? { x: golfMpState.x, y: golfMpState.y }
+      : (golf.balls?.[uid] || GOLF_MP_START);
+    const el = golfMpBallEl(uid, p.name);
+    el.style.left = `${pos.x - GOLF_MP_BALL_RADIUS}px`;
+    el.style.top = `${pos.y - GOLF_MP_BALL_RADIUS}px`;
+    el.classList.toggle("golf-mp-ball-me", isMe);
+    el.classList.toggle("golf-mp-ball-done", golf.finished?.[uid] !== undefined);
+    el.classList.toggle("golf-mp-ball-frozen", (golf.frozenUntil?.[uid] || 0) > nowMs);
+  });
+
+  const seenP = new Set();
+  Object.entries(golf.powerups || {}).forEach(([id, p]) => {
+    seenP.add(id);
+    let el = golfMpState.powerupEls[id];
+    if (!el) {
+      el = document.createElement("div");
+      el.className = `golf-mp-powerup golf-mp-powerup-${p.type}`;
+      el.textContent = p.type === "barrier" ? "🧱" : "🔌";
+      golfMpState.worldEl.appendChild(el);
+      golfMpState.powerupEls[id] = el;
+    }
+    el.style.left = `${p.x - GOLF_MP_POWERUP_RADIUS}px`;
+    el.style.top = `${p.y - GOLF_MP_POWERUP_RADIUS}px`;
+  });
+  Object.keys(golfMpState.powerupEls).forEach((id) => {
+    if (!seenP.has(id)) { golfMpState.powerupEls[id].remove(); delete golfMpState.powerupEls[id]; }
+  });
+
+  const seenB = new Set();
+  Object.entries(golf.barriers || {}).forEach(([id, b]) => {
+    if ((b.until || 0) <= nowMs) return;
+    seenB.add(id);
+    let el = golfMpState.barrierEls[id];
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "golf-wall golf-mp-barrier";
+      golfMpState.worldEl.appendChild(el);
+      golfMpState.barrierEls[id] = el;
+    }
+    el.style.left = `${b.x}px`;
+    el.style.top = `${b.y}px`;
+    el.style.width = `${b.w}px`;
+    el.style.height = `${b.h}px`;
+  });
+  Object.keys(golfMpState.barrierEls).forEach((id) => {
+    if (!seenB.has(id)) { golfMpState.barrierEls[id].remove(); delete golfMpState.barrierEls[id]; }
+  });
+
+  // Câmara: segue sempre a PRÓPRIA bola.
+  const viewportW = golfMpEls.arena.clientWidth;
+  const viewportH = golfMpEls.arena.clientHeight;
+  const camX = Math.max(0, Math.min(GOLF_MP_COURSE_W - viewportW, golfMpState.x - viewportW / 2));
+  const camY = Math.max(0, Math.min(GOLF_MP_COURSE_H - viewportH, golfMpState.y - viewportH / 2));
+  golfMpState.worldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
+}
+
+function renderGolfMp(room) {
+  const golf = room.golf;
+  if (!golf) return;
+  if (!golfMpState.active) golfMpEnter(room);
+
+  if (!golf.resolved) {
+    const msLeft = Math.max(0, (golf.endAt || 0) - serverNow());
+    golfMpEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
+    const charge = golf.charges?.[state.uid];
+    const frozen = (golf.frozenUntil?.[state.uid] || 0) > serverNow();
+    golfMpEls.statusLine.textContent = golf.finished?.[state.uid] !== undefined
+      ? "Já meteste! Vê quem ainda anda a bater nas paredes."
+      : frozen
+        ? "🔌 Alguém te desligou os comandos — aguenta uns segundos!"
+        : charge
+          ? `Tens ${charge === "barrier" ? "🧱 uma barreira" : "🔌 um interruptor"} — Espaço para usar contra os outros.`
+          : "Mete a bola no buraco. Apanha os power-ups pelo caminho.";
+    golfMpEls.results.classList.add("hidden");
+    golfMpEls.continueBtn.classList.add("hidden");
+  } else {
+    golfMpEls.timer.textContent = "";
+    golfMpEls.statusLine.textContent = "Buraco fechado!";
+    golfMpEls.results.classList.remove("hidden");
+    golfMpEls.results.innerHTML = "";
+    Object.entries(room.players || {})
+      .sort((a, b) => (golf.standings?.[a[0]]?.place || 99) - (golf.standings?.[b[0]]?.place || 99))
+      .forEach(([uid, p]) => {
+        const st = golf.standings?.[uid] || {};
+        const detail = st.finished
+          ? `${st.place}º — meteu em ${(st.timeMs / 1000).toFixed(1)}s`
+          : `não meteu — ficou a ${st.distance || "?"}px do buraco`;
+        const row = document.createElement("div");
+        row.className = "score-row";
+        row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+          <span class="score-round">${escapeHtml(detail)}</span>
+          <span class="score-total">+${golf.roundPoints?.[uid] || 0} pts</span>`;
+        golfMpEls.results.appendChild(row);
+      });
+    golfMpEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
+}
+
 // ---------- ONDE FICA ISTO? EM EQUIPA ----------
 // Ronda simultânea: todos veem o mesmo desenho (o SVG vem do data.js local, só
 // o ID viaja pela rede) e as mesmas opções. A primeira resposta é a que conta.
@@ -2591,6 +2914,24 @@ async function runHostLoopTick(room) {
       } else if (lm && lm.resolved) {
         if (now - (lm.resolvedAt || 0) > LANDMARK_TEAM_RESULT_DISPLAY_MS) {
           await advanceLandmarkRoundOrFinish(state.code, room);
+        }
+      }
+    } else if (room.state === "golf") {
+      const golf = room.golf;
+      if (golf && !golf.resolved) {
+        const activePowerups = Object.keys(golf.powerups || {}).length;
+        if (activePowerups < GOLF_MP_POWERUP_MAX_ACTIVE && now - (golf.lastPowerupSpawnAt || 0) > GOLF_MP_POWERUP_SPAWN_INTERVAL_MS) {
+          await spawnGolfPowerup(state.code, room);
+        }
+        await pruneGolfBarriers(state.code, room);
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const stillPlaying = connectedIds.filter((uid) => golf.finished?.[uid] === undefined).length;
+        if (now >= (golf.endAt || 0) || (connectedIds.length > 0 && stillPlaying === 0)) {
+          await resolveGolfRound(state.code, room);
+        }
+      } else if (golf && golf.resolved) {
+        if (now - (golf.resolvedAt || 0) > GOLF_MP_RESULT_DISPLAY_MS) {
+          await finishGolfRound(state.code, room);
         }
       }
     }

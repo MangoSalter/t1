@@ -440,6 +440,7 @@
         <button type="button" data-mp-game="battle">Labirinto: Batalha</button>
         <button type="button" data-mp-game="race">Estrada Maluca</button>
         <button type="button" data-mp-game="landmark">Onde Fica Isto?</button>
+        <button type="button" data-mp-game="golf">Mini-Golfe</button>
       </div>
 
       <div class="divider"></div>
@@ -481,6 +482,7 @@
             <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
             <label><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
             <label><input type="checkbox" data-bonus-game="landmark" /> Onde Fica Isto? em equipa</label>
+            <label><input type="checkbox" data-bonus-game="golf" /> Mini-Golfe em equipa</label>
           </div>
         </details>
       </details>
@@ -643,6 +645,19 @@
       <div id="landmark-team-options" class="landmark-options"></div>
       <p id="landmark-team-status" class="hint"></p>
       <div id="landmark-team-results" class="score-table hidden"></div>
+    </div>
+  </section>
+
+  <!-- MINI-GOLFE EM EQUIPA -->
+  <section data-screen="golf" class="screen fullscreen-game">
+    <div class="card wide center golf-wide-card">
+      <h2>Mini-Golfe em equipa</h2>
+      <p class="hint small">Setas ou WASD para empurrar a bola. Todos jogam o mesmo buraco ao mesmo tempo — apanha um power-up e usa-o com Espaço: 🧱 larga uma parede onde estás, 🔌 desliga os comandos de toda a gente menos os teus.</p>
+      <p id="golf-mp-status-line" class="hint"></p>
+      <div class="round-timer" id="golf-mp-timer"></div>
+      <div id="golf-mp-arena" class="golf-arena"></div>
+      <div id="golf-mp-results" class="score-table hidden"></div>
+      <button id="golf-mp-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
 

@@ -568,3 +568,18 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .achievement-icon { font-size: 1.5rem; line-height: 1; }
 .achievement-text { display: flex; flex-direction: column; gap: 2px; }
 .achievement-quip { font-style: italic; font-size: 0.85rem; opacity: 0.85; }
+
+/* --- Mini-Golfe em equipa: mesmo campo para todos, câmara a seguir a própria bola --- */
+.golf-arena { position: relative; width: 100%; height: min(62vh, 620px); margin: 10px auto; overflow: hidden; border: 2px solid var(--ink); border-radius: 12px; background: #a9cf8a; }
+/* O .golf-hole do modo sozinho traz margin:-12px para um tamanho fixo; aqui a
+   posição já vem calculada com o raio, por isso a margem tem de sair. */
+.golf-mp-hole { margin: 0; }
+.golf-mp-ball { position: absolute; border-radius: 50%; background: #fdfaf1; border: 2px solid var(--ink); box-sizing: border-box; z-index: 3; }
+.golf-mp-ball-me { background: var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.12); z-index: 4; }
+.golf-mp-ball-done { opacity: 0.45; }
+.golf-mp-ball-frozen { border-style: dashed; animation: golf-mp-frozen 0.5s steps(2) infinite; }
+@keyframes golf-mp-frozen { 50% { opacity: 0.4; } }
+.golf-mp-ball-name { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); font-size: 0.7rem; white-space: nowrap; color: var(--ink); text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+.golf-mp-powerup { position: absolute; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); z-index: 2; }
+/* A barreira é de outro jogador: tem de ler-se como "isto não estava aqui". */
+.golf-mp-barrier { background: #c9704f; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(201,112,79,0.35); }

@@ -118,7 +118,7 @@ export const LANDMARK_TEAM_POINTS = 8;
 export const LANDMARK_TEAM_SPEED_BONUS_MAX = 6;
 export const LANDMARK_TEAM_RESULT_DISPLAY_MS = 5000;
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark"];
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
 //
@@ -521,6 +521,8 @@ export async function startNextBonusGame(code, room) {
     await startRaceGame(code, nextRoom);
   } else if (key === "landmark") {
     await startLandmarkTeam(code, nextRoom);
+  } else if (key === "golf") {
+    await startGolfTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -546,6 +548,8 @@ export async function startQuickBonusGame(code, room, key) {
     await startRaceGame(code, nextRoom);
   } else if (key === "landmark") {
     await startLandmarkTeam(code, nextRoom);
+  } else if (key === "golf") {
+    await startGolfTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -1365,4 +1369,226 @@ export async function advanceLandmarkRoundOrFinish(code, room) {
       ...round,
     },
   });
+}
+
+// --- Mini-Golfe em equipa ---
+//
+// Todos jogam o MESMO buraco ao mesmo tempo, cada um com a sua bola, todas
+// visíveis. As bolas não colidem entre si — o que os jogadores usam uns
+// contra os outros são os dois power-ups espalhados pelo campo:
+//   • barreira: larga uma parede temporária onde estás, a cortar o caminho
+//     a quem vem atrás;
+//   • interruptor: desliga os comandos de toda a gente menos os teus,
+//     durante uns segundos.
+// Cada cliente simula a SUA bola e transmite só a posição, como na Fuga e
+// na Batalha; as barreiras e os congelamentos são estado partilhado, por
+// isso valem para todos.
+
+export const GOLF_MP_COURSE_W = 1600;
+export const GOLF_MP_COURSE_H = 900;
+export const GOLF_MP_BALL_RADIUS = 9;
+export const GOLF_MP_HOLE_RADIUS = 16;
+export const GOLF_MP_START = { x: 70, y: 450 };
+export const GOLF_MP_HOLE = { x: 1520, y: 450 };
+export const GOLF_MP_ROUND_MS = 90000;
+export const GOLF_MP_RESULT_DISPLAY_MS = 6000;
+export const GOLF_MP_FINISH_POINTS = [25, 16, 10, 6];
+export const GOLF_MP_FINISH_POINTS_MIN = 3;
+export const GOLF_MP_POWERUP_RADIUS = 16;
+export const GOLF_MP_POWERUP_MAX_ACTIVE = 4;
+export const GOLF_MP_POWERUP_SPAWN_INTERVAL_MS = 5000;
+export const GOLF_MP_POWERUP_TYPES = ["barrier", "offswitch"];
+export const GOLF_MP_BARRIER_MS = 7000;
+export const GOLF_MP_BARRIER_W = 24;
+export const GOLF_MP_BARRIER_H = 190;
+export const GOLF_MP_OFFSWITCH_MS = 2600;
+export const GOLF_MP_BROADCAST_MS = 120;
+
+// Paredes fixas do campo, iguais para todos.
+export const GOLF_MP_WALLS = [
+  { x: 300, y: 0, w: 24, h: 340 },
+  { x: 300, y: 560, w: 24, h: 340 },
+  { x: 620, y: 200, w: 24, h: 500 },
+  { x: 940, y: 0, w: 24, h: 340 },
+  { x: 940, y: 560, w: 24, h: 340 },
+  { x: 1260, y: 220, w: 24, h: 460 },
+];
+
+export async function startGolfTeam(code, room) {
+  const balls = {};
+  Object.keys(room.players || {}).forEach((uid) => {
+    balls[uid] = { x: GOLF_MP_START.x, y: GOLF_MP_START.y, updatedAt: serverNow() };
+  });
+  await update(roomRef(code), {
+    state: "golf",
+    golf: {
+      courseW: GOLF_MP_COURSE_W, courseH: GOLF_MP_COURSE_H,
+      balls,
+      finished: {},
+      powerups: {},
+      barriers: {},
+      charges: {},
+      frozenUntil: {},
+      startedAt: serverNow(),
+      endAt: serverNow() + GOLF_MP_ROUND_MS,
+      lastPowerupSpawnAt: serverNow(),
+      resolved: false,
+    },
+  });
+}
+
+export async function updateGolfBall(code, uid, x, y) {
+  await update(ref(db, `rooms/${code}/golf/balls/${uid}`), { x, y, updatedAt: serverNow() });
+}
+
+// Quem chega ao buraco fica com o tempo registado; a ordem de chegada é o
+// que decide os pontos. Idempotente: só grava a primeira vez.
+export async function claimGolfFinish(code, room, uid) {
+  if (room.golf?.finished?.[uid]) return;
+  await set(ref(db, `rooms/${code}/golf/finished/${uid}`), serverNow() - (room.golf?.startedAt || 0));
+}
+
+function randomGolfPowerupSpot() {
+  const margin = 0.15;
+  return {
+    x: Math.round((margin + Math.random() * (1 - margin * 2)) * GOLF_MP_COURSE_W),
+    y: Math.round((margin + Math.random() * (1 - margin * 2)) * GOLF_MP_COURSE_H),
+  };
+}
+
+export async function spawnGolfPowerup(code, room) {
+  const golf = room.golf;
+  if (!golf || golf.resolved) return;
+  if (Object.keys(golf.powerups || {}).length >= GOLF_MP_POWERUP_MAX_ACTIVE) return;
+  const id = `g${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const type = GOLF_MP_POWERUP_TYPES[Math.floor(Math.random() * GOLF_MP_POWERUP_TYPES.length)];
+  const spot = randomGolfPowerupSpot();
+  await update(roomRef(code), {
+    [`golf/powerups/${id}`]: { type, x: spot.x, y: spot.y },
+    "golf/lastPowerupSpawnAt": serverNow(),
+  });
+}
+
+// Transação: se duas bolas passarem pelo mesmo power-up quase ao mesmo
+// tempo, só uma o leva. Guarda-se como "carga" — quem apanha decide quando
+// usar, o que é metade da graça.
+export async function claimGolfPowerup(code, uid, powerupId, type) {
+  const result = await runTransaction(ref(db, `rooms/${code}/golf/powerups/${powerupId}`), (current) => {
+    if (!current) return current; // já apanhado
+    return null;
+  });
+  if (!result.committed || result.snapshot.val() !== null) return false;
+  await set(ref(db, `rooms/${code}/golf/charges/${uid}`), type);
+  return true;
+}
+
+// Usar a carga. A barreira nasce onde estás (a cortar o caminho a quem vem
+// atrás); o interruptor congela toda a gente MENOS quem o usou.
+export async function useGolfCharge(code, room, uid, x, y) {
+  const golf = room.golf;
+  const type = golf?.charges?.[uid];
+  if (!golf || golf.resolved || !type) return null;
+  const updates = { [`golf/charges/${uid}`]: null };
+  if (type === "barrier") {
+    const id = `b${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    updates[`golf/barriers/${id}`] = {
+      x: Math.round(Math.max(0, Math.min(GOLF_MP_COURSE_W - GOLF_MP_BARRIER_W, x - GOLF_MP_BARRIER_W / 2))),
+      y: Math.round(Math.max(0, Math.min(GOLF_MP_COURSE_H - GOLF_MP_BARRIER_H, y - GOLF_MP_BARRIER_H / 2))),
+      w: GOLF_MP_BARRIER_W,
+      h: GOLF_MP_BARRIER_H,
+      until: serverNow() + GOLF_MP_BARRIER_MS,
+      byId: uid,
+    };
+  } else {
+    const until = serverNow() + GOLF_MP_OFFSWITCH_MS;
+    Object.keys(room.players || {}).forEach((other) => {
+      if (other !== uid && !golf.finished?.[other]) updates[`golf/frozenUntil/${other}`] = until;
+    });
+  }
+  await update(roomRef(code), updates);
+  return type;
+}
+
+// Limpa barreiras cujo tempo passou. Chamado pelo anfitrião, como o resto
+// da manutenção da ronda.
+export async function pruneGolfBarriers(code, room) {
+  const barriers = room.golf?.barriers || {};
+  const now = serverNow();
+  const updates = {};
+  Object.entries(barriers).forEach(([id, b]) => {
+    if ((b.until || 0) <= now) updates[`golf/barriers/${id}`] = null;
+  });
+  if (Object.keys(updates).length > 0) await update(roomRef(code), updates);
+}
+
+// As paredes que valem AGORA: as fixas do campo mais as barreiras que ainda
+// não expiraram. Função pura — a mesma que o cliente usa para as colisões.
+export function golfActiveWalls(golf, now) {
+  const barriers = Object.values(golf?.barriers || {})
+    .filter((b) => (b.until || 0) > now)
+    .map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h }));
+  return [...GOLF_MP_WALLS, ...barriers];
+}
+
+// Função pura. Quem acaba leva pontos pela ordem de chegada; quem não acaba
+// leva pontos pela distância a que ficou do buraco, para não sair de mãos a
+// abanar por ter apanhado uma barreira mesmo no fim.
+export function computeGolfResults(room) {
+  const golf = room.golf || {};
+  const players = Object.keys(room.players || {});
+  const finishers = players
+    .filter((uid) => golf.finished?.[uid] !== undefined)
+    .sort((a, b) => golf.finished[a] - golf.finished[b]);
+  const roundPoints = {};
+  const standings = {};
+  finishers.forEach((uid, i) => {
+    const pts = GOLF_MP_FINISH_POINTS[i] ?? GOLF_MP_FINISH_POINTS_MIN;
+    roundPoints[uid] = pts;
+    standings[uid] = { place: i + 1, timeMs: golf.finished[uid], finished: true };
+  });
+  players
+    .filter((uid) => golf.finished?.[uid] === undefined)
+    .map((uid) => {
+      const ball = golf.balls?.[uid] || GOLF_MP_START;
+      const dx = GOLF_MP_HOLE.x - ball.x;
+      const dy = GOLF_MP_HOLE.y - ball.y;
+      return { uid, dist: Math.sqrt(dx * dx + dy * dy) };
+    })
+    .sort((a, b) => a.dist - b.dist)
+    .forEach((entry, i) => {
+      roundPoints[entry.uid] = i === 0 ? 2 : 1;
+      standings[entry.uid] = {
+        place: finishers.length + i + 1,
+        finished: false,
+        distance: Math.round(entry.dist),
+      };
+    });
+  return { roundPoints, standings };
+}
+
+export async function resolveGolfRound(code, room) {
+  if (!room.golf || room.golf.resolved) return;
+  // Relê antes de contar, pelo mesmo motivo da corrida: a bola que entrou a
+  // fechar a ronda pode ainda não estar no instantâneo em memória.
+  const snap = await get(roomRef(code));
+  const fresh = snap.exists() ? snap.val() : room;
+  if (!fresh.golf || fresh.golf.resolved) return;
+  const { roundPoints, standings } = computeGolfResults(fresh);
+  const updates = {
+    "golf/resolved": true,
+    "golf/resolvedAt": serverNow(),
+    "golf/roundPoints": roundPoints,
+    "golf/standings": standings,
+  };
+  Object.entries(roundPoints).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = fresh.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  await update(roomRef(code), updates);
+}
+
+export async function finishGolfRound(code, room) {
+  await startNextBonusGame(code, room);
 }
