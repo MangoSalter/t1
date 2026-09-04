@@ -208,31 +208,54 @@ export const LANDMARKS = [
   },
   {
     id: "cristo", name: "Cristo Redentor", answer: "Brasil",
+    // Silhueta de figura vestida com túnica, braços abertos ao alto (como
+    // a estátua real, não um simples "mais" em cima de uma colina).
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10,90 C 30,70 70,70 90,90 Z" fill="#8fb56f" stroke="var(--ink)" stroke-width="2"/>
-      <line x1="50" y1="30" x2="50" y2="70" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/>
-      <line x1="18" y1="42" x2="82" y2="42" stroke="var(--ink)" stroke-width="3.2" stroke-linecap="round"/>
-      <circle cx="50" cy="22" r="9" fill="#f0cf8f" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M6,92 C 24,68 76,68 94,92 Z" fill="#8fb56f" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M50,50 L18,38 M50,50 L82,38" fill="none" stroke="#e7e2d3" stroke-width="7" stroke-linecap="round"/>
+      <path d="M50,50 L18,38 M50,50 L82,38" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M41,88 L41,50 C 41,38 59,38 59,50 L59,88 Z" fill="#e7e2d3" stroke="var(--ink)" stroke-width="2.2"/>
+      <circle cx="50" cy="27" r="8" fill="#f0cf8f" stroke="var(--ink)" stroke-width="2.2"/>
     </svg>`,
   },
   {
     id: "muralha", name: "Grande Muralha da China", answer: "China",
+    // Muralha em degraus a subir colinas, com ameias (dentes) no topo e uma
+    // torre de vigia — a versão anterior era só uma linha ondulada com uma
+    // casinha ao lado, irreconhecível como muralha.
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4,70 C 20,50 30,80 46,55 C 58,38 68,68 96,40" fill="none" stroke="#c9a877" stroke-width="10" stroke-linecap="round"/>
-      <path d="M4,70 C 20,50 30,80 46,55 C 58,38 68,68 96,40" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>
-      <rect x="40" y="30" width="14" height="18" fill="#c9a877" stroke="var(--ink)" stroke-width="2"/>
-      <polygon points="37,30 47,20 57,30" fill="var(--primary)" stroke="var(--ink)" stroke-width="1.6"/>
+      <path d="M0,84 L14,58 L26,74 L40,48 L56,70 L70,44 L86,66 L100,52 L100,100 L0,100 Z" fill="#a8bf8a" stroke="none"/>
+      <path d="M4,80 L18,80 L18,68 L30,68 L30,76 L42,76 L42,60 L54,60 L54,70 L66,70 L66,52 L78,52 L78,62 L94,62"
+        fill="none" stroke="#c9a877" stroke-width="9" stroke-linejoin="round"/>
+      <path d="M4,80 L18,80 L18,68 L30,68 L30,76 L42,76 L42,60 L54,60 L54,70 L66,70 L66,52 L78,52 L78,62 L94,62"
+        fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linejoin="round"/>
+      <g fill="#c9a877" stroke="var(--ink)" stroke-width="1.2">
+        <rect x="6" y="75" width="4" height="5"/>
+        <rect x="13" y="75" width="4" height="5"/>
+        <rect x="20" y="63" width="4" height="5"/>
+        <rect x="34" y="71" width="4" height="5"/>
+        <rect x="46" y="55" width="4" height="5"/>
+        <rect x="58" y="65" width="4" height="5"/>
+        <rect x="70" y="47" width="4" height="5"/>
+        <rect x="82" y="57" width="4" height="5"/>
+        <rect x="89" y="57" width="4" height="5"/>
+      </g>
+      <rect x="46" y="42" width="12" height="18" fill="#c9a877" stroke="var(--ink)" stroke-width="1.8"/>
+      <polygon points="44,42 52,32 60,42" fill="var(--primary)" stroke="var(--ink)" stroke-width="1.6"/>
     </svg>`,
   },
   {
     id: "liberdade", name: "Estátua da Liberdade", answer: "Estados Unidos",
+    // Braço ligado ao corpo a erguer a tocha (antes era uma linha solta ao
+    // lado da figura, parecia um poste de luz em vez de um braço erguido).
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <rect x="40" y="80" width="20" height="10" fill="#9db89a" stroke="var(--ink)" stroke-width="2"/>
-      <path d="M42,80 L42,45 C 42,35 58,35 58,45 L58,80 Z" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
-      <circle cx="50" cy="30" r="9" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
-      <path d="M44,22 L50,10 L56,22 M40,25 L47,15 M60,25 L53,15" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/>
-      <line x1="66" y1="45" x2="66" y2="15" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M66,15 C 60,15 60,25 66,25 C 72,25 72,15 66,15 Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="38" y="82" width="24" height="8" fill="#9db89a" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M42,82 L42,48 C 42,38 58,38 58,48 L58,82 Z" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M56,52 C 66,48 70,32 68,17" fill="none" stroke="#a8c4a3" stroke-width="7" stroke-linecap="round"/>
+      <path d="M56,52 C 66,48 70,32 68,17" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M68,17 L62,9 L70,7 L76,15 Z" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.8"/>
+      <circle cx="50" cy="32" r="9" fill="#a8c4a3" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M43,24 L47,13 M50,24 L50,11 M57,24 L53,13" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`,
   },
   {
