@@ -50,7 +50,7 @@
       <button id="solo-classic-btn" class="primary">Eu sei — modo clássico</button>
       <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
       <div class="divider">jogar avulso</div>
-      <button id="solo-play-reflex-btn">Reflexos</button>
+      <button id="solo-play-reflex-btn">Olho de Lince</button>
       <button id="solo-play-wordflash-btn">Palavra Relâmpago</button>
       <button id="solo-play-bug-btn">Mata o Inseto</button>
       <button id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
@@ -80,7 +80,7 @@
       <h2>Maratona de mini-jogos</h2>
       <p class="hint">Escolhe quais entram — a ordem é sorteada, um de cada vez, até todos terem sido jogados.</p>
       <div class="marathon-picker">
-        <label><input type="checkbox" data-marathon-game="reflex" checked /> Reflexos</label>
+        <label><input type="checkbox" data-marathon-game="reflex" checked /> Olho de Lince</label>
         <label><input type="checkbox" data-marathon-game="word" checked /> Palavra Relâmpago</label>
         <label><input type="checkbox" data-marathon-game="bug" checked /> Mata o Inseto</label>
         <label><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
@@ -210,13 +210,33 @@
     </div>
   </section>
 
-  <!-- SOLO MINIGAME: REFLEXOS -->
+  <!-- SOLO: OLHO DE LINCE — escolher tema -->
+  <section data-screen="solo-reflex-setup" class="screen">
+    <div class="card">
+      <h2>Olho de Lince — escolher tema</h2>
+      <p class="hint">Escolhe o cenário onde vais procurar os itens.</p>
+      <label class="config-form" style="margin:0">Tema
+        <select id="reflex-theme-select">
+          <option value="Aleatório">Aleatório (muda a cada ronda)</option>
+          <option value="Selva">Selva</option>
+          <option value="Mar">Mar</option>
+          <option value="Casa e Cozinha">Casa e Cozinha</option>
+        </select>
+      </label>
+      <button id="reflex-setup-start-btn" class="primary">Começar</button>
+      <button data-solo-home class="ghost">Voltar</button>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: OLHO DE LINCE -->
   <section data-screen="solo-minigame" class="screen fullscreen-game">
-    <div class="card center">
-      <h2>Mini-jogo: Reflexos!</h2>
-      <p id="solo-mg-status" class="hint">Prepara-te...</p>
-      <div id="solo-mg-circle" class="ball-circle"></div>
-      <p class="hint small">Clica na bola assim que ela ficar vermelha, para pontos bónus.</p>
+    <div class="card wide center">
+      <h2>Olho de Lince — <span id="reflex-theme-label"></span></h2>
+      <p id="reflex-prompt" class="hint"></p>
+      <p id="reflex-round-info" class="hint small"></p>
+      <div class="round-timer" id="reflex-timer"></div>
+      <div id="reflex-scene" class="reflex-scene"></div>
+      <p id="reflex-status" class="hint"></p>
     </div>
   </section>
 

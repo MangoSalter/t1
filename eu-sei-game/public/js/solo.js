@@ -8,7 +8,7 @@ import { CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES } from 
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
-const BEST_REACTION_KEY = "euSei_soloBestReaction";
+const REFLEX_THEME_KEY = "euSei_reflexTheme";
 const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
 const SCORE_HISTORY_MAX = 20;
 const ACCOUNT_KEY = "euSei_soloAccount";
@@ -20,9 +20,54 @@ const SOLO_BASE_TIME = 75;
 const SOLO_MIN_TIME = 30;
 const SOLO_EXCLUDE_HARD = true;
 
-const MG_MIN_DELAY_MS = 1000;
-const MG_MAX_DELAY_MS = 3000;
-const MG_MAX_BONUS = 15;
+const REFLEX_ROUNDS_COUNT = 8;
+const REFLEX_ROUND_MS = 6000;
+const REFLEX_ITEMS_ON_SCREEN = 14;
+const REFLEX_HIT_BASE_POINTS = 4;
+const REFLEX_HIT_SPEED_BONUS_MAX = 4;
+const REFLEX_WRONG_PENALTY = 2;
+const REFLEX_MAX_BONUS = 45;
+const REFLEX_RANDOM_THEME = "Aleatório";
+
+// Temas do "Olho de Lince" — cada um com o seu cenário e conjunto de itens
+// (emoji + nome) para procurar. Doodles simples, sem imagens externas.
+const REFLEX_THEMES = {
+  "Selva": [
+    { e: "🐝", n: "abelha" }, { e: "🦋", n: "borboleta" }, { e: "🐞", n: "joaninha" }, { e: "🐛", n: "lagarta" },
+    { e: "🕷️", n: "aranha" }, { e: "🦗", n: "gafanhoto" }, { e: "🌺", n: "flor" }, { e: "🍄", n: "cogumelo" },
+    { e: "🐒", n: "macaco" }, { e: "🦜", n: "papagaio" }, { e: "🐍", n: "cobra" }, { e: "🦎", n: "lagarto" },
+    { e: "🌿", n: "folha" }, { e: "🐆", n: "leopardo" }, { e: "🦔", n: "ouriço" },
+  ],
+  "Mar": [
+    { e: "🐚", n: "concha" }, { e: "🐠", n: "peixe tropical" }, { e: "🐟", n: "peixe" }, { e: "🐡", n: "baiacu" },
+    { e: "🦀", n: "caranguejo" }, { e: "🐙", n: "polvo" }, { e: "🦑", n: "lula" }, { e: "🐬", n: "golfinho" },
+    { e: "🐳", n: "baleia" }, { e: "🦈", n: "tubarão" }, { e: "⭐", n: "estrela-do-mar" }, { e: "🪸", n: "coral" },
+    { e: "🦞", n: "lagosta" }, { e: "🦐", n: "camarão" }, { e: "🐢", n: "tartaruga" },
+  ],
+  "Casa e Cozinha": [
+    { e: "🍽️", n: "prato" }, { e: "🍴", n: "talher" }, { e: "🥄", n: "colher" }, { e: "🍳", n: "ovo estrelado" },
+    { e: "🧂", n: "sal" }, { e: "🫖", n: "bule" }, { e: "☕", n: "chávena" }, { e: "🧁", n: "queque" },
+    { e: "🍞", n: "pão" }, { e: "🥐", n: "croissant" }, { e: "🧊", n: "gelo" }, { e: "🧽", n: "esponja" },
+    { e: "🕯️", n: "vela" }, { e: "📖", n: "livro" }, { e: "🛋️", n: "sofá" },
+  ],
+};
+const REFLEX_THEME_NAMES = [REFLEX_RANDOM_THEME, ...Object.keys(REFLEX_THEMES)];
+
+function loadReflexTheme() {
+  try {
+    return localStorage.getItem(REFLEX_THEME_KEY) || REFLEX_RANDOM_THEME;
+  } catch {
+    return REFLEX_RANDOM_THEME;
+  }
+}
+
+function saveReflexTheme(theme) {
+  try {
+    localStorage.setItem(REFLEX_THEME_KEY, theme);
+  } catch {
+    // sem drama, só não fica lembrado entre sessões.
+  }
+}
 
 const WF_TIME_SECONDS = 12;
 const WF_POINTS_PER_WORD = 3;
@@ -308,23 +353,6 @@ function saveEnabledCategories(indexes) {
   }
 }
 
-function loadBestReaction() {
-  try {
-    const raw = localStorage.getItem(BEST_REACTION_KEY);
-    return raw ? parseInt(raw, 10) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveBestReaction(ms) {
-  try {
-    localStorage.setItem(BEST_REACTION_KEY, String(ms));
-  } catch {
-    // sem drama, só perde o recorde entre sessões.
-  }
-}
-
 function loadScoreHistory() {
   try {
     const raw = localStorage.getItem(SCORE_HISTORY_KEY);
@@ -416,8 +444,14 @@ const solo = {
   answers: {},
   endAt: 0,
   inRound: false,
-  mgAppearAt: 0,
-  mgResolved: false,
+  reflexActive: false,
+  reflexRoundIndex: 0,
+  reflexScore: 0,
+  reflexTarget: null,
+  reflexRoundStartAt: 0,
+  reflexRoundEndAt: 0,
+  reflexTheme: loadReflexTheme(),
+  reflexAdvanceTimeoutId: null,
   wfLetter: "",
   wfWords: new Set(),
   wfPoints: 0,
@@ -463,6 +497,7 @@ const solo = {
   mapRoundStartAt: 0,
   mapRoundEndAt: 0,
   mapMarkerEls: {},
+  mapAdvanceTimeoutId: null,
   bugEndAt: 0,
   monkeyStartedAt: 0,
   monkeyEndAt: 0,
@@ -530,8 +565,14 @@ const els = {
   resultTable: document.getElementById("solo-result-table"),
   continueBtn: document.getElementById("solo-continue-btn"),
   restartBtn: document.getElementById("solo-restart-btn"),
-  mgStatus: document.getElementById("solo-mg-status"),
-  mgCircle: document.getElementById("solo-mg-circle"),
+  reflexSetupStartBtn: document.getElementById("reflex-setup-start-btn"),
+  reflexThemeSelect: document.getElementById("reflex-theme-select"),
+  reflexThemeLabel: document.getElementById("reflex-theme-label"),
+  reflexPrompt: document.getElementById("reflex-prompt"),
+  reflexRoundInfo: document.getElementById("reflex-round-info"),
+  reflexTimer: document.getElementById("reflex-timer"),
+  reflexScene: document.getElementById("reflex-scene"),
+  reflexStatus: document.getElementById("reflex-status"),
   wfLetter: document.getElementById("wf-letter"),
   wfTimer: document.getElementById("wf-timer"),
   wfInput: document.getElementById("wf-input"),
@@ -829,7 +870,15 @@ function launchStandalone(startFn) {
 }
 function returnToSoloMenu() { showScreen("solo-menu"); }
 
-els.playReflexBtn.addEventListener("click", () => launchStandalone(startReflexMinigame));
+els.playReflexBtn.addEventListener("click", () => {
+  els.reflexThemeSelect.value = solo.reflexTheme;
+  showScreen("solo-reflex-setup");
+});
+els.reflexSetupStartBtn.addEventListener("click", () => {
+  solo.reflexTheme = els.reflexThemeSelect.value;
+  saveReflexTheme(solo.reflexTheme);
+  launchStandalone(startReflexMinigame);
+});
 els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordFlashMinigame));
 els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame));
 els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame));
@@ -867,10 +916,6 @@ els.leaderboardBtn.addEventListener("click", () => {
 els.finishBtn.addEventListener("click", finishRound);
 els.continueBtn.addEventListener("click", startMinigame);
 els.restartBtn.addEventListener("click", startRun);
-els.mgCircle.addEventListener("click", () => {
-  if (solo.mgResolved) return;
-  resolveMinigame(Date.now());
-});
 els.wfInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitWfWord();
 });
@@ -1041,55 +1086,143 @@ function startMinigame() {
   chosen();
 }
 
-// --- Reflexos: clica na bola assim que fica vermelha (reaproveita a
-// mecânica da bola do multiplayer). ---
+// --- Olho de Lince: mostra o item a encontrar, depois espalha-o entre
+// muitos outros num cenário temático — acha-o o mais depressa possível. ---
+
+function themeSlug(name) {
+  return name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-");
+}
+
+function pickReflexTheme() {
+  if (solo.reflexTheme === REFLEX_RANDOM_THEME || !REFLEX_THEMES[solo.reflexTheme]) {
+    const names = Object.keys(REFLEX_THEMES);
+    return names[Math.floor(Math.random() * names.length)];
+  }
+  return solo.reflexTheme;
+}
+
+function renderReflexScene(shown, themeName) {
+  els.reflexScene.innerHTML = "";
+  els.reflexScene.className = `reflex-scene theme-${themeSlug(themeName)}`;
+
+  // Posições distribuídas por uma grelha com pequeno jitter (em vez de
+  // 100% aleatórias) — evita itens a sobrepor-se e ficarem impossíveis
+  // de clicar com precisão.
+  const cols = 5;
+  const rows = Math.ceil(shown.length / cols);
+  const cellW = 100 / cols;
+  const cellH = 100 / rows;
+  const cellOrder = shuffleArray(Array.from({ length: cols * rows }, (_, i) => i)).slice(0, shown.length);
+
+  shown.forEach((item, i) => {
+    const col = cellOrder[i] % cols;
+    const row = Math.floor(cellOrder[i] / cols);
+    const jitterX = (Math.random() - 0.5) * cellW * 0.5;
+    const jitterY = (Math.random() - 0.5) * cellH * 0.5;
+    const x = Math.max(4, Math.min(96, col * cellW + cellW / 2 + jitterX));
+    const y = Math.max(6, Math.min(92, row * cellH + cellH / 2 + jitterY));
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reflex-item";
+    btn.textContent = item.e;
+    btn.title = item.n;
+    btn.style.left = `${x}%`;
+    btn.style.top = `${y}%`;
+    btn.addEventListener("click", () => handleReflexItemClick(item, btn));
+    els.reflexScene.appendChild(btn);
+  });
+}
 
 function startReflexMinigame() {
-  solo.mgResolved = false;
-  solo.mgAppearAt = Date.now() + MG_MIN_DELAY_MS + Math.random() * (MG_MAX_DELAY_MS - MG_MIN_DELAY_MS);
-  els.mgCircle.classList.remove("visible");
-  els.mgStatus.textContent = "Prepara-te...";
+  clearTimeout(solo.reflexAdvanceTimeoutId);
+  solo.reflexActive = true;
+  solo.reflexRoundIndex = 0;
+  solo.reflexScore = 0;
+  els.reflexStatus.textContent = "";
   showScreen("solo-minigame");
-  showGameHud(() => 0);
+  showGameHud(() => solo.reflexScore);
   registerActiveGame({
-    pauseShift: (ms) => { solo.mgAppearAt += ms; },
-    skip: () => resolveMinigame(Math.max(Date.now(), solo.mgAppearAt + 2000)),
-    cleanup: () => { solo.mgResolved = true; },
+    pauseShift: (ms) => { solo.reflexRoundEndAt += ms; },
+    skip: finishReflexMinigame,
+    cleanup: () => {
+      solo.reflexActive = false;
+      solo.reflexTarget = null;
+      clearTimeout(solo.reflexAdvanceTimeoutId);
+    },
   });
+  nextReflexRound();
+}
+
+function nextReflexRound() {
+  if (!solo.reflexActive) return;
+  solo.reflexRoundIndex += 1;
+  if (solo.reflexRoundIndex > REFLEX_ROUNDS_COUNT) {
+    finishReflexMinigame();
+    return;
+  }
+
+  const themeName = pickReflexTheme();
+  const items = REFLEX_THEMES[themeName];
+  const shown = shuffleArray(items).slice(0, Math.min(REFLEX_ITEMS_ON_SCREEN, items.length));
+  const target = shown[Math.floor(Math.random() * shown.length)];
+  solo.reflexTarget = target;
+  solo.reflexRoundStartAt = Date.now();
+  solo.reflexRoundEndAt = solo.reflexRoundStartAt + REFLEX_ROUND_MS;
+
+  els.reflexThemeLabel.textContent = themeName;
+  els.reflexPrompt.innerHTML = `Encontra: <strong>${target.e} ${target.n}</strong>`;
+  els.reflexRoundInfo.textContent = `Ronda ${solo.reflexRoundIndex}/${REFLEX_ROUNDS_COUNT}`;
+  els.reflexStatus.textContent = "";
+  renderReflexScene(shown, themeName);
 
   function tick() {
-    if (solo.mgResolved) return;
+    if (!solo.reflexActive || !solo.reflexTarget) return;
     if (solo.paused) { requestAnimationFrame(tick); return; }
-    if (Date.now() >= solo.mgAppearAt) {
-      els.mgCircle.classList.add("visible");
+    const msLeft = solo.reflexRoundEndAt - Date.now();
+    els.reflexTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    if (msLeft <= 0) {
+      els.reflexStatus.textContent = `Tempo esgotado! Era: ${target.e} ${target.n}`;
+      solo.reflexTarget = null;
+      clearTimeout(solo.reflexAdvanceTimeoutId);
+      solo.reflexAdvanceTimeoutId = setTimeout(() => nextReflexRound(), 900);
+      return;
     }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 }
 
-function resolveMinigame(clickedAt) {
-  if (solo.mgResolved) return;
-  solo.mgResolved = true;
-  els.mgCircle.classList.add("visible");
-
-  let bonus = 0;
-  let resultText;
-  if (clickedAt < solo.mgAppearAt) {
-    resultText = "Cedo demais! +0 pts bónus.";
+function handleReflexItemClick(item, btn) {
+  if (!solo.reflexActive || !solo.reflexTarget || solo.paused) return;
+  if (item.n === solo.reflexTarget.n) {
+    const reactionMs = Date.now() - solo.reflexRoundStartAt;
+    const speedBonus = Math.max(0, Math.round(REFLEX_HIT_SPEED_BONUS_MAX - reactionMs / 1500));
+    const points = REFLEX_HIT_BASE_POINTS + speedBonus;
+    solo.reflexScore += points;
+    updateGameHudScore();
+    btn.classList.add("correct-flash");
+    els.reflexStatus.textContent = `Encontraste! +${points} pts`;
+    solo.reflexTarget = null;
+    clearTimeout(solo.reflexAdvanceTimeoutId);
+    solo.reflexAdvanceTimeoutId = setTimeout(() => nextReflexRound(), 700);
   } else {
-    const reactionMs = clickedAt - solo.mgAppearAt;
-    bonus = Math.max(0, Math.round(MG_MAX_BONUS - reactionMs / 100));
-    const best = loadBestReaction();
-    if (best === null || reactionMs < best) {
-      saveBestReaction(reactionMs);
-      resultText = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! Novo recorde pessoal! ⚡`;
-    } else {
-      resultText = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus! (recorde: ${best}ms)`;
-    }
+    solo.reflexScore = Math.max(0, solo.reflexScore - REFLEX_WRONG_PENALTY);
+    updateGameHudScore();
+    btn.classList.add("wrong-flash");
+    els.reflexStatus.textContent = `Isso é "${item.n}" — não é o que procuras.`;
+    setTimeout(() => btn.classList.remove("wrong-flash"), 400);
   }
+}
+
+function finishReflexMinigame() {
+  if (!solo.reflexActive) return;
+  clearTimeout(solo.reflexAdvanceTimeoutId);
+  solo.reflexActive = false;
+  solo.reflexTarget = null;
+  const bonus = Math.min(solo.reflexScore, REFLEX_MAX_BONUS);
   solo.runScore += bonus;
-  showMinigameEnd({ gameLabel: "Reflexos", points: bonus, favoriteKey: "reflex", resultText });
+  showMinigameEnd({ gameLabel: "Olho de Lince", points: bonus, favoriteKey: "reflex", resultText: `+${bonus} pts bónus!` });
 }
 
 // --- Palavra Relâmpago: escreve o máximo de palavras possível numa letra
@@ -1615,6 +1748,7 @@ function renderMapMarkers() {
 }
 
 function startMapMinigame() {
+  clearTimeout(solo.mapAdvanceTimeoutId);
   solo.mapActive = true;
   solo.mapRoundIndex = 0;
   solo.mapScore = 0;
@@ -1625,7 +1759,11 @@ function startMapMinigame() {
   registerActiveGame({
     pauseShift: (ms) => { solo.mapRoundEndAt += ms; },
     skip: finishMapMinigame,
-    cleanup: () => { solo.mapActive = false; solo.mapCriteria = null; },
+    cleanup: () => {
+      solo.mapActive = false;
+      solo.mapCriteria = null;
+      clearTimeout(solo.mapAdvanceTimeoutId);
+    },
   });
   nextMapRound();
 }
@@ -1643,7 +1781,8 @@ function handleMapPinClick(country) {
     els.mapStatus.textContent = `Certo! ${country.name} — +${points} pts`;
     solo.mapCriteria = null;
     setTimeout(() => btn.classList.remove("correct-flash"), 600);
-    setTimeout(() => nextMapRound(), 700);
+    clearTimeout(solo.mapAdvanceTimeoutId);
+    solo.mapAdvanceTimeoutId = setTimeout(() => nextMapRound(), 700);
   } else {
     solo.mapScore = Math.max(0, solo.mapScore - MAP_WRONG_PENALTY);
     updateGameHudScore();
@@ -1677,7 +1816,8 @@ function nextMapRound() {
       const more = solo.mapCriteria.matchSet.size > 3 ? "..." : "";
       els.mapStatus.textContent = `Tempo esgotado! Era: ${missedNames}${more}`;
       solo.mapCriteria = null;
-      setTimeout(() => nextMapRound(), 900);
+      clearTimeout(solo.mapAdvanceTimeoutId);
+      solo.mapAdvanceTimeoutId = setTimeout(() => nextMapRound(), 900);
       return;
     }
     requestAnimationFrame(tick);
@@ -1687,6 +1827,7 @@ function nextMapRound() {
 
 function finishMapMinigame() {
   if (!solo.mapActive) return;
+  clearTimeout(solo.mapAdvanceTimeoutId);
   solo.mapActive = false;
   solo.mapCriteria = null;
   const bonus = Math.min(solo.mapScore, MAP_MAX_BONUS);
