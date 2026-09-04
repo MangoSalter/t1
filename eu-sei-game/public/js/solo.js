@@ -14,6 +14,10 @@ const SOLO_BASE_TIME = 75;
 const SOLO_MIN_TIME = 30;
 const SOLO_EXCLUDE_HARD = true;
 
+const MG_MIN_DELAY_MS = 1000;
+const MG_MAX_DELAY_MS = 3000;
+const MG_MAX_BONUS = 15;
+
 function difficultyForRound(round) {
   const numCategories = Math.min(
     SOLO_BASE_CATEGORIES + Math.floor((round - 1) / 2),
@@ -50,6 +54,8 @@ const solo = {
   answers: {},
   endAt: 0,
   inRound: false,
+  mgAppearAt: 0,
+  mgResolved: false,
 };
 
 const els = {
@@ -66,6 +72,8 @@ const els = {
   resultTable: document.getElementById("solo-result-table"),
   continueBtn: document.getElementById("solo-continue-btn"),
   restartBtn: document.getElementById("solo-restart-btn"),
+  mgStatus: document.getElementById("solo-mg-status"),
+  mgCircle: document.getElementById("solo-mg-circle"),
 };
 
 function showScreen(name) {
@@ -88,10 +96,12 @@ document.querySelectorAll("[data-solo-leave]").forEach((btn) => {
   });
 });
 els.finishBtn.addEventListener("click", finishRound);
-els.continueBtn.addEventListener("click", () => {
-  nextRound();
-});
+els.continueBtn.addEventListener("click", startMinigame);
 els.restartBtn.addEventListener("click", startRun);
+els.mgCircle.addEventListener("click", () => {
+  if (solo.mgResolved) return;
+  resolveMinigame(Date.now());
+});
 
 function startRun() {
   solo.round = 0;
@@ -226,4 +236,41 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
     els.continueBtn.classList.add("hidden");
     els.restartBtn.classList.remove("hidden");
   }
+}
+
+// --- Mini-jogo de reflexos: bónus de pontos entre rondas, reaproveitando
+// a mecânica da bola do multiplayer (clica assim que fica vermelha). ---
+
+function startMinigame() {
+  solo.mgResolved = false;
+  solo.mgAppearAt = Date.now() + MG_MIN_DELAY_MS + Math.random() * (MG_MAX_DELAY_MS - MG_MIN_DELAY_MS);
+  els.mgCircle.classList.remove("visible");
+  els.mgStatus.textContent = "Prepara-te...";
+  showScreen("solo-minigame");
+
+  function tick() {
+    if (solo.mgResolved) return;
+    if (Date.now() >= solo.mgAppearAt) {
+      els.mgCircle.classList.add("visible");
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function resolveMinigame(clickedAt) {
+  solo.mgResolved = true;
+  els.mgCircle.classList.add("visible");
+
+  let bonus = 0;
+  if (clickedAt < solo.mgAppearAt) {
+    els.mgStatus.textContent = "Cedo demais! +0 pts bónus.";
+  } else {
+    const reactionMs = clickedAt - solo.mgAppearAt;
+    bonus = Math.max(0, Math.round(MG_MAX_BONUS - reactionMs / 100));
+    els.mgStatus.textContent = `Reagiste em ${reactionMs}ms — +${bonus} pts bónus!`;
+  }
+  solo.runScore += bonus;
+
+  setTimeout(nextRound, 1400);
 }
