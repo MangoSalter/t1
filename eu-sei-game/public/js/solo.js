@@ -4,7 +4,7 @@
 // Sem outros jogadores para votar, só se valida se a resposta começa pela
 // letra certa (decisão tomada para o MVP: sem lista de palavras).
 
-import { CATEGORIES, pickLetters, pickCategories, DEFAULT_CONFIG } from "./data.js";
+import { CATEGORIES, pickLetters, pickCategories } from "./data.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 
@@ -17,6 +17,11 @@ const SOLO_EXCLUDE_HARD = true;
 const MG_MIN_DELAY_MS = 1000;
 const MG_MAX_DELAY_MS = 3000;
 const MG_MAX_BONUS = 15;
+
+const WF_TIME_SECONDS = 12;
+const WF_POINTS_PER_WORD = 3;
+const WF_MAX_BONUS = 30;
+const WF_MIN_LENGTH = 3;
 
 function difficultyForRound(round) {
   const numCategories = Math.min(
@@ -56,6 +61,10 @@ const solo = {
   inRound: false,
   mgAppearAt: 0,
   mgResolved: false,
+  wfLetter: "",
+  wfWords: new Set(),
+  wfEndAt: 0,
+  wfActive: false,
 };
 
 const els = {
@@ -74,6 +83,12 @@ const els = {
   restartBtn: document.getElementById("solo-restart-btn"),
   mgStatus: document.getElementById("solo-mg-status"),
   mgCircle: document.getElementById("solo-mg-circle"),
+  wfLetter: document.getElementById("wf-letter"),
+  wfTimer: document.getElementById("wf-timer"),
+  wfInput: document.getElementById("wf-input"),
+  wfFeedback: document.getElementById("wf-feedback"),
+  wfWords: document.getElementById("wf-words"),
+  wfStatus: document.getElementById("wf-status"),
 };
 
 function showScreen(name) {
@@ -101,6 +116,9 @@ els.restartBtn.addEventListener("click", startRun);
 els.mgCircle.addEventListener("click", () => {
   if (solo.mgResolved) return;
   resolveMinigame(Date.now());
+});
+els.wfInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") submitWfWord();
 });
 
 function startRun() {
@@ -238,10 +256,20 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
   }
 }
 
-// --- Mini-jogo de reflexos: bónus de pontos entre rondas, reaproveitando
-// a mecânica da bola do multiplayer (clica assim que fica vermelha). ---
+// --- Mini-jogos bónus entre rondas: escolhido ao acaso a cada ronda, para
+// dar variedade em vez de repetir sempre o mesmo. ---
+
+const MINIGAMES = [startReflexMinigame, startWordFlashMinigame];
 
 function startMinigame() {
+  const chosen = MINIGAMES[Math.floor(Math.random() * MINIGAMES.length)];
+  chosen();
+}
+
+// --- Reflexos: clica na bola assim que fica vermelha (reaproveita a
+// mecânica da bola do multiplayer). ---
+
+function startReflexMinigame() {
   solo.mgResolved = false;
   solo.mgAppearAt = Date.now() + MG_MIN_DELAY_MS + Math.random() * (MG_MAX_DELAY_MS - MG_MIN_DELAY_MS);
   els.mgCircle.classList.remove("visible");
@@ -273,4 +301,71 @@ function resolveMinigame(clickedAt) {
   solo.runScore += bonus;
 
   setTimeout(nextRound, 1400);
+}
+
+// --- Palavra Relâmpago: escreve o máximo de palavras possível numa letra
+// aleatória, contra o tempo. ---
+
+function startWordFlashMinigame() {
+  solo.wfLetter = pickLetters(1, new Set(), true)[0];
+  solo.wfWords = new Set();
+  solo.wfEndAt = Date.now() + WF_TIME_SECONDS * 1000;
+  solo.wfActive = true;
+
+  els.wfLetter.textContent = solo.wfLetter;
+  els.wfInput.value = "";
+  els.wfFeedback.textContent = "";
+  els.wfWords.innerHTML = "";
+  els.wfStatus.textContent = "";
+  showScreen("solo-minigame-word");
+  els.wfInput.focus();
+
+  function tick() {
+    if (!solo.wfActive) return;
+    const msLeft = solo.wfEndAt - Date.now();
+    els.wfTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    if (msLeft <= 0) {
+      finishWordFlash();
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function submitWfWord() {
+  if (!solo.wfActive) return;
+  const raw = els.wfInput.value.trim();
+  els.wfInput.value = "";
+  if (!raw) return;
+
+  const letter = solo.wfLetter.toUpperCase();
+  const key = raw.toLowerCase();
+  if (raw[0].toUpperCase() !== letter) {
+    els.wfFeedback.textContent = `"${raw}" não começa por ${solo.wfLetter}.`;
+    return;
+  }
+  if (raw.length < WF_MIN_LENGTH) {
+    els.wfFeedback.textContent = `"${raw}" é demasiado curta.`;
+    return;
+  }
+  if (solo.wfWords.has(key)) {
+    els.wfFeedback.textContent = `Já escreveste "${raw}".`;
+    return;
+  }
+
+  solo.wfWords.add(key);
+  els.wfFeedback.textContent = "";
+  const chip = document.createElement("span");
+  chip.className = "wf-word-chip";
+  chip.textContent = raw;
+  els.wfWords.appendChild(chip);
+}
+
+function finishWordFlash() {
+  solo.wfActive = false;
+  const bonus = Math.min(solo.wfWords.size * WF_POINTS_PER_WORD, WF_MAX_BONUS);
+  solo.runScore += bonus;
+  els.wfStatus.textContent = `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`;
+  setTimeout(nextRound, 1600);
 }

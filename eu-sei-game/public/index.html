@@ -48,13 +48,26 @@
     </div>
   </section>
 
-  <!-- SOLO: MINIGAME (bónus de reflexos entre rondas) -->
+  <!-- SOLO MINIGAME: REFLEXOS -->
   <section data-screen="solo-minigame" class="screen">
     <div class="card center">
       <h2>Mini-jogo: Reflexos!</h2>
       <p id="solo-mg-status" class="hint">Prepara-te...</p>
       <div id="solo-mg-circle" class="ball-circle"></div>
       <p class="hint small">Clica na bola assim que ela ficar vermelha, para pontos bónus.</p>
+    </div>
+  </section>
+
+  <!-- SOLO MINIGAME: PALAVRA RELÂMPAGO -->
+  <section data-screen="solo-minigame-word" class="screen">
+    <div class="card center">
+      <h2>Mini-jogo: Palavra Relâmpago!</h2>
+      <p class="hint">Escreve o máximo de palavras que conseguires que comecem por <span id="wf-letter" class="letter-big"></span>, antes do tempo acabar.</p>
+      <div class="round-timer" id="wf-timer"></div>
+      <input id="wf-input" type="text" autocomplete="off" placeholder="Escreve uma palavra e carrega Enter" />
+      <p id="wf-feedback" class="hint small"></p>
+      <div id="wf-words" class="wf-words"></div>
+      <p id="wf-status" class="hint"></p>
     </div>
   </section>
 

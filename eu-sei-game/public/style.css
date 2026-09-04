@@ -74,6 +74,14 @@ button.primary:hover:not(:disabled) { background: var(--primary-dark); }
 button.ghost { background: transparent; color: var(--muted); text-decoration: underline; }
 button.ghost-primary { background: var(--accent); color: var(--text); }
 button.ghost-primary:hover:not(:disabled) { filter: brightness(0.95); }
+
+.wf-words { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 32px; margin: 8px 0; }
+.wf-word-chip { background: var(--accent); color: var(--text); padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+
+.mem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 12px 0; text-align: left; }
+.mem-card { background: #f4f2fa; border: 2px solid transparent; border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; cursor: pointer; }
+.mem-card.selected { border-color: var(--primary); background: var(--accent); }
+.mem-card.shown-preview { background: var(--accent); }
 .hidden { display: none !important; }
 
 .divider { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0; }
