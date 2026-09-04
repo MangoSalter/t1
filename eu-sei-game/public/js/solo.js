@@ -374,6 +374,16 @@ function saveAccount() {
   }
 }
 
+const GAME_LABELS = {
+  reflex: "Reflexos",
+  word: "Palavra Relâmpago",
+  bug: "Mata o Inseto",
+  monkey: "Cada Macaco no Seu Galho",
+  memory: "Memória",
+  hangman: "Forca",
+  map: "Mapa-Múndi",
+};
+
 const account = loadAccount();
 account.sessionXp = 0;
 account.sessionGamesPlayed = 0;
@@ -475,6 +485,7 @@ const els = {
   marathonSummary: document.getElementById("marathon-result-summary"),
   leaderboardBtn: document.getElementById("solo-leaderboard-btn"),
   leaderboardList: document.getElementById("solo-leaderboard-list"),
+  leaderboardStats: document.getElementById("solo-leaderboard-stats"),
   playReflexBtn: document.getElementById("solo-play-reflex-btn"),
   playWordflashBtn: document.getElementById("solo-play-wordflash-btn"),
   playBugBtn: document.getElementById("solo-play-bug-btn"),
@@ -1546,6 +1557,19 @@ function formatHistoryDate(ts) {
 }
 
 function renderLeaderboard() {
+  if (els.leaderboardStats) {
+    const favEntries = Object.entries(account.favorites || {});
+    const favLabel = favEntries.length
+      ? favEntries.sort((a, b) => b[1] - a[1])[0][0]
+      : "—";
+    els.leaderboardStats.innerHTML = `
+      <div class="stat-chip">⭐ ${account.xp} XP</div>
+      <div class="stat-chip">🎮 ${account.gamesPlayed} jogos (${account.sessionGamesPlayed} nesta sessão)</div>
+      <div class="stat-chip">🔥 combo recorde: ${account.bestCombo || 0}</div>
+      <div class="stat-chip">🪢 sequência recorde na Forca: ${account.bestHangmanStreak || 0}</div>
+      <div class="stat-chip">🏅 jogo favorito: ${GAME_LABELS[favLabel] || favLabel}</div>
+    `;
+  }
   const history = loadScoreHistory();
   els.leaderboardList.innerHTML = "";
   if (history.length === 0) {

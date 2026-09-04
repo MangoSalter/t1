@@ -184,6 +184,9 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .minigame-end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .mascot-quip { font-style: italic; }
 
+.stat-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; justify-content: center; }
+.stat-chip { background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 20px; padding: 6px 12px; font-size: 0.85rem; font-weight: 700; }
+
 .leaderboard-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; max-height: 55vh; overflow-y: auto; width: 100%; }
 .leaderboard-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; background: var(--paper-soft); border: 1.5px solid var(--paper-line); padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: left; }
 .leaderboard-pos { font-weight: 700; color: var(--primary-dark); width: 30px; }
