@@ -86,6 +86,18 @@ input[type="text"], input[type="number"] {
 }
 input:focus { outline: none; border-color: var(--primary); }
 
+select {
+  padding: 12px 14px;
+  border-radius: 10px 12px 10px 14px / 12px 10px 14px 10px;
+  border: 2px solid var(--paper-line);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 1.05rem;
+  width: 100%;
+}
+select:focus { outline: none; border-color: var(--primary); }
+
 button {
   padding: 13px 18px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;

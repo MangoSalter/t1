@@ -62,6 +62,60 @@ const MEM_SHOWN_MAX = 8;
 const MEM_DECOY_COUNT = 5;
 const MEM_POINTS_CORRECT = 4;
 const MEM_POINTS_WRONG = 2;
+const MEMORY_THEME_KEY = "euSei_memoryTheme";
+const MEMORY_GAME_THEME = "Categorias do jogo";
+
+// Temas alternativos para o mini-jogo de Memória — em vez de memorizar
+// sempre as categorias do "Eu sei!", podes escolher outro tipo de palavras.
+const MEMORY_THEMES = {
+  "Animais": [
+    "Leão", "Elefante", "Girafa", "Tartaruga", "Golfinho", "Pinguim", "Canguru", "Crocodilo",
+    "Zebra", "Hipopótamo", "Rinoceronte", "Panda", "Coala", "Tigre", "Urso", "Lobo",
+    "Raposa", "Coelho", "Esquilo", "Morcego",
+  ],
+  "Elementos Químicos": [
+    "Hidrogénio", "Hélio", "Carbono", "Azoto", "Oxigénio", "Sódio", "Magnésio", "Alumínio",
+    "Silício", "Ferro", "Ouro", "Prata", "Cobre", "Zinco", "Chumbo", "Mercúrio",
+    "Crómio", "Néon", "Árgon", "Potássio",
+  ],
+  "Campeões de LoL": [
+    "Ahri", "Yasuo", "Jinx", "Lux", "Ezreal", "Garen", "Darius", "Katarina",
+    "Lee Sin", "Thresh", "Zed", "Vayne", "Ashe", "Teemo", "Amumu", "Riven",
+    "Vi", "Jhin", "Kai'Sa", "Yone",
+  ],
+  "Harry Potter": [
+    "Harry Potter", "Rony Weasley", "Hermione Granger", "Alvo Dumbledore", "Severo Snape",
+    "Draco Malfoy", "Rúbeo Hagrid", "Minerva McGonagall", "Voldemort", "Sirius Black",
+    "Luna Lovegood", "Gina Weasley", "Neville Longbottom", "Bellatrix Lestrange", "Dobby",
+  ],
+  "Super-heróis": [
+    "Batman", "Super-Homem", "Homem-Aranha", "Homem de Ferro", "Capitã Marvel", "Thor",
+    "Hulk", "Viúva Negra", "Flash", "Mulher Maravilha", "Aquaman", "Pantera Negra",
+    "Deadpool", "Wolverine",
+  ],
+};
+const MEMORY_THEME_NAMES = [MEMORY_GAME_THEME, ...Object.keys(MEMORY_THEMES)];
+
+function loadMemoryTheme() {
+  try {
+    return localStorage.getItem(MEMORY_THEME_KEY) || MEMORY_GAME_THEME;
+  } catch {
+    return MEMORY_GAME_THEME;
+  }
+}
+
+function saveMemoryTheme(theme) {
+  try {
+    localStorage.setItem(MEMORY_THEME_KEY, theme);
+  } catch {
+    // sem drama, só não fica lembrado entre sessões.
+  }
+}
+
+function currentMemoryPool() {
+  const theme = solo.memoryTheme;
+  return theme === MEMORY_GAME_THEME || !MEMORY_THEMES[theme] ? CATEGORIES.slice() : MEMORY_THEMES[theme];
+}
 
 const SOLO_HANGMAN_MAX_WRONG = 6;
 const SOLO_HANGMAN_CHALLENGE_MAX_WRONG = 4;
@@ -374,8 +428,9 @@ const solo = {
   monkeyLifesavers: [],
   monkeyLastLifesaverAt: 0,
   memActive: false,
-  memShownIndexes: new Set(),
+  memShownLabels: new Set(),
   memSelected: new Set(),
+  memoryTheme: loadMemoryTheme(),
   afterMinigame: nextRound,
   pastValidAnswers: [],
   hangmanWord: "",
@@ -425,6 +480,8 @@ const els = {
   playBugBtn: document.getElementById("solo-play-bug-btn"),
   playMonkeyBtn: document.getElementById("solo-play-monkey-btn"),
   playMemoryBtn: document.getElementById("solo-play-memory-btn"),
+  memoryThemeSelect: document.getElementById("memory-theme-select"),
+  memorySetupStartBtn: document.getElementById("memory-setup-start-btn"),
   playHangmanBtn: document.getElementById("solo-play-hangman-btn"),
   hangmanSetupStartBtn: document.getElementById("hangman-solo-setup-start-btn"),
   hangmanCatGrid: document.getElementById("hangman-cat-grid"),
@@ -752,7 +809,9 @@ els.setupStartBtn.addEventListener("click", () => {
 });
 
 function launchStandalone(startFn) {
-  solo.afterMinigame = returnToSoloMenu;
+  // "Continuar" no ecrã de fim volta a jogar o mesmo jogo (jogar novamente
+  // sem ter de voltar ao menu) — "Sair" continua sempre disponível à parte.
+  solo.afterMinigame = startFn;
   solo.runScore = 0;
   solo.round = Math.max(solo.round, 1);
   startFn();
@@ -763,7 +822,15 @@ els.playReflexBtn.addEventListener("click", () => launchStandalone(startReflexMi
 els.playWordflashBtn.addEventListener("click", () => launchStandalone(startWordFlashMinigame));
 els.playBugBtn.addEventListener("click", () => launchStandalone(startBugSmashMinigame));
 els.playMonkeyBtn.addEventListener("click", () => launchStandalone(startMonkeyRescueMinigame));
-els.playMemoryBtn.addEventListener("click", () => launchStandalone(startMemoryMinigame));
+els.playMemoryBtn.addEventListener("click", () => {
+  els.memoryThemeSelect.value = solo.memoryTheme;
+  showScreen("solo-memory-setup");
+});
+els.memorySetupStartBtn.addEventListener("click", () => {
+  solo.memoryTheme = els.memoryThemeSelect.value;
+  saveMemoryTheme(solo.memoryTheme);
+  launchStandalone(startMemoryMinigame);
+});
 els.playHangmanBtn.addEventListener("click", () => showScreen("solo-hangman-setup"));
 els.hangmanSetupStartBtn.addEventListener("click", () => {
   saveHangmanEnabledCategories(currentHangmanEnabledCategoryNames());
@@ -1371,37 +1438,38 @@ function startMemoryMinigame() {
   showGameHud(() => solo.memSelected.size);
   registerActiveGame({ skip: finishMemory, cleanup: () => { solo.memActive = false; } });
 
-  const shownCount = memShownCountForRound(solo.round);
-  const shuffled = shuffleArray(CATEGORIES.map((_, i) => i));
+  const pool = currentMemoryPool();
+  const shownCount = Math.min(memShownCountForRound(solo.round), Math.max(1, pool.length - MEM_DECOY_COUNT));
+  const shuffled = shuffleArray(pool);
   const shown = shuffled.slice(0, shownCount);
   const decoys = shuffled.slice(shownCount, shownCount + MEM_DECOY_COUNT);
-  solo.memShownIndexes = new Set(shown);
-  const gridIndexes = shuffleArray([...shown, ...decoys]);
+  solo.memShownLabels = new Set(shown);
+  const gridItems = shuffleArray([...shown, ...decoys]);
 
-  els.memInstructions.textContent = "Memoriza estas categorias...";
+  els.memInstructions.textContent = "Memoriza isto...";
   els.memGrid.innerHTML = "";
-  shown.forEach((ci) => {
+  shown.forEach((label) => {
     const card = document.createElement("div");
     card.className = "mem-card shown-preview";
-    card.textContent = CATEGORIES[ci];
+    card.textContent = label;
     els.memGrid.appendChild(card);
   });
 
   setTimeout(() => {
     if (!solo.memActive) return;
-    els.memInstructions.textContent = `Clica nas ${shownCount} categorias que estavam lá antes.`;
+    els.memInstructions.textContent = `Clica nas ${shownCount} que estavam lá antes.`;
     els.memGrid.innerHTML = "";
-    gridIndexes.forEach((ci) => {
+    gridItems.forEach((label) => {
       const card = document.createElement("div");
       card.className = "mem-card";
-      card.textContent = CATEGORIES[ci];
+      card.textContent = label;
       card.addEventListener("click", () => {
         if (!solo.memActive) return;
-        if (solo.memSelected.has(ci)) {
-          solo.memSelected.delete(ci);
+        if (solo.memSelected.has(label)) {
+          solo.memSelected.delete(label);
           card.classList.remove("selected");
         } else {
-          solo.memSelected.add(ci);
+          solo.memSelected.add(label);
           card.classList.add("selected");
         }
         updateGameHudScore();
@@ -1419,8 +1487,8 @@ function finishMemory() {
 
   let correct = 0;
   let wrong = 0;
-  solo.memSelected.forEach((ci) => {
-    if (solo.memShownIndexes.has(ci)) correct += 1;
+  solo.memSelected.forEach((label) => {
+    if (solo.memShownLabels.has(label)) correct += 1;
     else wrong += 1;
   });
   const bonus = Math.max(0, correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG);
