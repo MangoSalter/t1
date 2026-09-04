@@ -15,6 +15,10 @@ import {
   updateTagPosition, claimTagInfection, claimTagPowerup, spawnTagPowerup, resolveTagRound, finishTagRound,
   TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS, TAG_POWERUP_MAX_ACTIVE, TAG_POWERUP_SPAWN_INTERVAL_MS,
   TAG_RESULT_DISPLAY_MS,
+  updateBattlePosition, claimBattleWeapon, claimBattleHit, spawnBattleWeapon, resolveBattleRound, finishBattleRound,
+  battleClampToWalls, BATTLE_WALLS, BATTLE_PLAYER_RADIUS, BATTLE_WEAPON_RADIUS, BATTLE_WEAPON_MAX_ACTIVE,
+  BATTLE_WEAPON_SPAWN_INTERVAL_MS, BATTLE_ATTACK_RADIUS, BATTLE_ATTACK_COOLDOWN_MS, BATTLE_LIVES,
+  BATTLE_RESULT_DISPLAY_MS,
 } from "./room.js";
 
 const screens = {};
@@ -249,6 +253,7 @@ function onRoomUpdate(room) {
     lastRenderedState = room.state;
   }
   if (room.state !== "tag" && tagState.active) tagExit();
+  if (room.state !== "battle" && battleState.active) battleExit();
 
   switch (room.state) {
     case "lobby": renderLobby(room); showScreen("lobby"); break;
@@ -268,6 +273,7 @@ function onRoomUpdate(room) {
       break;
     case "mapTrivia": renderMapTrivia(room); showScreen("map-trivia"); break;
     case "tag": renderTag(room); showScreen("tag"); break;
+    case "battle": renderBattle(room); showScreen("battle"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -281,6 +287,7 @@ function leaveToHome() {
   state.code = null;
   state.room = null;
   if (tagState.active) tagExit();
+  if (battleState.active) battleExit();
   showScreen("home");
 }
 
@@ -1214,6 +1221,310 @@ function renderTag(room) {
   }
 }
 
+// ---------- LABIRINTO: BATALHA EM EQUIPA ----------
+// Mesmo padrão de tempo real "por confiança" da Fuga da Infeção: cada
+// cliente controla e transmite só a sua posição, e deteta localmente tanto
+// a apanha de armas como os golpes que dá (a câmara também segue sempre o
+// PRÓPRIO jogador). A diferença é que aqui há paredes fixas a formar um
+// labirinto (colisão resolvida localmente com battleClampToWalls, a mesma
+// função pura usada no servidor para validar onde as armas podem surgir) e
+// um sistema de vidas: sem arma apanhada não se consegue atacar.
+
+const BATTLE_ACCEL = 900;
+const BATTLE_DRAG = 3.2;
+const BATTLE_MAX_SPEED = 240;
+const BATTLE_BROADCAST_INTERVAL_MS = 120;
+
+const battleEls = {
+  statusLine: document.getElementById("battle-status-line"),
+  timer: document.getElementById("battle-timer"),
+  arena: document.getElementById("battle-arena"),
+  results: document.getElementById("battle-results"),
+  continueBtn: document.getElementById("battle-continue-btn"),
+};
+
+const battleState = {
+  active: false,
+  x: 0, y: 0, vx: 0, vy: 0,
+  keys: { up: false, down: false, left: false, right: false },
+  lastFrame: 0,
+  lastBroadcastAt: 0,
+  lastAttackAt: 0,
+  swingUntil: 0,
+  keydownHandler: null,
+  keyupHandler: null,
+  rafId: null,
+  worldEl: null,
+  playerEls: {},
+  livesEls: {},
+  weaponEls: {},
+  playerDisplayPos: {},
+};
+
+battleEls.continueBtn.addEventListener("click", () => {
+  finishBattleRound(state.code, state.room);
+});
+
+function battleAttack() {
+  const room = state.room;
+  const battle = room?.battle;
+  if (!battle || battle.resolved) return;
+  if (battle.eliminated?.[state.uid]) return;
+  const armedUntil = battle.armed?.[state.uid] || 0;
+  if (armedUntil < serverNow()) return;
+  const now = performance.now();
+  if (now - battleState.lastAttackAt < BATTLE_ATTACK_COOLDOWN_MS) return;
+  battleState.lastAttackAt = now;
+  battleState.swingUntil = now + 180;
+  Object.entries(battle.positions || {}).forEach(([uid, pos]) => {
+    if (uid === state.uid || battle.eliminated?.[uid]) return;
+    const dist = Math.hypot(battleState.x - pos.x, battleState.y - pos.y);
+    if (dist < BATTLE_ATTACK_RADIUS) claimBattleHit(state.code, room, state.uid, uid);
+  });
+}
+
+function battleHandleKey(e, isDown) {
+  const map = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
+  const dir = map[e.key];
+  if (dir) {
+    e.preventDefault();
+    battleState.keys[dir] = isDown;
+    return;
+  }
+  if ((e.key === " " || e.code === "Space") && isDown && !e.repeat) {
+    e.preventDefault();
+    battleAttack();
+  }
+}
+
+function battleRenderWalls() {
+  BATTLE_WALLS.forEach((wall) => {
+    const el = document.createElement("div");
+    el.className = "battle-wall";
+    el.style.left = `${wall.x}px`;
+    el.style.top = `${wall.y}px`;
+    el.style.width = `${wall.w}px`;
+    el.style.height = `${wall.h}px`;
+    battleState.worldEl.appendChild(el);
+  });
+}
+
+function battleEnter(room) {
+  battleState.active = true;
+  const myPos = room.battle?.positions?.[state.uid];
+  battleState.x = myPos?.x ?? (room.battle?.arenaW || 1400) / 2;
+  battleState.y = myPos?.y ?? (room.battle?.arenaH || 900) / 2;
+  battleState.vx = 0;
+  battleState.vy = 0;
+  battleState.keys = { up: false, down: false, left: false, right: false };
+  battleState.playerEls = {};
+  battleState.livesEls = {};
+  battleState.weaponEls = {};
+  battleState.playerDisplayPos = {};
+  battleState.lastAttackAt = 0;
+  battleState.swingUntil = 0;
+
+  battleEls.arena.innerHTML = "";
+  battleState.worldEl = document.createElement("div");
+  battleState.worldEl.className = "battle-world";
+  battleState.worldEl.style.width = `${room.battle?.arenaW || 1400}px`;
+  battleState.worldEl.style.height = `${room.battle?.arenaH || 900}px`;
+  battleEls.arena.appendChild(battleState.worldEl);
+  battleRenderWalls();
+
+  battleState.keydownHandler = (e) => battleHandleKey(e, true);
+  battleState.keyupHandler = (e) => battleHandleKey(e, false);
+  document.addEventListener("keydown", battleState.keydownHandler);
+  document.addEventListener("keyup", battleState.keyupHandler);
+
+  battleState.lastFrame = performance.now();
+  battleState.rafId = requestAnimationFrame(battleTick);
+}
+
+function battleExit() {
+  battleState.active = false;
+  if (battleState.rafId) cancelAnimationFrame(battleState.rafId);
+  battleState.rafId = null;
+  if (battleState.keydownHandler) document.removeEventListener("keydown", battleState.keydownHandler);
+  if (battleState.keyupHandler) document.removeEventListener("keyup", battleState.keyupHandler);
+  battleState.keydownHandler = null;
+  battleState.keyupHandler = null;
+}
+
+function battlePlayerEl(uid, name) {
+  if (battleState.playerEls[uid]) return battleState.playerEls[uid];
+  const el = document.createElement("div");
+  el.className = "battle-player";
+  const label = document.createElement("span");
+  label.className = "battle-player-name";
+  label.textContent = name;
+  el.appendChild(label);
+  const lives = document.createElement("span");
+  lives.className = "battle-player-lives";
+  el.appendChild(lives);
+  battleState.worldEl.appendChild(el);
+  battleState.playerEls[uid] = el;
+  battleState.livesEls[uid] = lives;
+  return el;
+}
+
+function battleRenderWeapons(weapons) {
+  const seen = new Set();
+  Object.entries(weapons || {}).forEach(([id, w]) => {
+    seen.add(id);
+    let el = battleState.weaponEls[id];
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "battle-weapon";
+      el.textContent = "🗡️";
+      battleState.worldEl.appendChild(el);
+      battleState.weaponEls[id] = el;
+    }
+    el.style.left = `${w.x}px`;
+    el.style.top = `${w.y}px`;
+  });
+  Object.keys(battleState.weaponEls).forEach((id) => {
+    if (!seen.has(id)) {
+      battleState.weaponEls[id].remove();
+      delete battleState.weaponEls[id];
+    }
+  });
+}
+
+function battleTick(now) {
+  if (!battleState.active) return;
+  const room = state.room;
+  const battle = room?.battle;
+  if (!battle) { battleState.rafId = requestAnimationFrame(battleTick); return; }
+
+  const dt = Math.min((now - battleState.lastFrame) / 1000, 0.05);
+  battleState.lastFrame = now;
+
+  const amEliminated = !!battle.eliminated?.[state.uid];
+  if (!battle.resolved && !amEliminated) {
+    let ax = 0, ay = 0;
+    if (battleState.keys.up) ay -= 1;
+    if (battleState.keys.down) ay += 1;
+    if (battleState.keys.left) ax -= 1;
+    if (battleState.keys.right) ax += 1;
+    if (ax !== 0 || ay !== 0) {
+      const len = Math.hypot(ax, ay);
+      battleState.vx += (ax / len) * BATTLE_ACCEL * dt;
+      battleState.vy += (ay / len) * BATTLE_ACCEL * dt;
+    }
+    const dragFactor = Math.max(0, 1 - BATTLE_DRAG * dt);
+    battleState.vx *= dragFactor;
+    battleState.vy *= dragFactor;
+    const speed = Math.hypot(battleState.vx, battleState.vy);
+    if (speed > BATTLE_MAX_SPEED) {
+      battleState.vx = (battleState.vx / speed) * BATTLE_MAX_SPEED;
+      battleState.vy = (battleState.vy / speed) * BATTLE_MAX_SPEED;
+    }
+
+    const arenaW = battle.arenaW || 1400;
+    const arenaH = battle.arenaH || 900;
+    const nx = Math.max(BATTLE_PLAYER_RADIUS, Math.min(arenaW - BATTLE_PLAYER_RADIUS, battleState.x + battleState.vx * dt));
+    const ny = Math.max(BATTLE_PLAYER_RADIUS, Math.min(arenaH - BATTLE_PLAYER_RADIUS, battleState.y + battleState.vy * dt));
+    const resolved = battleClampToWalls(nx, ny, BATTLE_PLAYER_RADIUS);
+    battleState.x = resolved.x;
+    battleState.y = resolved.y;
+
+    if (now - battleState.lastBroadcastAt > BATTLE_BROADCAST_INTERVAL_MS) {
+      battleState.lastBroadcastAt = now;
+      updateBattlePosition(state.code, state.uid, Math.round(battleState.x), Math.round(battleState.y));
+    }
+
+    const armedUntil = battle.armed?.[state.uid] || 0;
+    if (armedUntil < serverNow()) {
+      Object.entries(battle.weapons || {}).forEach(([id, w]) => {
+        const dist = Math.hypot(battleState.x - w.x, battleState.y - w.y);
+        if (dist < BATTLE_PLAYER_RADIUS + BATTLE_WEAPON_RADIUS) claimBattleWeapon(state.code, state.uid, id);
+      });
+    }
+  }
+
+  // Renderiza todos os jogadores (mesma suavização visual da Fuga da
+  // Infeção para quem não é o próprio — ver nota lá em cima).
+  Object.keys(room.players || {}).forEach((uid) => {
+    const isMe = uid === state.uid;
+    const eliminated = !!battle.eliminated?.[uid];
+    const target = isMe ? { x: battleState.x, y: battleState.y } : battle.positions?.[uid];
+    if (!target) return;
+    let display = battleState.playerDisplayPos[uid];
+    if (!display) {
+      display = { x: target.x, y: target.y };
+      battleState.playerDisplayPos[uid] = display;
+    }
+    if (isMe) {
+      display.x = target.x;
+      display.y = target.y;
+    } else {
+      const smoothing = Math.min(1, dt * 8);
+      display.x += (target.x - display.x) * smoothing;
+      display.y += (target.y - display.y) * smoothing;
+    }
+    const el = battlePlayerEl(uid, room.players[uid].name || "?");
+    const armed = (battle.armed?.[uid] || 0) > serverNow();
+    el.classList.toggle("battle-player-me", isMe);
+    el.classList.toggle("battle-player-armed", armed);
+    el.classList.toggle("battle-player-eliminated", eliminated);
+    el.style.left = `${display.x}px`;
+    el.style.top = `${display.y}px`;
+    const lives = Math.max(0, battle.lives?.[uid] ?? BATTLE_LIVES);
+    battleState.livesEls[uid].textContent = "❤".repeat(lives);
+  });
+  battleRenderWeapons(battle.weapons);
+
+  const viewportW = battleEls.arena.clientWidth;
+  const viewportH = battleEls.arena.clientHeight;
+  const arenaW = battle.arenaW || 1400;
+  const arenaH = battle.arenaH || 900;
+  const camX = Math.max(0, Math.min(battleState.x - viewportW / 2, arenaW - viewportW));
+  const camY = Math.max(0, Math.min(battleState.y - viewportH / 2, arenaH - viewportH));
+  battleState.worldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
+
+  battleState.rafId = requestAnimationFrame(battleTick);
+}
+
+function renderBattle(room) {
+  const battle = room.battle;
+  if (!battle) return;
+  if (!battleState.active) battleEnter(room);
+
+  const amEliminated = !!battle.eliminated?.[state.uid];
+  const amArmed = (battle.armed?.[state.uid] || 0) > serverNow();
+  if (!battle.resolved) {
+    const msLeft = Math.max(0, (battle.endAt || 0) - serverNow());
+    battleEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
+    battleEls.statusLine.textContent = amEliminated
+      ? "Foste eliminado — vê o resto da batalha em modo espetador."
+      : amArmed
+        ? "Estás ARMADO! Espaço para atacar quem estiver perto."
+        : "Apanha uma arma no chão para poderes atacar. Foge de quem já tiver uma!";
+    battleEls.results.classList.add("hidden");
+    battleEls.continueBtn.classList.add("hidden");
+  } else {
+    battleEls.timer.textContent = "";
+    battleEls.statusLine.textContent = "Batalha terminada!";
+    battleEls.results.classList.remove("hidden");
+    battleEls.results.innerHTML = "";
+    Object.entries(room.players || {}).forEach(([uid, p]) => {
+      const alive = battle.alive ? !!battle.alive[uid] : !battle.eliminated?.[uid];
+      const kills = battle.kills?.[uid] || 0;
+      const detail = alive
+        ? `sobreviveu! ${kills} abate${kills === 1 ? "" : "s"}`
+        : `eliminado — ${kills} abate${kills === 1 ? "" : "s"}`;
+      const row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+        <span class="score-round">${detail}</span>
+        <span class="score-total">+${battle.roundPoints?.[uid] || 0} pts</span>`;
+      battleEls.results.appendChild(row);
+    });
+    battleEls.continueBtn.classList.toggle("hidden", !isHost(room));
+  }
+}
+
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -1316,6 +1627,23 @@ async function runHostLoopTick(room) {
       } else if (tag && tag.resolved) {
         if (now - (tag.resolvedAt || 0) > TAG_RESULT_DISPLAY_MS) {
           await finishTagRound(state.code, room);
+        }
+      }
+    } else if (room.state === "battle") {
+      const battle = room.battle;
+      if (battle && !battle.resolved) {
+        const activeWeapons = Object.keys(battle.weapons || {}).length;
+        if (activeWeapons < BATTLE_WEAPON_MAX_ACTIVE && now - (battle.lastWeaponSpawnAt || 0) > BATTLE_WEAPON_SPAWN_INTERVAL_MS) {
+          await spawnBattleWeapon(state.code, room);
+        }
+        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        const aliveCount = connectedIds.filter((uid) => !battle.eliminated?.[uid]).length;
+        if (now >= (battle.endAt || 0) || (connectedIds.length > 1 && aliveCount <= 1)) {
+          await resolveBattleRound(state.code, room);
+        }
+      } else if (battle && battle.resolved) {
+        if (now - (battle.resolvedAt || 0) > BATTLE_RESULT_DISPLAY_MS) {
+          await finishBattleRound(state.code, room);
         }
       }
     }

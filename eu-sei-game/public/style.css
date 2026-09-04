@@ -267,6 +267,22 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .tag-powerup-shield { background: var(--success); }
 .tag-powerup-speed { background: var(--accent); }
 
+/* Labirinto: Batalha em equipa — mesmo padrão de câmara/mundo maior do que
+   o ecrã da Fuga da Infeção, mas com paredes fixas (.battle-wall) a formar
+   um labirinto simples. */
+.battle-arena { position: relative; width: 100%; height: min(72vh, 640px); margin: 10px auto; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; background: #cfd9c8; }
+.battle-world { position: absolute; top: 0; left: 0; background: linear-gradient(135deg, #dbe4d2, #cfd9c8); }
+.battle-wall { position: absolute; background: var(--ink); border-radius: 4px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08); }
+.battle-player { position: absolute; width: 32px; height: 32px; margin: -16px; border-radius: 50%; border: 2px solid var(--ink); background: var(--blue); display: flex; align-items: center; justify-content: center; box-shadow: 1px 1px 0 rgba(58,49,38,0.3); transition: opacity 0.3s; }
+.battle-player-me { box-shadow: 0 0 0 3px var(--accent), 1px 1px 0 rgba(58,49,38,0.3); }
+.battle-player-armed { background: var(--danger); box-shadow: 0 0 0 4px #f0c419, 1px 1px 0 rgba(58,49,38,0.3); }
+.battle-player-me.battle-player-armed { box-shadow: 0 0 0 3px var(--accent), 0 0 0 6px #f0c419, 1px 1px 0 rgba(58,49,38,0.3); }
+.battle-player-eliminated { opacity: 0.3; filter: grayscale(1); }
+.battle-player-name { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; font-weight: 700; color: var(--ink); background: var(--paper); padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
+.battle-player-lives { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; white-space: nowrap; letter-spacing: 1px; }
+.battle-weapon { position: absolute; width: 24px; height: 24px; margin: -12px; border-radius: 6px; border: 2px solid var(--ink); background: var(--paper-soft); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; animation: battle-weapon-bob 1.2s ease-in-out infinite; }
+@keyframes battle-weapon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
 /* Mini-jogos a full-screen: ocupam o browser todo em vez de um cartão pequeno */
 .screen.fullscreen-game.active { position: fixed; inset: 0; z-index: 8; padding: 16px; overflow-y: auto; align-items: flex-start; }
 .fullscreen-game .card { width: 100%; max-width: 1000px; transform: none; margin: 12px auto; }

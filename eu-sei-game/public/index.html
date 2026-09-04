@@ -443,6 +443,7 @@
           <label><input type="checkbox" data-bonus-game="hangman" checked /> Forca em equipa</label>
           <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
           <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa (experimental, tempo real)</label>
+          <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa (experimental, tempo real)</label>
         </div>
       </details>
 
@@ -578,6 +579,19 @@
       <div id="tag-arena" class="tag-arena"></div>
       <div id="tag-results" class="score-table hidden"></div>
       <button id="tag-continue-btn" class="primary hidden">Continuar</button>
+    </div>
+  </section>
+
+  <!-- LABIRINTO: BATALHA EM EQUIPA -->
+  <section data-screen="battle" class="screen fullscreen-game">
+    <div class="card wide center golf-wide-card">
+      <h2>Labirinto: Batalha!</h2>
+      <p class="hint small">Setas ou WASD para andar. Sem arma não se consegue atacar — apanha uma no chão (🗡️) e usa Espaço para golpear quem estiver perto. 3 vidas cada, sobrevive quem ficar de pé.</p>
+      <p id="battle-status-line" class="hint"></p>
+      <div class="round-timer" id="battle-timer"></div>
+      <div id="battle-arena" class="battle-arena"></div>
+      <div id="battle-results" class="score-table hidden"></div>
+      <button id="battle-continue-btn" class="primary hidden">Continuar</button>
     </div>
   </section>
 

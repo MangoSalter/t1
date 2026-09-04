@@ -41,7 +41,47 @@ export const TAG_SPEED_MS = 4000;
 export const TAG_POWERUP_TYPES = ["shield", "speed"];
 export const TAG_RESULT_DISPLAY_MS = 6000;
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag"];
+// --- Labirinto: Batalha em equipa (bónus de fim de partida) — mesma
+// arquitetura de tempo real da Fuga da Infeção (cada cliente controla e
+// transmite só a sua posição, deteta contacto localmente), mas com paredes
+// fixas a formar um pequeno labirinto e armas que caem no chão: sem arma
+// não se consegue atacar, apanhar uma dá golpes por um tempo limitado.
+// Vidas geridas com transação (só uma perde-se de cada vez, mesmo que dois
+// atacantes acertem quase ao mesmo tempo); a condição de vitória (só resta
+// 1 vivo) é verificada no "host loop" tal como o fim por tempo, não aqui.
+export const BATTLE_ARENA_W = 1400;
+export const BATTLE_ARENA_H = 900;
+export const BATTLE_PLAYER_RADIUS = 16;
+export const BATTLE_ROUND_MS = 90000;
+export const BATTLE_LIVES = 3;
+export const BATTLE_ATTACK_RADIUS = 55;
+export const BATTLE_ATTACK_COOLDOWN_MS = 500;
+export const BATTLE_ARMED_MS = 9000;
+export const BATTLE_WEAPON_RADIUS = 14;
+export const BATTLE_WEAPON_MAX_ACTIVE = 4;
+export const BATTLE_WEAPON_SPAWN_INTERVAL_MS = 5000;
+export const BATTLE_KILL_POINTS = 15;
+export const BATTLE_SURVIVOR_BONUS = 20;
+export const BATTLE_POINTS_PER_SECOND = 1;
+export const BATTLE_RESULT_DISPLAY_MS = 6000;
+
+// Paredes fixas (retângulos em coordenadas do mundo) — um labirinto simples
+// com corredores e algumas salas, com margem suficiente para não prender
+// jogadores nos cantos da arena.
+export const BATTLE_WALLS = [
+  { x: 260, y: 0, w: 24, h: 340 },
+  { x: 260, y: 560, w: 24, h: 340 },
+  { x: 560, y: 160, w: 24, h: 580 },
+  { x: 860, y: 0, w: 24, h: 340 },
+  { x: 860, y: 560, w: 24, h: 340 },
+  { x: 1140, y: 160, w: 24, h: 580 },
+  { x: 400, y: 260, w: 300, h: 24 },
+  { x: 700, y: 616, w: 300, h: 24 },
+  { x: 100, y: 430, w: 220, h: 24 },
+  { x: 1080, y: 430, w: 220, h: 24 },
+];
+
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle"];
 
 // --- Forca em equipa (bónus de fim de partida) ---
 // NOTA: a palavra fica guardada em texto simples na sala — tal como o resto
@@ -343,6 +383,8 @@ export async function startNextBonusGame(code, room) {
     await startMapTriviaTeam(code, nextRoom);
   } else if (key === "tag") {
     await startTagTeam(code, nextRoom);
+  } else if (key === "battle") {
+    await startBattleTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -366,6 +408,7 @@ export async function resetForRematch(code, room) {
     hangman: null,
     mapTrivia: null,
     tag: null,
+    battle: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;
@@ -754,5 +797,175 @@ export async function resolveTagRound(code, room) {
 }
 
 export async function finishTagRound(code, room) {
+  await startNextBonusGame(code, room);
+}
+
+// --- Labirinto: Batalha em equipa ---
+
+// Função pura (sem Firebase) — dado um ponto e um raio, empurra-o para fora
+// de qualquer parede em que esteja metido, ao longo do eixo com menor
+// sobreposição. Usada tanto para validar pontos de surgimento de armas como
+// para resolver colisões de movimento no cliente (ver app.js).
+export function battleClampToWalls(x, y, radius) {
+  let px = x;
+  let py = y;
+  for (const wall of BATTLE_WALLS) {
+    const left = wall.x - radius;
+    const right = wall.x + wall.w + radius;
+    const top = wall.y - radius;
+    const bottom = wall.y + wall.h + radius;
+    if (px > left && px < right && py > top && py < bottom) {
+      const overlapLeft = px - left;
+      const overlapRight = right - px;
+      const overlapTop = py - top;
+      const overlapBottom = bottom - py;
+      const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+      if (minOverlap === overlapLeft) px = left;
+      else if (minOverlap === overlapRight) px = right;
+      else if (minOverlap === overlapTop) py = top;
+      else py = bottom;
+    }
+  }
+  return { x: px, y: py };
+}
+
+const BATTLE_SPAWN_POINTS = [
+  { x: 0.071, y: 0.111 }, { x: 0.929, y: 0.111 }, { x: 0.071, y: 0.889 }, { x: 0.929, y: 0.889 },
+  { x: 0.5, y: 0.111 }, { x: 0.5, y: 0.889 }, { x: 0.5, y: 0.5 },
+  { x: 0.286, y: 0.5 }, { x: 0.714, y: 0.5 }, { x: 0.286, y: 0.778 },
+];
+
+export async function startBattleTeam(code, room) {
+  const playerIds = Object.keys(room.players || {});
+  const shuffled = shuffleArray(playerIds);
+  const positions = {};
+  const lives = {};
+  shuffled.forEach((uid, i) => {
+    const spot = BATTLE_SPAWN_POINTS[i % BATTLE_SPAWN_POINTS.length];
+    positions[uid] = { x: Math.round(spot.x * BATTLE_ARENA_W), y: Math.round(spot.y * BATTLE_ARENA_H), updatedAt: serverNow() };
+    lives[uid] = BATTLE_LIVES;
+  });
+  await update(roomRef(code), {
+    state: "battle",
+    battle: {
+      arenaW: BATTLE_ARENA_W, arenaH: BATTLE_ARENA_H,
+      positions, lives,
+      armed: {}, eliminated: {}, eliminatedAt: {}, kills: {},
+      weapons: {},
+      startedAt: serverNow(),
+      endAt: serverNow() + BATTLE_ROUND_MS,
+      lastWeaponSpawnAt: serverNow(),
+      resolved: false,
+    },
+  });
+}
+
+export async function updateBattlePosition(code, uid, x, y) {
+  await update(ref(db, `rooms/${code}/battle/positions/${uid}`), { x, y, updatedAt: serverNow() });
+}
+
+function randomBattleWeaponSpot() {
+  const margin = 0.06;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const x = Math.round((margin + Math.random() * (1 - margin * 2)) * BATTLE_ARENA_W);
+    const y = Math.round((margin + Math.random() * (1 - margin * 2)) * BATTLE_ARENA_H);
+    const resolved = battleClampToWalls(x, y, BATTLE_WEAPON_RADIUS + 6);
+    if (resolved.x === x && resolved.y === y) return { x, y };
+  }
+  return { x: Math.round(BATTLE_ARENA_W / 2), y: Math.round(BATTLE_ARENA_H / 2) };
+}
+
+export async function spawnBattleWeapon(code, room) {
+  const battle = room.battle;
+  if (!battle || battle.resolved) return;
+  const activeCount = Object.keys(battle.weapons || {}).length;
+  if (activeCount >= BATTLE_WEAPON_MAX_ACTIVE) return;
+  const id = `w${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const spot = randomBattleWeaponSpot();
+  await update(roomRef(code), {
+    [`battle/weapons/${id}`]: { x: spot.x, y: spot.y },
+    "battle/lastWeaponSpawnAt": serverNow(),
+  });
+}
+
+// Uma transação garante que, se dois jogadores chegarem à mesma arma quase
+// ao mesmo tempo, só um a apanha.
+export async function claimBattleWeapon(code, uid, weaponId) {
+  const result = await runTransaction(ref(db, `rooms/${code}/battle/weapons/${weaponId}`), (current) => {
+    if (!current) return current; // já foi apanhada por outro
+    return null;
+  });
+  if (!result.committed || result.snapshot.val() !== null) return false;
+  await update(ref(db, `rooms/${code}/battle/armed`), { [uid]: serverNow() + BATTLE_ARMED_MS });
+  return true;
+}
+
+// Uma transação sobre as vidas do alvo garante que, se dois atacantes
+// acertarem golpes quase ao mesmo tempo, só uma vida se perde de cada vez
+// (em vez de possivelmente contar os dois golpes em simultâneo).
+export async function claimBattleHit(code, room, attackerUid, targetUid) {
+  if (attackerUid === targetUid) return;
+  const battle = room.battle;
+  if (!battle || battle.resolved) return;
+  if (battle.eliminated?.[targetUid]) return;
+  if (!battle.armed?.[attackerUid] || battle.armed[attackerUid] < serverNow()) return;
+  const result = await runTransaction(ref(db, `rooms/${code}/battle/lives/${targetUid}`), (current) => {
+    const lives = typeof current === "number" ? current : BATTLE_LIVES;
+    if (lives <= 0) return current;
+    return lives - 1;
+  });
+  if (!result.committed) return;
+  const newLives = result.snapshot.val();
+  if (newLives === null || newLives > 0) return; // ainda vivo, nada mais a fazer
+  const prevKills = room.battle?.kills?.[attackerUid] || 0;
+  await update(roomRef(code), {
+    [`battle/eliminated/${targetUid}`]: true,
+    [`battle/eliminatedAt/${targetUid}`]: serverNow(),
+    [`battle/kills/${attackerUid}`]: prevKills + 1,
+  });
+}
+
+// Função pura — fácil de testar sem Firebase. Pontos = segundos
+// sobrevividos + bónus por abate + bónus extra para quem sobrevive à ronda
+// toda (nunca eliminado).
+export function computeBattleResults(room, now) {
+  const battle = room.battle || {};
+  const players = Object.keys(room.players || {});
+  const startedAt = battle.startedAt || now;
+  const endAt = battle.endAt || now;
+  const roundMs = Math.max(endAt - startedAt, 1);
+  const roundPoints = {};
+  const alive = {};
+  players.forEach((uid) => {
+    const eliminatedAt = battle.eliminatedAt?.[uid];
+    const survivedMs = eliminatedAt ? Math.max(0, eliminatedAt - startedAt) : roundMs;
+    const seconds = Math.round(Math.min(survivedMs, roundMs) / 1000);
+    const isAlive = !eliminatedAt;
+    const kills = battle.kills?.[uid] || 0;
+    alive[uid] = isAlive;
+    roundPoints[uid] = seconds * BATTLE_POINTS_PER_SECOND + kills * BATTLE_KILL_POINTS + (isAlive ? BATTLE_SURVIVOR_BONUS : 0);
+  });
+  return { roundPoints, alive };
+}
+
+export async function resolveBattleRound(code, room) {
+  const battle = room.battle;
+  if (!battle || battle.resolved) return;
+  const now = serverNow();
+  const { roundPoints, alive } = computeBattleResults(room, now);
+  const updates = {
+    "battle/resolved": true, "battle/resolvedAt": now,
+    "battle/alive": alive, "battle/roundPoints": roundPoints,
+  };
+  Object.entries(roundPoints).forEach(([uid, pts]) => {
+    if (pts > 0) {
+      const prevScore = room.players?.[uid]?.score || 0;
+      updates[`players/${uid}/score`] = prevScore + pts;
+    }
+  });
+  await update(roomRef(code), updates);
+}
+
+export async function finishBattleRound(code, room) {
   await startNextBonusGame(code, room);
 }
