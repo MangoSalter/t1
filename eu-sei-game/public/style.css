@@ -283,6 +283,13 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .battle-weapon { position: absolute; width: 24px; height: 24px; margin: -12px; border-radius: 6px; border: 2px solid var(--ink); background: var(--paper-soft); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; animation: battle-weapon-bob 1.2s ease-in-out infinite; }
 @keyframes battle-weapon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
+/* Forca em equipa — folha de desenho coletiva partilhada por todos, tal
+   como a arena do Mini-Golfe/Fuga da Infeção mas sem câmara (o quadro
+   inteiro cabe sempre no ecrã, não há mundo maior do que a vista). */
+.hangman-doodle-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; }
+.hangman-doodle-canvas { display: block; width: 100%; height: min(55vh, 500px); margin: 0 auto; border: 2px solid var(--ink); border-radius: 10px; background: #fffdf7; cursor: default; touch-action: none; opacity: 0.85; }
+.hangman-doodle-canvas-active { cursor: crosshair; opacity: 1; box-shadow: 0 0 0 3px var(--accent); }
+
 /* Mini-jogos a full-screen: ocupam o browser todo em vez de um cartão pequeno */
 .screen.fullscreen-game.active { position: fixed; inset: 0; z-index: 8; padding: 16px; overflow-y: auto; align-items: flex-start; }
 .fullscreen-game .card { width: 100%; max-width: 1000px; transform: none; margin: 12px auto; }
@@ -346,6 +353,7 @@ button.hud-btn .icon-inline { color: var(--ink); }
 
 .player-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .player-list li { background: var(--paper-soft); padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--paper-line); }
+#lobby-avatar-edit-btn { display: block; margin: 10px auto 4px; }
 
 .config-form { display: flex; flex-direction: column; gap: 10px; text-align: left; margin: 8px 0; }
 .config-form label { font-size: 0.95rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }

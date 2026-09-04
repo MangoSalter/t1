@@ -4,11 +4,12 @@ import {
   MAP_BACKGROUND_SVG,
 } from "./data.js";
 import {
-  createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost,
+  createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
   startGame, startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   submitHangmanWord, guessHangmanLetter, guessHangmanWord, skipHangmanTurn, finishHangman, giveUpHangman,
+  claimHangmanPen, randomizeHangmanPen, clearHangmanDoodle, pushHangmanDoodlePoints,
   HANGMAN_MAX_WRONG, HANGMAN_SETUP_TIMEOUT_MS, HANGMAN_TURN_TIMEOUT_MS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
   MAP_TRIVIA_RESULT_DISPLAY_MS,
@@ -90,6 +91,7 @@ const AVATAR_BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEA
 const avatarEls = {
   preview: document.getElementById("avatar-preview"),
   editBtn: document.getElementById("avatar-edit-btn"),
+  lobbyEditBtn: document.getElementById("lobby-avatar-edit-btn"),
   overlay: document.getElementById("avatar-editor-overlay"),
   canvas: document.getElementById("avatar-canvas"),
   toolPencil: document.getElementById("avatar-tool-pencil"),
@@ -192,7 +194,7 @@ function avatarPaintAt(e) {
   avatarEls.canvas.addEventListener(evt, () => { avatarState.drawing = false; });
 });
 
-avatarEls.editBtn.addEventListener("click", () => {
+function openAvatarEditor() {
   avatarCtx.clearRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
   const saved = loadAvatar();
   if (saved) {
@@ -201,12 +203,17 @@ avatarEls.editBtn.addEventListener("click", () => {
     img.src = saved;
   }
   avatarEls.overlay.classList.remove("hidden");
-});
+}
+avatarEls.editBtn.addEventListener("click", openAvatarEditor);
+avatarEls.lobbyEditBtn.addEventListener("click", openAvatarEditor);
 
 avatarEls.saveBtn.addEventListener("click", () => {
   const dataUrl = avatarEls.canvas.toDataURL("image/png");
   saveAvatar(dataUrl);
   updateAvatarPreview(dataUrl);
+  // Já numa sala (ex: desenhado a partir da lobby) — sincroniza logo, para
+  // não ficar só guardado localmente até à próxima vez que entrar numa sala.
+  if (state.code && state.uid) updatePlayerAvatar(state.code, state.uid, dataUrl);
   avatarEls.overlay.classList.add("hidden");
 });
 avatarEls.cancelBtn.addEventListener("click", () => {
@@ -760,6 +767,11 @@ const hangmanEls = {
   result: document.getElementById("hangman-result"),
   resultText: document.getElementById("hangman-result-text"),
   continueBtn: document.getElementById("hangman-continue-btn"),
+  doodleCanvas: document.getElementById("hangman-doodle-canvas"),
+  doodleStatus: document.getElementById("hangman-doodle-status"),
+  doodleClaimBtn: document.getElementById("hangman-doodle-claim-btn"),
+  doodleRandomBtn: document.getElementById("hangman-doodle-random-btn"),
+  doodleClearBtn: document.getElementById("hangman-doodle-clear-btn"),
 };
 
 hangmanEls.setupForm.addEventListener("submit", (e) => {
@@ -856,7 +868,167 @@ function renderHangmanPlay(room) {
       : `A equipa não conseguiu — a palavra era "${word}".`;
     hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
   }
+
+  renderHangmanDoodleStatus(room);
 }
+
+// ---------- FORCA: FOLHA DE DESENHO COLETIVA ----------
+// O ecrã da Forca funciona também como um quadro branco partilhado: só quem
+// tem "a caneta" (hangman.doodle.penHolder) consegue desenhar, à vez —
+// pega-se nela ou passa-se ao calhas — para não ficarem todos a desenhar em
+// cima uns dos outros ao mesmo tempo. Cada traço fica na cor de quem o
+// desenhou; os pontos mais antigos vão saindo à medida que se desenham
+// novos (ver HANGMAN_DOODLE_MAX_POINTS em room.js), por isso a folha nunca
+// fica definitivamente cheia — não é preciso limpar manualmente, ainda que
+// haja um botão para isso.
+
+const HANGMAN_DOODLE_PALETTE = ["#c0524a", "#3f7d5c", "#3a5f8a", "#b8862f", "#7a4f9e", "#2f8a86", "#a15a2e", "#5a6b3a"];
+const HANGMAN_DOODLE_BROADCAST_INTERVAL_MS = 90;
+const HANGMAN_DOODLE_MIN_DIST = 0.006;
+
+const hangmanDoodleState = {
+  drawing: false,
+  lastPoint: null,
+  pending: [],
+  lastBroadcastAt: 0,
+  dpr: 1,
+  rectW: 0,
+  rectH: 0,
+};
+
+function hangmanDoodleColorForUid(room, uid) {
+  const ids = Object.keys(room?.players || {});
+  const idx = Math.max(0, ids.indexOf(uid));
+  return HANGMAN_DOODLE_PALETTE[idx % HANGMAN_DOODLE_PALETTE.length];
+}
+
+function hangmanDoodleSyncCanvasSize() {
+  const canvas = hangmanEls.doodleCanvas;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  hangmanDoodleState.dpr = dpr;
+  hangmanDoodleState.rectW = rect.width;
+  hangmanDoodleState.rectH = rect.height;
+  return true;
+}
+
+function hangmanDoodleRedraw() {
+  if (!hangmanDoodleSyncCanvasSize()) return;
+  const canvas = hangmanEls.doodleCanvas;
+  const ctx = canvas.getContext("2d");
+  const { dpr, rectW, rectH } = hangmanDoodleState;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rectW, rectH);
+  const room = state.room;
+  const points = [...(room?.hangman?.doodle?.points || []), ...hangmanDoodleState.pending];
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3;
+  let prev = null;
+  points.forEach((p) => {
+    const x = p.x * rectW;
+    const y = p.y * rectH;
+    if (p.newStroke || !prev) {
+      prev = { x, y };
+      return;
+    }
+    ctx.strokeStyle = hangmanDoodleColorForUid(room, p.uid);
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    prev = { x, y };
+  });
+}
+
+function renderHangmanDoodleStatus(room) {
+  const doodle = room.hangman?.doodle;
+  const penHolder = doodle?.penHolder;
+  const iHavePen = !!penHolder && penHolder === state.uid;
+  if (!penHolder) {
+    hangmanEls.doodleStatus.textContent = "Ninguém tem a caneta agora — quem quiser desenhar, pega nela!";
+  } else if (iHavePen) {
+    hangmanEls.doodleStatus.textContent = "És tu que tens a caneta! 🖊️";
+  } else {
+    const holderName = room.players?.[penHolder]?.name || "Alguém";
+    hangmanEls.doodleStatus.textContent = `${holderName} tem a caneta.`;
+  }
+  hangmanEls.doodleClaimBtn.classList.toggle("hidden", iHavePen);
+  hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", iHavePen);
+  hangmanDoodleRedraw();
+}
+
+function hangmanDoodlePointFromEvent(e) {
+  const rect = hangmanEls.doodleCanvas.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+  return { x, y };
+}
+
+function hangmanDoodleFlush() {
+  if (hangmanDoodleState.pending.length === 0) return;
+  const toSend = hangmanDoodleState.pending;
+  hangmanDoodleState.pending = [];
+  hangmanDoodleState.lastBroadcastAt = performance.now();
+  pushHangmanDoodlePoints(state.code, state.room, state.uid, toSend);
+}
+
+hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
+  const room = state.room;
+  if (!room?.hangman?.doodle || room.hangman.doodle.penHolder !== state.uid) return;
+  e.preventDefault();
+  hangmanEls.doodleCanvas.setPointerCapture(e.pointerId);
+  hangmanDoodleState.drawing = true;
+  const p = hangmanDoodlePointFromEvent(e);
+  hangmanDoodleState.lastPoint = p;
+  hangmanDoodleState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: true });
+  hangmanDoodleRedraw();
+});
+
+hangmanEls.doodleCanvas.addEventListener("pointermove", (e) => {
+  if (!hangmanDoodleState.drawing) return;
+  const p = hangmanDoodlePointFromEvent(e);
+  const last = hangmanDoodleState.lastPoint;
+  const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
+  if (dist < HANGMAN_DOODLE_MIN_DIST) return;
+  hangmanDoodleState.lastPoint = p;
+  hangmanDoodleState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: false });
+  hangmanDoodleRedraw();
+  if (performance.now() - hangmanDoodleState.lastBroadcastAt > HANGMAN_DOODLE_BROADCAST_INTERVAL_MS) {
+    hangmanDoodleFlush();
+  }
+});
+
+function hangmanDoodleEndStroke() {
+  if (!hangmanDoodleState.drawing) return;
+  hangmanDoodleState.drawing = false;
+  hangmanDoodleState.lastPoint = null;
+  hangmanDoodleFlush();
+}
+hangmanEls.doodleCanvas.addEventListener("pointerup", hangmanDoodleEndStroke);
+hangmanEls.doodleCanvas.addEventListener("pointercancel", hangmanDoodleEndStroke);
+hangmanEls.doodleCanvas.addEventListener("pointerleave", hangmanDoodleEndStroke);
+
+hangmanEls.doodleClaimBtn.addEventListener("click", () => {
+  claimHangmanPen(state.code, state.uid);
+});
+hangmanEls.doodleRandomBtn.addEventListener("click", () => {
+  randomizeHangmanPen(state.code, state.room);
+});
+hangmanEls.doodleClearBtn.addEventListener("click", () => {
+  clearHangmanDoodle(state.code);
+});
+
+window.addEventListener("resize", () => {
+  if (screens["hangman-play"]?.classList.contains("active")) hangmanDoodleRedraw();
+});
 
 // ---------- MAPA-MÚNDI EM EQUIPA ----------
 

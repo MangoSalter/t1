@@ -96,6 +96,15 @@ export const HANGMAN_SETTER_BONUS = 5;
 export const HANGMAN_SETUP_TIMEOUT_MS = 45000;
 export const HANGMAN_TURN_TIMEOUT_MS = 25000;
 
+// Folha de desenho coletiva partilhada por todos durante a Forca (o ecrã
+// todo agora funciona como quadro branco em tempo real, não só a palavra).
+// Só quem tem "a caneta" (doodle.penHolder) pode desenhar — dá-se a caneta a
+// si próprio ou passa-se ao calhas — evitando escrever todos ao mesmo tempo
+// por cima uns dos outros. Sem limite de traços guardados para sempre: os
+// pontos mais antigos vão saindo à medida que se desenham novos (tal como
+// uma tinta limitada), por isso a folha nunca fica permanentemente cheia.
+export const HANGMAN_DOODLE_MAX_POINTS = 600;
+
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem O/0/I/1 para evitar confusão
 
 function generateRoomCode() {
@@ -151,6 +160,13 @@ export async function joinRoom(code, uid, name, avatar) {
   });
   attachPresence(code, uid);
   return code;
+}
+
+// Permite mudar o avatar depois de já estar numa sala (ex: desenhá-lo
+// enquanto se espera na lobby) — sem isto a mudança só ficava guardada
+// localmente e só apareceria aos outros jogadores numa próxima entrada.
+export async function updatePlayerAvatar(code, uid, avatar) {
+  await update(ref(db, `rooms/${code}/players/${uid}`), { avatar: avatar || null });
 }
 
 function attachPresence(code, uid) {
@@ -439,6 +455,7 @@ export async function startHangman(code, room) {
       setupStartedAt: serverNow(),
       turnStartedAt: null,
       lastAction: null,
+      doodle: { points: [], penHolder: null },
     },
   });
 }
@@ -568,6 +585,38 @@ export async function finishHangman(code, room) {
   updates["hangman/finalScores"] = scores;
   await update(roomRef(code), updates);
   await startNextBonusGame(code, room);
+}
+
+// Qualquer jogador pode pegar na caneta para si (não é preciso ser a vez de
+// adivinhar — é só um quadro branco social, joga-se ou não com ele).
+export async function claimHangmanPen(code, uid) {
+  await update(ref(db, `rooms/${code}/hangman/doodle`), { penHolder: uid });
+}
+
+export async function randomizeHangmanPen(code, room) {
+  const connected = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+  if (connected.length === 0) return;
+  const pick = connected[Math.floor(Math.random() * connected.length)];
+  await claimHangmanPen(code, pick);
+}
+
+export async function clearHangmanDoodle(code) {
+  await update(ref(db, `rooms/${code}/hangman/doodle`), { points: [] });
+}
+
+// Só quem tem a caneta pode escrever (verificação por confiança, como o
+// resto do jogo). Recebe os pontos novos (já em coordenadas 0–1, para
+// funcionar em qualquer tamanho de ecrã) e escreve a lista completa
+// resultante, cortada ao limite — os traços mais antigos vão desaparecendo
+// para dar lugar aos novos.
+export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
+  const doodle = room.hangman?.doodle;
+  if (!doodle || doodle.penHolder !== uid) return;
+  const combined = [...(doodle.points || []), ...newPoints];
+  const trimmed = combined.length > HANGMAN_DOODLE_MAX_POINTS
+    ? combined.slice(combined.length - HANGMAN_DOODLE_MAX_POINTS)
+    : combined;
+  await set(ref(db, `rooms/${code}/hangman/doodle/points`), trimmed);
 }
 
 // --- Mapa-Múndi em equipa ---

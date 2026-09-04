@@ -410,6 +410,8 @@
       <h2>Sala <span id="lobby-code" class="room-code"></span></h2>
       <p class="hint">Partilha este código com os outros jogadores.</p>
       <ul id="lobby-players" class="player-list"></ul>
+      <button id="lobby-avatar-edit-btn" type="button" class="ghost-primary">🎨 Desenhar o meu avatar</button>
+      <p class="hint small">Aproveita a espera para desenhares o teu avatar!</p>
 
       <form id="config-form" class="config-form">
         <label>Nº de categorias por ronda
@@ -526,8 +528,8 @@
   </section>
 
   <!-- FORCA EM EQUIPA: JOGO -->
-  <section data-screen="hangman-play" class="screen">
-    <div class="card wide center">
+  <section data-screen="hangman-play" class="screen fullscreen-game">
+    <div class="card wide center golf-wide-card">
       <h2>Forca em equipa!</h2>
       <p id="hangman-category-label" class="hint"></p>
       <div id="hangman-word-display" class="hangman-word-display"></div>
@@ -542,6 +544,15 @@
         <button id="hangman-guess-word-btn" class="primary">Arriscar!</button>
       </div>
       <button id="hangman-giveup-btn" class="ghost hidden">Desistir e ver a resposta</button>
+
+      <div class="hangman-doodle-toolbar">
+        <span id="hangman-doodle-status" class="hint small"></span>
+        <button id="hangman-doodle-claim-btn" type="button" class="ghost-primary">✋ É a minha vez de desenhar</button>
+        <button id="hangman-doodle-random-btn" type="button" class="ghost">🎲 Ao calhas</button>
+        <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
+      </div>
+      <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+      <p class="hint small">A folha é de todos — só quem tiver a caneta consegue desenhar, e os traços mais antigos vão apagando-se para dar lugar aos novos.</p>
 
       <div id="hangman-result" class="hangman-result hidden">
         <p id="hangman-result-text" class="hint"></p>
