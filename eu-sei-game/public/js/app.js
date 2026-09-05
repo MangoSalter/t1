@@ -770,6 +770,11 @@ const voteEls = {
 let voteRAF = null;
 
 voteEls.endBtn.addEventListener("click", () => {
+  // Esconder o botão não é o mesmo que o proteger. Entre o momento em que o
+  // anfitrião muda e o momento em que o ecrã se redesenha, o botão continua
+  // lá clicável — e fechar a votação por engano acaba a ronda para toda a
+  // gente. A verificação é do lado de quem age, como nas outras escritas.
+  if (!state.room || !isHost(state.room)) return;
   finishVoting(state.code, state.room);
 });
 
@@ -853,6 +858,9 @@ const roundScoreEls = {
 };
 
 roundScoreEls.nextBtn.addEventListener("click", () => {
+  // Ver o comentário do botão de fechar a votação: avançar a ronda por engano
+  // arrasta a sala inteira.
+  if (!state.room || !isHost(state.room)) return;
   nextRoundOrFinal(state.code, state.room);
 });
 
@@ -4089,6 +4097,9 @@ const finalEls = {
 };
 
 finalEls.rematchBtn.addEventListener("click", () => {
+  // O terceiro do mesmo tipo: o botão é escondido a quem não é anfitrião, mas
+  // esconder não protege. Recomeçar a partida apaga a pontuação de todos.
+  if (!state.room || !isHost(state.room)) return;
   resetForRematch(state.code, state.room);
 });
 
