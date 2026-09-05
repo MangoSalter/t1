@@ -1,5 +1,6 @@
 import { getUid, serverNow } from "./firebase-init.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
+import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, LANDMARKS,
@@ -560,6 +561,9 @@ ballEls.circle.addEventListener("click", async () => {
   }
   ballClicked = true;
   const won = await claimBallWin(state.code, state.uid);
+  // O sino do Stop: o momento em que alguem chega primeiro a bola e o mais
+  // fisico do jogo todo, e era completamente mudo.
+  sfx(won ? "stop" : "errado");
   if (!won) ballClicked = false;
 });
 

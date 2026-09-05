@@ -10,6 +10,7 @@ import {
   ACHIEVEMENTS, pickMascotIntro, pickChaosEvent,
 } from "./data.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
+import { sfx, sfxEnabled, setSfxEnabled } from "./sfx.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
@@ -845,6 +846,7 @@ const els = {
   chaosBanner: document.getElementById("chaos-banner"),
   chaosPaw: document.getElementById("chaos-paw"),
   chaosToggle: document.getElementById("solo-chaos-toggle"),
+  sfxToggle: document.getElementById("solo-sfx-toggle"),
   readyTitle: document.getElementById("ready-title"),
   readyStartBtn: document.getElementById("ready-start-btn"),
 };
@@ -1014,6 +1016,7 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
     // outra forma nao distinguem "nao ha boca" de "ha uma conquista").
     els.mgeQuip.dataset.kind = "achievement";
     els.mgeQuip.classList.remove("hidden");
+    sfx("conquista");
   } else if (solo.marathonQueue.length > 0 || !solo.inMarathon) {
     // A boca da mascote é uma ponte ENTRE jogos: aparece quando ainda vem
     // mais alguma coisa a seguir (maratona a meio), e também a jogar avulso,
@@ -1029,6 +1032,8 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
     els.mgeQuip.classList.add("hidden");
   }
   els.mgeOverlay.classList.remove("hidden");
+  // A conquista ja tocou o seu proprio som; nao vale a pena sobrepor outro.
+  if (fresh.length === 0) sfx("fim");
 }
 
 els.mgeContinueBtn.addEventListener("click", () => {
@@ -1108,6 +1113,7 @@ function scheduleChaosEvent() {
 }
 
 function fireChaosEvent(ev) {
+  sfx("caos");
   els.chaosBanner.textContent = `${ev.who}: “${ev.text}”`;
   els.chaosBanner.classList.remove("hidden");
   const arena = document.querySelector(".screen.active");
@@ -1285,6 +1291,13 @@ els.leaderboardBtn.addEventListener("click", () => {
 els.achievementsBtn.addEventListener("click", () => {
   renderAchievements();
   showScreen("solo-achievements");
+});
+
+els.sfxToggle.checked = sfxEnabled();
+els.sfxToggle.addEventListener("change", () => {
+  setSfxEnabled(els.sfxToggle.checked);
+  // Toca um som ao ligar, para se ouvir logo o que se acabou de escolher.
+  if (els.sfxToggle.checked) sfx("toque");
 });
 
 els.chaosToggle.checked = loadChaosEnabled();
@@ -1602,6 +1615,7 @@ function handleReflexItemClick(item, btn) {
     solo.reflexScore += points;
     updateGameHudScore();
     btn.classList.add("correct-flash");
+    sfx("certo");
     els.reflexStatus.textContent = `Encontraste! +${points} pts`;
     solo.reflexTarget = null;
     clearTimeout(solo.reflexAdvanceTimeoutId);
@@ -1610,6 +1624,7 @@ function handleReflexItemClick(item, btn) {
     solo.reflexScore = Math.max(0, solo.reflexScore - REFLEX_WRONG_PENALTY);
     updateGameHudScore();
     btn.classList.add("wrong-flash");
+    sfx("errado");
     els.reflexStatus.textContent = `Isso é "${item.n}" — não é o que procuras.`;
     setTimeout(() => btn.classList.remove("wrong-flash"), 400);
   }
@@ -2344,6 +2359,7 @@ function landmarkChoose(chosen, btnEl) {
   solo.landmarkAnswered = true;
   clearTimeout(solo.landmarkAdvanceTimeoutId);
   const correct = chosen === solo.landmarkCurrent.answer;
+  sfx(correct ? "certo" : "errado");
   els.landmarkOptions.querySelectorAll(".landmark-option-btn").forEach((btn) => {
     btn.disabled = true;
     if (btn.textContent === solo.landmarkCurrent.answer) btn.classList.add("correct-flash");
