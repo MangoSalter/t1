@@ -73,6 +73,13 @@
       <button data-open-board>🖊️ Quadro branco</button>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button id="solo-achievements-btn">🏅 Conquistas</button>
+      <details class="cat-picker solo-presentation">
+        <summary>Como queres que a app te acompanhe?</summary>
+        <div class="solo-presentation-row" id="solo-presentation-row"></div>
+        <p id="solo-presentation-hint" class="hint small"></p>
+        <label class="chaos-toggle" id="solo-voice-row"><input type="checkbox" id="solo-voice-toggle" checked /> 🗣️ Voz a dizer o que vem a seguir</label>
+        <p id="solo-voice-warning" class="hint small hidden">Este browser não sabe falar — o modo guiado fica só com os sons.</p>
+      </details>
       <label class="chaos-toggle"><input type="checkbox" id="solo-sfx-toggle" checked /> 🔊 Sons</label>
       <label class="chaos-toggle"><input type="checkbox" id="solo-chaos-toggle" checked /> 🐈 Deixar a Dona Manga interferir a meio dos jogos</label>
       <button data-solo-home class="ghost">Voltar</button>

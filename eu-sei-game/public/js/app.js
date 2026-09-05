@@ -4,6 +4,7 @@ import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 // "marcador" tem de ser a mesma coisa nos dois sítios, senão o mesmo botão
 // desenha diferente conforme o ecrã em que se está.
 import { BOARD_TOOLS } from "./board.js";
+import { say as narrar } from "./voice.js";
 import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
@@ -310,6 +311,7 @@ function onRoomUpdate(room) {
   if (room.state !== lastRenderedState) {
     lastRenderedState = room.state;
   }
+  if (room.state !== "hangman") esquecerNarracao();
   if (room.state !== "tag" && tagState.active) tagExit();
   if (room.state !== "battle" && battleState.active) battleExit();
   if (room.state !== "race" && raceState.active) raceExit();
@@ -1659,6 +1661,84 @@ window.__hangmanPersonal = personal;
 // Guarda a forma da palavra a que o rascunho pertence.
 let personalLastMask = null;
 
+// --- A sala a narrar-se ---
+//
+// O modo guiado existe para quem joga com outras pessoas online SEM canal de
+// voz. Aí a app tem de dizer o que está a acontecer, porque não há mais
+// ninguém a dizê-lo. No modo mínimo cala-se: pressupõe-se que há um Discord
+// ao lado e que quem lá está já explica melhor do que isto.
+//
+// Regra que não se quebra: NUNCA diz a palavra escondida, nem sequer as
+// letras já reveladas em conjunto. Diz o que aconteceu, não a resposta.
+const narrado = {
+  mask: undefined,
+  leaderId: undefined,
+  turnUid: undefined,
+  wrongCount: 0,
+  solved: false,
+};
+
+function narrarQuadro(room, souLider) {
+  const h = room.hangman;
+  if (!h || h.mode !== "forca") return;
+  const nome = (uid) => room.players?.[uid]?.name || "alguém";
+
+  // Palavra nova: diz-se o TAMANHO, que é informação pública (está no ecrã
+  // em espaços), nunca as letras.
+  if (h.mask !== narrado.mask) {
+    const antes = narrado.mask;
+    narrado.mask = h.mask;
+    if (h.mask && !antes) {
+      const letras = [...h.mask].filter((c) => /[\p{L}\p{N}_]/u.test(c)).length;
+      const palavras = h.mask.trim().split(/\s+/).length;
+      const pista = h.hint ? ` A pista é: ${h.hint}.` : "";
+      narrar(`Palavra nova, com ${letras} letras${palavras > 1 ? ` em ${palavras} palavras` : ""}.${pista}`);
+    }
+  }
+
+  if (h.leaderId !== narrado.leaderId) {
+    narrado.leaderId = h.leaderId;
+    if (h.leaderId) {
+      narrar(souLider ? "Ficaste com a caneta. Escreve a palavra." : `${nome(h.leaderId)} ficou com a caneta.`);
+    }
+  }
+
+  // Letras erradas: diz-se qual saiu e de quem foi. É o que numa mesa se
+  // ouviria sem esforço nenhum.
+  const erradas = wrongLetters(room);
+  if (erradas.length > narrado.wrongCount) {
+    const nova = erradas[erradas.length - 1];
+    narrar(`${nome(nova.uid)} disse ${nova.letter}. Não está na palavra.`);
+  }
+  narrado.wrongCount = erradas.length;
+
+  if (h.solved && !narrado.solved) {
+    narrar("Acertaram a palavra!");
+  }
+  narrado.solved = !!h.solved;
+
+  // De quem é a vez: só quando muda, e só se for por turnos — no modo
+  // "qualquer um arrisca" não há vez nenhuma para anunciar.
+  if (!freeGuessing(room) && h.mask && !h.solved) {
+    const daVez = currentGuesser(room);
+    if (daVez !== narrado.turnUid) {
+      narrado.turnUid = daVez;
+      if (daVez === state.uid) narrar("É a tua vez de arriscar uma letra.");
+      else if (daVez) narrar(`É a vez de ${nome(daVez)}.`);
+    }
+  }
+}
+
+// Ao sair do quadro esquece o que já narrou, senão ao voltar ficava calado
+// sobre coisas que a pessoa não chegou a ouvir.
+function esquecerNarracao() {
+  narrado.mask = undefined;
+  narrado.leaderId = undefined;
+  narrado.turnUid = undefined;
+  narrado.wrongCount = 0;
+  narrado.solved = false;
+}
+
 // --- Solo ou equipas ---
 
 function hangmanOpenTeams() {
@@ -2285,6 +2365,8 @@ function renderHangman(room) {
   if (!amLeader && !host) hangmanClosePenPicker();
   refreshHangmanPenZone(mode);
   hangmanDoodleRedraw();
+
+  narrarQuadro(room, amLeader);
 
   // Só o anfitrião fecha as votações, como resolve as rondas: dois clientes a
   // aplicarem o mesmo resultado escreveriam duas vezes, e a segunda apagaria

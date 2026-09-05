@@ -7,8 +7,12 @@
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
-  ACHIEVEMENTS, pickMascotIntro, pickChaosEvent,
+  ACHIEVEMENTS, pickMascotIntro, pickChaosEvent, gameHowTo,
 } from "./data.js";
+import {
+  PRESENTATION_MODES, presentationMode, setPresentationMode,
+  voiceEnabled, setVoiceEnabled, voiceSupported, say, stopSpeaking,
+} from "./voice.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import { sfx, sfxEnabled, setSfxEnabled } from "./sfx.js";
 
@@ -847,6 +851,11 @@ const els = {
   chaosPaw: document.getElementById("chaos-paw"),
   chaosToggle: document.getElementById("solo-chaos-toggle"),
   sfxToggle: document.getElementById("solo-sfx-toggle"),
+  presentationRow: document.getElementById("solo-presentation-row"),
+  presentationHint: document.getElementById("solo-presentation-hint"),
+  voiceRow: document.getElementById("solo-voice-row"),
+  voiceToggle: document.getElementById("solo-voice-toggle"),
+  voiceWarning: document.getElementById("solo-voice-warning"),
   readyTitle: document.getElementById("ready-title"),
   readyStartBtn: document.getElementById("ready-start-btn"),
 };
@@ -991,6 +1000,9 @@ updateAccountXpLabel();
 // jogador escolher continuar ou sair, em vez de desaparecer sozinho. ---
 function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
   clearActiveGame();
+  // E diz como correu. O texto do resultado é o mesmo que aparece escrito:
+  // duas versões diferentes da mesma coisa só confundiriam quem ouve E lê.
+  if (resultText) say(resultText);
   // Lido ANTES de hideGameHud(), que limpa o estado do caos.
   const chaosBonus = solo.chaosBonus || 0;
   hideGameHud();
@@ -1205,6 +1217,11 @@ els.setupStartBtn.addEventListener("click", () => {
 // de haver tempo de preparação.
 function showReadyOverlay(label, onStart, gameKey) {
   els.readyTitle.textContent = label;
+  // Modo guiado: diz que jogo vem e o que se faz nele. É o momento certo —
+  // o jogador está parado à espera, e ainda não há nada a acontecer no ecrã
+  // que a voz pudesse atrapalhar.
+  const como = gameKey ? gameHowTo(gameKey) : "";
+  say(como ? `${label}. ${como}` : label);
   // Uma fala da mascote sobre ESTE jogo: é o que liga os mini-jogos ao mesmo
   // mundo em vez de serem doze coisas soltas com o mesmo botão.
   const intro = gameKey ? pickMascotIntro(gameKey) : null;
@@ -1291,6 +1308,53 @@ els.leaderboardBtn.addEventListener("click", () => {
 els.achievementsBtn.addEventListener("click", () => {
   renderAchievements();
   showScreen("solo-achievements");
+});
+
+// --- Como a app acompanha quem joga ---
+// Dois modos: "mínimo", que é o jogo e pouco mais, e "guiado", que diz em voz
+// alta o que vem a seguir e como correu — pensado para jogar sozinho, sem
+// ninguém ao lado a explicar nada.
+function refreshPresentation() {
+  const atual = presentationMode();
+  els.presentationRow.querySelectorAll("[data-presentation]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.presentation === atual));
+  });
+  els.presentationHint.textContent = PRESENTATION_MODES[atual]?.hint || "";
+  // A escolha da voz só faz sentido no modo guiado: no mínimo não há nada
+  // para ligar, e um interruptor que não faz nada é pior do que não existir.
+  els.voiceRow.classList.toggle("hidden", atual !== "guiado");
+  els.voiceWarning.classList.toggle("hidden", atual !== "guiado" || voiceSupported());
+  els.voiceToggle.checked = voiceEnabled();
+  els.voiceToggle.disabled = !voiceSupported();
+}
+
+Object.entries(PRESENTATION_MODES).forEach(([key, modo]) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.dataset.presentation = key;
+  btn.textContent = modo.label;
+  btn.addEventListener("click", () => {
+    setPresentationMode(key);
+    refreshPresentation();
+    // Uma frase de exemplo ao ligar o guiado: assim ouve-se logo como é, em
+    // vez de se descobrir só no meio do primeiro jogo.
+    if (key === "guiado") say("Modo guiado ligado. Vou dizer-te o que vem a seguir.");
+  });
+  els.presentationRow.appendChild(btn);
+});
+
+els.voiceToggle.addEventListener("change", () => {
+  setVoiceEnabled(els.voiceToggle.checked);
+  refreshPresentation();
+  if (els.voiceToggle.checked) say("Voz ligada.");
+});
+
+refreshPresentation();
+
+// Sair do modo solo cala a voz: uma frase a acabar depois de já se ter saído
+// do ecrã é confusa e não ajuda ninguém.
+document.querySelectorAll("[data-solo-home]").forEach((btn) => {
+  btn.addEventListener("click", stopSpeaking);
 });
 
 els.sfxToggle.checked = sfxEnabled();

@@ -501,3 +501,26 @@ export const CHAOS_EVENTS = [
 export function pickChaosEvent() {
   return CHAOS_EVENTS[Math.floor(Math.random() * CHAOS_EVENTS.length)];
 }
+
+// Como se joga cada mini-jogo, numa frase. Existe para o MODO GUIADO poder
+// dizer em voz alta o que se faz, a quem está a jogar sozinho e não tem
+// ninguém ao lado para explicar. Escrito para ser OUVIDO e não lido: frases
+// curtas, sem parênteses nem símbolos, porque um sintetizador de voz lê tudo.
+export const GAME_HOWTO = {
+  reflex: "Procura no cenário o objeto que te pedirem e toca nele antes do tempo acabar.",
+  word: "Escreve uma palavra que comece pela letra que aparecer, o mais depressa que conseguires.",
+  bug: "Toca nos insetos que aparecem. Quanto mais seguidos acertares, mais valem.",
+  monkey: "Apanha os macacos que caem, movendo-te para a esquerda e para a direita.",
+  memory: "Vira as cartas duas a duas e encontra os pares iguais.",
+  hangman: "Adivinha a palavra escondida, uma letra de cada vez.",
+  map: "Escreve o nome de um país que cumpra o que for pedido, e vê-o acender no mapa.",
+  pacman: "Come tudo pelo labirinto e foge da Dona Manga. Usa as setas do teclado.",
+  golf: "Manda a bola ao buraco com o menor número de tacadas.",
+  cards: "Escolhe cartas para fazer pontos. Podes descartar as que não servem.",
+  car: "Guia o carro pelas faixas e desvia-te do que vier pela estrada.",
+  landmark: "Vê a fotografia e diz onde fica aquele sítio.",
+};
+
+export function gameHowTo(key) {
+  return GAME_HOWTO[key] || "";
+}
