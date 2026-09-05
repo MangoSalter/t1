@@ -248,16 +248,22 @@ avatarEls.cancelBtn.addEventListener("click", () => {
   avatarEls.overlay.classList.add("hidden");
 });
 
-function avatarImgHtml(avatarDataUrl, size) {
+function avatarImgHtml(avatarDataUrl, size, name) {
   // avatarDataUrl vem de outro jogador (via Firebase) — valida que é mesmo
   // um data URI de imagem antes de o meter num atributo src, e escapa na
   // mesma por defesa extra (um jogador tecnicamente curioso podia escrever
   // lá o que quisesse diretamente na base de dados, tal como o resto deste
   // jogo "por confiança" — ver nota acima da Forca).
   const isValidDataUrl = typeof avatarDataUrl === "string" && /^data:image\/(png|gif|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(avatarDataUrl);
-  const src = isValidDataUrl ? avatarDataUrl : AVATAR_BLANK_PNG;
   const cls = size === "sm" ? "avatar-thumb-sm" : "avatar-thumb";
-  return `<img class="${cls}" src="${escapeHtml(src)}" alt="" />`;
+  // Sem avatar, um quadrado vazio com moldura lia-se como uma checkbox por
+  // marcar em todas as classificações. A inicial do nome ocupa o mesmo
+  // espaço, parece intencional, e ainda ajuda a distinguir jogadores.
+  if (!isValidDataUrl) {
+    const initial = (typeof name === "string" ? name.trim() : "").slice(0, 1).toUpperCase();
+    return `<span class="${cls} avatar-thumb-initial">${escapeHtml(initial || "?")}</span>`;
+  }
+  return `<img class="${cls}" src="${escapeHtml(avatarDataUrl)}" alt="" />`;
 }
 
 function showHomeError(msg) {
@@ -482,7 +488,7 @@ function renderLobby(room) {
   lobbyEls.players.innerHTML = "";
   players.forEach(([uid, p]) => {
     const li = document.createElement("li");
-    li.innerHTML = avatarImgHtml(p.avatar, "sm")
+    li.innerHTML = avatarImgHtml(p.avatar, "sm", p.name)
       + escapeHtml(p.name) + (uid === room.hostId ? " 👑" : "") + (p.connected ? "" : " (desligado)");
     lobbyEls.players.appendChild(li);
   });
@@ -807,7 +813,7 @@ function renderRoundScore(room) {
     const row = document.createElement("div");
     row.className = "score-row";
     const roundPts = rr?.roundPoints?.[uid] || 0;
-    row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+    row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
       <span class="score-round">+${roundPts} nesta ronda</span>
       <span class="score-total">${p.score || 0} pts</span>`;
     roundScoreEls.table.appendChild(row);
@@ -978,7 +984,7 @@ function hangmanOpenPenPicker() {
     .forEach(([uid, p]) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.innerHTML = `${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}`;
+      btn.innerHTML = `${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}`;
       btn.addEventListener("click", () => {
         passHangmanPen(state.code, state.room, state.uid, uid);
         hangmanClosePenPicker();
@@ -1175,7 +1181,7 @@ drawEls.selectWinnerBtn.addEventListener("click", () => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "primary";
-      btn.innerHTML = avatarImgHtml(p.avatar, "sm") + escapeHtml(p.name);
+      btn.innerHTML = avatarImgHtml(p.avatar, "sm", p.name) + escapeHtml(p.name);
       btn.addEventListener("click", () => {
         selectDrawWinner(state.code, state.room, state.uid, uid);
         drawEls.winnerOverlay.classList.add("hidden");
@@ -1314,7 +1320,7 @@ function renderMapTrivia(room) {
       const statusLabel = r.correct
         ? (r.votedIn ? "✓ aceite pela equipa! +8 pts" : "✓ +8 pts")
         : "✕ 0 pts";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p?.avatar, "sm")}${name}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p?.avatar, "sm", p?.name)}${name}</span>
         <span class="score-round">${escapeHtml(r.answer) || "(sem resposta)"}</span>
         <span class="score-total">${statusLabel}</span>`;
       if (!r.correct && r.answer && uid !== state.uid) {
@@ -1593,7 +1599,7 @@ function renderTag(room) {
         : `apanhado aos ${Math.max(0, Math.round(((infectedAt || startedAt) - startedAt) / 1000))}s`;
       const row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
         <span class="score-round">${detail}</span>
         <span class="score-total">+${tag.roundPoints?.[uid] || 0} pts</span>`;
       tagEls.results.appendChild(row);
@@ -1899,7 +1905,7 @@ function renderBattle(room) {
         : `eliminado — ${kills} abate${kills === 1 ? "" : "s"}`;
       const row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
         <span class="score-round">${detail}</span>
         <span class="score-total">+${battle.roundPoints?.[uid] || 0} pts</span>`;
       battleEls.results.appendChild(row);
@@ -2151,7 +2157,7 @@ function raceRenderStandings(room) {
   raceEls.standings.innerHTML = rows
     .map((r, i) => `<div class="race-standing-row${r.isMe ? " race-standing-me" : ""}${r.alive ? "" : " race-standing-out"}">
       <span class="race-standing-place">${i + 1}º</span>
-      <span class="score-name">${avatarImgHtml(r.avatar, "sm")}${escapeHtml(r.name)}</span>
+      <span class="score-name">${avatarImgHtml(r.avatar, "sm", r.name)}${escapeHtml(r.name)}</span>
       <span class="race-standing-time">${r.alive ? "" : "💥 "}${(r.timeMs / 1000).toFixed(1)}s</span>
     </div>`)
     .join("");
@@ -2190,7 +2196,7 @@ function renderRace(room) {
         : `${st.place || "-"}º — ${seconds}s`;
       const row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
         <span class="score-round">${detail}</span>
         <span class="score-total">+${race.roundPoints?.[uid] || 0} pts</span>`;
       raceEls.results.appendChild(row);
@@ -2504,7 +2510,7 @@ function renderGolfMp(room) {
           : `não meteu — ficou a ${st.distance || "?"}px do buraco`;
         const row = document.createElement("div");
         row.className = "score-row";
-        row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+        row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
           <span class="score-round">${escapeHtml(detail)}</span>
           <span class="score-total">+${golf.roundPoints?.[uid] || 0} pts</span>`;
         golfMpEls.results.appendChild(row);
@@ -2588,7 +2594,7 @@ function renderLandmarkTeam(room) {
       const pts = r.correct ? LANDMARK_TEAM_POINTS + (r.speedBonus || 0) : 0;
       const row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
         <span class="score-round">${escapeHtml(detail)}</span>
         <span class="score-total">+${pts} pts</span>`;
       landmarkTeamEls.results.appendChild(row);
@@ -2615,7 +2621,7 @@ function renderFinal(room) {
     const row = document.createElement("div");
     row.className = "final-row";
     row.innerHTML = `<span class="final-pos">${i === 0 ? "👑" : `#${i + 1}`}</span>
-      <span class="final-name">${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+      <span class="final-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
       <span class="final-score">${p.score || 0} pts</span>`;
     finalEls.ranking.appendChild(row);
   });
@@ -2668,7 +2674,7 @@ function renderOptionsLeaderboard(room) {
   players.forEach(([uid, p], i) => {
     const row = document.createElement("div");
     row.className = "score-row";
-    row.innerHTML = `<span class="score-name">${i === 0 ? "👑 " : `#${i + 1} `}${avatarImgHtml(p.avatar, "sm")}${escapeHtml(p.name)}</span>
+    row.innerHTML = `<span class="score-name">${i === 0 ? "👑 " : `#${i + 1} `}${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
       <span class="score-total">${p.score || 0} pts</span>`;
     optionsEls.leaderboardList.appendChild(row);
   });
