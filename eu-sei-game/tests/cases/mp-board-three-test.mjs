@@ -124,6 +124,61 @@ if (!ambos.ana || !ambos.beto) fail("com 'qualquer um', os dois deviam poder arr
 const carlaArrisca = await carla.evaluate(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"));
 if (carlaArrisca) fail("quem tem a caneta não arrisca, mesmo com 'qualquer um'");
 
+console.log("7b) ACERTAR MANTÉM A VEZ, e a ordem seguinte ganha-se...");
+// Volta ao modo por turnos para se poder ver a vez a ficar em quem acerta.
+await carla.click("#hangman-settings-btn");
+await carla.click('[data-setting="guessMode"][data-setting-value="turnos"]');
+await carla.click("#hangman-settings-close-btn");
+await carla.click("#hangman-newword-btn");
+await carla.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });
+await carla.fill("#hangman-word-input", "banana");
+await carla.click("#hangman-word-form button[type=submit]");
+for (const p of [ana, beto]) {
+  await p.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.mask, code, { timeout: 8000 });
+}
+const quemPode = async () => ({
+  ana: await ana.evaluate(() => !document.getElementById("hangman-guess-form").classList.contains("hidden")),
+  beto: await beto.evaluate(() => !document.getElementById("hangman-guess-form").classList.contains("hidden")),
+});
+let vez = await quemPode();
+const naVez = vez.ana ? ana : beto;
+const naVezNome = vez.ana ? "Ana" : "Beto";
+const oOutro = vez.ana ? beto : ana;
+// Acerta: a vez TEM de ficar com quem acertou.
+await naVez.fill("#hangman-guess-input", "a");
+await naVez.click("#hangman-guess-form button[type=submit]");
+await carla.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.mask || "").includes("a"), code, { timeout: 10000 });
+await naVez.waitForTimeout(400);
+vez = await quemPode();
+console.log(`   ${naVezNome} acertou; quem pode arriscar agora: ${JSON.stringify(vez)}`);
+if ((naVezNome === "Ana" && !vez.ana) || (naVezNome === "Beto" && !vez.beto)) {
+  fail("quem acerta devia continuar a jogar");
+}
+// Erra: aí sim, a vez passa ao outro.
+await naVez.fill("#hangman-guess-input", "z");
+await naVez.click("#hangman-guess-form button[type=submit]");
+await oOutro.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 10000 });
+console.log("   e ao errar, a vez passou ao outro");
+// Os acertos aparecem ao lado do nome, porque são eles que decidem a ordem.
+const comContagem = await carla.evaluate(() =>
+  [...document.querySelectorAll("[data-player-tag]")].map((e) => e.textContent.trim()));
+console.log(`   nomes com contagem: ${JSON.stringify(comContagem)}`);
+if (!comContagem.some((t) => /\s1$/.test(t))) fail("o número de acertos devia estar ao lado do nome");
+
+console.log("7c) A Dona Manga comenta o erro, e o mesmo comentário para todos...");
+// Sorteado em cada cliente, cada pessoa lia uma frase diferente sobre o mesmo
+// erro — e uma sala em que cada um lê uma coisa não é uma sala.
+for (const p of [ana, beto, carla]) {
+  await p.waitForFunction(() => !document.getElementById("hangman-quip").classList.contains("hidden"), { timeout: 8000 });
+}
+const balões = [];
+for (const p of [ana, beto, carla]) {
+  balões.push(await p.evaluate(() => document.getElementById("hangman-quip").textContent.trim()));
+}
+console.log(`   os três leem: ${JSON.stringify(balões[0])}`);
+if (new Set(balões).size !== 1) fail(`cada um leu uma coisa diferente: ${JSON.stringify(balões)}`);
+if (!balões[0]) fail("o balão apareceu vazio");
+
 console.log("8) Equipas com três caixas e três pessoas...");
 await carla.click("#hangman-newword-btn");
 await carla.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });

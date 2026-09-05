@@ -9,6 +9,7 @@ import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, LANDMARKS,
+  BOARD_QUIPS,
 } from "./data.js";
 import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
@@ -921,6 +922,9 @@ const hangmanEls = {
   wordGuessForm: document.getElementById("hangman-wordguess-form"),
   wordGuessInput: document.getElementById("hangman-wordguess-input"),
   wrongWords: document.getElementById("hangman-wrong-words"),
+  quip: document.getElementById("hangman-quip"),
+  quipWho: document.getElementById("hangman-quip-who"),
+  quipText: document.getElementById("hangman-quip-text"),
   modeOverlay: document.getElementById("hangman-mode-overlay"),
   modeList: document.getElementById("hangman-mode-list"),
   modeCancelBtn: document.getElementById("hangman-mode-cancel-btn"),
@@ -1998,6 +2002,7 @@ let hangmanSecretWord = "";
 // Guardados entre desenhos de ecrã só para se poder distinguir "a vez é tua"
 // de "acertaste e a vez continua a ser tua" — que é a diferença entre uma
 // informação e uma resposta ao que se acabou de fazer.
+let hangmanQuipTimer = null;
 let hangmanUltimaMascara = null;
 let hangmanUltimaVez = null;
 function contarLetras(mask) {
@@ -2145,6 +2150,22 @@ function renderWrongLetters(room) {
   const erradas = wrongLetters(room);
   hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0);
   hangmanEls.wrongLetters.innerHTML = "";
+  // O balão da Dona Manga. Dura poucos segundos e some sozinho: um comentário
+  // que fica no ecrã deixa de ser um comentário e passa a ser um aviso.
+  const quip = naForca ? hangman.quip : null;
+  const fala = quip && BOARD_QUIPS[quip.i];
+  const fresca = fala && serverNow() - (quip.at || 0) < 7000;
+  hangmanEls.quip.classList.toggle("hidden", !fresca);
+  if (fresca) {
+    hangmanEls.quipWho.textContent = `${fala.who}:`;
+    hangmanEls.quipText.textContent = fala.text;
+    hangmanEls.quip.dataset.quipIndex = String(quip.i);
+    // Sem isto, o balão ficava para sempre depois do último desenho de ecrã:
+    // nada mais mexe na sala, logo nada mais o mandava embora.
+    if (hangmanQuipTimer) clearTimeout(hangmanQuipTimer);
+    hangmanQuipTimer = setTimeout(() => hangmanEls.quip.classList.add("hidden"), 7000);
+  }
+
   const palavrasErradas = wrongWordList(room);
   hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0 && palavrasErradas.length === 0);
   hangmanEls.wrongWords.innerHTML = "";

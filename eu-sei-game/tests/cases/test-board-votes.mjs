@@ -223,3 +223,40 @@ check2("ronda sem acertos", orderByCorrect(salaFila({ turnOrder: ["d", "b", "c"]
 // reordenação usa o acerto que ACABOU de acontecer, e não o estado anterior.
 check2("contagens de fora mandam",
   orderByCorrect(salaFila({ turnOrder: ["b", "c", "d"], correctCount: { b: 9 } }), { c: 1 }).join(","), "c,b,d");
+
+console.log("20) Erros de cada um: a penalização chega a cada X, e é gasta ao ser cumprida...");
+const { individualMisses, missesOfPlayer } = await import("./js/room.js");
+const salaErros = (settings, missesBy) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true } },
+  hangman: { mode: "forca", leaderId: "a", mask: "___", settings, missesBy },
+});
+check2("por omissão, erros da sala", String(individualMisses(salaErros({}, {}))), "false");
+check2("escolhidos, erros de cada um", String(individualMisses(salaErros({ missMode: "individuais" }, {}))), "true");
+check2("erros de quem ainda não errou", String(missesOfPlayer(salaErros({}, {}), "b")), "0");
+check2("erros de quem errou", String(missesOfPlayer(salaErros({}, { b: 4 }), "b")), "4");
+
+console.log("21) 'Sem limite' e erros de cada um não podem enforcar ninguém...");
+// O engano fácil: um teto lido como número faz "erros >= teto" dar verdadeiro
+// à primeira quando o teto é 0. Já testado no passo 13; aqui garante-se que os
+// erros de cada um também não trazem um fim de jogo por acidente.
+const semFim = salaErros({ missMode: "individuais", maxMisses: 6 }, { b: 99 });
+check2("erros de cada um não acabam a ronda", String(individualMisses(semFim) && !semFim.hangman.solved), "true");
+
+console.log("22) As falas do quadro nunca repetem a anterior...");
+const { BOARD_QUIPS, pickBoardQuip } = await import("./js/data.js");
+check2("há falas suficientes para variar", String(BOARD_QUIPS.length >= 8), "true");
+// Repetida, uma fala deixa de se ler como alguém a comentar e passa a ler-se
+// como uma avaria. Testa-se muitas vezes porque a escolha é aleatória.
+let repetiu = false;
+for (let i = 0; i < 400; i += 1) {
+  const anterior = Math.floor(Math.random() * BOARD_QUIPS.length);
+  if (pickBoardQuip(anterior) === anterior) repetiu = true;
+}
+check2("nunca repete a anterior", String(repetiu), "false");
+// E toda a fala tem de ter quem a diz e o que diz: uma sem "who" aparecia no
+// balão como um comentário de ninguém.
+const falasMas = BOARD_QUIPS.filter((q) => !q.who || !q.text || q.text.length > 90);
+check2("todas as falas estão completas e curtas", String(falasMas.length), "0");
+// E só falam as duas personagens que existem.
+const vozes = [...new Set(BOARD_QUIPS.map((q) => q.who))].sort().join(",");
+check2("só a Dona Manga e o Brasa", vozes, "Brasa,Dona Manga");

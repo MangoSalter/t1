@@ -524,3 +524,42 @@ export const GAME_HOWTO = {
 export function gameHowTo(key) {
   return GAME_HOWTO[key] || "";
 }
+
+// --- Falas do quadro: a Dona Manga a gozar com os erros ---
+//
+// ESCRITAS, em balões — não faladas. A voz falada fica para muito mais tarde
+// (decisão do utilizador): um balão lê-se numa sala com barulho, não depende
+// de o browser ter vozes portuguesas instaladas, e não obriga ninguém a ter o
+// som ligado para perceber o jogo.
+//
+// Servem o modo em que os erros NÃO acabam o jogo (a definição "Sem limite"):
+// aí a punição por errar deixa de ser mecânica e passa a ser social, que é o
+// que uma sala de amigos quer. A gata olha de lado; não é um sistema a acusar.
+//
+// O Brasa entra de vez em quando a contrapor, porque é o que ele faz — ajuda
+// às escondidas e as rebeliões correm-lhe mal.
+export const BOARD_QUIPS = [
+  { who: "Dona Manga", text: "Miau. Essa letra não existe nem no dicionário dela." },
+  { who: "Dona Manga", text: "Continua. Estou a fazer uma lista." },
+  { who: "Dona Manga", text: "Interessante. Errado, mas interessante." },
+  { who: "Dona Manga", text: "Já vi gatos a dormir acertarem mais depressa." },
+  { who: "Dona Manga", text: "Não faz mal. Faz, mas eu digo que não." },
+  { who: "Dona Manga", text: "Esse erro foi tão bom que quase o guardei." },
+  { who: "Dona Manga", text: "Estou a ver. Estou sempre a ver." },
+  { who: "Dona Manga", text: "Tenta outra vez. Eu espero — é o que faço melhor." },
+  { who: "Dona Manga", text: "Ronron. Isso foi de propósito, não foi?" },
+  { who: "Dona Manga", text: "A palavra está mesmo aí. Aí não, mas está." },
+  { who: "Brasa", text: "Eu sei qual é! ...não posso dizer. Ela está a olhar." },
+  { who: "Brasa", text: "Psst. Estás perto. (Não estás, mas anima-te.)" },
+  { who: "Brasa", text: "Ela também erra, só que apaga antes de alguém ver." },
+  { who: "Brasa", text: "Tentei ajudar-te e caí da mesa. Outra vez." },
+];
+
+export function pickBoardQuip(evitarIndice) {
+  if (BOARD_QUIPS.length <= 1) return 0;
+  let i = Math.floor(Math.random() * BOARD_QUIPS.length);
+  // Nunca a mesma fala duas vezes seguidas: repetida, deixa de se ler como
+  // alguém a comentar e passa a ler-se como uma avaria.
+  if (i === evitarIndice) i = (i + 1) % BOARD_QUIPS.length;
+  return i;
+}

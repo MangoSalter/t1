@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord,
+  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip,
   LANDMARKS, pickLandmarkRound,
 } from "./data.js";
 
@@ -1021,6 +1021,11 @@ function missPatch(room, guesserUid) {
   const patch = {};
   const meus = (room.hangman?.missesBy?.[guesserUid] || 0) + 1;
   patch[`missesBy/${guesserUid}`] = meus;
+
+  // A fala é escolhida por QUEM JULGA e escrita na sala, não sorteada em cada
+  // cliente: sorteada em cada um, cada pessoa via uma frase diferente sobre o
+  // mesmo erro, e uma sala em que cada um lê uma coisa não é uma sala.
+  patch.quip = { i: pickBoardQuip(room.hangman?.quip?.i), at: serverNow(), uid: guesserUid };
 
   if (individualMisses(room)) {
     const aCada = boardSetting(room, "forca", "penaltyEvery") || 0;
