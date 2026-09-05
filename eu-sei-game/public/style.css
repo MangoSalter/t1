@@ -616,3 +616,38 @@ button.hud-btn .icon-inline { color: var(--ink); }
   border-radius: 22px 10px 26px 12px / 12px 24px 10px 22px;
 }
 .mp-game-desc { font-size: 0.75rem; font-weight: 400; opacity: 0.75; line-height: 1.25; }
+
+/* --- Acessibilidade --- */
+
+/* O jogo é quase todo botões, e nenhum mostrava onde estava o foco: quem
+   navega por teclado ficava às cegas. Os inputs tiravam mesmo o contorno
+   (outline:none) e trocavam-no só por uma mudança de cor da borda, que é
+   fraca demais para servir de indicador. :focus-visible só aparece a quem
+   navega por teclado, por isso não polui o clique com rato. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+input:focus-visible, select:focus-visible { border-color: var(--primary); }
+
+/* Movimento reduzido: só a animação do caos respeitava esta preferência, e o
+   jogo tem oito. Quem a liga fá-lo por enjoo ou vertigem — deixar os cartões
+   a oscilar, os objetos a saltar e as bolas a piscar não é meio caminho, é
+   ignorar o pedido. As transições ficam quase instantâneas em vez de
+   removidas, para nada aparecer de repente sem explicação. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* A oscilação do cartão e da mascote é decorativa: fica simplesmente
+     parada, em vez de a animação saltar para o último fotograma. */
+  .card, .mascot { transform: none !important; animation: none !important; }
+}
