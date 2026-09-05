@@ -1,0 +1,12 @@
+{
+  "name": "eu-sei-game",
+  "private": true,
+  "type": "module",
+  "description": "Eu sei! — jogo de festa multijogador. O jogo em si é HTML/CSS/JS sem build; isto existe só para os testes.",
+  "scripts": {
+    "test": "node tests/run.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
