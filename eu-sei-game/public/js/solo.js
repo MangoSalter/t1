@@ -7,7 +7,7 @@
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
-  ACHIEVEMENTS, pickMascotIntro,
+  ACHIEVEMENTS, pickMascotIntro, pickChaosEvent,
 } from "./data.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 
@@ -18,6 +18,7 @@ const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
 const SCORE_HISTORY_MAX = 20;
 const ACCOUNT_KEY = "euSei_soloAccount";
 const ACHIEVEMENTS_KEY = "euSei_soloAchievements";
+const CHAOS_KEY = "euSei_soloChaos";
 const XP_PER_POINT = 1;
 
 const SOLO_BASE_CATEGORIES = 5;
@@ -840,6 +841,9 @@ const els = {
   accountXpLabel: document.getElementById("solo-account-xp"),
   readyOverlay: document.getElementById("ready-overlay"),
   readyMascot: document.getElementById("ready-mascot"),
+  chaosBanner: document.getElementById("chaos-banner"),
+  chaosPaw: document.getElementById("chaos-paw"),
+  chaosToggle: document.getElementById("solo-chaos-toggle"),
   readyTitle: document.getElementById("ready-title"),
   readyStartBtn: document.getElementById("ready-start-btn"),
 };
@@ -984,11 +988,18 @@ updateAccountXpLabel();
 // jogador escolher continuar ou sair, em vez de desaparecer sozinho. ---
 function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
   clearActiveGame();
+  // Lido ANTES de hideGameHud(), que limpa o estado do caos.
+  const chaosBonus = solo.chaosBonus || 0;
   hideGameHud();
-  const gained = addXP(points, favoriteKey);
+  const totalPoints = points + chaosBonus;
+  // Também conta para a run, não só para o XP: senão o bónus aparecia no
+  // ecrã mas não na tabela de recordes, e lia-se como mentira.
+  solo.runScore += chaosBonus;
+  const gained = addXP(totalPoints, favoriteKey);
   updateAccountXpLabel();
   els.mgeTitle.textContent = `${gameLabel} — fim!`;
-  els.mgePoints.textContent = resultText || `+${points} pts bónus.`;
+  els.mgePoints.textContent = (resultText || `+${points} pts bónus.`)
+    + (chaosBonus > 0 ? ` (+${chaosBonus} que o Brasa te passou por baixo da mesa)` : "");
   els.mgeXp.textContent = `+${gained} XP — conta: ${account.xp} XP (${account.gamesPlayed} jogos)`;
   // Uma conquista nova rouba o lugar à boca do costume: é mais raro e é a
   // única altura em que a Dona Manga admite que reparou em ti.
@@ -1027,10 +1038,78 @@ function showGameHud(scoreGetter) {
   solo.hudScoreGetter = scoreGetter;
   els.gameHud.classList.remove("hidden");
   updateGameHudScore();
+  scheduleChaosEvent();
 }
 function hideGameHud() {
   els.gameHud.classList.add("hidden");
   solo.hudScoreGetter = null;
+  clearChaos();
+}
+
+// --- Caos da Dona Manga ---
+//
+// Um evento por mini-jogo, a meio, para nenhuma partida ser igual à
+// anterior. Regra que os limita de propósito: NENHUM evento pode tirar
+// vidas, tempo ou pontos, nem impedir de ganhar — só mexem no que se vê, e
+// um deles até dá pontos. Um evento que te matasse seria a app a jogar
+// contra ti, e isso não é variedade, é injustiça. Quem mesmo assim preferir
+// jogar limpo desliga no menu.
+
+function loadChaosEnabled() {
+  try {
+    return localStorage.getItem(CHAOS_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function saveChaosEnabled(on) {
+  try {
+    localStorage.setItem(CHAOS_KEY, on ? "on" : "off");
+  } catch {
+    // sem drama: a preferência só não persiste.
+  }
+}
+
+function clearChaos() {
+  clearTimeout(solo.chaosStartTimeoutId);
+  clearTimeout(solo.chaosEndTimeoutId);
+  solo.chaosStartTimeoutId = null;
+  solo.chaosEndTimeoutId = null;
+  els.chaosBanner.classList.add("hidden");
+  els.chaosPaw.classList.add("hidden");
+  document.querySelectorAll(".chaos-wobble").forEach((el) => el.classList.remove("chaos-wobble"));
+}
+
+function scheduleChaosEvent() {
+  clearChaos();
+  solo.chaosBonus = 0;
+  if (!loadChaosEnabled()) return;
+  // Entre 6 e 14 segundos: cedo demais e não se percebe que o jogo já
+  // estava a correr; tarde demais e a maioria dos jogos já acabou.
+  const delay = 6000 + Math.random() * 8000;
+  solo.chaosStartTimeoutId = setTimeout(() => {
+    if (els.gameHud.classList.contains("hidden")) return; // já não há jogo a correr
+    fireChaosEvent(pickChaosEvent());
+  }, delay);
+}
+
+function fireChaosEvent(ev) {
+  els.chaosBanner.textContent = `${ev.who}: “${ev.text}”`;
+  els.chaosBanner.classList.remove("hidden");
+  const arena = document.querySelector(".screen.active");
+  if (ev.kind === "paw") {
+    els.chaosPaw.classList.remove("hidden");
+  } else if (ev.kind === "wobble") {
+    arena?.classList.add("chaos-wobble");
+  } else if (ev.kind === "bonus") {
+    solo.chaosBonus = (solo.chaosBonus || 0) + (ev.bonus || 0);
+  }
+  solo.chaosEndTimeoutId = setTimeout(() => {
+    els.chaosBanner.classList.add("hidden");
+    els.chaosPaw.classList.add("hidden");
+    arena?.classList.remove("chaos-wobble");
+  }, ev.ms || 4000);
 }
 function updateGameHudScore() {
   if (!solo.hudScoreGetter) return;
@@ -1192,6 +1271,13 @@ els.leaderboardBtn.addEventListener("click", () => {
 els.achievementsBtn.addEventListener("click", () => {
   renderAchievements();
   showScreen("solo-achievements");
+});
+
+els.chaosToggle.checked = loadChaosEnabled();
+els.chaosToggle.addEventListener("change", () => {
+  saveChaosEnabled(els.chaosToggle.checked);
+  // Desligar a meio de um jogo tem de valer já, não só no próximo.
+  if (!els.chaosToggle.checked) clearChaos();
 });
 
 els.finishBtn.addEventListener("click", finishRound);

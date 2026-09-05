@@ -586,3 +586,15 @@ button.hud-btn .icon-inline { color: var(--ink); }
 
 /* Fala da mascote no ecrã "pronto?" — escrita à mão, não é interface. */
 .ready-mascot { font-style: italic; margin: 4px 0 2px; max-width: 34ch; opacity: 0.9; }
+
+/* --- Caos da Dona Manga: aviso + efeitos que nunca tiram vidas --- */
+.chaos-banner { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 60; max-width: min(92vw, 520px); padding: 10px 16px; text-align: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 12px; box-shadow: 2px 2px 0 rgba(0,0,0,0.25); font-style: italic; animation: chaos-in 0.25s ease-out; }
+@keyframes chaos-in { from { transform: translate(-50%, -16px); opacity: 0; } }
+/* A pata é decoração por cima do jogo: pointer-events none, para nunca
+   engolir um clique que decidiria a partida. */
+.chaos-paw { position: fixed; right: 6vw; bottom: 8vh; z-index: 55; width: min(34vh, 300px); opacity: 0.55; transform: rotate(-18deg); pointer-events: none; }
+.chaos-paw svg { width: 100%; height: auto; display: block; }
+.chaos-wobble { animation: chaos-wobble 0.9s ease-in-out infinite; }
+@keyframes chaos-wobble { 0%, 100% { transform: rotate(-0.7deg); } 50% { transform: rotate(0.7deg); } }
+.chaos-toggle { display: flex; align-items: center; gap: 8px; justify-content: center; font-size: 0.85rem; opacity: 0.85; }
+@media (prefers-reduced-motion: reduce) { .chaos-wobble { animation: none; } }

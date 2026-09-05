@@ -475,3 +475,29 @@ export function pickMascotIntro(gameKey) {
   if (!list || list.length === 0) return null;
   return list[Math.floor(Math.random() * list.length)];
 }
+
+// --- Eventos de "caos" da Dona Manga ---
+//
+// Disparam UMA vez a meio de um mini-jogo, para nenhuma partida ser igual à
+// anterior. Regra de desenho que os limita de propósito: nenhum evento pode
+// tornar um jogo imperdível OU imganhável — só mexem no que se vê e num
+// bónus no fim. Um evento que te matasse seria a app a jogar contra ti, e
+// isso não é variedade, é injustiça.
+export const CHAOS_EVENTS = [
+  {
+    id: "pata", kind: "paw", ms: 4000,
+    who: "Dona Manga", text: "Pôs a pata no ecrã. Não vai tirar já.",
+  },
+  {
+    id: "sono", kind: "wobble", ms: 4000,
+    who: "Dona Manga", text: "Espreguiçou-se em cima da mesa. Está tudo a abanar.",
+  },
+  {
+    id: "brasa", kind: "bonus", ms: 2600, bonus: 5,
+    who: "Brasa", text: "Distraí-a com um novelo! Toma uns pontos por baixo da mesa.",
+  },
+];
+
+export function pickChaosEvent() {
+  return CHAOS_EVENTS[Math.floor(Math.random() * CHAOS_EVENTS.length)];
+}

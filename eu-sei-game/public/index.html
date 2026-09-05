@@ -71,6 +71,7 @@
       <div class="divider"></div>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button id="solo-achievements-btn">🏅 Conquistas</button>
+      <label class="chaos-toggle"><input type="checkbox" id="solo-chaos-toggle" checked /> 🐈 Deixar a Dona Manga interferir a meio dos jogos</label>
       <button data-solo-home class="ghost">Voltar</button>
     </div>
   </section>
@@ -712,6 +713,23 @@
   </div>
 
   <!-- Ecrã partilhado "pronto?" antes de cada mini-jogo começar a contar o tempo -->
+  <!-- Aviso de caos: a Dona Manga a interferir a meio de um mini-jogo. Nunca
+       tira vidas nem impede de ganhar — só mexe no que se vê (e num bónus). -->
+  <div id="chaos-banner" class="chaos-banner hidden"></div>
+  <div id="chaos-paw" class="chaos-paw hidden" aria-hidden="true">
+    <!-- Pata desenhada à mão em vez do emoji 🐾: o emoji sai azul e com dois
+         pés, que destoa da paleta de papel e lápis e lê-se como pegadas no
+         chão, não como uma pata pousada no ecrã. -->
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="100" cy="132" rx="52" ry="44" fill="#f0cf8f" stroke="#3a3126" stroke-width="5"/>
+      <ellipse cx="52" cy="80" rx="20" ry="26" fill="#f0cf8f" stroke="#3a3126" stroke-width="5" transform="rotate(-16 52 80)"/>
+      <ellipse cx="86" cy="58" rx="20" ry="27" fill="#f0cf8f" stroke="#3a3126" stroke-width="5" transform="rotate(-6 86 58)"/>
+      <ellipse cx="124" cy="58" rx="20" ry="27" fill="#f0cf8f" stroke="#3a3126" stroke-width="5" transform="rotate(6 124 58)"/>
+      <ellipse cx="157" cy="82" rx="19" ry="25" fill="#f0cf8f" stroke="#3a3126" stroke-width="5" transform="rotate(18 157 82)"/>
+      <path d="M78 128 q22 -16 44 0" fill="none" stroke="#3a3126" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+    </svg>
+  </div>
+
   <div id="ready-overlay" class="pause-overlay hidden">
     <div class="card center">
       <h2 id="ready-title"></h2>
