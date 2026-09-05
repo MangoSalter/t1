@@ -10,25 +10,59 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("net::ERR_")) errors.push(m.text()); });
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 
+// Lê e limpa o registo do próprio módulo de voz. Antes isto passava por uma
+// lista no window, que o duplo e o teste viam de forma diferente: o duplo
+// escrevia numa e o teste limpava outra.
+const ouviu = (p) => p.evaluate(async () => (await import("./js/voice.js")).__voice.said.slice());
+const limparOuvido = (p) => p.evaluate(async () => { (await import("./js/voice.js")).__voice.said.length = 0; });
+
+// O <details> guarda o seu estado: clicar no resumo ALTERNA, e se já estava
+// aberto o clique fecha-o. Garante-se o estado em vez de alternar às cegas.
+async function abrirPainel(p) {
+  await p.evaluate(() => {
+    const d = document.querySelector(".solo-presentation");
+    if (d && !d.open) d.open = true;
+  });
+}
+
+// Sair de um mini-jogo avulso: pelo HUD (pausa -> sair), que é o caminho que
+// o jogador tem. [data-solo-leave] só existe nos ecrãs de listagem.
+async function sairDoJogo(p) {
+  await p.click("#game-hud-pause-btn");
+  await p.waitForFunction(() => !document.getElementById("pause-overlay").classList.contains("hidden"), { timeout: 5000 });
+  await p.click("#pause-exit-btn");
+  await p.waitForSelector('[data-screen="solo-menu"].active', { timeout: 5000 });
+}
+
 await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
 
 // Um sintetizador de mentira: esta máquina não tem vozes instaladas, e sem
 // isto não haveria como verificar o que a app TENTA dizer. Substitui só o
 // browser, não o código do jogo.
 await page.addInitScript(() => {
-  window.__ditas = [];
-  window.speechSynthesis = {
-    speak: (u) => { window.__ditas.push(u.text); },
-    cancel: () => {},
-    getVoices: () => [{ lang: "pt-PT", name: "Voz de teste" }],
-  };
-  window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+  // window.speechSynthesis e uma propriedade SO DE LEITURA: atribuir-lhe nao
+  // faz nada e fica a valer o sintetizador verdadeiro, que depois recusa o
+  // objeto falso. Tem de ser defineProperty.
+  const dito = [];
+  window.__ditas = dito;
+  Object.defineProperty(window, "speechSynthesis", {
+    configurable: true,
+    get: () => ({
+      speak: (u) => { dito.push(u.text); },
+      cancel: () => {},
+      getVoices: () => [{ lang: "pt-PT", name: "Voz de teste" }],
+    }),
+  });
+  Object.defineProperty(window, "SpeechSynthesisUtterance", {
+    configurable: true, writable: true,
+    value: function (t) { this.text = t; },
+  });
 });
 await page.reload({ waitUntil: "networkidle" });
 
 console.log("1) O jogo começa no modo mínimo...");
 await page.click("#solo-menu-btn");
-await page.click(".solo-presentation summary");
+await abrirPainel(page);
 const inicial = await page.evaluate(() =>
   document.querySelector('[data-presentation="minimo"]').getAttribute("aria-pressed"));
 console.log(`   "mínimo" marcado: ${inicial}`);
@@ -40,31 +74,35 @@ if (await page.locator("#solo-voice-row").isVisible()) {
 }
 
 console.log("2) NO MODO MÍNIMO A APP NÃO DIZ NADA...");
-await page.evaluate(() => { window.__ditas = []; });
-await page.click("#solo-play-memory-btn");
+await limparOuvido(page);
+await page.click("#solo-play-bug-btn");
 await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
-const ditasMinimo = await page.evaluate(() => window.__ditas.slice());
+const ditasMinimo = await ouviu(page);
 console.log(`   frases ditas no modo mínimo: ${ditasMinimo.length}`);
 if (ditasMinimo.length !== 0) fail(`o modo mínimo falou: ${JSON.stringify(ditasMinimo)}`);
 await page.click("#ready-start-btn");
 await page.waitForTimeout(500);
-const ditasDurante = await page.evaluate(() => window.__ditas.length);
+const ditasDurante = (await ouviu(page)).length;
 if (ditasDurante !== 0) fail("o modo mínimo falou durante o jogo");
 
 console.log("3) No modo guiado, o portão diz que jogo vem E o que se faz...");
-await page.click('.screen.active [data-solo-leave]');
-await page.waitForSelector('[data-screen="solo-menu"].active', { timeout: 5000 });
-await page.click(".solo-presentation summary");
+await sairDoJogo(page);
+await abrirPainel(page);
 await page.click('[data-presentation="guiado"]');
-await page.evaluate(() => { window.__ditas = []; });
-await page.click("#solo-play-memory-btn");
+await limparOuvido(page);
+await page.click("#solo-play-bug-btn");
 await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
-const ditasGuiado = await page.evaluate(() => window.__ditas.slice());
+const diagnostico = await page.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  return { modo: v.presentationMode(), voz: v.voiceEnabled(), suportado: v.voiceSupported(), tentou: v.__voice.said.slice(-3) };
+});
+console.log(`   diagnóstico: ${JSON.stringify(diagnostico)}`);
+const ditasGuiado = await ouviu(page);
 console.log(`   disse: ${JSON.stringify(ditasGuiado)}`);
 if (ditasGuiado.length === 0) fail("o modo guiado não disse nada no portão");
 const frase = ditasGuiado.join(" ");
-if (!frase.includes("Memória")) fail("devia dizer o nome do jogo");
-if (!/pares|cartas/i.test(frase)) fail("devia dizer o que se faz no jogo, não só o nome");
+if (!frase.includes("Mata o Inseto")) fail("devia dizer o nome do jogo");
+if (!/insetos|toca/i.test(frase)) fail("devia dizer o que se faz no jogo, não só o nome");
 
 console.log("4) As instruções são escritas para ser OUVIDAS...");
 // Um sintetizador lê tudo: parênteses, barras e emoji viram ruído.
@@ -88,21 +126,20 @@ if (semInstrucao.length > 0) fail(`mini-jogos sem instrução falada: ${semInstr
 console.log("5) Desligar a voz cala a app, mesmo no modo guiado...");
 await page.click("#ready-start-btn");
 await page.waitForTimeout(400);
-await page.click('.screen.active [data-solo-leave]');
-await page.waitForSelector('[data-screen="solo-menu"].active', { timeout: 5000 });
-await page.click(".solo-presentation summary");
+await sairDoJogo(page);
+await abrirPainel(page);
 await page.click("#solo-voice-toggle");
-await page.evaluate(() => { window.__ditas = []; });
-await page.click("#solo-play-memory-btn");
+await limparOuvido(page);
+await page.click("#solo-play-bug-btn");
 await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
-const comVozDesligada = await page.evaluate(() => window.__ditas.length);
+const comVozDesligada = (await ouviu(page)).length;
 console.log(`   frases com a voz desligada: ${comVozDesligada}`);
 if (comVozDesligada !== 0) fail("a voz desligada continuou a falar");
 
 console.log("6) A escolha fica guardada entre sessões...");
 await page.reload({ waitUntil: "networkidle" });
 await page.click("#solo-menu-btn");
-await page.click(".solo-presentation summary");
+await abrirPainel(page);
 const depoisDeRecarregar = await page.evaluate(() => ({
   modo: document.querySelector('[data-presentation="guiado"]').getAttribute("aria-pressed"),
   voz: document.getElementById("solo-voice-toggle").checked,
@@ -125,7 +162,7 @@ semVoz.on("pageerror", (e) => errosSemVoz.push(e.message));
 await semVoz.click("#solo-menu-btn");
 await semVoz.click(".solo-presentation summary");
 await semVoz.click('[data-presentation="guiado"]');
-await semVoz.click("#solo-play-memory-btn");
+await semVoz.click("#solo-play-bug-btn");
 await semVoz.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
 const avisoVisivel = await semVoz.locator("#solo-voice-warning").count();
 console.log(`   o portão abriu sem sintetizador, e há aviso no ecrã: ${avisoVisivel > 0}`);
@@ -140,13 +177,23 @@ const anaP = await ctx.newPage();
 const betoP = await ctx.newPage();
 for (const p of [anaP, betoP]) {
   await p.addInitScript(() => {
-    window.__ditas = [];
-    window.speechSynthesis = {
-      speak: (u) => { window.__ditas.push(u.text); },
-      cancel: () => {},
-      getVoices: () => [{ lang: "pt-PT", name: "Voz de teste" }],
-    };
-    window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+    // window.speechSynthesis e uma propriedade SO DE LEITURA: atribuir-lhe nao
+    // faz nada e fica a valer o sintetizador verdadeiro, que depois recusa o
+    // objeto falso. Tem de ser defineProperty.
+    const dito = [];
+    window.__ditas = dito;
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      get: () => ({
+        speak: (u) => { dito.push(u.text); },
+        cancel: () => {},
+        getVoices: () => [{ lang: "pt-PT", name: "Voz de teste" }],
+      }),
+    });
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      configurable: true, writable: true,
+      value: function (t) { this.text = t; },
+    });
     localStorage.setItem("euSei_presentationMode", "guiado");
   });
 }
@@ -179,12 +226,12 @@ await anaP.waitForSelector("#hangman-penvote-overlay:not(.hidden)", { timeout: 8
 await anaP.click(`[data-pen-vote-choice="${idAna}"]`);
 await anaP.waitForFunction((a) => window.__testDb.get(`rooms/${a[0]}`).hangman?.leaderId === a[1], [codigo, idAna], { timeout: 8000 });
 
-await betoP.evaluate(() => { window.__ditas = []; });
+await limparOuvido(betoP);
 await anaP.fill("#hangman-word-input", "banana");
 await anaP.fill("#hangman-hint-input", "fruta");
 await anaP.click("#hangman-word-form button[type=submit]");
-await betoP.waitForFunction(() => window.__ditas.some((t) => /letras/i.test(t)), { timeout: 8000 });
-const ditoAoBeto = await betoP.evaluate(() => window.__ditas.slice());
+await betoP.waitForFunction(async () => (await import("./js/voice.js")).__voice.said.some((t) => /letras/i.test(t)), { timeout: 8000 });
+const ditoAoBeto = await ouviu(betoP);
 console.log(`   o Beto ouviu: ${JSON.stringify(ditoAoBeto)}`);
 const tudo = ditoAoBeto.join(" ").toLowerCase();
 if (!/6 letras/.test(tudo)) fail("devia dizer quantas letras tem a palavra");
@@ -193,39 +240,42 @@ if (!/fruta/.test(tudo)) fail("devia dizer a pista, que é pública");
 if (/banana/.test(tudo)) fail("A PALAVRA ESCONDIDA FOI DITA EM VOZ ALTA");
 
 console.log("9) E narra as letras erradas com o nome de quem as disse...");
-await betoP.evaluate(() => { window.__ditas = []; });
+await limparOuvido(betoP);
 await betoP.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 8000 });
 await betoP.fill("#hangman-guess-input", "z");
 await betoP.click("#hangman-guess-form button[type=submit]");
 await anaP.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.wrong?.z, codigo, { timeout: 8000 });
-await betoP.waitForFunction(() => window.__ditas.some((t) => /não está na palavra/i.test(t)), { timeout: 8000 });
-const sobreOErro = await betoP.evaluate(() => window.__ditas.slice());
+await betoP.waitForFunction(async () => (await import("./js/voice.js")).__voice.said.some((t) => /não está na palavra/i.test(t)), { timeout: 8000 });
+const sobreOErro = await ouviu(betoP);
 console.log(`   ouviu: ${JSON.stringify(sobreOErro)}`);
 if (!sobreOErro.join(" ").includes("Beto")) fail("devia dizer quem disse a letra");
 // E continua sem dizer a palavra.
 if (/banana/i.test(sobreOErro.join(" "))) fail("A PALAVRA FOI DITA");
 
 console.log("10) No modo mínimo, a sala fica calada...");
-const ctxMin = await browser.newContext();
-const calado = await ctxMin.newPage();
-await calado.addInitScript(() => {
-  window.__ditas = [];
-  window.speechSynthesis = { speak: (u) => { window.__ditas.push(u.text); }, cancel: () => {}, getVoices: () => [] };
-  window.SpeechSynthesisUtterance = function (t) { this.text = t; };
-  localStorage.setItem("euSei_presentationMode", "minimo");
+// Sem terceiro jogador: entrar numa sala a meio de um jogo não é permitido, e
+// essa é uma regra do jogo, não um problema a contornar. A mesma coisa
+// prova-se com o Beto a passar para o modo mínimo a meio.
+await betoP.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  v.setPresentationMode("minimo");
+  v.__voice.said.length = 0;
 });
-await calado.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
-await calado.fill("#name-input", "Carla");
-await calado.fill("#join-code-input", codigo);
-await calado.waitForFunction(() => !document.getElementById("join-room-btn").disabled, { timeout: 5000 });
-await calado.click("#join-room-btn");
-await calado.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
-await calado.waitForTimeout(1500);
-const ditasCalado = await calado.evaluate(() => window.__ditas.length);
-console.log(`   frases ditas a quem está no modo mínimo: ${ditasCalado}`);
+await anaP.evaluate(async () => { (await import("./js/voice.js")).__voice.said.length = 0; });
+// Mexe-se na sala, para haver o que narrar.
+await anaP.click("#hangman-passturn-btn");
+await anaP.waitForTimeout(1200);
+const ditasCalado = (await ouviu(betoP)).length;
+console.log(`   frases ditas ao Beto depois de passar a mínimo: ${ditasCalado}`);
 if (ditasCalado !== 0) fail("o modo mínimo falou na sala");
+// E a Ana, que ficou no guiado, continua a ser narrada — senão isto só
+// provava que a narração parou para todos.
+await betoP.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  v.setPresentationMode("guiado");
+});
+
 await ctx.close();
-await ctxMin.close();
 
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);

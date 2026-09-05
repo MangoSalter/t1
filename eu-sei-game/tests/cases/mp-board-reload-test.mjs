@@ -57,8 +57,12 @@ const antes = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangm
 console.log(`   forma antes do F5: "${antes}"`);
 
 console.log("3) A ANA RECARREGA A PÁGINA a meio do jogo...");
+// Recarregar tem de a devolver À SALA, e não ao ecrã inicial. Sem isso, o
+// resto deste teste não faz sentido nenhum: quem recarrega fica de fora do
+// jogo e a recuperação da palavra nunca chega a acontecer.
 await host.reload({ waitUntil: "networkidle" });
 await host.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
+console.log("   voltou sozinha para a sala, no ecrã do quadro");
 // A forma da palavra continua na sala, como deve.
 const depois = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
 console.log(`   forma depois do F5: "${depois}"`);
@@ -82,10 +86,11 @@ console.log("5) Se a palavra guardada não servir, o quadro DIZ que se perdeu...
 // Apagar o que está guardado no browser simula o caso em que não há como
 // recuperar (armazenamento bloqueado, outro dispositivo). O jogo não pode
 // ficar calado: tem de pedir a palavra outra vez.
-await host.evaluate(() => {
-  localStorage.removeItem("euSei_hangmanSecret");
-  location.reload();
-});
+// Apagar e recarregar em passos separados: chamar location.reload() de dentro
+// de um evaluate destrói o contexto a meio da chamada e a corrida seguinte
+// fica indefinida.
+await host.evaluate(() => localStorage.removeItem("euSei_hangmanSecret"));
+await host.reload({ waitUntil: "networkidle" });
 await host.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
 await host.waitForFunction(() => document.getElementById("hangman-status").textContent.includes("Perdi a palavra"), { timeout: 10000 });
 const aviso = await host.locator("#hangman-status").textContent();

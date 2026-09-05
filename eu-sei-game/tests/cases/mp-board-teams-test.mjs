@@ -97,10 +97,19 @@ await host.waitForFunction(() => {
 
 console.log("7) Quem está DENTRO renomeia a equipa; quem está de fora, não...");
 // A Ana está na t1: vê caixa de escrever. Na t2 (do Beto) só lê.
-const podeRenomear = await host.evaluate(() => ({
-  minha: !!document.querySelector('[data-team-name-input="t1"]'),
-  doOutro: !!document.querySelector('[data-team-name-input="t2"]'),
-}));
+// A caixa de escrever existe em todas as equipas mas só se MOSTRA na nossa —
+// a regra é a visibilidade, não a existência no DOM. E o renameTeam recusa à
+// mesma quem não é da equipa, que é a defesa que conta.
+const podeRenomear = await host.evaluate(() => {
+  const visivel = (sel) => {
+    const el = document.querySelector(sel);
+    return !!el && !el.hidden && el.getClientRects().length > 0;
+  };
+  return {
+    minha: visivel('[data-team-name-input="t1"]'),
+    doOutro: visivel('[data-team-name-input="t2"]'),
+  };
+});
 console.log(`   a Ana pode renomear a sua: ${podeRenomear.minha}, a do Beto: ${podeRenomear.doOutro}`);
 if (!podeRenomear.minha) fail("quem está dentro da equipa devia poder mudar-lhe o nome");
 if (podeRenomear.doOutro) fail("não se deve poder renomear a equipa dos outros");
@@ -139,6 +148,7 @@ await host.waitForFunction(() => {
 
 console.log("8) Mudar para 3 equipas mantém os nomes já escolhidos...");
 await host.click('[data-team-count="3"]');
+await host.waitForTimeout(600);
 await guest.waitForFunction(() => document.querySelectorAll("[data-team-box]").length === 3, { timeout: 8000 });
 const comTres = await guest.evaluate(() =>
   [...document.querySelectorAll("[data-team-box]")].map((c) => c.textContent.includes("Os Kotas")));

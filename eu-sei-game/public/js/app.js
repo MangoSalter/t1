@@ -11,7 +11,7 @@ import {
   MAP_BACKGROUND_SVG, LANDMARKS,
 } from "./data.js";
 import {
-  createRoom, joinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
+  createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
   startGame, startQuickBonusGame, pushScratchpadPoints, clearScratchpad,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
@@ -287,9 +287,38 @@ function showHomeError(msg) {
   els.homeError.textContent = msg;
 }
 
+// Onde é que eu estava. Guardado ao entrar numa sala e apagado ao sair, para
+// um recarregamento da página devolver a pessoa ao sítio onde estava em vez de
+// a deitar fora do jogo. No telemóvel isto não é um caso raro: os browsers
+// recarregam separadores em segundo plano sozinhos, e basta trocar de app e
+// voltar para se perder a sala a meio de uma partida.
+const ROOM_KEY = "euSei_salaAtual";
+
+function lembrarSala(code, name) {
+  try {
+    localStorage.setItem(ROOM_KEY, JSON.stringify({ code, name }));
+  } catch { /* sem armazenamento: só não sobrevive ao recarregamento */ }
+}
+
+function esquecerSala() {
+  try {
+    localStorage.removeItem(ROOM_KEY);
+  } catch { /* ver lembrarSala */ }
+}
+
+function salaLembrada() {
+  try {
+    const g = JSON.parse(localStorage.getItem(ROOM_KEY) || "null");
+    return g && g.code ? g : null;
+  } catch {
+    return null;
+  }
+}
+
 function enterRoom(code) {
   state.code = code;
   showHomeError("");
+  lembrarSala(code, state.name);
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = listenRoom(code, onRoomUpdate);
   optionsEls.fab.classList.remove("hidden");
@@ -341,6 +370,9 @@ function onRoomUpdate(room) {
 }
 
 function leaveToHome() {
+  // Sair é sair: apaga a sala guardada, senão o recarregamento seguinte
+  // arrastava a pessoa de volta para uma sala que ela deixou de propósito.
+  esquecerSala();
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = null;
   state.code = null;
@@ -1741,9 +1773,33 @@ function esquecerNarracao() {
 
 // --- Solo ou equipas ---
 
-function hangmanOpenTeams() {
+// Assinatura do que o ecrã das equipas mostra. Serve para NÃO o reconstruir
+// quando nada do que ele mostra mudou. Reconstruí-lo a cada atualização da
+// sala — que numa partida é a toda a hora — fazia os botões desaparecer e
+// reaparecer debaixo do dedo: um toque calhado no meio da reconstrução não
+// chega a acontecer. Quem carrega em "3 equipas" e não vê nada mudar não
+// carrega outra vez, desiste.
+function assinaturaEquipas(room) {
+  const h = room?.hangman || {};
+  return JSON.stringify({
+    play: h.play || "solo",
+    teams: h.teams || null,
+    teamOf: h.teamOf || null,
+    teamScore: h.teamScore || null,
+    trancado: !!h.mask,
+    ligados: connectedPlayerIds(room),
+    manda: canSetBoardMode(room, state.uid),
+  });
+}
+let assinaturaEquipasAtual = null;
+
+function hangmanOpenTeams(forcar) {
   const room = state.room;
   if (!room?.hangman) return;
+  const assinatura = assinaturaEquipas(room);
+  const jaAberto = !hangmanEls.teamsOverlay.classList.contains("hidden");
+  if (!forcar && jaAberto && assinatura === assinaturaEquipasAtual) return;
+  assinaturaEquipasAtual = assinatura;
   // O ecrã das equipas redesenha-se a cada mexida dos outros (é assim que se
   // vê alguém entrar numa equipa). Isso apagava o que se estivesse a escrever
   // no nome da equipa: bastava outra pessoa entrar noutra caixa para o texto
@@ -1757,116 +1813,105 @@ function hangmanOpenTeams() {
   const emEquipas = teamsOn(room);
   const trancado = teamsLocked(room);
 
-  hangmanEls.playToggle.innerHTML = "";
-  [["solo", "🙋 Cada um por si"], ["equipas", "👥 Equipas"]].forEach(([valor, texto]) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.dataset.playMode = valor;
-    btn.textContent = texto;
-    btn.setAttribute("aria-pressed", String((room.hangman.play || "solo") === valor));
-    btn.disabled = !manda || trancado;
-    btn.addEventListener("click", async () => {
-      await setPlayMode(state.code, state.room, state.uid, valor);
-      if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
-    });
-    hangmanEls.playToggle.appendChild(btn);
+  // Os botões de escolher (solo/equipas e quantas) são criados UMA VEZ e daí
+  // em diante só se lhes muda o estado. Recriá-los a cada atualização da sala
+  // fazia-os desaparecer e reaparecer debaixo do dedo — e como escrever o nome
+  // de uma equipa e depois carregar num botão faz o campo perder o foco, isso
+  // gravava o nome, atualizava a sala e reconstruía o botão exatamente no
+  // instante do toque. O toque perdia-se e ninguém percebia porquê.
+  construirControlosEquipas();
+  const equipas = teamList(room);
+  hangmanEls.playToggle.querySelectorAll("[data-play-mode]").forEach((b) => {
+    b.setAttribute("aria-pressed", String((room.hangman.play || "solo") === b.dataset.playMode));
+    b.disabled = !manda || trancado;
+  });
+  hangmanEls.teamCountRow.classList.toggle("hidden", !emEquipas);
+  hangmanEls.teamCountBtns.querySelectorAll("[data-team-count]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(equipas.length === Number(b.dataset.teamCount)));
+    b.disabled = !manda || trancado;
   });
 
-  hangmanEls.teamCountRow.classList.toggle("hidden", !emEquipas);
-  hangmanEls.teamCountBtns.innerHTML = "";
-  const equipas = teamList(room);
-  for (let n = 2; n <= MAX_TEAMS; n += 1) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.dataset.teamCount = String(n);
-    btn.textContent = String(n);
-    btn.setAttribute("aria-pressed", String(equipas.length === n));
-    btn.disabled = !manda || trancado;
-    btn.addEventListener("click", async () => {
-      await setTeamCount(state.code, state.room, state.uid, n);
-      if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
-    });
-    hangmanEls.teamCountBtns.appendChild(btn);
-  }
-
-  hangmanEls.teamBoxes.innerHTML = "";
-  if (emEquipas) {
-    const minha = teamOfPlayer(room, state.uid);
-    equipas.forEach((eq) => {
-      const caixa = document.createElement("div");
+  // As caixas também são reaproveitadas, não recriadas. Só se apagam as que
+  // deixaram de existir e criam-se as que faltam; o resto é atualizado no
+  // sítio. Recriar tudo mexia com a caixa de escrever o nome no preciso
+  // instante em que se estava a escrever nela.
+  const equipasAgora = emEquipas ? equipas : [];
+  const idsAgora = equipasAgora.map((e) => e.id);
+  [...hangmanEls.teamBoxes.querySelectorAll("[data-team-box]")].forEach((el) => {
+    if (!idsAgora.includes(el.dataset.teamBox)) el.remove();
+  });
+  const minha = teamOfPlayer(room, state.uid);
+  equipasAgora.forEach((eq) => {
+    let caixa = hangmanEls.teamBoxes.querySelector(`[data-team-box="${eq.id}"]`);
+    if (!caixa) {
+      caixa = document.createElement("div");
       caixa.className = "hangman-team-box";
       caixa.dataset.teamBox = eq.id;
-      caixa.dataset.mine = eq.id === minha ? "1" : "0";
-      caixa.style.borderColor = eq.color;
-
-      // Quem está DENTRO da equipa pode mudar-lhe o nome; de fora, só se lê.
-      if (eq.id === minha && !trancado) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "hangman-team-name-input";
-        input.maxLength = 24;
-        input.value = eq.name;
-        input.dataset.teamNameInput = eq.id;
-        input.setAttribute("aria-label", `Nome da ${eq.name}`);
-        const guardar = () => {
-          if (input.value.trim() && input.value.trim() !== eq.name) {
-            renameTeam(state.code, state.room, state.uid, eq.id, input.value);
-          }
-        };
-        input.addEventListener("change", guardar);
-        input.addEventListener("blur", guardar);
-        caixa.appendChild(input);
-      } else {
-        const nome = document.createElement("span");
-        nome.className = "hangman-team-name";
-        nome.style.color = eq.color;
-        nome.textContent = eq.name;
-        caixa.appendChild(nome);
-      }
-
-      const membros = document.createElement("div");
-      membros.className = "hangman-team-members";
-      if (eq.members.length === 0) {
-        const vazio = document.createElement("span");
-        vazio.className = "hangman-team-empty";
-        vazio.textContent = "ainda ninguém";
-        membros.appendChild(vazio);
-      }
-      eq.members.forEach((uid) => {
-        const linha = document.createElement("span");
-        linha.dataset.teamMember = uid;
-        linha.textContent = room.players[uid]?.name || "?";
-        membros.appendChild(linha);
-      });
-      caixa.appendChild(membros);
-
-      if (eq.score > 0) {
-        const pontos = document.createElement("span");
-        pontos.className = "hangman-team-score";
-        pontos.textContent = `${eq.score} letra${eq.score === 1 ? "" : "s"}`;
-        caixa.appendChild(pontos);
-      }
-
-      const entrar = document.createElement("button");
-      entrar.type = "button";
-      entrar.className = "ghost hangman-team-join";
+      caixa.innerHTML = `
+        <span class="hangman-team-name" data-team-name></span>
+        <input type="text" class="hangman-team-name-input" maxlength="24" hidden />
+        <div class="hangman-team-members" data-team-members></div>
+        <span class="hangman-team-score" data-team-score></span>
+        <button type="button" class="ghost hangman-team-join"></button>`;
+      const entrar = caixa.querySelector(".hangman-team-join");
       entrar.dataset.joinTeam = eq.id;
-      entrar.textContent = eq.id === minha ? "Sair" : "Entrar";
-      entrar.disabled = trancado;
-      entrar.addEventListener("click", async () => {
-        await joinTeam(state.code, state.room, state.uid, eq.id === minha ? null : eq.id);
-        if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
+      entrar.addEventListener("click", () => {
+        const souDaqui = teamOfPlayer(state.room, state.uid) === eq.id;
+        joinTeam(state.code, state.room, state.uid, souDaqui ? null : eq.id);
       });
-      caixa.appendChild(entrar);
+      const campo = caixa.querySelector(".hangman-team-name-input");
+      campo.dataset.teamNameInput = eq.id;
+      campo.addEventListener("change", () => {
+        if (campo.value.trim()) renameTeam(state.code, state.room, state.uid, eq.id, campo.value);
+      });
       hangmanEls.teamBoxes.appendChild(caixa);
+    }
+    caixa.dataset.mine = eq.id === minha ? "1" : "0";
+    caixa.style.borderColor = eq.color;
+
+    // Quem está DENTRO da equipa escreve-lhe o nome; de fora, só se lê.
+    const podeEscrever = eq.id === minha && !trancado;
+    const campo = caixa.querySelector(".hangman-team-name-input");
+    const etiqueta = caixa.querySelector("[data-team-name]");
+    campo.hidden = !podeEscrever;
+    etiqueta.hidden = podeEscrever;
+    etiqueta.style.color = eq.color;
+    etiqueta.textContent = eq.name;
+    // Não se mexe no campo enquanto lá se está a escrever: seria apagar o que
+    // a pessoa tem a meio.
+    if (document.activeElement !== campo) campo.value = eq.name;
+    campo.setAttribute("aria-label", `Nome da ${eq.name}`);
+
+    const membros = caixa.querySelector("[data-team-members]");
+    membros.innerHTML = "";
+    if (eq.members.length === 0) {
+      const vazio = document.createElement("span");
+      vazio.className = "hangman-team-empty";
+      vazio.textContent = "ainda ninguém";
+      membros.appendChild(vazio);
+    }
+    eq.members.forEach((uid) => {
+      const linha = document.createElement("span");
+      linha.dataset.teamMember = uid;
+      linha.textContent = room.players[uid]?.name || "?";
+      membros.appendChild(linha);
     });
-  }
+
+    const pontos = caixa.querySelector("[data-team-score]");
+    pontos.hidden = eq.score === 0;
+    pontos.textContent = eq.score > 0 ? `${eq.score} letra${eq.score === 1 ? "" : "s"}` : "";
+
+    const entrar = caixa.querySelector(".hangman-team-join");
+    entrar.textContent = eq.id === minha ? "Sair" : "Entrar";
+    entrar.disabled = trancado;
+  });
 
   hangmanEls.teamsHint.textContent = trancado
     ? "O jogo já começou — as equipas ficam como estão até à próxima palavra."
     : (emEquipas
       ? "Entra numa equipa. Podem trocar à vontade até a palavra ser definida."
       : "Cada um joga por si.");
+
   if (aEscrever) {
     const campo = hangmanEls.teamBoxes.querySelector(`[data-team-name-input="${aEscrever.id}"]`);
     if (campo) {
@@ -1884,12 +1929,37 @@ function hangmanOpenTeams() {
   hangmanEls.teamsOverlay.classList.remove("hidden");
 }
 
-function hangmanCloseTeams() {
-  hangmanEls.teamsOverlay.classList.add("hidden");
+let controlosEquipasProntos = false;
+function construirControlosEquipas() {
+  if (controlosEquipasProntos) return;
+  controlosEquipasProntos = true;
+  hangmanEls.playToggle.innerHTML = "";
+  [["solo", "🙋 Cada um por si"], ["equipas", "👥 Equipas"]].forEach(([valor, texto]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.playMode = valor;
+    btn.textContent = texto;
+    btn.addEventListener("click", () => setPlayMode(state.code, state.room, state.uid, valor));
+    hangmanEls.playToggle.appendChild(btn);
+  });
+  hangmanEls.teamCountBtns.innerHTML = "";
+  for (let n = 2; n <= MAX_TEAMS; n += 1) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.teamCount = String(n);
+    btn.textContent = String(n);
+    btn.addEventListener("click", () => setTeamCount(state.code, state.room, state.uid, n));
+    hangmanEls.teamCountBtns.appendChild(btn);
+  }
 }
 
-hangmanEls.teamsBtn.addEventListener("click", hangmanOpenTeams);
-hangmanEls.teamsBtnViewer.addEventListener("click", hangmanOpenTeams);
+function hangmanCloseTeams() {
+  hangmanEls.teamsOverlay.classList.add("hidden");
+  assinaturaEquipasAtual = null;
+}
+
+hangmanEls.teamsBtn.addEventListener("click", () => hangmanOpenTeams(true));
+hangmanEls.teamsBtnViewer.addEventListener("click", () => hangmanOpenTeams(true));
 hangmanEls.teamsCloseBtn.addEventListener("click", hangmanCloseTeams);
 
 hangmanEls.settingsBtn.addEventListener("click", hangmanOpenSettings);
@@ -2175,8 +2245,13 @@ function renderHangman(room) {
   if (amLeader && personal.on) personalSetOn(false);
   // Uma palavra nova limpa o rascunho: os riscos da palavra anterior só
   // atrapalhariam a seguinte.
-  if (hangman.mask !== personalLastMask) {
-    personalLastMask = hangman.mask || null;
+  // Os dois lados TÊM de ser normalizados. Sem palavra definida, hangman.mask é
+  // undefined e personalLastMask é null: "undefined !== null" dá verdadeiro
+  // sempre, e o rascunho era apagado a cada desenho de ecrã — ou seja, a cada
+  // traço que chegasse de quem tem a caneta. Rabiscar tornava-se impossível.
+  const marcaAtual = hangman.mask || null;
+  if (marcaAtual !== personalLastMask) {
+    personalLastMask = marcaAtual;
     if (personal.strokes.length > 0) {
       personal.strokes = [];
       personal.current = null;
@@ -4316,6 +4391,22 @@ async function init() {
   showHomeError("");
   els.createBtn.disabled = false;
   els.joinBtn.disabled = false;
+
+  // Voltar sozinho à sala onde se estava. Só acontece se a sala ainda existir
+  // E o lugar ainda for desta pessoa — senão fica-se no ecrã inicial, como
+  // antes, em vez de aparecer um erro por uma sala que já acabou.
+  const anterior = salaLembrada();
+  if (anterior) {
+    try {
+      state.name = anterior.name || state.name;
+      if (state.name) els.nameInput.value = state.name;
+      const voltou = await rejoinRoom(anterior.code, state.uid, state.name);
+      if (voltou) enterRoom(voltou);
+      else esquecerSala();
+    } catch {
+      esquecerSala();
+    }
+  }
   // Verificação periódica: garante que transições por tempo (fim de ronda,
   // fim de votação, bola sem resposta) acontecem mesmo que ninguém escreva
   // nada na base de dados entretanto.

@@ -270,6 +270,24 @@ export async function joinRoom(code, uid, name, avatar) {
   return code;
 }
 
+// Voltar a uma sala onde já se estava, depois de recarregar a página. É
+// diferente de entrar: não passa pela regra "a sala já começou a jogar", que
+// existe para impedir ESTRANHOS de entrar a meio — e quem já lá estava não é
+// um estranho. Recusa se a sala já não existir ou se o lugar já não for dele.
+export async function rejoinRoom(code, uid, name) {
+  if (!code || !uid) return null;
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) return null;
+  const room = snap.val();
+  if (!room.players?.[uid]) return null;
+  await update(ref(db, `rooms/${code}/players/${uid}`), {
+    connected: true,
+    name: name || room.players[uid].name,
+  });
+  attachPresence(code, uid);
+  return code;
+}
+
 // Permite mudar o avatar depois de já estar numa sala (ex: desenhá-lo
 // enquanto se espera na lobby) — sem isto a mudança só ficava guardada
 // localmente e só apareceria aos outros jogadores numa próxima entrada.

@@ -218,6 +218,25 @@ export function serverNow() {
   return Date.now();
 }
 
+// O login anonimo da Firebase guarda a sessao: recarregar a pagina devolve o
+// MESMO uid. O stub inventava um novo a cada chamada, e assim nenhum teste
+// conseguia chegar ao caso "recarreguei e continuo a ser a mesma pessoa" — que
+// e o que mais acontece num telemovel.
+//
+// Fica em sessionStorage e nao em localStorage de proposito: sessionStorage e
+// por SEPARADOR e sobrevive ao recarregamento, que e exatamente o que se quer
+// aqui. Em localStorage, os dois separadores que os testes multijogador usam
+// como dois jogadores passavam a ser a mesma pessoa.
+const UID_KEY = "euSei_stubUid";
+
 export async function getUid() {
-  return "test-uid-" + Math.random().toString(36).slice(2, 8);
+  try {
+    const guardado = sessionStorage.getItem(UID_KEY);
+    if (guardado) return guardado;
+    const novo = "test-uid-" + Math.random().toString(36).slice(2, 8);
+    sessionStorage.setItem(UID_KEY, novo);
+    return novo;
+  } catch {
+    return "test-uid-" + Math.random().toString(36).slice(2, 8);
+  }
 }
