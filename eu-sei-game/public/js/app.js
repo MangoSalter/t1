@@ -2152,7 +2152,10 @@ function renderWrongLetters(room) {
   hangmanEls.wrongLetters.innerHTML = "";
   // O balão da Dona Manga. Dura poucos segundos e some sozinho: um comentário
   // que fica no ecrã deixa de ser um comentário e passa a ser um aviso.
-  const quip = naForca ? hangman.quip : null;
+  // room chega aqui já filtrado: fora da Forca vem sem hangman, e é isso que
+  // faz o balão não aparecer noutros modos. "naForca" e "hangman" são de
+  // renderHangman e não existem nesta função — usá-los aqui rebentava.
+  const quip = room?.hangman?.quip;
   const fala = quip && BOARD_QUIPS[quip.i];
   const fresca = fala && serverNow() - (quip.at || 0) < 7000;
   hangmanEls.quip.classList.toggle("hidden", !fresca);
