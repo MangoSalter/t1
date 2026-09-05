@@ -152,23 +152,36 @@ function nextPointSeq(pointsObj) {
 
 // Acrescenta só os pontos novos e apaga os mais antigos que passem do
 // limite — ambos no mesmo update multi-caminho, uma só escrita.
+// O desenho NÃO se apaga sozinho. Havia aqui um limite de "tinta": ao passar
+// do máximo, os pontos mais antigos iam sendo deitados fora para dar lugar aos
+// novos. A ideia era bonita e o efeito era péssimo — e a borracha foi quem o
+// expôs. Cada traço de borracha também é um traço, e também gasta pontos: quem
+// apagasse um bocado via o resto do desenho ir encolhendo atrás, traço a traço,
+// até à folha vazia. Apagar um canto apagava tudo.
+//
+// Agora só a "Limpar" apaga. O teto que ficou é uma trave de segurança contra
+// escrita sem fim, e ao ser atingido PARA de aceitar pontos novos em vez de
+// comer os antigos: um quadro que deixa de aceitar traços vê-se e percebe-se;
+// um quadro que se desfaz sozinho por trás não.
+export const DOODLE_BOARD_FULL = "cheio";
+
 async function appendPoints(basePath, existingObj, newPoints, uid, maxPoints) {
+  const existingKeys = existingObj && !Array.isArray(existingObj) ? Object.keys(existingObj) : [];
+  if (existingKeys.length >= maxPoints) return DOODLE_BOARD_FULL;
+
   const suffix = String(uid || "x").slice(-4);
   let seq = nextPointSeq(existingObj);
   const updates = {};
-  newPoints.forEach((pt) => {
+  const espaco = maxPoints - existingKeys.length;
+  newPoints.slice(0, espaco).forEach((pt) => {
     updates[`p${String(seq++).padStart(POINT_SEQ_WIDTH, "0")}_${suffix}`] = pt;
   });
-  const existingKeys = existingObj && !Array.isArray(existingObj) ? Object.keys(existingObj).sort() : [];
-  const overflow = existingKeys.length + newPoints.length - maxPoints;
-  for (let i = 0; i < overflow && i < existingKeys.length; i++) {
-    updates[existingKeys[i]] = null;
-  }
   // Vinha do formato antigo (array): recomeça limpo, senão misturavam-se.
   if (Array.isArray(existingObj)) {
     await set(ref(db, basePath), null);
   }
   await update(ref(db, basePath), updates);
+  return newPoints.length > espaco ? DOODLE_BOARD_FULL : null;
 }
 
 // --- Rabisco coletivo (menu de Opções, disponível em qualquer ecrã da
@@ -178,7 +191,8 @@ async function appendPoints(basePath, existingObj, newPoints, uid, maxPoints) {
 // desenharem ao mesmo tempo, os traços intercalam-se na lista (por
 // confiança, como o resto do jogo). Os pontos mais antigos vão saindo à
 // medida que se desenham novos, tal como o quadro da Forca.
-export const SCRATCHPAD_MAX_POINTS = 500;
+// Teto de segurança, não limite de uso — ver appendPoints.
+export const SCRATCHPAD_MAX_POINTS = 5000;
 
 export async function pushScratchpadPoints(code, room, newPoints) {
   const uid = newPoints[0]?.uid;
@@ -197,7 +211,7 @@ export async function clearScratchpad(code) {
 // um jogo de charadas/desenho tradicional — o nome "Forca" ficou só como
 // identificador do mini-jogo. Sem pontuação própria: serve de intervalo
 // social entre os outros jogos bónus.
-export const HANGMAN_DOODLE_MAX_POINTS = 800;
+export const HANGMAN_DOODLE_MAX_POINTS = 20000;
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem O/0/I/1 para evitar confusão
 
@@ -595,16 +609,27 @@ export async function leaveRoom(code, uid) {
 // Modos do quadro. O quadro é a mesma folha para todos; o MODO só muda o que
 // aparece à volta dela — que botões, que papéis, que regras a app garante. É
 // o grupo que escolhe, por votação: ninguém manda sozinho no que se joga.
+// "tools: null" quer dizer todas. Um modo pode TIRAR ferramentas do ecrã, e
+// isso não é decoração: na Forca o texto sairia caro, porque quem desenha
+// podia escrever a palavra na folha e acabar o jogo por engano no primeiro
+// clique. Retirar a ferramenta é mais honesto do que pedir que não se use.
 export const BOARD_MODES = {
   livre: {
     label: "Desenho livre",
     hint: "A folha é de todos, escreve um de cada vez. As regras combinam-se por voz.",
+    tools: null,
   },
   forca: {
     label: "Forca",
     hint: "Um desenha a forca e a palavra escondida; os outros pedem a palavra para arriscar letras em voz alta.",
+    tools: ["pen", "marker", "highlighter", "eraser", "line", "arrow", "rect", "ellipse"],
   },
 };
+
+export function modeAllowsTool(modeKey, tool) {
+  const mode = BOARD_MODES[modeKey] || BOARD_MODES.livre;
+  return !mode.tools || mode.tools.includes(tool);
+}
 export const DEFAULT_BOARD_MODE = "livre";
 
 export async function startHangman(code, room) {
@@ -841,7 +866,7 @@ export async function applyBoardVotes(code, room) {
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;
   if (!hangman || hangman.leaderId !== uid) return;
-  await appendPoints(`rooms/${code}/hangman/doodle/points`, hangman.doodle?.points, newPoints, uid, HANGMAN_DOODLE_MAX_POINTS);
+  return appendPoints(`rooms/${code}/hangman/doodle/points`, hangman.doodle?.points, newPoints, uid, HANGMAN_DOODLE_MAX_POINTS);
 }
 
 // --- Desenha e Adivinha em equipa (bónus de fim de partida) ---
@@ -852,7 +877,8 @@ export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
 // clica para escolher quem foi, o que atribui pontos e fecha a ronda
 // (ou pode saltar, se ninguém acertar). Continua até todos terem
 // desenhado uma vez.
-export const DRAW_MAX_POINTS = 800;
+// Teto de segurança, não limite de uso — ver appendPoints.
+export const DRAW_MAX_POINTS = 20000;
 export const DRAW_WINNER_POINTS = 15;
 export const DRAW_DRAWER_BONUS = 8;
 

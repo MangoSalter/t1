@@ -16,7 +16,7 @@ import {
   BOARD_MODES, DEFAULT_BOARD_MODE, voteBoardMode, votePenHolder, applyBoardVotes,
   raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
   maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
-  addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES,
+  addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -986,7 +986,14 @@ function hangmanDoodleFlush() {
   const toSend = hangmanDoodleState.pending;
   hangmanDoodleState.pending = [];
   hangmanDoodleState.lastBroadcastAt = performance.now();
-  pushHangmanDoodlePoints(state.code, state.room, state.uid, toSend);
+  pushHangmanDoodlePoints(state.code, state.room, state.uid, toSend).then((r) => {
+    // O quadro cheio diz-se. Antes o excesso comia os traços mais antigos em
+    // silêncio, e quem estava a desenhar via o desenho a encolher sem
+    // perceber porquê.
+    if (r === DOODLE_BOARD_FULL) {
+      hangmanEls.status.textContent = "O quadro está cheio — carrega em Limpar para continuar.";
+    }
+  });
 }
 
 hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
