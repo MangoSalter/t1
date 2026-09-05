@@ -35,12 +35,34 @@ await guest.waitForSelector('[data-screen="hangman"].active', { timeout: 5000 })
 const pontosNaSala = () => host.evaluate((c) =>
   Object.keys(window.__testDb.get(`rooms/${c}`).hangman?.doodle?.points || {}).length, code);
 
-console.log("2) As ferramentas do rascunho são de quem NÃO tem a caneta...");
+console.log("1b) Pôr uma palavra em jogo: é aí que o rascunho faz sentido...");
+// O rascunho existe para quem NÃO pode escrever no quadro comum. No desenho
+// livre toda a gente escreve, por isso não há rascunho nenhum a mostrar — só
+// com uma palavra da Forca em jogo é que o Beto fica de fora da folha.
+await host.click("#hangman-mode-btn");
+await host.click('[data-mode-choice="forca"]');
+await host.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 8000 });
+await host.click('[data-color-choice="#b24b38"]');
+await guest.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 8000 });
+await guest.click('[data-color-choice="#5c7e91"]');
+const idAnaP = await host.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  return Object.keys(r.players).find((u) => r.players[u].name === "Ana");
+}, code);
+await host.waitForSelector("#hangman-penvote-overlay:not(.hidden)", { timeout: 8000 });
+await host.click(`[data-pen-vote-choice="${idAnaP}"]`);
+await host.waitForFunction((a) => window.__testDb.get(`rooms/${a[0]}`).hangman?.leaderId === a[1], [code, idAnaP], { timeout: 8000 });
+await host.fill("#hangman-word-input", "banana");
+await host.click("#hangman-word-form button[type=submit]");
+await guest.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman?.mask, code, { timeout: 8000 });
+await guest.waitForTimeout(400);
+
+console.log("2) As ferramentas do rascunho são de quem NÃO pode escrever no quadro...");
 const temRascunho = (p) => p.evaluate(() =>
   !document.getElementById("hangman-personal-tools").classList.contains("hidden"));
 console.log(`   Ana (com caneta): ${await temRascunho(host)}, Beto (sem): ${await temRascunho(guest)}`);
-if (await temRascunho(host)) fail("quem tem a caneta não precisa de rascunho por cima do próprio traço");
-if (!(await temRascunho(guest))) fail("quem adivinha devia ter a folha de rascunho");
+if (await temRascunho(host)) fail("quem escreve no quadro não precisa de rascunho por cima do próprio traço");
+if (!(await temRascunho(guest))) fail("com palavra em jogo, quem adivinha devia ter a folha de rascunho");
 
 console.log("3) A Ana desenha no quadro de todos, e o Beto vê...");
 const caixaAna = await host.locator("#hangman-doodle-canvas").boundingBox();

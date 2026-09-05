@@ -78,13 +78,11 @@ const firstPoint = Object.values(room.hangman.doodle.points)[0];
 console.log(`   primeiro ponto: ${JSON.stringify(firstPoint)} (newStroke true, sem 'uid' — só o líder desenha, não precisa de cor por jogador)`);
 if (firstPoint.newStroke !== true || "uid" in firstPoint) { console.log("   FALHOU"); process.exitCode = 1; }
 
-console.log("5) Simular p2 (NÃO é líder) a tentar desenhar — não deve ter qualquer efeito...");
+console.log("5) Quem pode escrever depende do MODO e do MOMENTO, não de ter a caneta...");
+// A regra mudou: no desenho livre a folha é de todos, e na Forca só se fecha
+// enquanto há uma palavra em jogo — que é o único momento em que alguém podia
+// escrever a resposta no quadro e acabar o jogo por engano.
 const pointsBefore = Object.keys(room.hangman.doodle.points || {}).length;
-await page.evaluate((code) => {
-  window.__testDb.update(`rooms/${code}`, { state: "hangman" }); // no-op, só para garantir estado
-});
-// Simula diretamente a chamada que o cliente da p2 faria (guardada no servidor por confiança,
-// mas a função em si já recusa quem não é líder).
 await page.evaluate(async ({ code }) => {
   const roomModule = await import("./js/room.js");
   const room = window.__testDb.get(`rooms/${code}`);
@@ -92,15 +90,41 @@ await page.evaluate(async ({ code }) => {
 }, { code });
 await page.waitForTimeout(200);
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
-console.log(`   pontos depois da tentativa de p2: ${Object.keys(room.hangman.doodle.points || {}).length} (esperado continuar ${pointsBefore}, sem mudança)`);
-if (Object.keys(room.hangman.doodle.points || {}).length !== pointsBefore) {
-  console.log("   FALHOU: alguém que não é líder conseguiu escrever no quadro");
+const depoisDeLivre = Object.keys(room.hangman.doodle.points || {}).length;
+console.log(`   sem palavra em jogo, a p2 escreveu: ${depoisDeLivre > pointsBefore} (esperado true — a folha é de todos)`);
+if (depoisDeLivre <= pointsBefore) {
+  console.log("   FALHOU: sem palavra em jogo a folha devia ser de todos");
   process.exitCode = 1;
 }
 
-console.log("6) Confirmar que o botão de limpar só aparece para o líder, e que funciona...");
+// Agora com uma palavra em jogo: aí só quem tem a caneta escreve.
+await page.evaluate((code) => {
+  window.__testDb.update(`rooms/${code}/hangman`, { mode: "forca", mask: "______", solved: false });
+}, code);
+await page.waitForTimeout(200);
+const antesDaPalavra = Object.keys((await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code)).hangman.doodle.points || {}).length;
+await page.evaluate(async ({ code }) => {
+  const roomModule = await import("./js/room.js");
+  const room = window.__testDb.get(`rooms/${code}`);
+  await roomModule.pushHangmanDoodlePoints(code, room, "p2", [{ x: 0.2, y: 0.2, newStroke: true }]);
+}, { code });
+await page.waitForTimeout(200);
+room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
+const comPalavra = Object.keys(room.hangman.doodle.points || {}).length;
+console.log(`   com palavra em jogo, a p2 escreveu: ${comPalavra > antesDaPalavra} (esperado false)`);
+if (comPalavra !== antesDaPalavra) {
+  console.log("   FALHOU: com palavra em jogo, quem adivinha podia escrever a resposta no quadro");
+  process.exitCode = 1;
+}
+// Repõe o estado para os passos seguintes.
+await page.evaluate((code) => {
+  window.__testDb.update(`rooms/${code}/hangman`, { mode: "livre", mask: null });
+}, code);
+await page.waitForTimeout(200);
+
+console.log("6) Confirmar que o botão de limpar aparece a quem escreve, e que funciona...");
 const clearVisibleForLeader = await page.locator("#hangman-doodle-clear-btn").isVisible();
-console.log(`   botão 'Limpar' visível para Ana (líder): ${clearVisibleForLeader}`);
+console.log(`   botão 'Limpar' visível para a Ana: ${clearVisibleForLeader}`);
 if (!clearVisibleForLeader) { console.log("   FALHOU"); process.exitCode = 1; }
 await page.click("#hangman-doodle-clear-btn");
 await page.waitForFunction((code) => Object.keys(window.__testDb.get(`rooms/${code}`).hangman.doodle.points || {}).length === 0, code, { timeout: 3000 });

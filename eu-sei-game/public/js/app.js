@@ -25,7 +25,7 @@ import {
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
-  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool,
+  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -1003,6 +1003,12 @@ function hangmanAmLeader() {
   return !!state.room?.hangman && state.room.hangman.leaderId === state.uid;
 }
 
+// O que manda para desenhar já não é ter a caneta, é a regra do modo e do
+// momento (ver canDrawOnBoard em room.js).
+function hangmanPossoEscrever() {
+  return !!state.room && canDrawOnBoard(state.room, state.uid);
+}
+
 function hangmanDoodleSyncCanvasSize() {
   const canvas = hangmanEls.doodleCanvas;
   const rect = canvas.getBoundingClientRect();
@@ -1154,7 +1160,7 @@ function hangmanCurrentTool() {
 }
 
 hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
-  if (!hangmanAmLeader()) return;
+  if (!hangmanPossoEscrever()) return;
   e.preventDefault();
   hangmanEls.doodleCanvas.setPointerCapture(e.pointerId);
   const p = hangmanDoodlePointFromEvent(e);
@@ -1258,7 +1264,7 @@ window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (ctrl && k === "z") {
     e.preventDefault();
-    if (hangmanAmLeader()) hangmanEls.undoBtn.click();
+    if (hangmanPossoEscrever()) hangmanEls.undoBtn.click();
   } else if (!ctrl && hangmanAmLeader()) {
     // Só quem tem a caneta troca de ferramenta por atalho: aos outros, estas
     // teclas não fazem nada e não devem parecer que fazem.
@@ -2202,6 +2208,11 @@ function renderHangman(room) {
   if (!hangman) return;
   const mode = BOARD_MODES[hangman.mode] ? hangman.mode : DEFAULT_BOARD_MODE;
   const amLeader = hangman.leaderId === state.uid;
+  // Declarado ao cimo porque é usado por todo o desenho de ecrã abaixo. Estava
+  // declarado a meio e usado acima: em JavaScript isso não é "undefined", é um
+  // erro que rebenta a função — e como o desenho de ecrã morria antes de
+  // trocar de ecrã, a sala mudava de estado e ninguém saía do lobby.
+  const possoEscrever = canDrawOnBoard(room, state.uid);
   const leaderName = room.players?.[hangman.leaderId]?.name || null;
   const host = isHost(room);
 
@@ -2210,7 +2221,7 @@ function renderHangman(room) {
   // opções todas; quem não tem vê a moldura cinzenta e só a barra do modo.
   hangmanEls.screen.classList.toggle("hangman-role-drawer", amLeader);
   hangmanEls.screen.classList.toggle("hangman-role-viewer", !amLeader);
-  hangmanEls.penZone.classList.toggle("hidden", !amLeader);
+  hangmanEls.penZone.classList.toggle("hidden", !possoEscrever);
   hangmanEls.modeTitle.textContent = `Quadro — ${BOARD_MODES[mode].label}`;
   hangmanEls.modeHint.textContent = BOARD_MODES[mode].hint;
 
@@ -2231,18 +2242,23 @@ function renderHangman(room) {
     hangmanEls.status.textContent = mode === "forca"
       ? "Tens a caneta — desenha a forca e os espaços da palavra. Os outros pedem a palavra para arriscar."
       : "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa.";
+  } else if (mode !== "forca") {
+    hangmanEls.status.textContent = "A folha é de todos — escreve à vontade. Combinem as regras em voz alta.";
+  } else if (possoEscrever) {
+    hangmanEls.status.textContent = hangman.solved
+      ? "Acertaram! Enquanto se escolhe a próxima palavra, a folha é de todos."
+      : "Enquanto não há palavra, a folha é de todos.";
   } else {
-    hangmanEls.status.textContent = `${leaderName || "Ninguém"} tem a caneta. ` +
-      (mode === "forca" ? "Pede a palavra para arriscar uma letra." : "Combinem as regras em voz alta.");
+    hangmanEls.status.textContent = `${leaderName || "Ninguém"} tem a caneta. Arrisca uma letra quando for a tua vez.`;
   }
 
-  hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amLeader);
+  hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", possoEscrever);
 
   // A folha pessoal é de quem NÃO tem a caneta: quem desenha já escreve no
   // quadro de todos e não precisa de um rascunho por cima do próprio traço.
-  hangmanEls.personalTools.classList.toggle("hidden", amLeader);
-  hangmanEls.personalCanvas.classList.toggle("hidden", amLeader);
-  if (amLeader && personal.on) personalSetOn(false);
+  hangmanEls.personalTools.classList.toggle("hidden", possoEscrever);
+  hangmanEls.personalCanvas.classList.toggle("hidden", possoEscrever);
+  if (possoEscrever && personal.on) personalSetOn(false);
   // Uma palavra nova limpa o rascunho: os riscos da palavra anterior só
   // atrapalhariam a seguinte.
   // Os dois lados TÊM de ser normalizados. Sem palavra definida, hangman.mask é
@@ -2258,8 +2274,8 @@ function renderHangman(room) {
     }
   }
   personalRedraw();
-  hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
-  hangmanEls.undoBtn.classList.toggle("hidden", !amLeader);
+  hangmanEls.clearBtn.classList.toggle("hidden", !possoEscrever);
+  hangmanEls.undoBtn.classList.toggle("hidden", !possoEscrever);
   // O anfitrião também pode passar a caneta: se quem estava a escrever sair
   // ou se distrair, mais ninguém conseguiria destravar o quadro.
   hangmanEls.passPenBtn.classList.toggle("hidden", !amLeader && !host);

@@ -57,7 +57,11 @@ const rGuest = await roleOf(guest);
 console.log(`   Ana:  ${JSON.stringify(rHost)}`);
 console.log(`   Beto: ${JSON.stringify(rGuest)}`);
 if (!rHost.desenhador || !rHost.opcoesDaCaneta) fail("quem tem a caneta devia ver a versão do desenhador com as opções");
-if (!rGuest.espetador || rGuest.opcoesDaCaneta) fail("quem não tem a caneta não devia ver as opções da caneta");
+if (!rGuest.espetador) fail("quem não tem a caneta devia ver a versão cinzenta");
+// A MOLDURA diz quem tem a caneta; as OPÇÕES dizem quem pode escrever agora.
+// São coisas diferentes desde que o desenho livre passou a ser de todos: aqui
+// estamos no livre, por isso o Beto vê a moldura cinzenta E as ferramentas.
+if (!rGuest.opcoesDaCaneta) fail("no desenho livre, quem não tem a caneta também escreve");
 // O botão do modo existe nas duas versões, mas em zonas diferentes (2 e a).
 if (!rHost.botaoModoEmCima || rHost.botaoModoEmBaixo) fail("no desenhador o botão do modo é o de cima (zona 2)");
 // O modo deixou de ser votado: quem não manda no quadro não vê o botão
@@ -145,8 +149,12 @@ const rHost2 = await roleOf(host);
 const rGuest2 = await roleOf(guest);
 console.log(`   Ana:  ${JSON.stringify(rHost2)}`);
 console.log(`   Beto: ${JSON.stringify(rGuest2)}`);
-if (rHost2.desenhador || rHost2.opcoesDaCaneta) fail("a Ana já não tem a caneta e não devia ver as opções");
+if (rHost2.desenhador) fail("a Ana já não tem a caneta e não devia ver a versão do desenhador");
 if (!rGuest2.desenhador || !rGuest2.opcoesDaCaneta) fail("o Beto tem a caneta e devia ver a versão do desenhador");
+// As opções da caneta acompanham QUEM PODE ESCREVER, não quem tem a caneta.
+// Aqui ainda não há palavra em jogo, por isso a folha é de todos e a Ana
+// continua a poder desenhar — quem prova essa regra é o mp-board-shared.
+if (!rHost2.opcoesDaCaneta) fail("sem palavra em jogo, a folha é de todos e a Ana devia poder escrever");
 
 console.log("8) Quem não tem a caneta pede a palavra, e todos veem a fila...");
 const handVisible = (p) => p.evaluate(() => !document.getElementById("hangman-hand-btn").classList.contains("hidden"));

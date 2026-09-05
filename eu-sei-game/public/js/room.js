@@ -673,7 +673,9 @@ export async function finishHangman(code, room) {
 // servidor, esta verificação é a única que existe, e todas as outras escritas
 // deste módulo já a faziam. Ficava aqui um buraco por distração.
 export async function clearHangmanDoodle(code, room, uid) {
-  if (room && uid && !canSetBoardMode(room, uid)) return;
+  // Quem pode escrever pode limpar: numa folha coletiva, obrigar a pedir ao
+  // anfitrião para apagar um risco não faz sentido nenhum.
+  if (room && uid && !canDrawOnBoard(room, uid) && !canSetBoardMode(room, uid)) return;
   await set(ref(db, `rooms/${code}/hangman/doodle/points`), null);
 }
 
@@ -1264,9 +1266,31 @@ export async function applyBoardVotes(code, room) {
   }
 }
 
+// QUEM PODE ESCREVER NO QUADRO. Deixou de ser "só quem tem a caneta": isso
+// fazia sentido quando o quadro era só a Forca, e transformava o desenho livre
+// numa folha em que uma pessoa desenha e as outras olham. A regra passa a
+// depender do modo E do momento:
+//
+//   - desenho livre: toda a gente, sempre. É uma folha coletiva.
+//   - Forca com palavra em jogo: só quem tem a caneta, senão qualquer um podia
+//     escrever a resposta no quadro e acabar o jogo.
+//   - Forca à espera de palavra, ou já acertada: toda a gente outra vez —
+//     nesses momentos não há nada a estragar, e ficar à espara parado é o
+//     contrário de um quadro.
+export function canDrawOnBoard(room, uid) {
+  const hangman = room?.hangman;
+  if (!hangman) return false;
+  if (!connectedPlayerIds(room).includes(uid)) return false;
+  const modo = BOARD_MODES[hangman.mode] ? hangman.mode : DEFAULT_BOARD_MODE;
+  if (modo !== "forca") return true;
+  const emJogo = !!hangman.mask && !hangman.solved;
+  if (!emJogo) return true;
+  return hangman.leaderId === uid;
+}
+
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;
-  if (!hangman || hangman.leaderId !== uid) return;
+  if (!hangman || !canDrawOnBoard(room, uid)) return;
   return appendPoints(`rooms/${code}/hangman/doodle/points`, hangman.doodle?.points, newPoints, uid, HANGMAN_DOODLE_MAX_POINTS);
 }
 
@@ -1290,7 +1314,7 @@ export function lastStrokeKeys(pointsObj) {
 
 export async function undoLastHangmanStroke(code, room, uid) {
   const hangman = room?.hangman;
-  if (!hangman || hangman.leaderId !== uid) return false;
+  if (!hangman || !canDrawOnBoard(room, uid)) return false;
   const chaves = lastStrokeKeys(hangman.doodle?.points);
   if (chaves.length === 0) return false;
   const updates = {};
