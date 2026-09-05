@@ -798,6 +798,93 @@ export function maskIsSolved(mask) {
   return !!mask && !mask.includes("_");
 }
 
+// --- Solo ou equipas ---
+//
+// O quadro pode jogar-se cada um por si ou em equipas. As equipas montam-se
+// ANTES de a palavra ser definida e ficam trancadas a partir daí: trocar de
+// equipa a meio da palavra deixava o resultado sem significado nenhum.
+export const MAX_TEAMS = 4;
+export const TEAM_DEFAULT_NAMES = ["Equipa A", "Equipa B", "Equipa C", "Equipa D"];
+export const TEAM_COLORS = ["#b24b38", "#5c7e91", "#5b7442", "#7a4fb5"];
+
+export function teamsOn(room) {
+  return room?.hangman?.play === "equipas";
+}
+
+// Trancado assim que há palavra: é esse o momento em que o jogo começa.
+export function teamsLocked(room) {
+  return !!room?.hangman?.mask;
+}
+
+export function teamList(room) {
+  const teams = room?.hangman?.teams || {};
+  return Object.keys(teams)
+    .sort()
+    .map((id) => ({
+      id,
+      name: teams[id]?.name || id,
+      color: TEAM_COLORS[Number(String(id).replace("t", "")) - 1] || "#3a3126",
+      members: connectedPlayerIds(room).filter((uid) => room.hangman.teamOf?.[uid] === id),
+      score: room.hangman.teamScore?.[id] || 0,
+    }));
+}
+
+export async function setPlayMode(code, room, uid, play) {
+  if (!canSetBoardMode(room, uid)) return false;
+  if (play !== "solo" && play !== "equipas") return false;
+  const patch = { play };
+  if (play === "equipas" && !room.hangman?.teams) {
+    patch.teams = { t1: { name: TEAM_DEFAULT_NAMES[0] }, t2: { name: TEAM_DEFAULT_NAMES[1] } };
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return true;
+}
+
+export async function setTeamCount(code, room, uid, n) {
+  if (!canSetBoardMode(room, uid)) return false;
+  if (teamsLocked(room)) return false;
+  const quantas = Math.max(2, Math.min(MAX_TEAMS, Math.floor(n) || 2));
+  const teams = {};
+  for (let i = 0; i < quantas; i += 1) {
+    const id = `t${i + 1}`;
+    // Um nome já mudado pela equipa não se perde ao acrescentar outra equipa.
+    teams[id] = { name: room.hangman?.teams?.[id]?.name || TEAM_DEFAULT_NAMES[i] };
+  }
+  const patch = { teams };
+  // Quem estava numa equipa que deixou de existir sai para fora, em vez de
+  // ficar numa equipa fantasma que não aparece em lado nenhum.
+  const teamOf = { ...(room.hangman?.teamOf || {}) };
+  let mexeu = false;
+  Object.keys(teamOf).forEach((uidJog) => {
+    if (!teams[teamOf[uidJog]]) { teamOf[uidJog] = null; mexeu = true; }
+  });
+  if (mexeu) patch.teamOf = teamOf;
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return true;
+}
+
+export async function joinTeam(code, room, uid, teamId) {
+  if (!teamsOn(room) || teamsLocked(room)) return false;
+  if (teamId !== null && !room.hangman?.teams?.[teamId]) return false;
+  await set(ref(db, `rooms/${code}/hangman/teamOf/${uid}`), teamId);
+  return true;
+}
+
+// Só quem está DENTRO da equipa lhe muda o nome: renomear a equipa dos outros
+// não é uma coisa que faça falta e é uma que chateia.
+export async function renameTeam(code, room, uid, teamId, name) {
+  if (!teamsOn(room) || !room.hangman?.teams?.[teamId]) return false;
+  if (room.hangman.teamOf?.[uid] !== teamId) return false;
+  const limpo = String(name || "").trim().slice(0, 24);
+  if (!limpo) return false;
+  await set(ref(db, `rooms/${code}/hangman/teams/${teamId}/name`), limpo);
+  return true;
+}
+
+export function teamOfPlayer(room, uid) {
+  return room?.hangman?.teamOf?.[uid] || null;
+}
+
 // --- Cores dos jogadores ---
 // Cada jogador escolhe a sua ao entrar no modo. Serve para as tentativas
 // erradas no topo do quadro dizerem QUEM as disse sem ter de escrever o nome
@@ -900,6 +987,12 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
   if (acertou) {
     patch.mask = nova;
     patch.solved = maskIsSolved(nova);
+    // Uma letra certa conta para a equipa de quem a disse: é o que dá às
+    // equipas um propósito para lá de serem uma lista de nomes.
+    const equipa = teamOfPlayer(room, guesserUid);
+    if (equipa) {
+      patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 1;
+    }
   } else {
     // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
     // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma

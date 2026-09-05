@@ -25,7 +25,8 @@ import {
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
-  freeGuessing,
+  freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
+  setTeamCount, joinTeam, renameTeam, teamOfPlayer,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -887,6 +888,15 @@ const hangmanEls = {
   settingsOverlay: document.getElementById("hangman-settings-overlay"),
   settingsList: document.getElementById("hangman-settings-list"),
   settingsCloseBtn: document.getElementById("hangman-settings-close-btn"),
+  teamsBtn: document.getElementById("hangman-teams-btn"),
+  teamsBtnViewer: document.getElementById("hangman-teams-btn-viewer"),
+  teamsOverlay: document.getElementById("hangman-teams-overlay"),
+  playToggle: document.getElementById("hangman-play-toggle"),
+  teamCountRow: document.getElementById("hangman-team-count-row"),
+  teamCountBtns: document.getElementById("hangman-team-count-btns"),
+  teamBoxes: document.getElementById("hangman-team-boxes"),
+  teamsHint: document.getElementById("hangman-teams-hint"),
+  teamsCloseBtn: document.getElementById("hangman-teams-close-btn"),
   wordZone: document.getElementById("hangman-word-zone"),
   slots: document.getElementById("hangman-slots"),
   missesLabel: document.getElementById("hangman-misses"),
@@ -1454,6 +1464,136 @@ function hangmanCloseSettings() {
   hangmanEls.settingsOverlay.classList.add("hidden");
 }
 
+// --- Solo ou equipas ---
+
+function hangmanOpenTeams() {
+  const room = state.room;
+  if (!room?.hangman) return;
+  const manda = canSetBoardMode(room, state.uid);
+  const emEquipas = teamsOn(room);
+  const trancado = teamsLocked(room);
+
+  hangmanEls.playToggle.innerHTML = "";
+  [["solo", "🙋 Cada um por si"], ["equipas", "👥 Equipas"]].forEach(([valor, texto]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.playMode = valor;
+    btn.textContent = texto;
+    btn.setAttribute("aria-pressed", String((room.hangman.play || "solo") === valor));
+    btn.disabled = !manda || trancado;
+    btn.addEventListener("click", async () => {
+      await setPlayMode(state.code, state.room, state.uid, valor);
+      if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
+    });
+    hangmanEls.playToggle.appendChild(btn);
+  });
+
+  hangmanEls.teamCountRow.classList.toggle("hidden", !emEquipas);
+  hangmanEls.teamCountBtns.innerHTML = "";
+  const equipas = teamList(room);
+  for (let n = 2; n <= MAX_TEAMS; n += 1) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.teamCount = String(n);
+    btn.textContent = String(n);
+    btn.setAttribute("aria-pressed", String(equipas.length === n));
+    btn.disabled = !manda || trancado;
+    btn.addEventListener("click", async () => {
+      await setTeamCount(state.code, state.room, state.uid, n);
+      if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
+    });
+    hangmanEls.teamCountBtns.appendChild(btn);
+  }
+
+  hangmanEls.teamBoxes.innerHTML = "";
+  if (emEquipas) {
+    const minha = teamOfPlayer(room, state.uid);
+    equipas.forEach((eq) => {
+      const caixa = document.createElement("div");
+      caixa.className = "hangman-team-box";
+      caixa.dataset.teamBox = eq.id;
+      caixa.dataset.mine = eq.id === minha ? "1" : "0";
+      caixa.style.borderColor = eq.color;
+
+      // Quem está DENTRO da equipa pode mudar-lhe o nome; de fora, só se lê.
+      if (eq.id === minha && !trancado) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "hangman-team-name-input";
+        input.maxLength = 24;
+        input.value = eq.name;
+        input.dataset.teamNameInput = eq.id;
+        input.setAttribute("aria-label", `Nome da ${eq.name}`);
+        const guardar = () => {
+          if (input.value.trim() && input.value.trim() !== eq.name) {
+            renameTeam(state.code, state.room, state.uid, eq.id, input.value);
+          }
+        };
+        input.addEventListener("change", guardar);
+        input.addEventListener("blur", guardar);
+        caixa.appendChild(input);
+      } else {
+        const nome = document.createElement("span");
+        nome.className = "hangman-team-name";
+        nome.style.color = eq.color;
+        nome.textContent = eq.name;
+        caixa.appendChild(nome);
+      }
+
+      const membros = document.createElement("div");
+      membros.className = "hangman-team-members";
+      if (eq.members.length === 0) {
+        const vazio = document.createElement("span");
+        vazio.className = "hangman-team-empty";
+        vazio.textContent = "ainda ninguém";
+        membros.appendChild(vazio);
+      }
+      eq.members.forEach((uid) => {
+        const linha = document.createElement("span");
+        linha.dataset.teamMember = uid;
+        linha.textContent = room.players[uid]?.name || "?";
+        membros.appendChild(linha);
+      });
+      caixa.appendChild(membros);
+
+      if (eq.score > 0) {
+        const pontos = document.createElement("span");
+        pontos.className = "hangman-team-score";
+        pontos.textContent = `${eq.score} letra${eq.score === 1 ? "" : "s"}`;
+        caixa.appendChild(pontos);
+      }
+
+      const entrar = document.createElement("button");
+      entrar.type = "button";
+      entrar.className = "ghost hangman-team-join";
+      entrar.dataset.joinTeam = eq.id;
+      entrar.textContent = eq.id === minha ? "Sair" : "Entrar";
+      entrar.disabled = trancado;
+      entrar.addEventListener("click", async () => {
+        await joinTeam(state.code, state.room, state.uid, eq.id === minha ? null : eq.id);
+        if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
+      });
+      caixa.appendChild(entrar);
+      hangmanEls.teamBoxes.appendChild(caixa);
+    });
+  }
+
+  hangmanEls.teamsHint.textContent = trancado
+    ? "O jogo já começou — as equipas ficam como estão até à próxima palavra."
+    : (emEquipas
+      ? "Entra numa equipa. Podem trocar à vontade até a palavra ser definida."
+      : "Cada um joga por si.");
+  hangmanEls.teamsOverlay.classList.remove("hidden");
+}
+
+function hangmanCloseTeams() {
+  hangmanEls.teamsOverlay.classList.add("hidden");
+}
+
+hangmanEls.teamsBtn.addEventListener("click", hangmanOpenTeams);
+hangmanEls.teamsBtnViewer.addEventListener("click", hangmanOpenTeams);
+hangmanEls.teamsCloseBtn.addEventListener("click", hangmanCloseTeams);
+
 hangmanEls.settingsBtn.addEventListener("click", hangmanOpenSettings);
 hangmanEls.settingsBtnViewer.addEventListener("click", hangmanOpenSettings);
 hangmanEls.settingsCloseBtn.addEventListener("click", hangmanCloseSettings);
@@ -1689,6 +1829,14 @@ function renderHangman(room) {
   hangmanEls.settingsBtn.classList.toggle("hidden", !(mandaNoQuadro && amLeader && temDefinicoes));
   hangmanEls.settingsBtnViewer.classList.toggle("hidden", !(mandaNoQuadro && !amLeader && temDefinicoes));
   if (!hangmanEls.settingsOverlay.classList.contains("hidden") && !temDefinicoes) hangmanCloseSettings();
+  // O botão das equipas é de TODOS: quem manda escolhe solo/equipas e quantas,
+  // mas quem entra numa equipa é cada jogador. Um botão só para o anfitrião
+  // obrigava-o a arrumar os outros à mão.
+  hangmanEls.teamsBtn.classList.toggle("hidden", !amLeader);
+  hangmanEls.teamsBtnViewer.classList.toggle("hidden", amLeader);
+  // Enquanto o ecrã das equipas estiver aberto, acompanha o que os outros
+  // fazem: entrar numa equipa tem de aparecer aos outros sem fechar e abrir.
+  if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
   // Pedir a palavra é de quem NÃO tem a caneta — quem desenha já a tem.
   hangmanEls.handBtn.classList.toggle("hidden", amLeader || mode !== "forca");
   const raised = !!hangman.hands?.[state.uid];
@@ -1709,24 +1857,48 @@ function renderHangman(room) {
   const precisaDeCor = naForca && !jaTenhoCor;
   hangmanEls.colorOverlay.classList.toggle("hidden", !precisaDeCor);
   if (naForca) hangmanRenderColorPicker(room);
+  // Uma escolha obrigatória fecha os ecrãs opcionais. Sem isto, quem tivesse
+  // as equipas ou as definições abertas ficava com a escolha de cor por
+  // baixo — visível mas impossível de carregar.
+  if (precisaDeCor) {
+    hangmanCloseTeams();
+    hangmanCloseSettings();
+    hangmanCloseModePicker();
+  }
 
   hangmanEls.slotsStrip.classList.toggle("hidden", !temPalavra);
   hangmanEls.slotsStrip.classList.toggle("hangman-slots-interactive", temPalavra && amLeader);
   renderWrongLetters(naForca ? room : { hangman: {} });
 
-  // Os nomes com a cor de cada um, e um sublinhado em quem está na vez.
+  // Em equipas mostram-se as EQUIPAS com o que já acertaram; a jogar cada um
+  // por si mostram-se as pessoas, cada uma na sua cor. Mostrar as duas coisas
+  // ao mesmo tempo enchia a faixa e não dizia mais nada.
   const daVez = naForca ? currentGuesser(room) : null;
   if (naForca) {
     hangmanEls.players.innerHTML = "";
-    connectedPlayerIds(room).forEach((uid) => {
-      const tag = document.createElement("span");
-      tag.className = "hangman-player-tag";
-      tag.style.color = playerColor(room, uid);
-      tag.dataset.turn = uid === daVez ? "1" : "0";
-      tag.dataset.playerTag = uid;
-      tag.textContent = (room.players[uid]?.name || "?") + (uid === hangman.leaderId ? " 🖊️" : "");
-      hangmanEls.players.appendChild(tag);
-    });
+    if (teamsOn(room)) {
+      hangmanEls.players.className = "hangman-players hangman-teams-strip";
+      teamList(room).forEach((eq) => {
+        const tag = document.createElement("span");
+        tag.className = "hangman-team-tag";
+        tag.style.color = eq.color;
+        tag.dataset.teamTag = eq.id;
+        const daVezAqui = eq.members.includes(daVez) ? " ←" : "";
+        tag.textContent = `${eq.name}: ${eq.score}${daVezAqui}`;
+        hangmanEls.players.appendChild(tag);
+      });
+    } else {
+      hangmanEls.players.className = "hangman-players";
+      connectedPlayerIds(room).forEach((uid) => {
+        const tag = document.createElement("span");
+        tag.className = "hangman-player-tag";
+        tag.style.color = playerColor(room, uid);
+        tag.dataset.turn = uid === daVez ? "1" : "0";
+        tag.dataset.playerTag = uid;
+        tag.textContent = (room.players[uid]?.name || "?") + (uid === hangman.leaderId ? " 🖊️" : "");
+        hangmanEls.players.appendChild(tag);
+      });
+    }
   }
 
   // As duas vias de arriscar, como pedido: quem tem a caneta escreve a letra
@@ -1791,6 +1963,8 @@ function renderHangman(room) {
     // seguinte lia-se como avaria.
     hangmanEls.penVoteCancelBtn.classList.add("hidden");
     hangmanEls.backToFreeBtn.classList.toggle("hidden", !mandaNoQuadro);
+    hangmanCloseTeams();
+    hangmanCloseSettings();
     hangmanOpenPenVote();
   } else {
     hangmanEls.penVoteCancelBtn.classList.remove("hidden");
