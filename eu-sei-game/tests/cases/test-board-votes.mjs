@@ -138,3 +138,20 @@ check2("nem depois de acertada", String(canGuessNow({
   hangman: { ...salaForca({}).hangman, solved: true },
 }, "b")), "false");
 check2("livre lê-se das definições", String(freeGuessing(salaForca({ guessMode: "livre" }))), "true");
+
+console.log("15) Acertar é a letra estar na palavra, não a máscara ter mudado...");
+// Com duas pessoas a arriscar ao mesmo tempo, a segunda a dizer a mesma letra
+// encontra-a já revelada. Se "acertou" fosse "a máscara mudou", essa segunda
+// tentativa — certa — era contada como erro e subia para as erradas.
+const naPalavra = (palavra, letra) => {
+  const alvo = letra.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt");
+  return [...palavra].some((ch) => ch.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("pt") === alvo);
+};
+check2("letra na palavra", String(naPalavra("banana", "a")), "true");
+check2("letra na palavra, já revelada", String(naPalavra("banana", "a")), "true");
+check2("letra que não existe", String(naPalavra("banana", "z")), "false");
+check2("com acento na palavra", String(naPalavra("café", "e")), "true");
+check2("cedilha", String(naPalavra("coração", "c")), "true");
+// E a máscara não muda quando a letra já lá estava — o que é certo; o que não
+// pode é isso ser lido como erro.
+check2("máscara já com a letra não muda", revealLetter("banana", "_a_a_a", "a"), "_a_a_a");

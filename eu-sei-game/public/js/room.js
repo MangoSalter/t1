@@ -650,7 +650,12 @@ export async function finishHangman(code, room) {
   await startNextBonusGame(code, room);
 }
 
-export async function clearHangmanDoodle(code) {
+// Limpar é de quem tem a caneta (ou do anfitrião, para destravar). O botão já
+// só aparecia a esses, mas a função não verificava nada: num jogo sem
+// servidor, esta verificação é a única que existe, e todas as outras escritas
+// deste módulo já a faziam. Ficava aqui um buraco por distração.
+export async function clearHangmanDoodle(code, room, uid) {
+  if (room && uid && !canSetBoardMode(room, uid)) return;
   await set(ref(db, `rooms/${code}/hangman/doodle/points`), null);
 }
 
@@ -979,7 +984,12 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
   if (room?.hangman?.leaderId !== uid) return null;
   const mask = room.hangman.mask || "";
   const nova = revealLetter(word, mask, letter);
-  const acertou = nova !== mask;
+  // Acertar é a letra ESTAR NA PALAVRA, e não "a máscara mudou". Com duas
+  // pessoas a arriscar ao mesmo tempo (modo "qualquer um"), a segunda a dizer
+  // a mesma letra encontrava-a já revelada, a máscara não mudava, e uma letra
+  // certa era contada como erro — com direito a subir para as erradas.
+  const alvo = normalizeLetter(letter);
+  const acertou = !!alvo && [...String(word || "")].some((ch) => normalizeLetter(ch) === alvo);
   const patch = {
     [`guesses/${guesserUid}`]: null,
     turnUid: nextGuesser(room, guesserUid),

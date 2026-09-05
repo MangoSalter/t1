@@ -1199,7 +1199,7 @@ hangmanEls.doodleCanvas.addEventListener("pointercancel", hangmanDoodleEndStroke
 hangmanEls.doodleCanvas.addEventListener("pointerleave", hangmanDoodleEndStroke);
 
 hangmanEls.clearBtn.addEventListener("click", () => {
-  clearHangmanDoodle(state.code);
+  clearHangmanDoodle(state.code, state.room, state.uid);
 });
 hangmanEls.continueBtn.addEventListener("click", () => {
   finishHangman(state.code, state.room);
@@ -1469,6 +1469,15 @@ function hangmanCloseSettings() {
 function hangmanOpenTeams() {
   const room = state.room;
   if (!room?.hangman) return;
+  // O ecrã das equipas redesenha-se a cada mexida dos outros (é assim que se
+  // vê alguém entrar numa equipa). Isso apagava o que se estivesse a escrever
+  // no nome da equipa: bastava outra pessoa entrar noutra caixa para o texto
+  // meio escrito desaparecer. Guarda-se o que está a ser escrito e o sítio do
+  // cursor, e repõe-se no fim.
+  const focado = document.activeElement;
+  const aEscrever = focado?.dataset?.teamNameInput
+    ? { id: focado.dataset.teamNameInput, valor: focado.value, inicio: focado.selectionStart, fim: focado.selectionEnd }
+    : null;
   const manda = canSetBoardMode(room, state.uid);
   const emEquipas = teamsOn(room);
   const trancado = teamsLocked(room);
@@ -1583,6 +1592,20 @@ function hangmanOpenTeams() {
     : (emEquipas
       ? "Entra numa equipa. Podem trocar à vontade até a palavra ser definida."
       : "Cada um joga por si.");
+  if (aEscrever) {
+    const campo = hangmanEls.teamBoxes.querySelector(`[data-team-name-input="${aEscrever.id}"]`);
+    if (campo) {
+      campo.value = aEscrever.valor;
+      campo.focus();
+      try {
+        campo.setSelectionRange(aEscrever.inicio, aEscrever.fim);
+      } catch {
+        // Alguns browsers recusam mexer no cursor logo a seguir ao focus;
+        // o texto é o que importa, o cursor no fim não estraga nada.
+      }
+    }
+  }
+
   hangmanEls.teamsOverlay.classList.remove("hidden");
 }
 
@@ -1612,14 +1635,67 @@ hangmanEls.backToFreeBtn.addEventListener("click", () => setBoardMode(state.code
 // ferramentas do browser, e o jogo acabava antes de começar.
 let hangmanSecretWord = "";
 
+// A palavra tem de sobreviver a um F5 de quem tem a caneta. Não sobrevivia: era
+// só uma variável em memória, e recarregar a página deixava o jogo PENDURADO —
+// a forma da palavra continuava na sala, mas o único browser capaz de julgar as
+// tentativas já não sabia a resposta. Quem arriscava ficava eternamente em "a
+// tua letra está a ser verificada...", sem nada no ecrã a dizer porquê.
+//
+// Guardada no browser de quem a escreveu, e só lá: continua a nunca entrar na
+// base de dados, que é o ponto todo (ver maskWord em room.js).
+const SECRET_WORD_KEY = "euSei_hangmanSecret";
+
+function saveSecretWord(code, word) {
+  try {
+    localStorage.setItem(SECRET_WORD_KEY, JSON.stringify({ code, word }));
+  } catch {
+    // Armazenamento bloqueado: o jogo funciona na mesma, só não aguenta um F5.
+  }
+}
+
+function clearSecretWord() {
+  try {
+    localStorage.removeItem(SECRET_WORD_KEY);
+  } catch { /* ver saveSecretWord */ }
+}
+
+// Só devolve a palavra se ela ainda corresponder à forma que está na sala:
+// uma palavra de uma partida anterior daria respostas erradas com toda a
+// confiança, que é pior do que não dar nenhuma.
+function recoverSecretWord(code, mask) {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(SECRET_WORD_KEY) || "null");
+    if (!guardado || guardado.code !== code || !guardado.word) return "";
+    if (maskWord(guardado.word) !== maskWord(mask)) return "";
+    // E as letras já reveladas têm de bater certo com ela.
+    const bate = [...mask].every((ch, i) => ch === "_" || ch === guardado.word[i]);
+    return bate ? guardado.word : "";
+  } catch {
+    return "";
+  }
+}
+
 hangmanEls.wordForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const word = hangmanEls.wordInput.value.trim();
   if (!word) return;
+  const maskAtual = state.room?.hangman?.mask || "";
+  // Reescrever a MESMA palavra depois de a perder retoma o jogo onde estava,
+  // em vez de recomeçar: as letras já reveladas e os erros já contados não
+  // podem desaparecer só porque quem arbitra recarregou a página.
+  const retoma = !!maskAtual
+    && maskWord(word) === maskWord(maskAtual)
+    && [...maskAtual].every((ch, i) => ch === "_" || ch === word[i]);
   hangmanSecretWord = word;
+  saveSecretWord(state.code, word);
   const pista = hangmanEls.hintInput.value.trim();
   hangmanEls.wordInput.value = "";
   hangmanEls.hintInput.value = "";
+  if (retoma) {
+    hangmanEls.status.textContent = "Palavra recuperada — o jogo continua de onde estava.";
+    renderHangman(state.room);
+    return;
+  }
   await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(word), pista);
 });
 
@@ -1637,6 +1713,7 @@ hangmanEls.revealBtn.addEventListener("click", async () => {
 hangmanEls.missBtn.addEventListener("click", () => addHangmanMiss(state.code, state.room, state.uid));
 hangmanEls.newWordBtn.addEventListener("click", () => {
   hangmanSecretWord = "";
+  clearSecretWord();
   clearHangmanPuzzle(state.code, state.room, state.uid);
 });
 
@@ -1846,10 +1923,22 @@ function renderHangman(room) {
   // --- Modo Forca: a palavra e os espaços ---
   const naForca = mode === "forca";
   const mask = hangman.mask || "";
+  // Se a palavra se perdeu (um F5 de quem tem a caneta), tenta recuperá-la do
+  // browser antes de qualquer outra coisa — senão o resto do ecrã desenha-se
+  // com o jogo já morto sem ninguém saber.
+  if (naForca && amLeader && mask && !hangmanSecretWord) {
+    hangmanSecretWord = recoverSecretWord(state.code, mask);
+  }
+  const perdiAPalavra = naForca && amLeader && !!mask && !hangmanSecretWord;
   const temPalavra = naForca && !!mask;
   hangmanEls.wordZone.classList.toggle("hidden", !temPalavra);
-  hangmanEls.wordForm.classList.toggle("hidden", !(naForca && amLeader && !mask));
-  hangmanEls.wordTools.classList.toggle("hidden", !(naForca && amLeader && !!mask));
+  // Sem a palavra não se pode arbitrar: mostra-se a caixa de escrever outra vez
+  // em vez das ferramentas de arbitrar, que não fariam nada.
+  hangmanEls.wordForm.classList.toggle("hidden", !(naForca && amLeader && (!mask || perdiAPalavra)));
+  hangmanEls.wordTools.classList.toggle("hidden", !(naForca && amLeader && !!mask && !perdiAPalavra));
+  hangmanEls.wordInput.placeholder = perdiAPalavra
+    ? "Escreve outra vez a palavra para continuares a arbitrar"
+    : "Palavra a adivinhar (só tu a vês)";
 
   // Cor de cada um: pede-se ao entrar no modo, e só depois de todos terem
   // escolhido é que as letras erradas dizem alguma coisa.
@@ -1943,6 +2032,10 @@ function renderHangman(room) {
       hangmanEls.missesLabel.textContent = `Erros: ${misses}`;
     }
     hangmanEls.missesLabel.dataset.danger = teto > 0 && misses >= teto - 1 && !hangman.solved ? "1" : "0";
+  }
+  if (perdiAPalavra) {
+    hangmanEls.status.textContent =
+      "Perdi a palavra ao recarregar a página. Escreve-a outra vez (ou começa outra) para continuar a arbitrar.";
   }
   if (amLeader && mask) {
     // Só quem tem a caneta vê a palavra, e vê-a sempre — depois de a escrever

@@ -112,6 +112,31 @@ await guest.waitForFunction(() => {
 }, { timeout: 8000 });
 console.log("   o novo nome chegou ao Beto");
 
+console.log("7b) Escrever o nome da equipa não se perde quando os outros mexem...");
+// O ecrã redesenha-se a cada mexida dos outros — é assim que se vê alguém
+// entrar numa equipa. Isso apagava o que se estivesse a escrever.
+await host.locator('[data-team-name-input="t1"]').click();
+await host.locator('[data-team-name-input="t1"]').fill("A escrever a m");
+// O Beto mexe-se, o que obriga o ecrã da Ana a redesenhar-se.
+await guest.click('[data-join-team="t1"]');
+await host.waitForFunction(() => {
+  const b = document.querySelector('[data-team-box="t1"]');
+  return b && b.textContent.includes("Beto");
+}, { timeout: 8000 });
+const aindaLa = await host.evaluate(() => document.querySelector('[data-team-name-input="t1"]')?.value);
+console.log(`   o que a Ana estava a escrever: "${aindaLa}"`);
+if (aindaLa !== "A escrever a m") fail(`o texto meio escrito perdeu-se ("${aindaLa}")`);
+const temFoco = await host.evaluate(() => document.activeElement?.dataset?.teamNameInput === "t1");
+if (!temFoco) fail("o cursor saltou para fora da caixa a meio de escrever");
+// Repõe o estado para os passos seguintes.
+await host.locator('[data-team-name-input="t1"]').fill("Os Kotas");
+await host.locator('[data-team-name-input="t1"]').press("Enter");
+await guest.click('[data-join-team="t2"]');
+await host.waitForFunction(() => {
+  const b = document.querySelector('[data-team-box="t2"]');
+  return b && b.textContent.includes("Beto");
+}, { timeout: 8000 });
+
 console.log("8) Mudar para 3 equipas mantém os nomes já escolhidos...");
 await host.click('[data-team-count="3"]');
 await guest.waitForFunction(() => document.querySelectorAll("[data-team-box]").length === 3, { timeout: 8000 });

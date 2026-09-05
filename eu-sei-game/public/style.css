@@ -920,8 +920,12 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 .hangman-wrong-letter { font-size: 1.7rem; font-weight: 700; margin: 0 4px; text-decoration: line-through; }
 .hangman-slots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 /* Quem tem a caneta pode escrever nos espaços: aí deixam de ser decoração e
-   passam a ser alvos de clique. */
-.hangman-slots-strip.hangman-slots-interactive { pointer-events: auto; }
+   passam a ser alvos de clique. Mas só os PRÓPRIOS espaços — a faixa continua
+   transparente ao rato. Com a faixa inteira a apanhar cliques, quem desenha
+   perdia a parte de baixo da folha, que é justamente onde se desenha a base
+   da forca. */
+.hangman-slots-strip.hangman-slots-interactive { pointer-events: none; }
+.hangman-slots-strip.hangman-slots-interactive .hangman-slot-btn { pointer-events: auto; }
 .hangman-slot-btn { background: none; border: none; padding: 0; margin: 0; width: auto; cursor: pointer; font: inherit; }
 .hangman-slot-btn:hover .hangman-slot { background: var(--accent-soft); }
 .hangman-slots .hangman-slot { font-size: 2rem; min-width: 30px; }
