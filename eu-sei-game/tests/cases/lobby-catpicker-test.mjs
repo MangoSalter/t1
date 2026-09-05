@@ -21,7 +21,11 @@ console.log(`   Contagem mostrada: ${count1}/40`);
 if (count1 !== "40") process.exitCode = 1;
 
 console.log("3) Abrir o <details> e desmarcar uma categoria...");
-await page.locator('[data-screen="lobby"] .cat-picker summary').click();
+// As definicoes da partida passaram para dentro de um <details> proprio
+// quando a sala virou menu de jogos: ha dois .cat-picker aninhados, e o de
+// dentro so existe depois de abrir o de fora.
+await page.locator('[data-screen="lobby"] .cat-picker summary', { hasText: "Definições" }).click();
+await page.locator('[data-screen="lobby"] .cat-picker summary', { hasText: "Categorias ativas" }).click();
 await page.locator("#cfg-cat-grid input[type=checkbox]").first().uncheck();
 await page.waitForTimeout(400); // debounce
 const count2 = await page.locator("#cfg-cat-count").textContent();

@@ -603,3 +603,16 @@ button.hud-btn .icon-inline { color: var(--ink); }
    como uma checkbox por marcar nas classificações. */
 .avatar-thumb-initial { display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; color: var(--ink); box-sizing: border-box; }
 .avatar-thumb.avatar-thumb-initial { font-size: 1.4rem; }
+
+/* Menu de jogos da sala: quem escolhe está a escolher pelo grupo todo, e até
+   agora escolhia por um nome sem contexto. */
+/* O raio "desenhado à mão" global (255px 15px 225px 15px / ...) conta-se
+   contra os lados da caixa: numa caixa alta como esta os cantos achatam e o
+   botão fica um retângulo, fora do estilo do resto do jogo. Um raio menor,
+   ainda assimétrico, mantém o traço à mão nesta altura. */
+[data-mp-game] {
+  display: flex; flex-direction: column; gap: 3px;
+  text-align: left; align-items: flex-start;
+  border-radius: 22px 10px 26px 12px / 12px 24px 10px 22px;
+}
+.mp-game-desc { font-size: 0.75rem; font-weight: 400; opacity: 0.75; line-height: 1.25; }

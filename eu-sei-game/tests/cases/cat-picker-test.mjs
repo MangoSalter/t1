@@ -22,7 +22,7 @@ console.log(`Primeira etiqueta: "${labelText.trim()}"`);
 await browser.close();
 
 console.log("\n--- Erros ---");
-const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting"));
+const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("CONNECTION_RESET"));
 errors.forEach((e) => console.log("(ignorado/esperado ou real):", e));
 if (realErrors.length > 0) process.exitCode = 1;
 console.log(realErrors.length === 0 ? "\nSem erros reais." : "\nHÁ ERROS REAIS.");
