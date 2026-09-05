@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { backToLetterpick } from "./test-helpers.mjs";
 
 // A lista dos ecras de mini-jogo tem de estar COMPLETA: estes testes
 // esperam que a run caia num deles, e quando saiu um jogo novo (memoria,
@@ -52,13 +53,11 @@ for (let attempt = 0; attempt < 16 && !found; attempt++) {
   console.log(`Tentativa ${attempt + 1}: calhou ${which}`);
   if (which === "solo-minigame-monkey") {
     found = true;
-  } else if (which === "solo-minigame") {
-    await page.click("#solo-mg-circle");
-    await page.waitForSelector('[data-screen="solo-letterpick"].active', { timeout: 3000 });
-  } else if (which === "solo-minigame-word") {
-    await page.waitForSelector('[data-screen="solo-letterpick"].active', { timeout: 16000 });
-  } else if (which === "solo-minigame-bug") {
-    await page.waitForSelector('[data-screen="solo-letterpick"].active', { timeout: 12000 });
+  } else {
+    // Qualquer outro mini-jogo: o caminho partilhado sai de todos, sem
+    // precisar de saber os botoes de cada um. (Antes clicava no
+    // #solo-mg-circle do Olho de Lince, que saiu no redesenho.)
+    await backToLetterpick(page);
   }
 }
 
@@ -101,7 +100,7 @@ if (!found) {
   }
 
   console.log("A aguardar o fim do mini-jogo e avanço automático...");
-  await page.waitForSelector('[data-screen="solo-letterpick"].active', { timeout: 8000 });
+  await backToLetterpick(page);
   const infoAfter = await page.locator("#solo-letter-info").textContent();
   console.log(`   OK: avançou — ${infoAfter}`);
 

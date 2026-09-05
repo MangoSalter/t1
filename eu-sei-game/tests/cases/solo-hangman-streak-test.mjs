@@ -89,9 +89,19 @@ const mgePoints1 = await page.locator("#mge-points").textContent();
 console.log(`   ${mgePoints1}`);
 if (!mgePoints1.includes("Sequência: 1")) { console.log("   FALHOU: esperava sequência 1 após ganhar"); process.exitCode = 1; }
 
-console.log("3) Clicar Continuar -> deve ir logo para a palavra seguinte (sem passar pelo ecrã de preparação)...");
+console.log("3) Clicar Continuar -> portão \"pronto?\" e depois a palavra seguinte, com a sequência mantida...");
 await page.click("#mge-continue-btn");
-await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 3000 });
+// O portão "pronto?" passou a aparecer antes de QUALQUER mini-jogo, incluindo
+// a palavra seguinte de uma sequência — o teste é anterior a isso e lia a
+// etiqueta da sequência antes de a nova palavra ter sido desenhada, por isso
+// via o valor velho (0) em vez do novo (1).
+await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
+await page.click("#ready-start-btn");
+await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 5000 });
+await page.waitForFunction(
+  () => /Sequência atual: \d/.test(document.getElementById("solo-hangman-streak-info").textContent),
+  { timeout: 5000 },
+);
 const streakInfo = await page.locator("#solo-hangman-streak-info").textContent();
 console.log(`   ${streakInfo} (esperado sequência: 1)`);
 if (!streakInfo.includes("1 palavra")) { console.log("   FALHOU"); process.exitCode = 1; }
@@ -115,7 +125,16 @@ if (!mgePoints2.includes("sequência acabou")) { console.log("   FALHOU: esperav
 
 console.log("5) Continuar depois de perder deve recomeçar sequência do zero...");
 await page.click("#mge-continue-btn");
-await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 3000 });
+// Mesmo portão "pronto?" do passo 3: a sequência só é reposta quando a
+// palavra seguinte arranca, por isso ler a etiqueta antes disso dava o valor
+// velho.
+await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
+await page.click("#ready-start-btn");
+await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 5000 });
+await page.waitForFunction(
+  () => /Sequência atual: 0/.test(document.getElementById("solo-hangman-streak-info").textContent),
+  { timeout: 5000 },
+).catch(() => {});
 const streakInfoRestart = await page.locator("#solo-hangman-streak-info").textContent();
 console.log(`   ${streakInfoRestart} (esperado sequência: 0)`);
 if (!streakInfoRestart.includes("0 palavra")) { console.log("   FALHOU"); process.exitCode = 1; }
