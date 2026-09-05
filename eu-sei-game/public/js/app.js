@@ -2193,6 +2193,10 @@ function renderWrongLetters(room) {
     hangmanQuipTimer = setTimeout(() => hangmanEls.quip.classList.add("hidden"), 7000);
   }
 
+  // Declarado ANTES de qualquer uso: estava a seguir ao bloco das palavras
+  // erradas, que já o usava, e um const usado antes da declaração rebenta a
+  // função inteira — as palavras erradas nunca chegavam a aparecer.
+  const anonimo = guessesAreAnonymous(room);
   const palavrasErradas = wrongWordList(room);
   hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0 && palavrasErradas.length === 0);
   hangmanEls.wrongWords.innerHTML = "";
@@ -2205,7 +2209,6 @@ function renderWrongLetters(room) {
     el.textContent = text;
     hangmanEls.wrongWords.appendChild(el);
   });
-  const anonimo = guessesAreAnonymous(room);
   erradas.forEach(({ letter, uid }) => {
     const el = document.createElement("span");
     el.className = "hangman-wrong-letter";

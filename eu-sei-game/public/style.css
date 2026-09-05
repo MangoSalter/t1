@@ -1049,3 +1049,11 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
    espremer até ficarem ilegíveis. */
 .hangman-slots { overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
 .hangman-slot-word { display: inline-flex; flex-wrap: nowrap; margin: 0 14px; }
+
+/* Qualquer janela do jogo que cresça mais do que o ecrã tem de continuar
+   utilizável. As definições do quadro chegaram a seis opções e empurraram o
+   botão "Pronto" para fora da vista — a janela ficava sem saída. A lista é que
+   desliza; o botão fica sempre em baixo, à mão. */
+.pause-overlay > .card { max-height: 92vh; overflow-y: auto; }
+.hangman-settings-list { max-height: min(58vh, 460px); overflow-y: auto; padding-right: 4px; }
+.hangman-team-boxes { max-height: min(52vh, 420px); overflow-y: auto; }

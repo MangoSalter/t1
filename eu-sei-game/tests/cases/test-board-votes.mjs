@@ -273,7 +273,7 @@ const mascara = mw(tres);
 check2("o separador fica à vista", mascara, `______${WORD_SEP}_____${WORD_SEP}______`);
 // O "a" aparece nas três: tem de aparecer nas três de uma vez.
 const comA = rl(tres, mascara, "a");
-check2("um 'a' revela nas três", comA, `_a_a_a${WORD_SEP}_a__a${WORD_SEP}a_a__á`);
+check2("um 'a' revela nas três", comA, `_a_a_a${WORD_SEP}_a__a${WORD_SEP}a_a_á_`);
 // E o acento não impede: "a" apanha o "á" de ananás.
 check2("o acento não escapa", comA.includes("á"), true);
 
