@@ -2,14 +2,14 @@ import { getUid, serverNow } from "./firebase-init.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 // As ferramentas são as MESMAS do quadro solo, não uma cópia: o que é um
 // "marcador" tem de ser a mesma coisa nos dois sítios, senão o mesmo botão
-// desenha diferente conforme o ecrã em que se está.
-import { BOARD_TOOLS } from "./board.js";
+// desenha diferente conforme o ecrã em que se está. Vivem no data.js, que não
+// toca no DOM — assim o módulo da rede e os testes puros também lhes chegam.
 import { say as narrar } from "./voice.js";
 import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, LANDMARKS,
-  BOARD_QUIPS, BOARD_CHAOS,
+  BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS,
 } from "./data.js";
 import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
@@ -30,7 +30,7 @@ import {
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
   individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved,
   matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, wordHistory,
-  fireBoardChaos, boardChaosOn, BOARD_CHAOS_EVERY, canDrawOnBoard,
+  fireBoardChaos, boardChaosOn, BOARD_CHAOS_EVERY, sanitizeBoardPoints, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -938,6 +938,11 @@ const hangmanEls = {
   historyOverlay: document.getElementById("hangman-history-overlay"),
   historyList: document.getElementById("hangman-history-list"),
   historyCloseBtn: document.getElementById("hangman-history-close-btn"),
+  saveImgBtn: document.getElementById("hangman-save-img-btn"),
+  saveImgBtnViewer: document.getElementById("hangman-save-img-btn-viewer"),
+  exportBtn: document.getElementById("hangman-export-btn"),
+  importBtn: document.getElementById("hangman-import-btn"),
+  importInput: document.getElementById("hangman-import-input"),
   matchHistoryBtn: document.getElementById("hangman-match-history-btn"),
   quipWho: document.getElementById("hangman-quip-who"),
   quipText: document.getElementById("hangman-quip-text"),
@@ -1069,6 +1074,13 @@ function hangmanDoodleRedraw() {
     ...hangmanDoodleState.pending,
     ...(hangmanDoodleState.shapePending ? [hangmanDoodleState.shapePending] : []),
   ];
+  pintarPontos(ctx, points, rectW, rectH);
+}
+
+// O pintor, separado do redesenho do ecrã para a imagem guardada poder usar
+// exatamente o mesmo código. Duas cópias disto iam divergir à primeira
+// ferramenta nova, e a imagem guardada passaria a mentir sobre o quadro.
+function pintarPontos(ctx, points, rectW, rectH) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   // O estilo viaja só no PRIMEIRO ponto de cada traço, não em todos: repeti-lo
@@ -1108,6 +1120,76 @@ function hangmanDoodleRedraw() {
     prev = { x, y };
   });
   ctx.globalCompositeOperation = "source-over";
+}
+
+// --- Guardar e recuperar o quadro da sala ---
+
+function pontosDoQuadro() {
+  return pointsObjectToArray(state.room?.hangman?.doodle?.points);
+}
+
+function descarregar(url, nome) {
+  const a = document.createElement("a");
+  a.download = nome;
+  a.href = url;
+  a.click();
+}
+
+function carimbo() {
+  return new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+}
+
+// A imagem é de quem a quer: qualquer pessoa na sala pode guardar o que está
+// no quadro. Não é uma escrita na sala, é uma cópia do que já se vê.
+function hangmanGuardarImagem() {
+  const pontos = pontosDoQuadro();
+  if (pontos.length === 0) return;
+  const { rectW, rectH } = hangmanDoodleState;
+  if (!rectW || !rectH) return;
+  // 2x para a imagem sair nítida sem ficar enorme.
+  const escala = 2;
+  const out = document.createElement("canvas");
+  out.width = Math.round(rectW * escala);
+  out.height = Math.round(rectH * escala);
+  const ctx = out.getContext("2d");
+  // O papel por baixo: sem ele, a imagem abria com fundo preto em muitos
+  // visualizadores, porque a tela é transparente onde não há tinta.
+  ctx.fillStyle = "#fffdf7";
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.setTransform(escala, 0, 0, escala, 0, 0);
+  pintarPontos(ctx, pontos, rectW, rectH);
+  descarregar(out.toDataURL("image/png"), `quadro-sala-${carimbo()}.png`);
+  hangmanEls.status.textContent = "Imagem guardada.";
+}
+
+function hangmanExportar() {
+  const pontos = pontosDoQuadro();
+  if (pontos.length === 0) return;
+  const dados = JSON.stringify({ version: 1, points: pontos });
+  const url = URL.createObjectURL(new Blob([dados], { type: "application/json" }));
+  descarregar(url, `quadro-sala-${carimbo()}.json`);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  hangmanEls.status.textContent = "Quadro exportado.";
+}
+
+async function hangmanImportar(ficheiro) {
+  if (!ficheiro) return;
+  try {
+    const lido = JSON.parse(await ficheiro.text());
+    const pontos = sanitizeBoardPoints(lido?.points ?? lido);
+    if (pontos.length === 0) {
+      hangmanEls.status.textContent = "Esse ficheiro não tem nenhum desenho reconhecível.";
+      return;
+    }
+    // ACRESCENTA, não substitui: importar por engano não pode apagar o que a
+    // sala tem no quadro, e anular continua a desfazer traço a traço.
+    const r = await pushHangmanDoodlePoints(state.code, state.room, state.uid, pontos);
+    hangmanEls.status.textContent = r === DOODLE_BOARD_FULL
+      ? "O quadro encheu a meio da importação — limpa para continuar."
+      : `Importados ${pontos.length} pontos.`;
+  } catch {
+    hangmanEls.status.textContent = "Não consegui ler esse ficheiro.";
+  }
 }
 
 // Desenha uma forma ou um texto a partir da sua única entrada.
@@ -2095,6 +2177,14 @@ function hangmanCloseHistory() {
 hangmanEls.historyBtn.addEventListener("click", hangmanOpenHistory);
 hangmanEls.historyBtnViewer.addEventListener("click", hangmanOpenHistory);
 hangmanEls.historyCloseBtn.addEventListener("click", hangmanCloseHistory);
+hangmanEls.saveImgBtn.addEventListener("click", hangmanGuardarImagem);
+hangmanEls.saveImgBtnViewer.addEventListener("click", hangmanGuardarImagem);
+hangmanEls.exportBtn.addEventListener("click", hangmanExportar);
+hangmanEls.importBtn.addEventListener("click", () => hangmanEls.importInput.click());
+hangmanEls.importInput.addEventListener("change", (e) => {
+  hangmanImportar(e.target.files?.[0]);
+  e.target.value = "";
+});
 // No fim da partida é justamente quando se quer olhar para trás. Sem isto, o
 // botão do histórico ficava atrás do ecrã de resultados, inalcançável.
 hangmanEls.matchHistoryBtn.addEventListener("click", hangmanOpenHistory);
@@ -2538,6 +2628,15 @@ function renderHangman(room) {
   // lista vazia é um botão que ensina a não voltar a carregar nele.
   // Fica DEPOIS de naForca, e não antes — usá-lo antes de estar declarado
   // rebentava o desenho do quadro inteiro e o ecrã nem chegava a abrir.
+  // Guardar a imagem é de quem a quer: não é uma escrita na sala, é uma cópia
+  // do que já se vê. Exportar e importar mexem no quadro de todos, por isso
+  // ficam com quem manda nele.
+  const temDesenho = pontosDoQuadro().length > 0;
+  hangmanEls.saveImgBtn.classList.toggle("hidden", !(temDesenho && amLeader));
+  hangmanEls.saveImgBtnViewer.classList.toggle("hidden", !(temDesenho && !amLeader));
+  hangmanEls.exportBtn.classList.toggle("hidden", !(temDesenho && canSetBoardMode(room, state.uid)));
+  hangmanEls.importBtn.classList.toggle("hidden", !canSetBoardMode(room, state.uid));
+
   const temHistorico = naForca && wordHistory(room).length > 0;
   hangmanEls.historyBtn.classList.toggle("hidden", !(temHistorico && amLeader));
   hangmanEls.historyBtnViewer.classList.toggle("hidden", !(temHistorico && !amLeader));

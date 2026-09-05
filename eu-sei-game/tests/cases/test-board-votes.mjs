@@ -403,3 +403,35 @@ for (let i = 0; i < 300; i += 1) {
   if (pickBoardChaos(anterior).id === anterior) repetiuCaos = true;
 }
 check2("nunca repete o evento anterior", String(repetiuCaos), "false");
+
+console.log("31) Um ficheiro estragado não pode partir o quadro de toda a gente...");
+const { sanitizeBoardPoints } = await import("./js/room.js");
+// Do data.js, não do board.js: o board.js toca no DOM ao carregar e um teste
+// puro (sem browser) não o consegue importar.
+const { BOARD_TOOLS } = await import("./js/data.js");
+// Pontos bons passam.
+check2("pontos válidos passam", sanitizeBoardPoints([{ x: 0.1, y: 0.2 }, { x: 0.3, y: 0.4 }]).length, 2);
+// Pontos sem coordenadas rebentariam o redesenho da sala INTEIRA.
+check2("sem coordenadas", sanitizeBoardPoints([{ y: 0.2 }, { x: "a", y: 1 }, { x: 0.1, y: 0.2 }]).length, 1);
+check2("nulos e lixo", sanitizeBoardPoints([null, undefined, 5, "x", { x: 0, y: 0 }]).length, 1);
+check2("não é uma lista", sanitizeBoardPoints({ x: 0, y: 0 }).length, 0);
+check2("lista vazia", sanitizeBoardPoints([]).length, 0);
+// Uma ferramenta que não existe também rebentaria.
+check2("ferramenta inventada", sanitizeBoardPoints([{ x: 0, y: 0, tool: "laser" }]).length, 0);
+check2("ferramenta real", sanitizeBoardPoints([{ x: 0, y: 0, tool: "marker" }]).length, 1);
+// Coordenadas de forma inválidas.
+check2("x2 inválido", sanitizeBoardPoints([{ x: 0, y: 0, shape: "rect", x2: "a", y2: 1 }]).length, 0);
+// Texto que não é texto.
+check2("texto que não é texto", sanitizeBoardPoints([{ x: 0, y: 0, text: { a: 1 } }]).length, 0);
+// E um ficheiro gigante não pode encher a sala de uma vez.
+check2("ficheiro gigante é cortado",
+  sanitizeBoardPoints(Array.from({ length: 9000 }, () => ({ x: 0.5, y: 0.5 }))).length, 4000);
+
+console.log("32) A lista de ferramentas aceites não pode divergir das que existem...");
+// O room.js repete os nomes de propósito (é o módulo da rede e não deve
+// depender do módulo do desenho), mas as duas listas têm de bater certo —
+// senão uma ferramenta nova passa a ser recusada na importação sem ninguém
+// perceber porquê.
+const doDesenho = Object.keys(BOARD_TOOLS).filter((k) => !BOARD_TOOLS[k].pan).sort();
+const aceites = doDesenho.filter((t) => sanitizeBoardPoints([{ x: 0, y: 0, tool: t }]).length === 1);
+check2("todas as ferramentas do quadro são aceites", aceites.join(","), doDesenho.join(","));

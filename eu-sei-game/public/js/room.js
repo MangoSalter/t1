@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS,
+  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS, BOARD_TOOL_KEYS,
   LANDMARKS, pickLandmarkRound,
 } from "./data.js";
 
@@ -1762,6 +1762,27 @@ export function canDrawOnBoard(room, uid) {
   if (!emJogo) return true;
   return hangman.leaderId === uid;
 }
+
+// Pontos vindos de um ficheiro. Filtra o que não se reconhece: um ponto sem
+// coordenadas, ou com uma ferramenta que não existe, rebentava o redesenho da
+// sala INTEIRA — e um ficheiro estragado não pode partir o quadro de toda a
+// gente.
+export function sanitizeBoardPoints(lista) {
+  if (!Array.isArray(lista)) return [];
+  return lista.filter((p) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return false;
+    if (p.x2 !== undefined && !Number.isFinite(p.x2)) return false;
+    if (p.y2 !== undefined && !Number.isFinite(p.y2)) return false;
+    if (p.tool && !BOARD_TOOL_KEYS.includes(p.tool)) return false;
+    if (p.text !== undefined && typeof p.text !== "string") return false;
+    return true;
+  }).slice(0, 4000);
+}
+
+// Os nomes vêm do data.js, onde as ferramentas vivem. Estiveram repetidos
+// aqui durante uma versão, e uma lista repetida diverge à primeira ferramenta
+// nova: a nova passava a ser recusada na importação sem ninguém perceber
+// porquê.
 
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;

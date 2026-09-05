@@ -601,3 +601,27 @@ export function pickBoardChaos(evitarId) {
   const lista = opcoes.length > 0 ? opcoes : BOARD_CHAOS;
   return lista[Math.floor(Math.random() * lista.length)];
 }
+
+// --- Ferramentas do quadro (solo e de sala) ---
+// widthScale multiplica a espessura escolhida; alpha multiplica a
+// transparência escolhida; composite é o que dá a cada uma o seu carácter.
+// O fluorescente usa "multiply" para que, ao passar por cima do que já está
+// escrito, a tinta escureça em vez de tapar — é o que um marcador
+// fluorescente de verdade faz ao papel.
+export const BOARD_TOOLS = {
+  pen:         { label: "Caneta",       icon: "🖊️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round" },
+  marker:      { label: "Marcador",     icon: "🖍️", widthScale: 2.6, alpha: 0.95, composite: "source-over", cap: "round" },
+  pencil:      { label: "Lápis",        icon: "✏️", widthScale: 0.5, alpha: 0.75, composite: "source-over", cap: "round" },
+  highlighter: { label: "Fluorescente", icon: "🖌️", widthScale: 5,   alpha: 0.4,  composite: "multiply",    cap: "square" },
+  eraser:      { label: "Borracha",     icon: "🧽", widthScale: 3.5, alpha: 1,    composite: "destination-out", cap: "round" },
+  line:        { label: "Linha",        icon: "📏", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
+  arrow:       { label: "Seta",         icon: "➡️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
+  rect:        { label: "Retângulo",    icon: "▭",  widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
+  ellipse:     { label: "Círculo",      icon: "⭕", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
+  text:        { label: "Texto",        icon: "🔤", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", text: true },
+  hand:        { label: "Mover",        icon: "✋", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", pan: true },
+};
+
+
+// Só os nomes, para quem precisa de validar sem carregar o resto.
+export const BOARD_TOOL_KEYS = Object.keys(BOARD_TOOLS).filter((k) => !BOARD_TOOLS[k].pan);

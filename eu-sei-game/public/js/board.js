@@ -19,6 +19,13 @@
 //    guardava tudo em fração da tela; foi deitada fora porque com fração não
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
+import { BOARD_TOOLS } from "./data.js";
+
+// Reexportado: as ferramentas VIVEM no data.js (é o único sítio, e é livre de
+// DOM para o módulo da rede e os testes puros lhes chegarem), mas quem já as
+// ia buscar aqui continua a encontrá-las.
+export { BOARD_TOOLS };
+
 const STORAGE_KEY = "euSei_boardDrawing";
 const VIEW_KEY = "euSei_boardView";
 const PREFS_KEY = "euSei_boardPrefs";
@@ -39,25 +46,9 @@ export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 8;
 const ZOOM_STEP = 1.25;
 
-// --- Ferramentas ---
-// widthScale multiplica a espessura escolhida; alpha multiplica a
-// transparência escolhida; composite é o que dá a cada uma o seu carácter.
-// O fluorescente usa "multiply" para que, ao passar por cima do que já está
-// escrito, a tinta escureça em vez de tapar — é o que um marcador
-// fluorescente de verdade faz ao papel.
-export const BOARD_TOOLS = {
-  pen:         { label: "Caneta",       icon: "🖊️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round" },
-  marker:      { label: "Marcador",     icon: "🖍️", widthScale: 2.6, alpha: 0.95, composite: "source-over", cap: "round" },
-  pencil:      { label: "Lápis",        icon: "✏️", widthScale: 0.5, alpha: 0.75, composite: "source-over", cap: "round" },
-  highlighter: { label: "Fluorescente", icon: "🖌️", widthScale: 5,   alpha: 0.4,  composite: "multiply",    cap: "square" },
-  eraser:      { label: "Borracha",     icon: "🧽", widthScale: 3.5, alpha: 1,    composite: "destination-out", cap: "round" },
-  line:        { label: "Linha",        icon: "📏", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
-  arrow:       { label: "Seta",         icon: "➡️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
-  rect:        { label: "Retângulo",    icon: "▭",  widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
-  ellipse:     { label: "Círculo",      icon: "⭕", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
-  text:        { label: "Texto",        icon: "🔤", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", text: true },
-  hand:        { label: "Mover",        icon: "✋", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", pan: true },
-};
+// As ferramentas vivem no data.js: são usadas pelo quadro solo E pelo quadro
+// de sala, e a lista de nomes é validada na importação de ficheiros. Tê-las
+// num sítio só evita que as duas cópias divirjam à primeira ferramenta nova.
 
 // Espessuras rápidas, em unidades de mundo.
 export const BOARD_WIDTHS = [
