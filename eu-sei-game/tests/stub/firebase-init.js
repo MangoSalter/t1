@@ -33,27 +33,35 @@ function loadShared() {
   } catch { /* ignora */ }
 }
 
-function publishShared() {
+// Guarda o estado inteiro em localStorage (so para uma aba nova arrancar ja
+// sincronizada) mas ANUNCIA as alteracoes por caminho.
+//
+// Antes anunciava-se a raiz inteira e o recetor substituia a sua raiz por ela.
+// Com duas abas a escrever ao mesmo tempo — que e exatamente o que os testes
+// multijogador fazem — a raiz de uma chegava com um instantaneo tirado antes
+// da escrita da outra e desfazia-a. A Firebase real funde por caminho; passar
+// a fazer o mesmo tira dos testes uma fonte de falhas que nao existe no jogo.
+function publishShared(kind, path, payload) {
   if (applyingRemote) return;
   try {
     localStorage.setItem(SYNC_KEY, JSON.stringify(rootData));
-    channel?.postMessage({ root: rootData });
+    channel?.postMessage({ kind, path, payload });
   } catch { /* ignora */ }
-}
-
-function notifyAllListeners() {
-  pathListeners.forEach((set, path) => {
-    set.forEach((cb) => cb({ val: () => getAt(splitPath(path)) }));
-  });
 }
 
 if (channel) {
   channel.onmessage = (ev) => {
-    if (!ev.data || !ev.data.root) return;
+    const msg = ev.data;
+    if (!msg || !msg.kind) return;
     applyingRemote = true;
-    rootData = ev.data.root;
-    notifyAllListeners();
-    applyingRemote = false;
+    try {
+      const segs = splitPath(msg.path);
+      if (msg.kind === "set") setAt(segs, msg.payload);
+      else applyUpdate(segs, msg.payload);
+      notifyPath(msg.path);
+    } finally {
+      applyingRemote = false;
+    }
   };
 }
 loadShared();
@@ -112,8 +120,8 @@ function applyUpdate(baseSegments, partial) {
   });
 }
 
-function notifyPath(changedPath) {
-  publishShared();
+function notifyPath(changedPath, kind, payload) {
+  if (kind) publishShared(kind, changedPath, payload);
   // Uma escrita num caminho é visível para quem ouve esse caminho e
   // qualquer ancestral (tal como na Firebase real).
   const segs = splitPath(changedPath);
@@ -132,8 +140,8 @@ function notifyPath(changedPath) {
 if (typeof window !== "undefined") {
   window.__testDb = {
     get: (path) => getAt(splitPath(path)),
-    set: (path, value) => { setAt(splitPath(path), value); notifyPath(path); },
-    update: (path, partial) => { applyUpdate(splitPath(path), partial); notifyPath(path); },
+    set: (path, value) => { setAt(splitPath(path), value); notifyPath(path, "set", value); },
+    update: (path, partial) => { applyUpdate(splitPath(path), partial); notifyPath(path, "update", partial); },
   };
 }
 
@@ -167,18 +175,18 @@ function tally(path, payload) {
 export async function set(r, value) {
   tally(r.path, value);
   setAt(splitPath(r.path), value);
-  notifyPath(r.path);
+  notifyPath(r.path, "set", value);
 }
 
 export async function update(r, partial) {
   tally(r.path, partial);
   applyUpdate(splitPath(r.path), partial);
-  notifyPath(r.path);
+  notifyPath(r.path, "update", partial);
 }
 
 export async function remove(r) {
   setAt(splitPath(r.path), null);
-  notifyPath(r.path);
+  notifyPath(r.path, "set", null);
 }
 
 export function onDisconnect() {
@@ -197,7 +205,7 @@ export async function runTransaction(r, updater) {
     return { committed: false, snapshot: { val: () => current } };
   }
   setAt(segs, next);
-  notifyPath(r.path);
+  notifyPath(r.path, "set", next);
   return { committed: true, snapshot: { val: () => next } };
 }
 
