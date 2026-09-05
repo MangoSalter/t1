@@ -41,6 +41,7 @@
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
       <button id="solo-menu-btn" class="ghost-primary">Jogar sozinho</button>
+      <button data-open-board class="ghost">🖊️ Quadro branco</button>
       <p id="home-error" class="error"></p>
     </div>
   </section>
@@ -69,6 +70,7 @@
         <button id="solo-play-landmark-btn">Onde Fica Isto?</button>
       </div>
       <div class="divider"></div>
+      <button data-open-board>🖊️ Quadro branco</button>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button id="solo-achievements-btn">🏅 Conquistas</button>
       <label class="chaos-toggle"><input type="checkbox" id="solo-sfx-toggle" checked /> 🔊 Sons</label>
@@ -549,6 +551,73 @@
     </div>
   </section>
 
+  <!-- QUADRO BRANCO SOLO: a mesma folha em ecrã inteiro do quadro de sala,
+       mas sem caneta a passar de mão em mão. A folha é infinita (a câmara tem
+       zoom e deslocação), por isso a barra tem controlos de zoom, e o que é
+       afinação fina — espessura, transparência, fundo, ficheiros — vive no
+       painel "Mais opções" para não empurrar a folha para fora do ecrã. -->
+  <section data-screen="board" class="screen board-screen">
+    <div class="board-toolbar">
+      <div class="board-tool-row" id="board-tool-row"></div>
+      <div class="board-toolbar-sep"></div>
+      <div class="board-color-row" id="board-color-row"></div>
+      <label class="board-custom-color" title="Outra cor">
+        <span aria-hidden="true">🎨</span>
+        <input type="color" id="board-custom-color" value="#3a3126" aria-label="Escolher outra cor" />
+      </label>
+      <div class="board-toolbar-sep"></div>
+      <div class="board-width-row" id="board-width-row"></div>
+      <div class="board-toolbar-sep"></div>
+      <div class="board-zoom-row">
+        <button type="button" id="board-zoom-out-btn" class="ghost" title="Afastar (Ctrl+-)">➖</button>
+        <button type="button" id="board-zoom-reset-btn" class="ghost" title="Voltar a 100% (Ctrl+0)"><span id="board-zoom-label">100%</span></button>
+        <button type="button" id="board-zoom-in-btn" class="ghost" title="Aproximar (Ctrl++)">➕</button>
+        <button type="button" id="board-zoom-fit-btn" class="ghost" title="Enquadrar o desenho todo">🔍 Enquadrar</button>
+      </div>
+      <div class="board-toolbar-sep"></div>
+      <button type="button" id="board-undo-btn" class="ghost" title="Anular (Ctrl+Z)">↩️</button>
+      <button type="button" id="board-redo-btn" class="ghost" title="Refazer (Ctrl+Shift+Z)">↪️</button>
+
+      <details class="board-panel" id="board-panel">
+        <summary title="Mais opções">⚙️ Mais</summary>
+        <div class="board-panel-body">
+          <label class="board-field">
+            <span>Espessura da linha <b id="board-width-value">4px</b></span>
+            <input type="range" id="board-width-range" min="1" max="60" step="1" value="4" />
+          </label>
+          <label class="board-field">
+            <span>Transparência <b id="board-opacity-value">100%</b></span>
+            <input type="range" id="board-opacity-range" min="5" max="100" step="5" value="100" />
+          </label>
+          <label class="board-field board-field-row">
+            <input type="checkbox" id="board-fill-toggle" />
+            <span>Preencher as formas</span>
+          </label>
+          <label class="board-field">
+            <span>Fundo da folha</span>
+            <select id="board-bg-select" aria-label="Estilo do fundo"></select>
+          </label>
+          <div class="board-panel-sep"></div>
+          <button type="button" id="board-save-btn" class="ghost">💾 Guardar imagem (PNG)</button>
+          <button type="button" id="board-export-btn" class="ghost">📤 Exportar quadro</button>
+          <button type="button" id="board-import-btn" class="ghost">📥 Importar quadro</button>
+          <input type="file" id="board-import-input" accept="application/json,.json" hidden />
+          <div class="board-panel-sep"></div>
+          <button type="button" id="board-clear-btn" class="ghost board-danger">🧹 Limpar tudo</button>
+          <p class="hint small board-shortcuts">
+            Atalhos: <b>Ctrl+Z</b> anular · <b>B</b> caneta · <b>E</b> borracha ·
+            <b>T</b> texto · <b>H</b> mover · <b>espaço</b> arrastar a folha ·
+            <b>Ctrl+roda</b> afastar/aproximar · dois dedos para afastar no telemóvel.
+          </p>
+        </div>
+      </details>
+
+      <button type="button" id="board-exit-btn" class="ghost">Sair</button>
+      <span id="board-status" class="hint small"></span>
+    </div>
+    <canvas id="board-canvas" class="board-canvas"></canvas>
+  </section>
+
   <!-- QUADRO BRANCO: folha partilhada em ecrã inteiro, escreve um de cada vez -->
   <section data-screen="hangman" class="screen hangman-board">
     <div class="hangman-toolbar">
@@ -810,5 +879,6 @@
 
   <script type="module" src="js/app.js"></script>
   <script type="module" src="js/solo.js"></script>
+  <script type="module" src="js/board.js"></script>
 </body>
 </html>

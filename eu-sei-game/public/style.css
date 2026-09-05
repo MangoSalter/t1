@@ -672,3 +672,143 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   padding: 4px 2px;
 }
 .cat-picker-grid label { min-height: 40px; }
+
+/* ---------- QUADRO BRANCO SOLO ----------
+   Mesma ideia do quadro de sala (ecrã inteiro, fora do cartão da app), mas
+   com barra de ferramentas própria. A barra encolhe e passa a linhas no
+   telemóvel; a folha fica sempre com o resto do espaço, seja qual for a
+   altura da barra — daí o flex:1 com min-height:0 em vez de uma altura fixa,
+   que no telemóvel deitava metade da folha para fora do ecrã. */
+.screen.board-screen.active { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 8; padding: 0; margin: 0; }
+.board-canvas { display: block; width: 100%; flex: 1 1 auto; min-height: 0; background: #fffdf7; cursor: crosshair; touch-action: none; }
+.board-canvas[data-tool="eraser"] { cursor: cell; }
+.board-canvas[data-tool="hand"], .board-canvas[data-pan="1"] { cursor: grab; }
+.board-canvas[data-tool="text"] { cursor: text; }
+
+.board-toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  padding: 6px 10px;
+  background: var(--paper); border-bottom: 2px solid var(--ink);
+  max-height: 42vh; overflow-y: auto;
+}
+.board-toolbar-sep { width: 2px; align-self: stretch; min-height: 24px; background: var(--paper-line); border-radius: 2px; }
+.board-tool-row, .board-color-row, .board-width-row, .board-zoom-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+/* Alvos de toque a 44px, como o resto da app (ver a11y-test.mjs, passo 7). */
+.board-tool {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 44px; padding: 4px 9px;
+  font-family: inherit; font-size: 0.9rem;
+  background: var(--card-bg); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 10px 12px 9px 11px;
+  cursor: pointer; width: auto;
+}
+.board-tool:hover { background: var(--paper-soft); }
+.board-tool[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--ink); font-weight: 700; }
+.board-tool-name { white-space: nowrap; }
+
+.board-color {
+  width: 44px; height: 44px; padding: 0;
+  border: 2px solid var(--ink); border-radius: 50%;
+  cursor: pointer;
+}
+.board-color[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ink); }
+/* Com a borracha (ou a mão) na mão a cor não faz nada: a paleta apaga-se para
+   não prometer o que não cumpre, mas continua clicável — clicar numa cor
+   volta a pegar na caneta. */
+.board-row-muted { opacity: 0.45; }
+
+.board-custom-color { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; cursor: pointer; }
+.board-custom-color input[type="color"] {
+  width: 40px; height: 40px; padding: 0; margin: 0;
+  border: 2px solid var(--ink); border-radius: 8px; background: none; cursor: pointer;
+}
+
+.board-width {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0;
+  background: var(--card-bg); border: 2px solid var(--ink); border-radius: 10px;
+  cursor: pointer;
+}
+.board-width-dot { display: block; background: var(--ink); border-radius: 50%; }
+
+.board-toolbar button.ghost { width: auto; min-height: 44px; margin: 0; padding: 4px 10px; font-size: 0.9rem; }
+.board-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+#board-zoom-label { display: inline-block; min-width: 3.4em; text-align: center; font-variant-numeric: tabular-nums; }
+#board-status { margin-left: auto; padding-right: 4px; }
+
+/* Painel "Mais": aberto flutua POR CIMA da folha em vez de crescer dentro da
+   barra. Se crescesse dentro, abrir as opções empurrava o desenho para baixo
+   e no telemóvel tapava-o quase todo. */
+.board-panel { position: relative; }
+.board-panel > summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 4px 10px;
+  background: var(--card-bg); border: 2px solid var(--ink); border-radius: 10px 12px 9px 11px;
+  cursor: pointer; list-style: none; font-size: 0.9rem; white-space: nowrap;
+}
+.board-panel > summary::-webkit-details-marker { display: none; }
+.board-panel[open] > summary { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--ink); }
+.board-panel-body {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 3;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(300px, calc(100vw - 24px));
+  max-height: 70vh; overflow-y: auto;
+  padding: 12px;
+  background: var(--card-bg); border: 2px solid var(--ink); border-radius: 12px;
+  box-shadow: 3px 3px 0 rgba(58,49,38,0.25);
+  text-align: left;
+}
+/* flex-shrink: 0 é essencial. O painel é uma coluna flex com max-height e,
+   quando o conteúdo passava dessa altura, os filhos encolhiam — os
+   deslizadores ficavam com 24px em vez de 44 e deixavam de se acertar com o
+   dedo. Medido: 44px pedidos, 24px no ecrã. */
+.board-panel-body > * { flex: 0 0 auto; }
+.board-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; min-height: 44px; justify-content: center; }
+.board-field-row { flex-direction: row; align-items: center; gap: 8px; }
+.board-field input[type="range"] { width: 100%; margin: 0; height: 44px; }
+.board-field select { width: 100%; margin: 0; min-height: 40px; font-family: inherit; }
+.board-panel-body button.ghost { width: 100%; }
+.board-panel-body .board-danger { border-color: var(--danger); color: var(--danger); }
+.board-panel-sep { height: 2px; background: var(--paper-line); border-radius: 2px; }
+.board-shortcuts { margin: 0; line-height: 1.5; }
+
+/* No telemóvel a folha é que interessa. Medido num iPhone 13, a barra
+   ocupava 279px de 664 — 42% do ecrã só para botões, com a folha reduzida a
+   385px. Aqui as filas deixam de dobrar e passam a deslizar na horizontal
+   (cabem todas as ferramentas sem crescer para baixo), o nome da ferramenta
+   sai e as espessuras rápidas também — a mesma escolha existe no deslizador
+   do painel, com mais precisão. */
+@media (max-width: 720px) {
+  .board-tool-name { display: none; }
+  .board-tool { padding: 4px 7px; min-width: 44px; justify-content: center; }
+  .board-toolbar { gap: 4px 5px; padding: 4px 6px; max-height: none; overflow-y: visible; }
+  .board-toolbar-sep { display: none; }
+  .board-width-row { display: none; }
+  #board-status { display: none; }
+  #board-zoom-fit-btn { font-size: 0; padding: 4px 8px; min-width: 44px; }
+  #board-zoom-fit-btn::before { content: "🔍"; font-size: 1rem; }
+  /* Uma fila que desliza em vez de dobrar: as ferramentas todas continuam a
+     chegar-se, mas a barra fica com a altura de uma linha só. */
+  .board-tool-row, .board-color-row {
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    flex: 1 1 100%; min-width: 0;
+    padding-bottom: 2px; scrollbar-width: thin;
+  }
+  .board-color { flex: 0 0 auto; }
+  .board-tool { flex: 0 0 auto; }
+  /* O painel abria ancorado ao botão "Mais", que no telemóvel está a meio da
+     barra: com right:0 as suas 300px saíam pela margem ESQUERDA fora (medido:
+     ia de -217px a 83px). Preso ao ecrã, cabe sempre. */
+  .board-panel-body {
+    position: fixed; top: auto; left: 8px; right: 8px; width: auto;
+    max-height: 60vh;
+  }
+}
+
+/* Em ecrãs muito baixos (telemóvel deitado) a barra não pode comer a folha. */
+@media (max-height: 480px) {
+  .board-toolbar { max-height: 40vh; overflow-y: auto; }
+}

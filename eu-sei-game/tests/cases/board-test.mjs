@@ -1,0 +1,284 @@
+// Quadro branco solo. Testa as REGRAS, não só os cliques:
+//  - a borracha apaga onde passa e a "limpar tudo" apaga tudo: são coisas
+//    diferentes, e trocá-las seria a pior avaria possível deste ecrã;
+//  - afastar (zoom out) tem de tornar o traço mais fino EM RELAÇÃO À FOLHA,
+//    que foi exatamente o que foi pedido — um zoom que só muda o número no
+//    ecrã passaria num teste ingénuo;
+//  - nenhuma ferramenta futura pode ser adicionada sem cor, espessura e
+//    modo de composição, senão rebenta no redesenho.
+import { chromium, devices } from "playwright";
+
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+page.on("console", (m) => {
+  // net::ERR_* são falhas de rede do ambiente (aqui, o tipo de letra do
+  // Google Fonts, que o sandbox não deixa sair). Um ficheiro local em falta
+  // dá 404, não net::ERR_, por isso filtrar isto não esconde avarias nossas.
+  if (m.type() === "error" && !m.text().includes("net::ERR_")) errors.push(m.text());
+});
+await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+
+const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
+
+// Desenhar um traço arrastando o rato sobre a tela.
+async function drag(from, to, steps = 12) {
+  const box = await page.locator("#board-canvas").boundingBox();
+  await page.mouse.move(box.x + from[0], box.y + from[1]);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i += 1) {
+    await page.mouse.move(
+      box.x + from[0] + ((to[0] - from[0]) * i) / steps,
+      box.y + from[1] + ((to[1] - from[1]) * i) / steps
+    );
+  }
+  await page.mouse.up();
+}
+
+const strokeCount = () => page.evaluate(() => window.__boardTest.strokes.length);
+
+console.log("1) O quadro abre a partir do ecrã inicial...");
+await page.click('[data-open-board]');
+await page.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
+// O módulo expõe o estado para os testes; sem isto só se podia olhar para
+// pixéis, e um pixel castanho não diz se foi a caneta ou a borracha.
+await page.evaluate(async () => {
+  const mod = await import("./js/board.js");
+  window.__boardTest = mod.__board;
+  window.__boardMod = mod;
+});
+if (await page.locator("#board-canvas").isVisible() === false) fail("a folha não apareceu");
+
+console.log("2) Desenhar deixa traço, e o traço fica guardado...");
+await drag([200, 200], [500, 320]);
+let n = await strokeCount();
+console.log(`   traços depois de desenhar: ${n}`);
+if (n !== 1) fail(`esperava 1 traço, tenho ${n}`);
+const firstToolUsed = await page.evaluate(() => window.__boardTest.strokes[0].tool);
+if (firstToolUsed !== "pen") fail(`o primeiro traço devia ser da caneta, é "${firstToolUsed}"`);
+
+console.log("3) Anular e refazer...");
+await page.click("#board-undo-btn");
+if (await strokeCount() !== 0) fail("anular não tirou o traço");
+await page.click("#board-redo-btn");
+if (await strokeCount() !== 1) fail("refazer não repôs o traço");
+
+console.log("4) A BORRACHA apaga onde passa — não limpa a folha...");
+await page.click('[data-board-tool="eraser"]');
+await drag([250, 210], [300, 240]);
+n = await strokeCount();
+console.log(`   traços depois de apagar: ${n} (1 desenho + 1 marca de borracha)`);
+// Este é o coração do pedido: a borracha ACRESCENTA um traço que apaga, e o
+// desenho original continua na lista. Se a borracha esvaziasse a lista, era
+// um "limpar tudo" disfarçado.
+if (n !== 2) fail(`a borracha devia deixar a lista com 2 traços, tem ${n}`);
+const eraserStroke = await page.evaluate(() => {
+  const s = window.__boardTest.strokes[1];
+  return { tool: s.tool, points: s.points.length };
+});
+if (eraserStroke.tool !== "eraser") fail(`o segundo traço devia ser da borracha, é "${eraserStroke.tool}"`);
+const composite = await page.evaluate(async () => (await import("./js/board.js")).BOARD_TOOLS.eraser.composite);
+if (composite !== "destination-out") fail(`a borracha tem de apagar por composição, usa "${composite}"`);
+// E o desenho de baixo continua inteiro: apagar por cima não pode mexer nos
+// pontos do traço original.
+const originalIntact = await page.evaluate(() => window.__boardTest.strokes[0].points.length > 2);
+if (!originalIntact) fail("apagar por cima estragou o traço original");
+
+console.log("5) Anular desfaz a borracha (é um traço como outro qualquer)...");
+await page.click("#board-undo-btn");
+if (await strokeCount() !== 1) fail("anular não desfez a marca da borracha");
+
+console.log("6) 'Limpar tudo' pergunta antes, e só aí apaga tudo...");
+page.once("dialog", (d) => d.dismiss());
+await page.click("#board-panel > summary");
+await page.click("#board-clear-btn");
+if (await strokeCount() !== 1) fail("recusar a confirmação apagou o quadro na mesma");
+page.once("dialog", (d) => d.accept());
+await page.click("#board-clear-btn");
+if (await strokeCount() !== 0) fail("aceitar a confirmação não limpou o quadro");
+// Limpar sem querer tem de se poder desfazer.
+await page.click("#board-redo-btn");
+if (await strokeCount() !== 1) fail("não consegui recuperar o quadro depois de limpar");
+
+console.log("7) AFASTAR torna o traço mais fino em relação à folha...");
+// A pergunta a que este passo responde: ao afastar, o mesmo traço passa a
+// ocupar menos ecrã? Mede-se em pixéis de ecrã o comprimento do traço antes
+// e depois — é a definição prática de "zoom out".
+const screenSpan = () => page.evaluate(() => {
+  const b = window.__boardTest;
+  const s = b.strokes[0];
+  const xs = s.points.map((p) => p.x * b.zoom + b.panX);
+  const ys = s.points.map((p) => p.y * b.zoom + b.panY);
+  return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+});
+const spanBefore = await screenSpan();
+const widthBefore = await page.evaluate(() => window.__boardTest.strokes[0].width * window.__boardTest.zoom);
+await page.click("#board-zoom-out-btn");
+await page.click("#board-zoom-out-btn");
+const spanAfter = await screenSpan();
+const widthAfter = await page.evaluate(() => window.__boardTest.strokes[0].width * window.__boardTest.zoom);
+const zoomNow = await page.evaluate(() => window.__boardTest.zoom);
+console.log(`   zoom ${zoomNow.toFixed(2)} — traço no ecrã: ${spanBefore.toFixed(0)}px -> ${spanAfter.toFixed(0)}px, espessura ${widthBefore.toFixed(2)} -> ${widthAfter.toFixed(2)}`);
+if (zoomNow >= 1) fail("afastar não baixou o zoom");
+if (spanAfter >= spanBefore - 1) fail("afastar não encolheu o desenho no ecrã");
+if (widthAfter >= widthBefore) fail("afastar não afinou a linha — a espessura tem de acompanhar a folha");
+
+console.log("8) Aproximar e voltar a 100%...");
+await page.click("#board-zoom-in-btn");
+const zoomIn = await page.evaluate(() => window.__boardTest.zoom);
+if (!(zoomIn > zoomNow)) fail("aproximar não subiu o zoom");
+await page.click("#board-zoom-reset-btn");
+if (await page.evaluate(() => window.__boardTest.zoom) !== 1) fail("o botão de 100% não repôs o zoom");
+
+console.log("9) Enquadrar traz o desenho para dentro do ecrã...");
+// Empurra a folha para bem longe e confirma que o botão a traz de volta.
+await page.evaluate(() => { window.__boardTest.panX = -9000; window.__boardTest.panY = -9000; });
+await page.click("#board-zoom-fit-btn");
+const visible = await page.evaluate(() => {
+  const b = window.__boardTest;
+  return b.strokes[0].points.some((p) => {
+    const x = p.x * b.zoom + b.panX;
+    const y = p.y * b.zoom + b.panY;
+    return x > 0 && x < b.rectW && y > 0 && y < b.rectH;
+  });
+});
+if (!visible) fail("enquadrar não trouxe o desenho para o ecrã");
+
+console.log("10) Espessura e transparência mudam mesmo o traço seguinte...");
+await page.click('[data-board-tool="pen"]');
+await page.locator("#board-width-range").fill("30");
+await page.locator("#board-opacity-range").fill("25");
+await page.click("#board-panel > summary");
+await drag([600, 400], [750, 500]);
+const last = await page.evaluate(() => {
+  const s = window.__boardTest.strokes[window.__boardTest.strokes.length - 1];
+  return { width: s.width, opacity: s.opacity };
+});
+console.log(`   traço novo: espessura ${last.width}, transparência ${last.opacity}`);
+if (last.width !== 30) fail(`a espessura escolhida não foi usada (${last.width})`);
+if (Math.abs(last.opacity - 0.25) > 0.01) fail(`a transparência escolhida não foi usada (${last.opacity})`);
+
+console.log("11) Cores, formas e texto...");
+await page.click('[data-board-color="#b24b38"]');
+await page.click('[data-board-tool="rect"]');
+await drag([300, 450], [430, 560], 4);
+const shape = await page.evaluate(() => {
+  const s = window.__boardTest.strokes[window.__boardTest.strokes.length - 1];
+  return { tool: s.tool, color: s.color, points: s.points.length };
+});
+if (shape.tool !== "rect") fail(`esperava um retângulo, tenho "${shape.tool}"`);
+if (shape.color !== "#b24b38") fail(`a cor escolhida não foi usada (${shape.color})`);
+if (shape.points !== 2) fail(`uma forma guarda 2 pontos, esta tem ${shape.points}`);
+
+// Um clique com a forma sem arrastar não pode deixar lixo na lista.
+const beforeClick = await strokeCount();
+const box = await page.locator("#board-canvas").boundingBox();
+await page.mouse.click(box.x + 800, box.y + 300);
+if (await strokeCount() !== beforeClick) fail("um clique sem arrastar deixou uma forma de tamanho zero");
+
+page.once("dialog", (d) => d.accept("Olá quadro"));
+await page.click('[data-board-tool="text"]');
+await page.mouse.click(box.x + 500, box.y + 520);
+const textStroke = await page.evaluate(() => {
+  const s = window.__boardTest.strokes[window.__boardTest.strokes.length - 1];
+  return { tool: s.tool, text: s.text };
+});
+if (textStroke.tool !== "text" || textStroke.text !== "Olá quadro") {
+  fail(`o texto não foi escrito no quadro (${JSON.stringify(textStroke)})`);
+}
+
+console.log("12) O quadro sobrevive a recarregar a página...");
+const beforeReload = await strokeCount();
+await page.reload({ waitUntil: "networkidle" });
+await page.click('[data-open-board]');
+await page.waitForSelector('[data-screen="board"].active');
+await page.evaluate(async () => { window.__boardTest = (await import("./js/board.js")).__board; });
+const afterReload = await strokeCount();
+console.log(`   traços antes: ${beforeReload}, depois de recarregar: ${afterReload}`);
+if (afterReload !== beforeReload) fail("o quadro não sobreviveu a recarregar");
+
+console.log("13) Nenhuma ferramenta pode ficar sem o que o redesenho precisa...");
+// Regra, não comportamento: se alguém acrescentar uma ferramenta nova sem
+// composite/alpha/widthScale, o redesenho rebenta em silêncio. Falha aqui.
+const badTools = await page.evaluate(async () => {
+  const { BOARD_TOOLS } = await import("./js/board.js");
+  return Object.entries(BOARD_TOOLS)
+    .filter(([, t]) => !t.composite || typeof t.alpha !== "number" || typeof t.widthScale !== "number" || !t.label)
+    .map(([k]) => k);
+});
+if (badTools.length > 0) fail(`ferramentas mal definidas: ${badTools.join(", ")}`);
+
+// E só a borracha pode apagar: uma caneta com destination-out apagaria a
+// folha achando que estava a escrever.
+const wrongErasers = await page.evaluate(async () => {
+  const { BOARD_TOOLS } = await import("./js/board.js");
+  return Object.entries(BOARD_TOOLS)
+    .filter(([k, t]) => t.composite === "destination-out" && k !== "eraser")
+    .map(([k]) => k);
+});
+if (wrongErasers.length > 0) fail(`estas ferramentas apagam sem ser a borracha: ${wrongErasers.join(", ")}`);
+
+console.log("14) Sair volta ao início e não perde nada...");
+await page.click("#board-exit-btn");
+await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
+
+console.log("15) Também se chega ao quadro pelo menu de jogar sozinho...");
+await page.click("#solo-menu-btn");
+await page.click('.screen.active [data-open-board]');
+await page.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
+
+console.log("16) No telemóvel a folha manda, e os alvos dão-se com o dedo...");
+// Medido num iPhone 13: a barra chegou a ocupar 279px de 664 (42% do ecrã só
+// para botões). Este passo impede que volte a crescer, e mede os alvos de
+// toque como o resto da app faz — pela ETIQUETA, que é o que se toca, não
+// pela caixa de seleção lá dentro.
+const mob = await browser.newContext({ ...devices["iPhone 13"] });
+const mpage = await mob.newPage();
+await mpage.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await mpage.click("[data-open-board]");
+await mpage.waitForSelector('[data-screen="board"].active');
+await mpage.click("#board-panel > summary");
+const layout = await mpage.evaluate(() => {
+  const tb = document.querySelector(".board-toolbar").getBoundingClientRect();
+  const panel = document.querySelector(".board-panel-body").getBoundingClientRect();
+  const small = [];
+  document.querySelectorAll(".board-screen button, .board-screen select, .board-screen summary, .board-screen label").forEach((el) => {
+    if (!el.offsetParent) return;
+    if (el.closest("details:not([open])")) return;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    if (r.height < 40 || r.width < 40) small.push(`${el.id || el.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+  });
+  // O deslizador não tem etiqueta própria: mede-se ele mesmo.
+  document.querySelectorAll('.board-panel-body input[type="range"]').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.height < 40) small.push(`${el.id} ${Math.round(r.width)}x${Math.round(r.height)}`);
+  });
+  return {
+    toolbarH: Math.round(tb.height),
+    vh: window.innerHeight,
+    vw: window.innerWidth,
+    panelLeft: Math.round(panel.left),
+    panelRight: Math.round(panel.right),
+    small,
+  };
+});
+const share = layout.toolbarH / layout.vh;
+console.log(`   barra: ${layout.toolbarH}px de ${layout.vh} (${Math.round(share * 100)}% do ecrã)`);
+console.log(`   alvos abaixo de 40px: ${layout.small.length ? layout.small.join(" | ") : "nenhum"}`);
+if (share > 0.34) fail(`a barra come ${Math.round(share * 100)}% do ecrã — a folha é que devia mandar`);
+if (layout.small.length > 0) fail(`alvos pequenos demais para o dedo: ${layout.small.join(", ")}`);
+// O painel abria ancorado ao botão "Mais" e saía pela margem esquerda fora.
+if (layout.panelLeft < 0 || layout.panelRight > layout.vw) {
+  fail(`o painel sai do ecrã (de ${layout.panelLeft} a ${layout.panelRight}, ecrã ${layout.vw})`);
+}
+await mob.close();
+
+if (errors.length > 0) {
+  console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
+  process.exitCode = 1;
+}
+
+await browser.close();
+console.log(process.exitCode ? "=> board-test FALHOU" : "=> board-test ok");
