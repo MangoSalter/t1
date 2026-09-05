@@ -189,7 +189,7 @@ export async function clearScratchpad(code) {
   await set(ref(db, `rooms/${code}/scratchpad/points`), null);
 }
 
-// --- Forca em equipa (bónus de fim de partida) ---
+// --- Quadro branco (bónus de fim de partida) ---
 // Já não é o jogo digital de adivinhar letra a letra — passou a ser um
 // quadro branco em ecrã inteiro (ocupa o espaço todo do browser, fora do
 // cartão/moldura normal da app) onde só o anfitrião da sala ("líder")
@@ -587,7 +587,7 @@ export async function leaveRoom(code, uid) {
   await remove(ref(db, `rooms/${code}/players/${uid}`));
 }
 
-// --- Forca em equipa ---
+// --- Quadro branco ---
 // Quadro branco em ecrã inteiro: só o anfitrião da sala escreve/desenha,
 // o resto da equipa vê e adivinha em voz alta (fora da app). Sem mais
 // estado do que isto — nenhuma pontuação, nenhuma palavra guardada.

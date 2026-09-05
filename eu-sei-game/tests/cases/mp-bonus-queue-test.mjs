@@ -63,7 +63,7 @@ if (!room.bonusQueue || room.bonusProgress?.total !== 2) {
 async function playHangmanIfActive() {
   room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
   if (room.state !== "hangman") return false;
-  console.log("   -> Na Forca em equipa (bonus) — agora é só um quadro branco em ecrã inteiro, sem pontuação própria...");
+  console.log("   -> No Quadro branco (bonus) — agora é só um quadro branco em ecrã inteiro, sem pontuação própria...");
   await page.waitForSelector('[data-screen="hangman"].active', { timeout: 3000 });
   // Ana e sempre a anfitriã = lider do quadro; confirma e desenha um traço rápido.
   const leaderIsAna = room.hangman.leaderId === room.hostId;

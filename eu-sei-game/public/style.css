@@ -243,7 +243,7 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .monkey-lifesaver { position: absolute; bottom: 26px; font-size: 1.9rem; transform: translateX(-50%); pointer-events: none; animation: lifesaver-bob 0.6s ease-in-out infinite alternate; }
 @keyframes lifesaver-bob { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-4px); } }
 
-/* Forca em equipa — quadro branco em ecrã inteiro (fora da moldura/cartão
+/* Quadro branco em ecrã inteiro (fora da moldura/cartão
    normal da app: ocupa o browser todo, de ponta a ponta), só o anfitrião
    da sala desenha, os outros vêem e adivinham em voz alta. */
 .screen.hangman-board.active { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 8; padding: 0; margin: 0; }

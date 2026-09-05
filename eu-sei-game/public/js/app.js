@@ -829,7 +829,7 @@ function renderRoundScore(room) {
   const isLastRound = room.round >= numRounds;
   const playerCount = Object.keys(room.players || {}).length;
   roundScoreEls.nextBtn.textContent = isLastRound
-    ? (playerCount >= 3 ? "Forca em equipa (bónus)" : "Ver resultados finais")
+    ? (playerCount >= 3 ? "Quadro branco (bónus)" : "Ver resultados finais")
     : "Próxima ronda";
 }
 
