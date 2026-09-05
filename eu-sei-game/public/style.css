@@ -941,3 +941,8 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .hangman-wrong-letter { font-size: 1.3rem; }
   .hangman-players { display: none; }
 }
+.hangman-fill-toggle { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; font-size: 0.9rem; white-space: nowrap; }
+@media (max-width: 720px) { .hangman-fill-toggle span { display: none; } }
+.hangman-hint-label { font-weight: 700; white-space: nowrap; padding: 2px 10px; background: var(--accent-soft); border: 2px solid var(--ink); border-radius: 10px 12px 9px 11px; }
+.hangman-word-form input { min-width: 0; }
+#hangman-hint-input { flex: 0 1 200px; }

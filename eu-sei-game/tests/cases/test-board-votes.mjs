@@ -11,26 +11,29 @@ const check = (nome, real, esperado) => {
   if (!ok) falhas += 1;
 };
 
-console.log("1) Quantos votos são precisos (maioria simples dos ligados)...");
+console.log("1) Quantos votos são precisos (metade arredondada para cima)...");
+// "Mais de metade" fazia uma sala de dois precisar dos dois votos — esperar
+// por toda a gente, que é justamente o que não se quer numa votação.
 check("1 jogador", votesNeeded(["a"]), 1);
-check("2 jogadores", votesNeeded(["a", "b"]), 2);
+check("2 jogadores", votesNeeded(["a", "b"]), 1);
 check("3 jogadores", votesNeeded(["a", "b", "c"]), 2);
-check("4 jogadores", votesNeeded(["a", "b", "c", "d"]), 3);
+check("4 jogadores", votesNeeded(["a", "b", "c", "d"]), 2);
 check("5 jogadores", votesNeeded(["a", "b", "c", "d", "e"]), 3);
+check("10 jogadores", votesNeeded("abcdefghij".split("")), 5);
 
-console.log("2) Um voto sozinho NÃO decide por uma sala cheia...");
+console.log("2) Numa sala grande, um voto sozinho continua a não decidir...");
 const cinco = ["a", "b", "c", "d", "e"];
 check("1 voto em 5", voteWinner({ a: "forca" }, cinco), null);
 check("2 votos em 5", voteWinner({ a: "forca", b: "forca" }, cinco), null);
 check("3 votos em 5", voteWinner({ a: "forca", b: "forca", c: "forca" }, cinco), "forca");
 
-console.log("3) Empate não decide nada...");
-check("2 contra 2 em 4", voteWinner({ a: "forca", b: "forca", c: "livre", d: "livre" }, ["a","b","c","d"]), null);
+console.log("3) Numa sala de dois, não se espera pelo segundo voto...");
+check("1 voto em 2", voteWinner({ a: "forca" }, ["a", "b"]), "forca");
 
 console.log("4) Votos de quem já saiu não contam...");
 // Uma sala que esvaziou não pode ficar presa num resultado que já ninguém
 // quer: os votos de quem se desligou saem da contagem.
-check("2 votos, mas 1 saiu", voteWinner({ a: "forca", z: "forca" }, ["a", "b", "c"]), null);
+check("2 votos, mas 1 saiu (sala de 3 precisa de 2)", voteWinner({ a: "forca", z: "forca" }, ["a", "b", "c"]), null);
 check("contagem ignora ausentes", tallyVotes({ a: "forca", z: "forca" }, ["a", "b"]), { forca: 1 });
 
 console.log("5) Um voto por pessoa: mudar de ideias substitui, não acumula...");
@@ -40,6 +43,7 @@ const votos = {};
 votos["a"] = "forca";
 votos["a"] = "livre";
 check("dois cliques da mesma pessoa", tallyVotes(votos, ["a", "b", "c"]), { livre: 1 });
+check("e não chega para decidir numa sala de 3", voteWinner(votos, ["a", "b", "c"]), null);
 
 console.log("6) Sozinho na sala, o voto vale (senão o quadro ficava trancado)...");
 check("1 em 1", voteWinner({ a: "forca" }, ["a"]), "forca");

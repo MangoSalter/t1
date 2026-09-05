@@ -698,6 +698,17 @@ export async function passHangmanPenRandom(code, room, uid) {
 // que arbitra, guardar só a forma não tira nada ao jogo e tira a tentação.
 export const HANGMAN_MAX_MISSES = 6;
 
+// Ao comparar letras, os acentos não contam. Quem arrisca "c" está a arriscar
+// o "ç" de "coração", e quem arrisca "e" está a arriscar o "é" de "café" —
+// obrigar a acertar o acento seria adivinhar ortografia, não a palavra. O que
+// APARECE no quadro continua a ser a letra como está escrita, com acento.
+export function normalizeLetter(ch) {
+  return String(ch || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt");
+}
+
 // Letras viram "_"; brancos, hífens e pontuação ficam à vista, porque é isso
 // que diz se são duas palavras ou uma palavra composta.
 export function maskWord(word) {
@@ -712,11 +723,11 @@ export function maskWord(word) {
 export function revealLetter(word, mask, letter) {
   const w = String(word || "");
   const m = String(mask || "");
-  const alvo = String(letter || "").toLocaleLowerCase("pt");
+  const alvo = normalizeLetter(letter);
   if (!alvo) return m;
   return w
     .split("")
-    .map((ch, i) => (ch.toLocaleLowerCase("pt") === alvo ? ch : m[i] ?? maskWord(ch)))
+    .map((ch, i) => (normalizeLetter(ch) === alvo ? ch : m[i] ?? maskWord(ch)))
     .join("");
 }
 
@@ -796,11 +807,11 @@ export async function passGuessTurn(code, room, uid) {
 }
 
 export function letterAlreadyTried(room, letter) {
-  const letra = String(letter || "").toLocaleLowerCase("pt");
+  const letra = normalizeLetter(letter);
   if (!letra) return false;
   const erradas = room?.hangman?.wrong || {};
-  if (Object.keys(erradas).some((l) => !!erradas[l] && l.toLocaleLowerCase("pt") === letra)) return true;
-  return String(room?.hangman?.mask || "").toLocaleLowerCase("pt").includes(letra);
+  if (Object.keys(erradas).some((l) => !!erradas[l] && normalizeLetter(l) === letra)) return true;
+  return [...String(room?.hangman?.mask || "")].some((ch) => ch !== "_" && normalizeLetter(ch) === letra);
 }
 
 // Resolve UMA tentativa. Corre só no cliente de quem tem a caneta, que passa
@@ -839,9 +850,12 @@ export function wrongLetters(room) {
     .map(([letter, info]) => ({ letter, uid: info?.uid || null }));
 }
 
-export async function setHangmanPuzzle(code, room, uid, mask) {
+export async function setHangmanPuzzle(code, room, uid, mask, hint) {
   if (room?.hangman?.leaderId !== uid) return;
   await update(ref(db, `rooms/${code}/hangman`), {
+    // A pista é o contrário da palavra: é para ser vista por todos. Vai para a
+    // sala tal e qual, sem máscara nenhuma.
+    hint: (hint || "").trim() || null,
     mask: mask || null,
     misses: 0,
     solved: false,
@@ -869,7 +883,7 @@ export async function addHangmanMiss(code, room, uid) {
 export async function clearHangmanPuzzle(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
   await update(ref(db, `rooms/${code}/hangman`), {
-    mask: null, misses: 0, solved: false, hands: null,
+    mask: null, hint: null, misses: 0, solved: false, hands: null,
     wrong: null, guesses: null, turnUid: null,
   });
 }
@@ -893,20 +907,57 @@ export function tallyVotes(votes, connectedIds) {
   return counts;
 }
 
+// METADE ARREDONDADA PARA CIMA, e não "mais de metade". A diferença aparece
+// nas salas pequenas: com "mais de metade", uma sala de dois precisava dos
+// dois votos, ou seja, esperava por toda a gente — que é justamente o que não
+// se quer numa votação. Assim: 2 pessoas -> 1 voto, 3 -> 2, 4 -> 2, 5 -> 3.
+// Em caso de empate ganha quem chegar primeiro ao número; e como a caneta se
+// passa a qualquer momento, um engano custa um clique.
+export function votesNeeded(connectedIds) {
+  return Math.max(1, Math.ceil(connectedIds.length / 2));
+}
+
 export function voteWinner(votes, connectedIds) {
   const counts = tallyVotes(votes, connectedIds);
-  const needed = Math.floor(connectedIds.length / 2) + 1;
+  const needed = votesNeeded(connectedIds);
   const winner = Object.keys(counts).find((k) => counts[k] >= needed);
   return winner || null;
 }
 
-export function votesNeeded(connectedIds) {
-  return Math.floor(connectedIds.length / 2) + 1;
+// O modo do quadro NÃO se vota. Quem tem a caneta (ou o anfitrião da sala,
+// para destravar) escolhe e muda para todos, e muda outra vez se mudarem de
+// ideias. Chegou a ser votado; era cerimónia a mais para uma decisão que se
+// desfaz num clique — votar faz sentido para escolher QUEM desenha, não para
+// escolher o que se está a jogar.
+export function canSetBoardMode(room, uid) {
+  return room?.hangman?.leaderId === uid || room?.hostId === uid;
 }
 
-export async function voteBoardMode(code, room, uid, modeKey) {
-  if (!BOARD_MODES[modeKey] || !room?.hangman) return;
-  await set(ref(db, `rooms/${code}/hangman/modeVotes/${uid}`), modeKey);
+export async function setBoardMode(code, room, uid, modeKey) {
+  if (!BOARD_MODES[modeKey] || !room?.hangman) return false;
+  if (!canSetBoardMode(room, uid)) return false;
+  if (room.hangman.mode === modeKey) return false;
+  const patch = {
+    mode: modeKey,
+    modeVotes: null,
+    mask: null, hint: null, misses: 0, solved: false,
+    wrong: null, guesses: null, turnUid: null,
+  };
+  if (modeKey === "forca") {
+    // Entrar na Forca abre a votação da caneta: enquanto ninguém for
+    // escolhido, a folha fica sem dono — é isso que faz a votação acontecer
+    // em vez de ficar um botão à espera de ser carregado.
+    patch.leaderId = null;
+    patch.penVotes = null;
+    patch.hands = null;
+  } else {
+    // Sair da Forca tem de devolver a caneta a alguém: sem dono, o desenho
+    // livre ficava uma folha em que ninguém consegue escrever.
+    patch.leaderId = room.hangman.leaderId || uid || room.hostId;
+    patch.penVotes = null;
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return true;
 }
 
 export async function votePenHolder(code, room, uid, targetUid) {
@@ -945,31 +996,8 @@ export async function applyBoardVotes(code, room) {
   const connected = connectedPlayerIds(room);
   if (connected.length === 0) return;
 
-  const modeWinner = voteWinner(hangman.modeVotes, connected);
-  if (modeWinner && modeWinner !== hangman.mode) {
-    const patch = { mode: modeWinner, modeVotes: null };
-    // Entrar na Forca abre logo a votação da caneta: enquanto ninguém for
-    // escolhido, a folha fica sem dono — é isso que faz a votação acontecer
-    // em vez de ficar um botão à espera de ser carregado.
-    if (modeWinner === "forca") {
-      patch.leaderId = null;
-      patch.penVotes = null;
-      patch.hands = null;
-    } else {
-      patch.leaderId = hangman.leaderId || room.hostId;
-    }
-    // A forma da palavra pertence a quem a escreveu: mudar de modo (ou de
-    // caneta, mais abaixo) começa de folha limpa.
-    patch.mask = null;
-    patch.misses = 0;
-    patch.solved = false;
-    patch.wrong = null;
-    patch.guesses = null;
-    patch.turnUid = null;
-    await update(ref(db, `rooms/${code}/hangman`), patch);
-    return;
-  }
-
+  // Só a caneta se vota. O modo é escolha de quem manda no quadro
+  // (ver setBoardMode).
   const penWinner = voteWinner(hangman.penVotes, connected);
   if (penWinner && penWinner !== hangman.leaderId) {
     await update(ref(db, `rooms/${code}/hangman`), {
@@ -979,6 +1007,7 @@ export async function applyBoardVotes(code, room) {
       // para quem acabou de pegar na caneta.
       hands: null,
       mask: null,
+      hint: null,
       misses: 0,
       solved: false,
       wrong: null,

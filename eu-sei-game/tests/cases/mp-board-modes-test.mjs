@@ -60,22 +60,28 @@ if (!rHost.desenhador || !rHost.opcoesDaCaneta) fail("quem tem a caneta devia ve
 if (!rGuest.espetador || rGuest.opcoesDaCaneta) fail("quem não tem a caneta não devia ver as opções da caneta");
 // O botão do modo existe nas duas versões, mas em zonas diferentes (2 e a).
 if (!rHost.botaoModoEmCima || rHost.botaoModoEmBaixo) fail("no desenhador o botão do modo é o de cima (zona 2)");
-if (rGuest.botaoModoEmCima || !rGuest.botaoModoEmBaixo) fail("em quem vê o botão do modo é o de baixo (zona a)");
+// O modo deixou de ser votado: quem não manda no quadro não vê o botão
+// nenhum, em vez de o ver e ele não fazer nada ao ser carregado.
+if (rGuest.botaoModoEmCima || rGuest.botaoModoEmBaixo) fail("quem não manda no quadro não devia ver o botão do modo");
 
-console.log("3) UM voto sozinho NÃO muda o modo de uma sala de dois...");
+console.log("3) O modo NÃO se vota: quem manda no quadro muda para todos...");
+// Quem não manda no quadro nem sequer vê o botão — em vez de o ver e ele não
+// fazer nada ao ser carregado.
+const veBotaoModo = await guest.evaluate(() =>
+  !document.getElementById("hangman-mode-btn-viewer").classList.contains("hidden")
+  || !document.getElementById("hangman-mode-btn").classList.contains("hidden"));
+console.log(`   o Beto (sem caneta, sem ser anfitrião) vê o botão do modo: ${veBotaoModo}`);
+if (veBotaoModo) fail("quem não manda no quadro não devia ver o botão do modo");
+
 await host.click("#hangman-mode-btn");
 await host.click('[data-mode-choice="forca"]');
-await host.waitForTimeout(700);
-console.log(`   modo depois do voto da Ana: ${await modeOf(host)} (esperado livre)`);
-if (await modeOf(host) !== "livre") fail("um voto em dois jogadores mudou o modo — a maioria não está a ser respeitada");
-
-console.log("4) Com o segundo voto, o quadro muda para os DOIS...");
-await guest.click("#hangman-mode-btn-viewer");
-await guest.click('[data-mode-choice="forca"]');
 await host.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.mode === "forca", code, { timeout: 8000 });
-console.log(`   modo: ${await modeOf(host)}`);
+console.log(`   modo depois de UM clique da Ana: ${await modeOf(host)}`);
+
+console.log("4) E chega logo aos dois clientes...");
 await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.mode === "forca", code, { timeout: 8000 });
 console.log("   os dois clientes estão no mesmo modo");
+
 
 console.log("4b) Ao entrar na Forca, cada um escolhe a sua cor...");
 // A cor é o que faz as letras erradas dizerem QUEM as disse. Vem antes da
@@ -94,6 +100,24 @@ console.log("   a cor da Ana ficou indisponível para o Beto");
 await guest.click('[data-color-choice="#5c7e91"]');
 await guest.waitForFunction(() => document.getElementById("hangman-color-overlay").classList.contains("hidden"), { timeout: 5000 });
 
+console.log("4c) E há sempre caminho de volta: entrar na Forca sem querer não tranca...");
+// Sem caneta escolhida, quem manda no quadro fica atrás da votação e da
+// escolha de cor. Sem esta saída, entrar na Forca por engano trancava a sala.
+await host.waitForSelector("#hangman-penvote-overlay:not(.hidden)", { timeout: 5000 });
+if (!(await host.locator("#hangman-backtofree-btn").isVisible())) {
+  fail("quem manda no quadro devia poder voltar ao desenho livre");
+}
+if (await guest.locator("#hangman-backtofree-btn").isVisible()) {
+  fail("quem não manda no quadro não devia ver a saída");
+}
+await host.click("#hangman-backtofree-btn");
+await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.mode === "livre", code, { timeout: 8000 });
+console.log("   voltou ao desenho livre nos dois ecrãs");
+// E volta-se a entrar na Forca para o resto do teste.
+await host.click("#hangman-mode-btn");
+await host.click('[data-mode-choice="forca"]');
+await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.mode === "forca", code, { timeout: 8000 });
+
 console.log("5) Entrar na Forca tira a caneta até a sala votar...");
 const leaderOf = (p) => p.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman?.leaderId || null, code);
 console.log(`   quem tem a caneta: ${await leaderOf(host)} (esperado ninguém)`);
@@ -104,17 +128,16 @@ await guest.waitForSelector("#hangman-penvote-overlay:not(.hidden)", { timeout: 
 const temFechar = await host.evaluate(() => !document.getElementById("hangman-penvote-cancel-btn").classList.contains("hidden"));
 if (temFechar) fail("a votação obrigatória não devia ter botão de fechar");
 
-console.log("6) Os dois votam no Beto: a caneta passa para ele...");
+console.log("6) A caneta passa à MAIORIA, sem esperar por toda a gente...");
+// Metade arredondada para cima: numa sala de dois basta um voto. Esperar
+// pelos dois seria esperar por 100%, que é o contrário de votar.
 const betoId = await host.evaluate((c) => {
   const r = window.__testDb.get(`rooms/${c}`);
   return Object.keys(r.players).find((u) => r.players[u].name === "Beto");
 }, code);
 await host.click(`[data-pen-vote-choice="${betoId}"]`);
-await host.waitForTimeout(400);
-if (await leaderOf(host) === betoId) fail("um voto em dois jogadores deu logo a caneta — a maioria não está a ser respeitada");
-await guest.click(`[data-pen-vote-choice="${betoId}"]`);
 await host.waitForFunction((args) => window.__testDb.get(`rooms/${args[0]}`).hangman?.leaderId === args[1], [code, betoId], { timeout: 8000 });
-console.log("   o Beto ficou com a caneta");
+console.log("   um voto numa sala de dois chegou: o Beto ficou com a caneta");
 
 console.log("7) Os papéis trocaram nos dois ecrãs...");
 await host.waitForTimeout(500);
@@ -140,17 +163,33 @@ await host.click("#hangman-hand-btn");
 await guest.waitForFunction(() => !document.getElementById("hangman-hand-queue").textContent.includes("Ana"), { timeout: 8000 });
 console.log("   baixar o braço tira-o da fila: ok");
 
-console.log("9) As cores e a borracha só existem para quem desenha...");
+console.log("9) As ferramentas do quadro: as mesmas do quadro solo, e o MODO manda...");
 await guest.click('[data-hangman-color="#b24b38"]');
 const corEscolhida = await guest.evaluate(() => document.querySelector('[data-hangman-color="#b24b38"]').getAttribute("aria-pressed"));
 if (corEscolhida !== "true") fail("escolher a cor não ficou marcado");
-await guest.click("#hangman-eraser-btn");
-const borracha = await guest.evaluate(() => document.getElementById("hangman-eraser-btn").getAttribute("aria-pressed"));
+await guest.click('[data-hangman-tool="eraser"]');
+const borracha = await guest.evaluate(() => document.querySelector('[data-hangman-tool="eraser"]').getAttribute("aria-pressed"));
 if (borracha !== "true") fail("a borracha não ficou selecionada");
 // Escolher cor com a borracha na mão volta a escrever.
 await guest.click('[data-hangman-color="#5b7442"]');
-const borrachaDepois = await guest.evaluate(() => document.getElementById("hangman-eraser-btn").getAttribute("aria-pressed"));
+const borrachaDepois = await guest.evaluate(() => document.querySelector('[data-hangman-tool="eraser"]').getAttribute("aria-pressed"));
 if (borrachaDepois !== "false") fail("escolher uma cor devia largar a borracha");
+
+// O modo tira ferramentas do ecrã: na Forca o texto sai, porque quem desenha
+// podia escrever a palavra na folha e acabar o jogo no primeiro clique.
+const ferramentas = await guest.evaluate(() => {
+  const out = {};
+  document.querySelectorAll("[data-hangman-tool]").forEach((b) => {
+    out[b.dataset.hangmanTool] = !b.classList.contains("hidden");
+  });
+  return out;
+});
+console.log(`   ferramentas à vista na Forca: ${Object.entries(ferramentas).filter(([, v]) => v).map(([k]) => k).join(", ")}`);
+if (ferramentas.text !== false) fail("o texto não devia estar disponível no modo Forca");
+["pen", "marker", "eraser", "line", "rect", "ellipse"].forEach((t) => {
+  if (!ferramentas[t]) fail(`a ferramenta "${t}" devia estar disponível`);
+});
+if ("hand" in ferramentas) fail("a mão de arrastar não faz sentido num quadro sem câmara");
 
 console.log("10) O Beto escreve a palavra — e ela NÃO vai para a sala...");
 // A regra mais importante deste modo. Sem servidor, tudo o que fique na sala

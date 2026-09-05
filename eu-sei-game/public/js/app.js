@@ -1,5 +1,9 @@
 import { getUid, serverNow } from "./firebase-init.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
+// As ferramentas são as MESMAS do quadro solo, não uma cópia: o que é um
+// "marcador" tem de ser a mesma coisa nos dois sítios, senão o mesmo botão
+// desenha diferente conforme o ecrã em que se está.
+import { BOARD_TOOLS } from "./board.js";
 import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
@@ -13,13 +17,13 @@ import {
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints, pointsObjectToArray,
   passHangmanPen, passHangmanPenRandom,
-  BOARD_MODES, DEFAULT_BOARD_MODE, voteBoardMode, votePenHolder, applyBoardVotes,
+  BOARD_MODES, DEFAULT_BOARD_MODE, setBoardMode, canSetBoardMode, votePenHolder, applyBoardVotes,
   raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
   maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
-  resolveGuess, wrongLetters, letterAlreadyTried,
+  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -861,7 +865,8 @@ const hangmanEls = {
   boardZone: document.getElementById("hangman-board-zone"),
   colorRow: document.getElementById("hangman-color-row"),
   widthRow: document.getElementById("hangman-width-row"),
-  eraserBtn: document.getElementById("hangman-eraser-btn"),
+  toolsRow: document.getElementById("hangman-tools-row"),
+  fillToggle: document.getElementById("hangman-fill-toggle"),
   modeBar: document.getElementById("hangman-mode-bar"),
   modeBtn: document.getElementById("hangman-mode-btn"),
   modeBtnViewer: document.getElementById("hangman-mode-btn-viewer"),
@@ -874,11 +879,14 @@ const hangmanEls = {
   penVoteOverlay: document.getElementById("hangman-penvote-overlay"),
   penVoteList: document.getElementById("hangman-penvote-list"),
   penVoteCancelBtn: document.getElementById("hangman-penvote-cancel-btn"),
+  backToFreeBtn: document.getElementById("hangman-backtofree-btn"),
   wordZone: document.getElementById("hangman-word-zone"),
   slots: document.getElementById("hangman-slots"),
   missesLabel: document.getElementById("hangman-misses"),
   wordForm: document.getElementById("hangman-word-form"),
   wordInput: document.getElementById("hangman-word-input"),
+  hintInput: document.getElementById("hangman-hint-input"),
+  hintLabel: document.getElementById("hangman-hint-label"),
   wordTools: document.getElementById("hangman-word-tools"),
   secretLabel: document.getElementById("hangman-secret"),
   letterInput: document.getElementById("hangman-letter-input"),
@@ -923,7 +931,13 @@ const hangmanDoodleState = {
   color: HANGMAN_COLORS[0],
   width: HANGMAN_WIDTHS[1],
   erasing: false,
+  tool: "pen",
+  shapePending: null,
 };
+
+// O quadro de sala não tem câmara nem folha infinita: a mão de arrastar não
+// faz aqui sentido nenhum. Tudo o resto do quadro solo vem para cá.
+const HANGMAN_TOOL_KEYS = Object.keys(BOARD_TOOLS).filter((k) => !BOARD_TOOLS[k].pan);
 
 function hangmanAmLeader() {
   return !!state.room?.hangman && state.room.hangman.leaderId === state.uid;
@@ -954,7 +968,11 @@ function hangmanDoodleRedraw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
-  const points = [...pointsObjectToArray(room?.hangman?.doodle?.points), ...hangmanDoodleState.pending];
+  const points = [
+    ...pointsObjectToArray(room?.hangman?.doodle?.points),
+    ...hangmanDoodleState.pending,
+    ...(hangmanDoodleState.shapePending ? [hangmanDoodleState.shapePending] : []),
+  ];
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   // O estilo viaja só no PRIMEIRO ponto de cada traço, não em todos: repeti-lo
@@ -965,6 +983,14 @@ function hangmanDoodleRedraw() {
   points.forEach((p) => {
     const x = p.x * rectW;
     const y = p.y * rectH;
+    // Uma forma ou um texto é UMA entrada, não uma sequência de pontos: cada
+    // traço aqui viaja pela rede, e mandar um retângulo como cem pontos seria
+    // cem vezes mais mensagens para desenhar quatro linhas.
+    if (p.shape || p.text) {
+      drawHangmanItem(ctx, p, rectW, rectH);
+      prev = null;
+      return;
+    }
     if (p.newStroke || !prev) {
       if (p.newStroke) {
         style = {
@@ -986,6 +1012,57 @@ function hangmanDoodleRedraw() {
     prev = { x, y };
   });
   ctx.globalCompositeOperation = "source-over";
+}
+
+// Desenha uma forma ou um texto a partir da sua única entrada.
+function drawHangmanItem(ctx, p, rectW, rectH) {
+  const tool = BOARD_TOOLS[p.tool] || BOARD_TOOLS.pen;
+  const x1 = p.x * rectW, y1 = p.y * rectH;
+  const x2 = (p.x2 ?? p.x) * rectW, y2 = (p.y2 ?? p.y) * rectH;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = tool.alpha;
+  ctx.strokeStyle = p.color || HANGMAN_DOODLE_INK;
+  ctx.fillStyle = p.color || HANGMAN_DOODLE_INK;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const lw = Math.max(1, (p.width || 4) * tool.widthScale);
+  ctx.lineWidth = lw;
+
+  if (p.text) {
+    const size = Math.max(10, lw * 4);
+    ctx.font = `${size}px "Patrick Hand", "Gaegu", cursive, sans-serif`;
+    ctx.textBaseline = "top";
+    String(p.text).split("\n").forEach((linha, i) => ctx.fillText(linha, x1, y1 + i * size * 1.2));
+    ctx.restore();
+    return;
+  }
+
+  ctx.beginPath();
+  if (p.shape === "line") {
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  } else if (p.shape === "arrow") {
+    ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    const comp = Math.hypot(x2 - x1, y2 - y1);
+    // A ponta nunca passa de 40% da seta: uma seta curta ficaria só ponta.
+    const ponta = Math.min(comp * 0.4, Math.max(8, lw * 3.5));
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - ponta * Math.cos(ang - Math.PI / 7), y2 - ponta * Math.sin(ang - Math.PI / 7));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - ponta * Math.cos(ang + Math.PI / 7), y2 - ponta * Math.sin(ang + Math.PI / 7));
+    ctx.stroke();
+  } else if (p.shape === "rect") {
+    ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    if (p.fill) ctx.fill();
+    ctx.stroke();
+  } else if (p.shape === "ellipse") {
+    ctx.ellipse((x1 + x2) / 2, (y1 + y2) / 2, Math.abs(x2 - x1) / 2, Math.abs(y2 - y1) / 2, 0, 0, Math.PI * 2);
+    if (p.fill) ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function hangmanDoodlePointFromEvent(e) {
@@ -1010,18 +1087,56 @@ function hangmanDoodleFlush() {
   });
 }
 
+function hangmanCurrentTool() {
+  // A borracha continua a ser um botão à parte por ser a que mais se usa;
+  // ligada, manda sobre a ferramenta escolhida.
+  return hangmanDoodleState.erasing ? "eraser" : hangmanDoodleState.tool;
+}
+
 hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
   if (!hangmanAmLeader()) return;
   e.preventDefault();
   hangmanEls.doodleCanvas.setPointerCapture(e.pointerId);
-  hangmanDoodleState.drawing = true;
   const p = hangmanDoodlePointFromEvent(e);
+  const key = hangmanCurrentTool();
+  const tool = BOARD_TOOLS[key];
+
+  if (tool.text) {
+    const texto = window.prompt("Texto a escrever no quadro:");
+    if (texto && texto.trim()) {
+      hangmanDoodleState.pending.push({
+        x: p.x, y: p.y, newStroke: true, tool: key, text: texto.trim(),
+        color: hangmanDoodleState.color, width: hangmanDoodleState.width,
+      });
+      hangmanDoodleFlush();
+      hangmanDoodleRedraw();
+    }
+    return;
+  }
+
+  hangmanDoodleState.drawing = true;
   hangmanDoodleState.lastPoint = p;
+
+  if (tool.shape) {
+    // A forma só vai para a rede quando estiver acabada: enquanto se arrasta é
+    // desenho local. Mandar cada passo do arrasto seria mandar o mesmo
+    // retângulo dezenas de vezes.
+    hangmanDoodleState.shapePending = {
+      x: p.x, y: p.y, x2: p.x, y2: p.y, newStroke: true,
+      tool: key, shape: key,
+      color: hangmanDoodleState.color,
+      width: hangmanDoodleState.width,
+      fill: !!(tool.fillable && hangmanDoodleState.fill),
+    };
+    hangmanDoodleRedraw();
+    return;
+  }
+
   hangmanDoodleState.pending.push({
-    x: p.x, y: p.y, newStroke: true,
+    x: p.x, y: p.y, newStroke: true, tool: key,
     color: hangmanDoodleState.color,
     width: hangmanDoodleState.width,
-    erase: hangmanDoodleState.erasing,
+    erase: key === "eraser",
   });
   hangmanDoodleRedraw();
 });
@@ -1029,6 +1144,14 @@ hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
 hangmanEls.doodleCanvas.addEventListener("pointermove", (e) => {
   if (!hangmanDoodleState.drawing) return;
   const p = hangmanDoodlePointFromEvent(e);
+
+  if (hangmanDoodleState.shapePending) {
+    hangmanDoodleState.shapePending.x2 = p.x;
+    hangmanDoodleState.shapePending.y2 = p.y;
+    hangmanDoodleRedraw();
+    return;
+  }
+
   const last = hangmanDoodleState.lastPoint;
   const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
   if (dist < HANGMAN_DOODLE_MIN_DIST) return;
@@ -1044,6 +1167,14 @@ function hangmanDoodleEndStroke() {
   if (!hangmanDoodleState.drawing) return;
   hangmanDoodleState.drawing = false;
   hangmanDoodleState.lastPoint = null;
+  const forma = hangmanDoodleState.shapePending;
+  hangmanDoodleState.shapePending = null;
+  if (forma) {
+    // Um clique sem arrastar não é um retângulo de tamanho zero: é um clique.
+    const arrastou = Math.hypot(forma.x2 - forma.x, forma.y2 - forma.y) > 0.004;
+    if (arrastou) hangmanDoodleState.pending.push(forma);
+    else hangmanDoodleRedraw();
+  }
   hangmanDoodleFlush();
 }
 hangmanEls.doodleCanvas.addEventListener("pointerup", hangmanDoodleEndStroke);
@@ -1101,6 +1232,18 @@ window.addEventListener("resize", () => {
 // --- Opções da caneta (zona 1 do esboço) ---
 
 function buildHangmanPenZone() {
+  hangmanEls.toolsRow.innerHTML = "";
+  HANGMAN_TOOL_KEYS.forEach((key) => {
+    const tool = BOARD_TOOLS[key];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "board-tool";
+    btn.dataset.hangmanTool = key;
+    btn.title = tool.label;
+    btn.innerHTML = `<span aria-hidden="true">${tool.icon}</span><span class="board-tool-name">${tool.label}</span>`;
+    btn.addEventListener("click", () => selectHangmanTool(key));
+    hangmanEls.toolsRow.appendChild(btn);
+  });
   hangmanEls.colorRow.innerHTML = "";
   HANGMAN_COLORS.forEach((color) => {
     const btn = document.createElement("button");
@@ -1126,21 +1269,53 @@ function buildHangmanPenZone() {
   refreshHangmanPenZone();
 }
 
-function refreshHangmanPenZone() {
+// O MODO manda no que aparece: um modo pode tirar ferramentas do ecrã. Na
+// Forca sai o texto, porque quem desenha podia escrever a palavra na folha e
+// acabar o jogo por engano no primeiro clique — tirar a ferramenta é mais
+// honesto do que pedir que não se use.
+function refreshHangmanPenZone(modeKey) {
   const st = hangmanDoodleState;
+  const modo = modeKey || state.room?.hangman?.mode || DEFAULT_BOARD_MODE;
+  const atual = hangmanCurrentTool();
+  hangmanEls.toolsRow.querySelectorAll("[data-hangman-tool]").forEach((b) => {
+    const key = b.dataset.hangmanTool;
+    b.classList.toggle("hidden", !modeAllowsTool(modo, key));
+    b.setAttribute("aria-pressed", String(key === atual));
+  });
+  // Se a ferramenta na mão deixou de existir neste modo, volta à caneta em vez
+  // de ficar escolhida uma ferramenta que já não se vê.
+  if (!modeAllowsTool(modo, atual)) {
+    st.erasing = false;
+    st.tool = "pen";
+    hangmanEls.toolsRow.querySelectorAll("[data-hangman-tool]").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.hangmanTool === "pen"));
+    });
+  }
   hangmanEls.colorRow.querySelectorAll("[data-hangman-color]").forEach((b) => {
     b.setAttribute("aria-pressed", String(!st.erasing && b.dataset.hangmanColor === st.color));
   });
   hangmanEls.widthRow.querySelectorAll("[data-hangman-width]").forEach((b) => {
     b.setAttribute("aria-pressed", String(Number(b.dataset.hangmanWidth) === st.width));
   });
-  hangmanEls.eraserBtn.setAttribute("aria-pressed", String(st.erasing));
+  // A caixa de preencher só interessa a quem tem uma forma que se preencha.
+  const preenchivel = !!BOARD_TOOLS[hangmanCurrentTool()]?.fillable;
+  hangmanEls.fillToggle.parentElement.classList.toggle("hidden", !preenchivel);
+}
+
+function selectHangmanTool(key) {
+  if (!BOARD_TOOLS[key]) return;
+  hangmanDoodleState.erasing = key === "eraser";
+  hangmanDoodleState.tool = key;
+  refreshHangmanPenZone();
 }
 
 function selectHangmanColor(color) {
   hangmanDoodleState.color = color;
   // Escolher cor com a borracha na mão quer dizer "voltar a escrever".
-  hangmanDoodleState.erasing = false;
+  if (hangmanDoodleState.erasing) {
+    hangmanDoodleState.erasing = false;
+    hangmanDoodleState.tool = "pen";
+  }
   refreshHangmanPenZone();
 }
 
@@ -1150,9 +1325,8 @@ function selectHangmanWidth(w) {
 }
 
 buildHangmanPenZone();
-hangmanEls.eraserBtn.addEventListener("click", () => {
-  hangmanDoodleState.erasing = !hangmanDoodleState.erasing;
-  refreshHangmanPenZone();
+hangmanEls.fillToggle.addEventListener("change", (e) => {
+  hangmanDoodleState.fill = e.target.checked;
 });
 
 // --- Votar o modo do quadro (zonas 2 e a) ---
@@ -1169,24 +1343,18 @@ function hangmanOpenModePicker() {
   if (hangmanEls.modeOverlay.classList.contains("hidden")) {
     hangmanModePickerOpenedFor = room.hangman.mode;
   }
-  const connected = connectedPlayerIds(room);
-  const counts = tallyVotes(room.hangman.modeVotes, connected);
-  const needed = votesNeeded(connected);
-  const myVote = room.hangman.modeVotes?.[state.uid];
   hangmanEls.modeList.innerHTML = "";
   Object.entries(BOARD_MODES).forEach(([key, mode]) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.dataset.modeChoice = key;
-    const votes = counts[key] || 0;
-    const mine = myVote === key ? " ✓" : "";
     const atual = room.hangman.mode === key ? " (a jogar agora)" : "";
-    btn.innerHTML = `<b>${escapeHtml(mode.label)}${mine}${atual}</b><br>` +
-      `<span class="hint small">${escapeHtml(mode.hint)}</span><br>` +
-      `<span class="hint small">${votes} de ${needed} votos precisos</span>`;
+    btn.innerHTML = `<b>${escapeHtml(mode.label)}${atual}</b><br>` +
+      `<span class="hint small">${escapeHtml(mode.hint)}</span>`;
     btn.addEventListener("click", async () => {
-      await voteBoardMode(state.code, state.room, state.uid, key);
-      hangmanOpenModePicker();
+      // Muda já, para todos. Se mudarem de ideias, é voltar a clicar.
+      const mudou = await setBoardMode(state.code, state.room, state.uid, key);
+      if (!mudou) hangmanCloseModePicker();
     });
     hangmanEls.modeList.appendChild(btn);
   });
@@ -1219,7 +1387,11 @@ function hangmanOpenPenVote() {
       ` <span class="hint small">(${votes}/${needed})</span>`;
     btn.addEventListener("click", async () => {
       await votePenHolder(state.code, state.room, state.uid, uid);
-      hangmanOpenPenVote();
+      // Só refresca se a votação AINDA estiver aberta. Reabrir sem verificar
+      // ressuscitava-a: entre o clique e o fim do await, o voto podia já ter
+      // decidido a caneta e o ecrã já ter fechado — e voltava a aparecer por
+      // cima de um quadro que já estava a funcionar, sem nada que o fechasse.
+      if (!hangmanEls.penVoteOverlay.classList.contains("hidden")) hangmanOpenPenVote();
     });
     hangmanEls.penVoteList.appendChild(btn);
   });
@@ -1234,6 +1406,7 @@ hangmanEls.modeBtn.addEventListener("click", hangmanOpenModePicker);
 hangmanEls.modeBtnViewer.addEventListener("click", hangmanOpenModePicker);
 hangmanEls.modeCancelBtn.addEventListener("click", hangmanCloseModePicker);
 hangmanEls.penVoteCancelBtn.addEventListener("click", hangmanClosePenVote);
+hangmanEls.backToFreeBtn.addEventListener("click", () => setBoardMode(state.code, state.room, state.uid, "livre"));
 
 // Pedir a palavra: quem não tem a caneta levanta o braço para falar com o
 // grupo. É um botão de alternar — quem já falou baixa o braço.
@@ -1248,8 +1421,10 @@ hangmanEls.wordForm.addEventListener("submit", async (e) => {
   const word = hangmanEls.wordInput.value.trim();
   if (!word) return;
   hangmanSecretWord = word;
+  const pista = hangmanEls.hintInput.value.trim();
   hangmanEls.wordInput.value = "";
-  await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(word));
+  hangmanEls.hintInput.value = "";
+  await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(word), pista);
 });
 
 hangmanEls.revealBtn.addEventListener("click", async () => {
@@ -1423,6 +1598,10 @@ function renderHangman(room) {
 
   // No modo Forca ninguém tem a caneta até a sala votar. Enquanto isso, o
   // quadro pergunta de quem é a vez em vez de ficar mudo.
+  // O modo é escolha de quem tem a caneta (ou do anfitrião, para destravar):
+  // a quem não manda no quadro, o botão não aparece, em vez de aparecer e não
+  // fazer nada ao ser carregado.
+  const mandaNoQuadro = canSetBoardMode(room, state.uid);
   const semCaneta = !hangman.leaderId || !room.players?.[hangman.leaderId]?.connected;
   // A escolha da cor vem PRIMEIRO. As duas votações ao mesmo tempo davam dois
   // ecrãs sobrepostos, e o de baixo ficava inalcançável.
@@ -1448,8 +1627,8 @@ function renderHangman(room) {
   // O botão do modo aparece nas duas zonas, mas nunca nas duas ao mesmo
   // tempo: quem desenha tem-no em cima (zona 2), quem vê tem-no em baixo
   // (zona a), que é onde o esboço os põe.
-  hangmanEls.modeBtn.classList.toggle("hidden", !amLeader);
-  hangmanEls.modeBtnViewer.classList.toggle("hidden", amLeader);
+  hangmanEls.modeBtn.classList.toggle("hidden", !(mandaNoQuadro && amLeader));
+  hangmanEls.modeBtnViewer.classList.toggle("hidden", !(mandaNoQuadro && !amLeader));
   // Pedir a palavra é de quem NÃO tem a caneta — quem desenha já a tem.
   hangmanEls.handBtn.classList.toggle("hidden", amLeader || mode !== "forca");
   const raised = !!hangman.hands?.[state.uid];
@@ -1505,6 +1684,12 @@ function renderHangman(room) {
   }
   hangmanEls.passTurnBtn.classList.toggle("hidden", !(amLeader && naForca && !!mask));
 
+  // A pista fica na faixa de baixo, fora da folha: à vista de todos sem
+  // atrapalhar quem está a desenhar no meio do quadro.
+  const pista = temPalavra ? (hangman.hint || "") : "";
+  hangmanEls.hintLabel.classList.toggle("hidden", !pista);
+  hangmanEls.hintLabel.textContent = pista ? `Pista: ${pista}` : "";
+
   if (temPalavra) {
     renderHangmanSlots(mask, amLeader);
     const misses = hangman.misses || 0;
@@ -1531,6 +1716,7 @@ function renderHangman(room) {
     // "Fechar" — um botão que fechasse e reabrisse à décima de segundo
     // seguinte lia-se como avaria.
     hangmanEls.penVoteCancelBtn.classList.add("hidden");
+    hangmanEls.backToFreeBtn.classList.toggle("hidden", !mandaNoQuadro);
     hangmanOpenPenVote();
   } else {
     hangmanEls.penVoteCancelBtn.classList.remove("hidden");
@@ -1544,7 +1730,7 @@ function renderHangman(room) {
     }
   }
   if (!amLeader && !host) hangmanClosePenPicker();
-  refreshHangmanPenZone();
+  refreshHangmanPenZone(mode);
   hangmanDoodleRedraw();
 
   // Só o anfitrião fecha as votações, como resolve as rondas: dois clientes a
