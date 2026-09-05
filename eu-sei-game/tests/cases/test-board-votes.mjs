@@ -155,3 +155,30 @@ check2("cedilha", String(naPalavra("coração", "c")), "true");
 // E a máscara não muda quando a letra já lá estava — o que é certo; o que não
 // pode é isso ser lido como erro.
 check2("máscara já com a letra não muda", revealLetter("banana", "_a_a_a", "a"), "_a_a_a");
+
+console.log("16) A volta da caneta (opção ligada) não deixa ninguém de fora nem se prende...");
+const { nextPenByRotation, autoPenOn } = await import("./js/room.js");
+const salaVolta = (leader, drawnBy) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true } },
+  hangman: { mode: "forca", leaderId: leader, drawnBy },
+});
+check2("a seguir vem quem ainda não desenhou", nextPenByRotation(salaVolta("a", { a: true })), "b");
+check2("e depois o outro", nextPenByRotation(salaVolta("b", { a: true, b: true })), "c");
+// Quando todos já desenharam, a volta recomeça em vez de não haver seguinte.
+check2("dado a volta, recomeça", nextPenByRotation(salaVolta("c", { a: true, b: true, c: true })), "a");
+// E nunca devolve quem já tem a caneta: "passar" que a deixa na mesma mão não
+// passa nada.
+const soDois = {
+  players: { a: { connected: true }, b: { connected: false } },
+  hangman: { mode: "forca", leaderId: "a", drawnBy: { a: true } },
+};
+check2("sozinho na sala fica com ela", nextPenByRotation(soDois), "a");
+check2("ninguém ligado", String(nextPenByRotation({ players: {}, hangman: {} })), "null");
+// Quem já desenhou não volta antes de os outros: sem isto, uma sala de 3
+// podia deixar sempre a mesma pessoa a desenhar.
+check2("não repete antes de os outros", nextPenByRotation(salaVolta("a", { a: true, c: true })), "b");
+
+console.log("17) A volta é uma OPÇÃO, e por omissão está desligada...");
+check2("por omissão", String(autoPenOn({ hangman: { mode: "forca" } })), "false");
+check2("ligada", String(autoPenOn({ hangman: { mode: "forca", settings: { autoPen: 1 } } })), "true");
+check2("desligada à mão", String(autoPenOn({ hangman: { mode: "forca", settings: { autoPen: 0 } } })), "false");

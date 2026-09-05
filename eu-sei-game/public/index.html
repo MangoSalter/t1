@@ -647,6 +647,7 @@
         <button id="hangman-settings-btn" type="button" class="ghost hidden">⚙️ Definições</button>
         <button id="hangman-teams-btn" type="button" class="ghost">👥 Equipas</button>
         <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
+        <button id="hangman-undo-btn" type="button" class="ghost" title="Anular o último traço (Ctrl+Z)">↩️</button>
         <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
         <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
       </div>
@@ -660,6 +661,10 @@
          livre. -->
     <div class="hangman-canvas-wrap">
       <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+      <!-- Folha pessoal: fica POR CIMA do quadro partilhado e é só de quem
+           está a olhar para ela. Serve para testar palavras e riscar letras já
+           usadas sem mexer no jogo dos outros. Nada daqui vai para a rede. -->
+      <canvas id="hangman-personal-canvas" class="hangman-personal-canvas hidden"></canvas>
       <div class="hangman-wrong-strip hidden" id="hangman-wrong-strip">
         <span class="hangman-wrong-label">Erradas:</span>
         <span id="hangman-wrong-letters"></span>
@@ -706,6 +711,16 @@
         <button type="submit" class="primary">Arriscar</button>
       </form>
       <span id="hangman-turn-label" class="hint small"></span>
+      <div class="hangman-personal-tools hidden" id="hangman-personal-tools">
+        <label class="hangman-personal-toggle">
+          <input type="checkbox" id="hangman-personal-toggle" /> <span>✏️ Rascunho meu</span>
+        </label>
+        <div class="board-color-row" id="hangman-personal-colors"></div>
+        <button type="button" id="hangman-personal-eraser" class="board-tool" aria-pressed="false" title="Borracha do rascunho">
+          <span aria-hidden="true">🧽</span>
+        </button>
+        <button type="button" id="hangman-personal-clear" class="ghost">🧹 Limpar o meu</button>
+      </div>
       <button id="hangman-hand-btn" type="button" class="ghost hidden">✋ Pedir a palavra</button>
       <span id="hangman-hand-queue" class="hint small"></span>
       <span id="hangman-mode-hint" class="hint small"></span>

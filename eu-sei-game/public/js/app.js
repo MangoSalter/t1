@@ -16,6 +16,7 @@ import {
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting,
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints, pointsObjectToArray,
+  undoLastHangmanStroke,
   passHangmanPen, passHangmanPenRandom,
   BOARD_MODES, DEFAULT_BOARD_MODE, setBoardMode, canSetBoardMode, votePenHolder, applyBoardVotes,
   raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
@@ -921,8 +922,16 @@ const hangmanEls = {
   colorOverlay: document.getElementById("hangman-color-overlay"),
   colorChoices: document.getElementById("hangman-color-choices"),
   colorWaiting: document.getElementById("hangman-color-waiting"),
+  canvasWrap: document.querySelector(".hangman-canvas-wrap"),
+  personalCanvas: document.getElementById("hangman-personal-canvas"),
+  personalTools: document.getElementById("hangman-personal-tools"),
+  personalToggle: document.getElementById("hangman-personal-toggle"),
+  personalColors: document.getElementById("hangman-personal-colors"),
+  personalEraser: document.getElementById("hangman-personal-eraser"),
+  personalClear: document.getElementById("hangman-personal-clear"),
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
   clearBtn: document.getElementById("hangman-doodle-clear-btn"),
+  undoBtn: document.getElementById("hangman-undo-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
   passPenBtn: document.getElementById("hangman-pass-pen-btn"),
   penOverlay: document.getElementById("hangman-pen-overlay"),
@@ -1198,6 +1207,36 @@ hangmanEls.doodleCanvas.addEventListener("pointerup", hangmanDoodleEndStroke);
 hangmanEls.doodleCanvas.addEventListener("pointercancel", hangmanDoodleEndStroke);
 hangmanEls.doodleCanvas.addEventListener("pointerleave", hangmanDoodleEndStroke);
 
+hangmanEls.undoBtn.addEventListener("click", () => {
+  // Antes de anular, deita fora o que ainda não foi enviado: senão o traço
+  // meio transmitido chegava depois e ressuscitava metade do que se anulou.
+  hangmanDoodleState.pending = [];
+  hangmanDoodleState.shapePending = null;
+  undoLastHangmanStroke(state.code, state.room, state.uid);
+});
+
+// Atalhos de teclado no quadro de sala, os mesmos do quadro solo. Quem
+// desenha no computador espera-os, e o Ctrl+Z é o mais esperado de todos.
+window.addEventListener("keydown", (e) => {
+  if (!screens["hangman"]?.classList.contains("active")) return;
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  const k = e.key.toLowerCase();
+  if (ctrl && k === "z") {
+    e.preventDefault();
+    if (hangmanAmLeader()) hangmanEls.undoBtn.click();
+  } else if (!ctrl && hangmanAmLeader()) {
+    // Só quem tem a caneta troca de ferramenta por atalho: aos outros, estas
+    // teclas não fazem nada e não devem parecer que fazem.
+    if (k === "b") selectHangmanTool("pen");
+    else if (k === "e") selectHangmanTool("eraser");
+    else if (k === "t" && modeAllowsTool(state.room?.hangman?.mode || DEFAULT_BOARD_MODE, "text")) selectHangmanTool("text");
+    else if (k === "l") selectHangmanTool("line");
+    else if (k === "r") selectHangmanTool("rect");
+    else if (k === "o") selectHangmanTool("ellipse");
+  }
+});
+
 hangmanEls.clearBtn.addEventListener("click", () => {
   clearHangmanDoodle(state.code, state.room, state.uid);
 });
@@ -1463,6 +1502,162 @@ function hangmanOpenSettings() {
 function hangmanCloseSettings() {
   hangmanEls.settingsOverlay.classList.add("hidden");
 }
+
+// --- Folha pessoal de quem adivinha ---
+//
+// Quem está a adivinhar quer testar palavras e riscar letras já usadas sem
+// estragar o quadro de todos. Isto é uma segunda tela POR CIMA da partilhada,
+// que nunca toca na rede: os traços ficam neste browser e mais ninguém os vê.
+// Por baixo, o quadro de quem tem a caneta continua a chegar em tempo real —
+// as duas camadas não se misturam porque são mesmo duas telas.
+
+const personal = {
+  on: false,
+  strokes: [],
+  current: null,
+  drawing: false,
+  color: HANGMAN_COLORS[1],
+  width: HANGMAN_WIDTHS[1],
+  erasing: false,
+};
+
+function personalSyncSize() {
+  const c = hangmanEls.personalCanvas;
+  const rect = c.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  personal.dpr = dpr;
+  personal.rectW = rect.width;
+  personal.rectH = rect.height;
+  return true;
+}
+
+function personalRedraw() {
+  if (!personalSyncSize()) return;
+  const ctx = hangmanEls.personalCanvas.getContext("2d");
+  const { dpr, rectW, rectH } = personal;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rectW, rectH);
+  const todos = personal.current ? [...personal.strokes, personal.current] : personal.strokes;
+  todos.forEach((t) => {
+    if (t.points.length < 2) return;
+    ctx.save();
+    ctx.globalCompositeOperation = t.erase ? "destination-out" : "source-over";
+    ctx.strokeStyle = t.color;
+    ctx.lineWidth = t.erase ? t.width * 3.5 : t.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(t.points[0].x * rectW, t.points[0].y * rectH);
+    for (let i = 1; i < t.points.length; i += 1) {
+      ctx.lineTo(t.points[i].x * rectW, t.points[i].y * rectH);
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function personalPointFrom(e) {
+  const rect = hangmanEls.personalCanvas.getBoundingClientRect();
+  return {
+    x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+    y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+  };
+}
+
+hangmanEls.personalCanvas.addEventListener("pointerdown", (e) => {
+  if (!personal.on) return;
+  e.preventDefault();
+  hangmanEls.personalCanvas.setPointerCapture(e.pointerId);
+  personal.drawing = true;
+  personal.current = {
+    color: personal.color, width: personal.width, erase: personal.erasing,
+    points: [personalPointFrom(e)],
+  };
+  personalRedraw();
+});
+hangmanEls.personalCanvas.addEventListener("pointermove", (e) => {
+  if (!personal.drawing || !personal.current) return;
+  const p = personalPointFrom(e);
+  const ultimo = personal.current.points[personal.current.points.length - 1];
+  if (Math.hypot(p.x - ultimo.x, p.y - ultimo.y) < HANGMAN_DOODLE_MIN_DIST) return;
+  personal.current.points.push(p);
+  personalRedraw();
+});
+function personalEnd() {
+  if (!personal.drawing) return;
+  personal.drawing = false;
+  if (personal.current && personal.current.points.length > 1) personal.strokes.push(personal.current);
+  personal.current = null;
+  personalRedraw();
+}
+hangmanEls.personalCanvas.addEventListener("pointerup", personalEnd);
+hangmanEls.personalCanvas.addEventListener("pointercancel", personalEnd);
+hangmanEls.personalCanvas.addEventListener("pointerleave", personalEnd);
+
+function personalSetOn(on) {
+  personal.on = !!on;
+  hangmanEls.personalToggle.checked = personal.on;
+  hangmanEls.personalCanvas.classList.toggle("hangman-personal-active", personal.on);
+  // A moldura tracejada é o que impede a confusão: sem ela é fácil julgar-se
+  // que se está a escrever no quadro de todos.
+  hangmanEls.canvasWrap.dataset.personal = personal.on ? "1" : "0";
+  personalRedraw();
+}
+
+function personalBuildTools() {
+  hangmanEls.personalColors.innerHTML = "";
+  HANGMAN_COLORS.forEach((cor) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "board-color";
+    btn.dataset.personalColor = cor;
+    btn.style.background = cor;
+    btn.setAttribute("aria-label", `Cor do rascunho ${cor}`);
+    btn.addEventListener("click", () => {
+      personal.color = cor;
+      personal.erasing = false;
+      // Escolher uma cor no rascunho liga-o: é o que se estava a tentar fazer.
+      personalSetOn(true);
+      personalRefreshTools();
+    });
+    hangmanEls.personalColors.appendChild(btn);
+  });
+  personalRefreshTools();
+}
+
+function personalRefreshTools() {
+  hangmanEls.personalColors.querySelectorAll("[data-personal-color]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(!personal.erasing && b.dataset.personalColor === personal.color));
+  });
+  hangmanEls.personalEraser.setAttribute("aria-pressed", String(personal.erasing));
+}
+
+hangmanEls.personalToggle.addEventListener("change", (e) => personalSetOn(e.target.checked));
+hangmanEls.personalEraser.addEventListener("click", () => {
+  personal.erasing = !personal.erasing;
+  if (personal.erasing) personalSetOn(true);
+  personalRefreshTools();
+});
+hangmanEls.personalClear.addEventListener("click", () => {
+  personal.strokes = [];
+  personal.current = null;
+  personalRedraw();
+});
+personalBuildTools();
+
+window.addEventListener("resize", () => {
+  if (screens["hangman"]?.classList.contains("active")) personalRedraw();
+});
+
+// Exposto para os testes poderem verificar que ISTO não vai para a rede.
+window.__hangmanPersonal = personal;
+
+// Guarda a forma da palavra a que o rascunho pertence.
+let personalLastMask = null;
 
 // --- Solo ou equipas ---
 
@@ -1892,7 +2087,24 @@ function renderHangman(room) {
   }
 
   hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amLeader);
+
+  // A folha pessoal é de quem NÃO tem a caneta: quem desenha já escreve no
+  // quadro de todos e não precisa de um rascunho por cima do próprio traço.
+  hangmanEls.personalTools.classList.toggle("hidden", amLeader);
+  hangmanEls.personalCanvas.classList.toggle("hidden", amLeader);
+  if (amLeader && personal.on) personalSetOn(false);
+  // Uma palavra nova limpa o rascunho: os riscos da palavra anterior só
+  // atrapalhariam a seguinte.
+  if (hangman.mask !== personalLastMask) {
+    personalLastMask = hangman.mask || null;
+    if (personal.strokes.length > 0) {
+      personal.strokes = [];
+      personal.current = null;
+    }
+  }
+  personalRedraw();
   hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
+  hangmanEls.undoBtn.classList.toggle("hidden", !amLeader);
   // O anfitrião também pode passar a caneta: se quem estava a escrever sair
   // ou se distrair, mais ninguém conseguiria destravar o quadro.
   hangmanEls.passPenBtn.classList.toggle("hidden", !amLeader && !host);

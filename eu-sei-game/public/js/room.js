@@ -732,6 +732,19 @@ export const BOARD_SETTINGS_SPEC = {
       default: "turnos",
     },
     {
+      key: "autoPen",
+      label: "Caneta entre palavras",
+      options: [
+        { value: 1, label: "Passa sozinha a quem ainda não desenhou" },
+        { value: 0, label: "Vota-se sempre" },
+      ],
+      // Por omissão desligada: votar é o que já existia e o que já foi
+      // testado. Quem quiser menos cerimónia liga isto e fica assim para a
+      // sala toda — mudar o comportamento por baixo de quem não pediu nada
+      // era pior do que deixá-lo à mão de quem quer.
+      default: 0,
+    },
+    {
       key: "showHintAlways",
       label: "Pista",
       options: [
@@ -1030,6 +1043,7 @@ export function wrongLetters(room) {
 export async function setHangmanPuzzle(code, room, uid, mask, hint) {
   if (room?.hangman?.leaderId !== uid) return;
   await update(ref(db, `rooms/${code}/hangman`), {
+    [`drawnBy/${uid}`]: true,
     // A pista é o contrário da palavra: é para ser vista por todos. Vai para a
     // sala tal e qual, sem máscara nenhuma.
     hint: (hint || "").trim() || null,
@@ -1062,12 +1076,45 @@ export async function addHangmanMiss(code, room, uid) {
   });
 }
 
+// A volta da caneta: a seguir vem quem ainda não desenhou nesta sessão. Quando
+// já todos desenharam, a volta recomeça — senão, a partir de certa altura não
+// havia "seguinte" e o jogo prendia-se a quem lá estivesse.
+export function nextPenByRotation(room) {
+  const ligados = connectedPlayerIds(room);
+  if (ligados.length === 0) return null;
+  const jaDesenharam = room?.hangman?.drawnBy || {};
+  const porDesenhar = ligados.filter((uid) => !jaDesenharam[uid]);
+  const candidatos = porDesenhar.length > 0 ? porDesenhar : ligados;
+  // Nunca a mesma pessoa outra vez se houver mais alguém: "passar a caneta"
+  // que a deixa na mesma mão não passa nada.
+  const semOAtual = candidatos.filter((uid) => uid !== room?.hangman?.leaderId);
+  const fila = semOAtual.length > 0 ? semOAtual : candidatos;
+  return fila[0];
+}
+
+export function autoPenOn(room) {
+  return boardSetting(room, "forca", "autoPen") === 1;
+}
+
 export async function clearHangmanPuzzle(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
-  await update(ref(db, `rooms/${code}/hangman`), {
+  const patch = {
     mask: null, hint: null, misses: 0, solved: false, hands: null,
     wrong: null, guesses: null, turnUid: null,
-  });
+  };
+  if (autoPenOn(room)) {
+    const seguinte = nextPenByRotation(room);
+    if (seguinte && seguinte !== uid) {
+      patch.leaderId = seguinte;
+      patch.penVotes = null;
+      // Se a volta já deu a volta toda, recomeça-se limpo.
+      const ligados = connectedPlayerIds(room);
+      const jaDesenharam = room?.hangman?.drawnBy || {};
+      const todosJa = ligados.every((u) => jaDesenharam[u]);
+      patch.drawnBy = todosJa ? { [seguinte]: true } : { ...jaDesenharam, [seguinte]: true };
+    }
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
 }
 
 // --- Votações do quadro ---
@@ -1203,6 +1250,35 @@ export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;
   if (!hangman || hangman.leaderId !== uid) return;
   return appendPoints(`rooms/${code}/hangman/doodle/points`, hangman.doodle?.points, newPoints, uid, HANGMAN_DOODLE_MAX_POINTS);
+}
+
+// Anular o último traço do quadro de sala. Não há aqui uma lista de traços
+// como no quadro solo — há uma lista de PONTOS, e um traço é "do início de
+// traço até ao próximo". Anular é apagar do último início-de-traço para a
+// frente. Sem isto, um risco enganado só se desfazia limpando a folha toda,
+// que é uma diferença enorme quando se está a meio de um desenho.
+export function lastStrokeKeys(pointsObj) {
+  if (!pointsObj || Array.isArray(pointsObj)) return [];
+  const chaves = Object.keys(pointsObj).sort();
+  let inicio = -1;
+  for (let i = chaves.length - 1; i >= 0; i -= 1) {
+    const pt = pointsObj[chaves[i]];
+    // Formas e textos são UMA entrada, e cada uma é um traço por si.
+    if (pt && (pt.newStroke || pt.shape || pt.text)) { inicio = i; break; }
+  }
+  if (inicio === -1) return chaves;
+  return chaves.slice(inicio);
+}
+
+export async function undoLastHangmanStroke(code, room, uid) {
+  const hangman = room?.hangman;
+  if (!hangman || hangman.leaderId !== uid) return false;
+  const chaves = lastStrokeKeys(hangman.doodle?.points);
+  if (chaves.length === 0) return false;
+  const updates = {};
+  chaves.forEach((k) => { updates[k] = null; });
+  await update(ref(db, `rooms/${code}/hangman/doodle/points`), updates);
+  return true;
 }
 
 // --- Desenha e Adivinha em equipa (bónus de fim de partida) ---
