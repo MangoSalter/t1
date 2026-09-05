@@ -128,6 +128,30 @@ Object.entries(contrast).forEach(([k, r]) => {
   if (r < 4.5) process.exitCode = 1;
 });
 
+console.log("7) Alvos de toque no telemovel: minimo 44px de altura...");
+const { devices } = await import("playwright");
+const mob = await browser.newContext({ ...devices["iPhone 13"] });
+const pm = await mob.newPage();
+await pm.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await pm.click("#solo-menu-btn");
+await pm.click("#solo-marathon-menu-btn");
+await pm.waitForSelector('[data-screen="solo-marathon-setup"].active', { timeout: 5000 });
+const tiny = await pm.evaluate(() => {
+  const bad = [];
+  // O <label> e que recebe o toque, nao a caixa de 18px la dentro.
+  document.querySelectorAll(".screen.active label, .screen.active button").forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.height === 0) return;
+    if (r.height < 40) bad.push(`${el.textContent.trim().slice(0, 22)} (${Math.round(r.height)}px)`);
+  });
+  return bad;
+});
+console.log(`   alvos abaixo de 40px: ${tiny.length} ${tiny.slice(0, 4).join(", ")}`);
+if (tiny.length > 0) {
+  console.log("   FALHOU: alvos pequenos demais para dedos — erra-se a categoria ao lado");
+  process.exitCode = 1;
+}
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));

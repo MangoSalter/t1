@@ -658,3 +658,17 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
      parada, em vez de a animação saltar para o último fotograma. */
   .card, .mascot { transform: none !important; animation: none !important; }
 }
+
+/* Alvos de toque: o mínimo recomendado é 44px de altura, e as listas de
+   caixas ficavam a 24px. Num telemóvel, onze categorias empilhadas a 24px
+   fazem-se errar — e errar aqui muda a configuração do jogo sem se dar por
+   isso. O <label> é que recebe o toque (não a caixa de 18px), por isso é ele
+   que tem de crescer. Nas grelhas de categorias, onde há dezenas de
+   entradas, 40px é o compromisso entre acertar e não obrigar a rolar sem
+   fim. */
+.marathon-picker label,
+.chaos-toggle {
+  min-height: 44px;
+  padding: 4px 2px;
+}
+.cat-picker-grid label { min-height: 40px; }
