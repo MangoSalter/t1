@@ -1,7 +1,7 @@
 // Votações do quadro: a regra é MAIORIA DOS LIGADOS, não maioria de quem
 // votou. A diferença não é teórica — com "maioria de quem votou", o primeiro
 // a carregar no botão decidia por todos antes de os outros abrirem o menu.
-import { voteWinner, tallyVotes, votesNeeded, handQueue, connectedPlayerIds, BOARD_MODES }
+import { voteWinner, tallyVotes, votesNeeded, sameWord, connectedPlayerIds, BOARD_MODES }
   from "./js/room.js";
 
 let falhas = 0;
@@ -48,15 +48,23 @@ check("e não chega para decidir numa sala de 3", voteWinner(votos, ["a", "b", "
 console.log("6) Sozinho na sala, o voto vale (senão o quadro ficava trancado)...");
 check("1 em 1", voteWinner({ a: "forca" }, ["a"]), "forca");
 
-console.log("7) A fila de quem pediu a palavra respeita a ordem de chegada...");
+console.log("7) Arriscar a palavra inteira: acentos, maiúsculas e espaços não decidem...");
+// Substituiu a fila de "pedir a palavra", que só ordenava quem queria falar.
+// Quem diz a palavra certa não pode perder por causa de um acento ou de um
+// espaço a mais — isso seria um jogo de ortografia, não de adivinhar.
 const sala = {
   players: { a: { connected: true }, b: { connected: true }, c: { connected: false } },
-  hangman: { hands: { b: 200, a: 100, c: 50 } },
+  hangman: {},
 };
-// c pediu primeiro mas está desligado: sai da fila.
-check("ordem por hora do pedido", handQueue(sala), ["a", "b"]);
 check("ligados", connectedPlayerIds(sala), ["a", "b"]);
-check("sem mãos no ar", handQueue({ players: sala.players, hangman: {} }), []);
+check("igual", String(sameWord("banana", "banana")), "true");
+check("maiúsculas", String(sameWord("BANANA", "banana")), "true");
+check("acentos", String(sameWord("cafe", "café")), "true");
+check("cedilha", String(sameWord("coracao", "coração")), "true");
+check("espaços a mais", String(sameWord("  dona   manga ", "Dona Manga")), "true");
+check("palavra errada", String(sameWord("bananas", "banana")), "false");
+check("vazio nunca acerta", String(sameWord("", "")), "false");
+check("vazio contra palavra", String(sameWord("   ", "banana")), "false");
 
 console.log("8) Todo o modo anunciado tem de ter nome e explicação...");
 // Regra, não comportamento: um modo novo sem texto aparecia no menu como um

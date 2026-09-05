@@ -658,8 +658,7 @@ export async function startHangman(code, room) {
       mode: DEFAULT_BOARD_MODE,
       modeVotes: null,
       penVotes: null,
-      hands: null,
-      doodle: { points: null },
+        doodle: { points: null },
     },
   });
 }
@@ -1070,9 +1069,10 @@ export async function setHangmanPuzzle(code, room, uid, mask, hint) {
     mask: mask || null,
     misses: 0,
     solved: false,
-    hands: null,
     wrong: null,
+    wrongWords: null,
     guesses: null,
+    wordGuesses: null,
     turnUid: null,
   });
 }
@@ -1119,8 +1119,8 @@ export function autoPenOn(room) {
 export async function clearHangmanPuzzle(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
   const patch = {
-    mask: null, hint: null, misses: 0, solved: false, hands: null,
-    wrong: null, guesses: null, turnUid: null,
+    mask: null, hint: null, misses: 0, solved: false,
+    wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
   };
   if (autoPenOn(room)) {
     const seguinte = nextPenByRotation(room);
@@ -1190,7 +1190,7 @@ export async function setBoardMode(code, room, uid, modeKey) {
     mode: modeKey,
     modeVotes: null,
     mask: null, hint: null, misses: 0, solved: false,
-    wrong: null, guesses: null, turnUid: null,
+    wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
   };
   if (modeKey === "forca") {
     // Entrar na Forca abre a votação da caneta: enquanto ninguém for
@@ -1198,7 +1198,6 @@ export async function setBoardMode(code, room, uid, modeKey) {
     // em vez de ficar um botão à espera de ser carregado.
     patch.leaderId = null;
     patch.penVotes = null;
-    patch.hands = null;
   } else {
     // Sair da Forca tem de devolver a caneta a alguém: sem dono, o desenho
     // livre ficava uma folha em que ninguém consegue escrever.
@@ -1214,24 +1213,64 @@ export async function votePenHolder(code, room, uid, targetUid) {
   await set(ref(db, `rooms/${code}/hangman/penVotes/${uid}`), targetUid);
 }
 
-// Pedir a palavra: quem não tem a caneta levanta o braço para falar com o
-// grupo. Guarda-se a hora para a fila ter ordem — quem pediu primeiro fala
-// primeiro, que é a única coisa que a app consegue arbitrar de forma justa
-// quando a conversa acontece toda em voz alta.
-export async function raiseHand(code, uid) {
-  await set(ref(db, `rooms/${code}/hangman/hands/${uid}`), serverNow());
+// Arriscar a PALAVRA INTEIRA. Substituiu o "pedir a palavra", que só levantava
+// o braço para falar: uma fila de quem quer falar não é jogo nenhum quando a
+// app já sabe julgar. Acertar a palavra acaba o jogo; errar custa um erro,
+// como uma letra errada — é a regra clássica da forca, e usa a moeda que já
+// existe em vez de inventar outra.
+export async function submitWordGuess(code, room, uid, text) {
+  const tentativa = String(text || "").trim();
+  if (!tentativa) return false;
+  if (!room?.hangman?.mask || room.hangman.solved) return false;
+  if (!hangmanGuessers(room).includes(uid)) return false;
+  if (room.hangman.wordGuesses?.[uid]) return false;
+  await set(ref(db, `rooms/${code}/hangman/wordGuesses/${uid}`), { text: tentativa, at: serverNow() });
+  return true;
 }
 
-export async function lowerHand(code, uid) {
-  await set(ref(db, `rooms/${code}/hangman/hands/${uid}`), null);
+// Comparação de palavras inteiras: ignora acentos e maiúsculas, e trata
+// vários espaços como um só. Quem diz a palavra certa não pode perder por
+// causa de um acento ou de um espaço a mais.
+export function sameWord(a, b) {
+  const limpa = (t) => String(t || "")
+    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt").trim().replace(/\s+/g, " ");
+  return !!limpa(a) && limpa(a) === limpa(b);
 }
 
-export function handQueue(room) {
-  const hands = room?.hangman?.hands || {};
-  const connected = connectedPlayerIds(room);
-  return Object.keys(hands)
-    .filter((uid) => connected.includes(uid))
-    .sort((a, b) => (hands[a] || 0) - (hands[b] || 0));
+export function wrongWordList(room) {
+  const wrong = room?.hangman?.wrongWords || {};
+  return Object.values(wrong)
+    .filter(Boolean)
+    .sort((a, b) => (a.at || 0) - (b.at || 0));
+}
+
+// Resolve UMA tentativa de palavra inteira. Como as letras, só corre no
+// cliente de quem tem a caneta — o único que conhece a palavra.
+export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, word) {
+  if (room?.hangman?.leaderId !== uid) return null;
+  const acertou = sameWord(tentativa, word);
+  const patch = { [`wordGuesses/${guesserUid}`]: null };
+  if (acertou) {
+    patch.mask = word;
+    patch.solved = true;
+    const equipa = teamOfPlayer(room, guesserUid);
+    if (equipa) {
+      // A palavra inteira vale mais do que uma letra: foi um salto, não um
+      // passo.
+      patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 3;
+    }
+  } else {
+    const teto = maxMissesOf(room);
+    const proximos = (room.hangman.misses || 0) + 1;
+    patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
+    patch[`wrongWords/w${Date.now().toString(36)}`] = {
+      text: String(tentativa).slice(0, 40), uid: guesserUid, at: serverNow(),
+    };
+    patch.turnUid = nextGuesser(room, guesserUid);
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return acertou;
 }
 
 // Só o anfitrião fecha as votações, pelo mesmo motivo que resolve as rondas:
@@ -1252,15 +1291,14 @@ export async function applyBoardVotes(code, room) {
     await update(ref(db, `rooms/${code}/hangman`), {
       leaderId: penWinner,
       penVotes: null,
-      // Quem pediu a palavra pediu-a à ronda anterior; a fila não transita
-      // para quem acabou de pegar na caneta.
-      hands: null,
-      mask: null,
+        mask: null,
       hint: null,
       misses: 0,
       solved: false,
       wrong: null,
+      wrongWords: null,
       guesses: null,
+      wordGuesses: null,
       turnUid: null,
     });
   }

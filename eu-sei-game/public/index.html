@@ -675,6 +675,7 @@
       <div class="hangman-wrong-strip hidden" id="hangman-wrong-strip">
         <span class="hangman-wrong-label">Erradas:</span>
         <span id="hangman-wrong-letters"></span>
+        <span id="hangman-wrong-words"></span>
       </div>
       <div class="hangman-slots-strip hidden" id="hangman-slots-strip">
         <div class="hangman-slots" id="hangman-slots"></div>
@@ -728,8 +729,11 @@
         </button>
         <button type="button" id="hangman-personal-clear" class="ghost">🧹 Limpar o meu</button>
       </div>
-      <button id="hangman-hand-btn" type="button" class="ghost hidden">✋ Pedir a palavra</button>
-      <span id="hangman-hand-queue" class="hint small"></span>
+      <form class="hangman-guess-form hangman-wordguess-form hidden" id="hangman-wordguess-form">
+        <input id="hangman-wordguess-input" type="text" maxlength="40" autocomplete="off"
+               placeholder="Arriscar a palavra toda" aria-label="Arriscar a palavra toda" />
+        <button type="submit" class="ghost-primary">Arriscar palavra</button>
+      </form>
       <span id="hangman-mode-hint" class="hint small"></span>
     </div>
 

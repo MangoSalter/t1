@@ -20,7 +20,7 @@ import {
   undoLastHangmanStroke,
   passHangmanPen, passHangmanPenRandom,
   BOARD_MODES, DEFAULT_BOARD_MODE, setBoardMode, canSetBoardMode, votePenHolder, applyBoardVotes,
-  raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
+  submitWordGuess, resolveWordGuess, wrongWordList, connectedPlayerIds, tallyVotes, votesNeeded,
   maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
@@ -909,8 +909,9 @@ const hangmanEls = {
   modeBtn: document.getElementById("hangman-mode-btn"),
   modeBtnViewer: document.getElementById("hangman-mode-btn-viewer"),
   modeHint: document.getElementById("hangman-mode-hint"),
-  handBtn: document.getElementById("hangman-hand-btn"),
-  handQueue: document.getElementById("hangman-hand-queue"),
+  wordGuessForm: document.getElementById("hangman-wordguess-form"),
+  wordGuessInput: document.getElementById("hangman-wordguess-input"),
+  wrongWords: document.getElementById("hangman-wrong-words"),
   modeOverlay: document.getElementById("hangman-mode-overlay"),
   modeList: document.getElementById("hangman-mode-list"),
   modeCancelBtn: document.getElementById("hangman-mode-cancel-btn"),
@@ -2127,6 +2128,18 @@ function renderWrongLetters(room) {
   const erradas = wrongLetters(room);
   hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0);
   hangmanEls.wrongLetters.innerHTML = "";
+  const palavrasErradas = wrongWordList(room);
+  hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0 && palavrasErradas.length === 0);
+  hangmanEls.wrongWords.innerHTML = "";
+  palavrasErradas.forEach(({ text, uid }) => {
+    const el = document.createElement("span");
+    el.className = "hangman-wrong-word";
+    el.dataset.wrongWord = text;
+    el.style.color = playerColor(room, uid);
+    el.title = room.players?.[uid]?.name || "";
+    el.textContent = text;
+    hangmanEls.wrongWords.appendChild(el);
+  });
   erradas.forEach(({ letter, uid }) => {
     const el = document.createElement("span");
     el.className = "hangman-wrong-letter";
@@ -2197,10 +2210,29 @@ async function hangmanJudgePendingGuesses(room) {
   }
 }
 
-hangmanEls.handBtn.addEventListener("click", () => {
-  const raised = !!state.room?.hangman?.hands?.[state.uid];
-  if (raised) lowerHand(state.code, state.uid);
-  else raiseHand(state.code, state.uid);
+// E as tentativas de palavra inteira, pelo mesmo caminho e pelo mesmo motivo:
+// só o browser de quem tem a caneta conhece a palavra.
+async function hangmanJudgeWordGuesses(room) {
+  if (hangmanJudging || !hangmanSecretWord) return;
+  const pendentes = Object.entries(room.hangman?.wordGuesses || {}).filter(([, g]) => g && g.text);
+  if (pendentes.length === 0) return;
+  hangmanJudging = true;
+  try {
+    const [guesserUid, info] = pendentes[0];
+    await resolveWordGuess(state.code, room, state.uid, guesserUid, info.text, hangmanSecretWord);
+  } finally {
+    hangmanJudging = false;
+  }
+}
+
+// Arriscar a palavra inteira. Substituiu o "pedir a palavra": levantar o braço
+// para falar não é jogo nenhum quando a app já sabe julgar a resposta.
+hangmanEls.wordGuessForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const tentativa = hangmanEls.wordGuessInput.value.trim();
+  hangmanEls.wordGuessInput.value = "";
+  if (!tentativa) return;
+  await submitWordGuess(state.code, state.room, state.uid, tentativa);
 });
 
 function renderHangman(room) {
@@ -2297,11 +2329,6 @@ function renderHangman(room) {
   // Enquanto o ecrã das equipas estiver aberto, acompanha o que os outros
   // fazem: entrar numa equipa tem de aparecer aos outros sem fechar e abrir.
   if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
-  // Pedir a palavra é de quem NÃO tem a caneta — quem desenha já a tem.
-  hangmanEls.handBtn.classList.toggle("hidden", amLeader || mode !== "forca");
-  const raised = !!hangman.hands?.[state.uid];
-  hangmanEls.handBtn.textContent = raised ? "✋ Baixar o braço" : "✋ Pedir a palavra";
-  hangmanEls.handBtn.setAttribute("aria-pressed", String(raised));
 
   // --- Modo Forca: a palavra e os espaços ---
   const naForca = mode === "forca";
@@ -2426,10 +2453,12 @@ function renderHangman(room) {
     hangmanEls.secretLabel.textContent = hangmanSecretWord ? `Palavra: ${hangmanSecretWord}` : "";
   }
 
-  const fila = handQueue(room).map((uid) => room.players[uid]?.name).filter(Boolean);
-  hangmanEls.handQueue.textContent = fila.length
-    ? `A pedir a palavra: ${fila.map((n, i) => `${i + 1}. ${n}`).join("  ")}`
-    : "";
+  // Arriscar a palavra inteira é de quem NÃO tem a caneta, enquanto há palavra
+  // por adivinhar. Ao contrário das letras, não espera pela vez: dizer a
+  // palavra é uma aposta, e ninguém deve ter de esperar para a fazer.
+  const possoArriscarPalavra = naForca && !!mask && !hangman.solved && !amLeader
+    && hangmanGuessers(room).includes(state.uid) && !hangman.wordGuesses?.[state.uid];
+  hangmanEls.wordGuessForm.classList.toggle("hidden", !possoArriscarPalavra);
 
   // As votações abertas acompanham o estado: se a caneta já foi decidida
   // enquanto o menu estava aberto, a lista mostrada já não quer dizer nada.
@@ -2471,7 +2500,10 @@ function renderHangman(room) {
   if (host) queueMicrotask(() => applyBoardVotes(state.code, state.room));
   // E quem tem a caneta julga as tentativas pendentes, pelo mesmo motivo de
   // ordem: fora do desenho de ecrã, para a escrita não voltar a meio dele.
-  if (amLeader && naForca) queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
+  if (amLeader && naForca) {
+    queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
+    queueMicrotask(() => hangmanJudgeWordGuesses(state.room));
+  }
 }
 
 // ---------- DESENHA E ADIVINHA EM EQUIPA ----------

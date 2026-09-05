@@ -156,20 +156,47 @@ if (!rGuest2.desenhador || !rGuest2.opcoesDaCaneta) fail("o Beto tem a caneta e 
 // continua a poder desenhar — quem prova essa regra é o mp-board-shared.
 if (!rHost2.opcoesDaCaneta) fail("sem palavra em jogo, a folha é de todos e a Ana devia poder escrever");
 
-console.log("8) Quem não tem a caneta pede a palavra, e todos veem a fila...");
-const handVisible = (p) => p.evaluate(() => !document.getElementById("hangman-hand-btn").classList.contains("hidden"));
-console.log(`   botão de pedir a palavra — Ana: ${await handVisible(host)}, Beto: ${await handVisible(guest)}`);
-if (!(await handVisible(host))) fail("quem não tem a caneta devia poder pedir a palavra");
-if (await handVisible(guest)) fail("quem tem a caneta não precisa de pedir a palavra");
-await host.click("#hangman-hand-btn");
-await guest.waitForFunction(() => document.getElementById("hangman-hand-queue").textContent.includes("Ana"), { timeout: 8000 });
-const fila = await guest.locator("#hangman-hand-queue").textContent();
-console.log(`   o Beto vê: "${fila.trim()}"`);
-if (!fila.includes("Ana")) fail("o pedido de palavra não chegou ao outro jogador");
-// E baixar o braço tira-o da fila.
-await host.click("#hangman-hand-btn");
-await guest.waitForFunction(() => !document.getElementById("hangman-hand-queue").textContent.includes("Ana"), { timeout: 8000 });
-console.log("   baixar o braço tira-o da fila: ok");
+console.log("8) Arriscar a PALAVRA INTEIRA: errar custa um erro, acertar acaba o jogo...");
+// Substituiu o "pedir a palavra", que só levantava o braço para falar: uma
+// fila de quem quer falar não é jogo nenhum quando a app já sabe julgar.
+const caixaPalavra = (p) => p.evaluate(() => !document.getElementById("hangman-wordguess-form").classList.contains("hidden"));
+// Sem palavra em jogo não há nada para arriscar, e a caixa não aparece a
+// ninguém — o que está certo: uma caixa que aceita palpites sobre uma palavra
+// que não existe só serve para confundir.
+if (await caixaPalavra(host)) fail("sem palavra em jogo, a caixa não devia aparecer");
+await guest.fill("#hangman-word-input", "Dona Manga");
+await guest.click("#hangman-word-form button[type=submit]");
+await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.mask, code, { timeout: 8000 });
+await host.waitForFunction(() => !document.getElementById("hangman-wordguess-form").classList.contains("hidden"), { timeout: 8000 });
+console.log(`   com palavra em jogo — Ana: ${await caixaPalavra(host)}, Beto: ${await caixaPalavra(guest)}`);
+if (!(await caixaPalavra(host))) fail("quem não tem a caneta devia poder arriscar a palavra");
+if (await caixaPalavra(guest)) fail("quem tem a caneta não arrisca a própria palavra");
+
+const errosAntes = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses || 0, code);
+await host.fill("#hangman-wordguess-input", "melancia");
+await host.click("#hangman-wordguess-form button[type=submit]");
+await host.waitForFunction((args) => (window.__testDb.get(`rooms/${args[0]}`).hangman.misses || 0) > args[1], [code, errosAntes], { timeout: 8000 });
+console.log(`   errar a palavra custou um erro: ${errosAntes} -> ${await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses, code)}`);
+// E a palavra errada fica à vista, na cor de quem a disse.
+await guest.waitForFunction(() => document.querySelectorAll("[data-wrong-word]").length > 0, { timeout: 8000 });
+const palavraErrada = await guest.evaluate(() => {
+  const el = document.querySelector("[data-wrong-word]");
+  return { texto: el.textContent, cor: el.style.color };
+});
+console.log(`   o Beto vê "${palavraErrada.texto}" na cor ${palavraErrada.cor}`);
+if (palavraErrada.texto !== "melancia") fail("a palavra errada devia ficar à vista");
+if (!/178, ?75, ?56/.test(palavraErrada.cor)) fail("a palavra errada devia estar na cor de quem a disse");
+
+// Acertar acaba o jogo — e com acentos e maiúsculas a mais, que não decidem nada.
+await host.fill("#hangman-wordguess-input", "  DONA MANGA  ");
+await host.click("#hangman-wordguess-form button[type=submit]");
+await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman.solved === true, code, { timeout: 8000 });
+const resolvido = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
+console.log(`   acertou com espaços e maiúsculas a mais; palavra revelada: "${resolvido}"`);
+if (resolvido !== "Dona Manga") fail(`devia revelar a palavra escrita como estava ("${resolvido}")`);
+// Limpa para os passos seguintes voltarem a começar do zero.
+await guest.click("#hangman-newword-btn");
+await guest.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });
 
 console.log("9) As ferramentas do quadro: as mesmas do quadro solo, e o MODO manda...");
 await guest.click('[data-hangman-color="#b24b38"]');
