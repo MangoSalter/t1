@@ -47,7 +47,11 @@ async function currentMinigame() {
 await page.click("#solo-menu-btn"); await page.click("#solo-classic-btn"); await page.click("#solo-setup-start-btn");
 
 let found = false;
-for (let attempt = 0; attempt < 12 && !found; attempt++) {
+// 40 tentativas, não 12. Com 6 mini-jogos no sorteio, 12 tentativas falham
+// por azar em ~11% das corridas — e um teste que falha uma vez em nove deixa
+// de dizer alguma coisa, porque toda a gente aprende a ignorá-lo. Com 40 fica
+// abaixo de 0,1%. Mesmo problema que já tinha sido corrigido no wordflash.
+for (let attempt = 0; attempt < 40 && !found; attempt++) {
   await playRoundToMinigame();
   const which = await currentMinigame();
   console.log(`Tentativa ${attempt + 1}: calhou ${which}`);
@@ -62,7 +66,7 @@ for (let attempt = 0; attempt < 12 && !found; attempt++) {
 }
 
 if (!found) {
-  console.log("AVISO: não calhou Mata o Inseto em 12 tentativas.");
+  console.log("FALHOU: não calhou Mata o Inseto em 40 tentativas — é sorteio a mais para ser azar.");
   process.exitCode = 1;
 } else {
   const target = await page.locator("#bug-target-label").textContent();

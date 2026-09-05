@@ -3682,7 +3682,7 @@ function raceTick(now) {
   if (collided && !raceState.crashed) {
     raceState.crashed = true;
     raceState.playerEl?.classList.add("car-player-crashed");
-    crashRacer(state.code, state.uid, raceState.elapsedMs);
+    crashRacer(state.code, state.uid, raceState.elapsedMs, state.room);
   }
 
   // Se o servidor já me dá como fora (bati e a escrita chegou, ou reentrei

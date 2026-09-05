@@ -2042,7 +2042,17 @@ export async function updateRacer(code, uid, lane, timeMs) {
 // updateRacer nunca toca. Sem isso, um envio de posição já a caminho podia
 // aterrar depois da batida e reescrever um tempo menor por cima — o jogador
 // perdia segundos que tinha mesmo aguentado.
-export async function crashRacer(code, uid, timeMs) {
+// Bater duas vezes não é bater mais longe. Quem já está fora fica com o tempo
+// do embate que teve — sem esta guarda, um segundo embate (o do jogo a
+// detetar a colisão e o de um pedido atrasado, por exemplo) reescrevia o
+// tempo DEPOIS de a classificação já ter sido calculada com o primeiro, e a
+// tabela final deixava de bater certo com os tempos guardados.
+export async function crashRacer(code, uid, timeMs, room) {
+  if (room && room.race?.racers?.[uid]?.alive === false) return;
+  return crashRacerNow(code, uid, timeMs);
+}
+
+async function crashRacerNow(code, uid, timeMs) {
   await update(ref(db, `rooms/${code}/race/racers/${uid}`), {
     alive: false, crashTimeMs: Math.round(timeMs), crashedAt: serverNow(),
   });
