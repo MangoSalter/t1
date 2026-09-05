@@ -563,3 +563,41 @@ export function pickBoardQuip(evitarIndice) {
   if (i === evitarIndice) i = (i + 1) % BOARD_QUIPS.length;
   return i;
 }
+
+// --- O caos da Dona Manga NO QUADRO ---
+//
+// Os eventos do solo não servem aqui: uma pata no ecrã ou um abanão são
+// visuais e não mexem no jogo. No quadro, o caos tem de fazer alguma coisa ao
+// que está a acontecer — senão é decoração e cansa à segunda vez.
+//
+// A regra que nenhum deles quebra: NUNCA revelam a palavra toda e NUNCA
+// tornam o jogo impossível. Uma gata que estraga a ronda deixa de ter piada à
+// primeira vez que acontece a sério.
+export const BOARD_CHAOS = [
+  {
+    id: "letraGratis", kind: "revealLetter",
+    who: "Dona Manga", text: "Está bem, está bem. Toma uma letra e não digas a ninguém.",
+  },
+  {
+    id: "roubaVez", kind: "skipTurn",
+    who: "Dona Manga", text: "Sentei-me em cima do teclado de alguém. Passa a vez.",
+  },
+  {
+    id: "limpaCanto", kind: "eraseBit",
+    who: "Dona Manga", text: "Passei a cauda pelo quadro. Não foi de propósito. Foi.",
+  },
+  {
+    id: "brasaAjuda", kind: "revealLetter",
+    who: "Brasa", text: "Ela está a dormir! Rápido, olha uma letra — não contes.",
+  },
+  {
+    id: "apagaErro", kind: "forgiveMiss",
+    who: "Brasa", text: "Apaguei um erro da lista dela antes que reparasse.",
+  },
+];
+
+export function pickBoardChaos(evitarId) {
+  const opcoes = BOARD_CHAOS.filter((e) => e.id !== evitarId);
+  const lista = opcoes.length > 0 ? opcoes : BOARD_CHAOS;
+  return lista[Math.floor(Math.random() * lista.length)];
+}

@@ -359,3 +359,47 @@ const equipasRank = matchRanking(salaPartida({}, {
 check2("ganha a equipa com mais pontos", equipasRank[0].nome, "Equipa B");
 check2("e os pontos são os da equipa", equipasRank.map((e) => e.pontos).join(","), "7,4");
 check2("com quem lá está", equipasRank[0].membros.join(","), "b,c");
+
+console.log("29) O caos da Dona Manga nunca estraga o jogo...");
+const { BOARD_CHAOS, pickBoardChaos } = await import("./js/data.js");
+const { chaosLetterToReveal, chaosMissToForgive, boardChaosOn, BOARD_CHAOS_EVERY } =
+  await import("./js/room.js");
+// Desligado por omissão: interferir no jogo dos outros escolhe-se, não
+// acontece a quem não pediu nada.
+check2("desligado por omissão", String(boardChaosOn({ hangman: { mode: "forca" } })), "false");
+check2("ligado quando escolhido", String(boardChaosOn({ hangman: { mode: "forca", settings: { chaos: 1 } } })), "true");
+check2("aparece de N em N erros", String(BOARD_CHAOS_EVERY >= 2), "true");
+
+// A letra dada de graça é a MAIS COMUM das que faltam: dar uma rara não ajuda
+// e faz o presente parecer troça.
+check2("dá a letra mais comum", chaosLetterToReveal("banana", "______"), "a");
+check2("ignora as já reveladas", chaosLetterToReveal("banana", "_a_a_a"), "n");
+// E NUNCA dá a última que falta — isso era a gata a ganhar o jogo pelas
+// pessoas. Com uma só letra por revelar, o evento não acontece.
+check2("nunca dá a última", String(chaosLetterToReveal("banana", "_anana")), "null");
+check2("nem numa palavra já resolvida", String(chaosLetterToReveal("banana", "banana")), "null");
+// Pontuação e espaços não contam como letras a revelar.
+check2("ignora espaços e pontuação", chaosLetterToReveal("dona manga", "__________"), "a");
+
+// Perdoar um erro tira o mais recente, que é o que ainda dói.
+const comErros = { hangman: { wrong: { z: { at: 1 }, q: { at: 2 }, x: { at: 3 } } } };
+check2("perdoa o erro mais recente", chaosMissToForgive(comErros), "x");
+check2("sem erros não há nada a perdoar", String(chaosMissToForgive({ hangman: {} })), "null");
+
+console.log("30) As falas do caos estão completas, e nunca repetem a anterior...");
+check2("há eventos suficientes", String(BOARD_CHAOS.length >= 4), "true");
+const caosMau = BOARD_CHAOS.filter((e) => !e.id || !e.kind || !e.who || !e.text || e.text.length > 90);
+check2("todos completos e curtos", String(caosMau.length), "0");
+// Só as duas personagens falam.
+check2("só a Dona Manga e o Brasa",
+  [...new Set(BOARD_CHAOS.map((e) => e.who))].sort().join(","), "Brasa,Dona Manga");
+// E nenhum tipo de evento pode ser destrutivo de forma irreversível: nada de
+// limpar a folha nem de acabar a ronda.
+const tiposMaus = BOARD_CHAOS.filter((e) => /clear|solve|end|wipe/i.test(e.kind));
+check2("nenhum evento limpa a folha ou acaba a ronda", String(tiposMaus.length), "0");
+let repetiuCaos = false;
+for (let i = 0; i < 300; i += 1) {
+  const anterior = BOARD_CHAOS[Math.floor(Math.random() * BOARD_CHAOS.length)].id;
+  if (pickBoardChaos(anterior).id === anterior) repetiuCaos = true;
+}
+check2("nunca repete o evento anterior", String(repetiuCaos), "false");

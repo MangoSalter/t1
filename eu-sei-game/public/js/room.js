@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip,
+  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS,
   LANDMARKS, pickLandmarkRound,
 } from "./data.js";
 
@@ -800,6 +800,17 @@ export const BOARD_SETTINGS_SPEC = {
       default: 0,
     },
     {
+      key: "chaos",
+      label: "A Dona Manga interfere",
+      options: [
+        { value: 1, label: "Sim, de vez em quando" },
+        { value: 0, label: "Não, deixem-me jogar" },
+      ],
+      // Desligado por omissão: interferir no jogo dos outros é coisa que se
+      // escolhe, não coisa que aconteça a quem não pediu nada.
+      default: 0,
+    },
+    {
       key: "revealGuesses",
       label: "Tentativas",
       options: [
@@ -1143,6 +1154,95 @@ function roundEndPatch(room, contagens, word) {
     patch.turnUid = novaOrdem[0];
   }
   return patch;
+}
+
+// --- O caos da Dona Manga no quadro ---
+//
+// Corre no cliente de quem tem a caneta, como tudo o que precisa de conhecer a
+// palavra. Dispara a cada N erros da ronda: assim aparece quando o jogo está a
+// correr mal, que é quando faz falta, em vez de aparecer ao acaso e atrapalhar
+// quem estava a ir bem.
+export const BOARD_CHAOS_EVERY = 3;
+
+export function boardChaosOn(room) {
+  return boardSetting(room, "forca", "chaos") === 1;
+}
+
+// A letra dada de graça é a MAIS COMUM das que faltam. Dar uma letra rara não
+// ajuda quase nada e faz o presente parecer uma troça; e nunca se dá a última
+// que falta, porque isso era a gata a ganhar o jogo pelas pessoas.
+export function chaosLetterToReveal(word, mask) {
+  const w = String(word || "");
+  const m = String(mask || "");
+  const contagem = new Map();
+  [...w].forEach((ch, i) => {
+    if (m[i] !== "_") return;
+    if (!/[\p{L}\p{N}]/u.test(ch)) return;
+    const k = normalizeLetter(ch);
+    contagem.set(k, (contagem.get(k) || 0) + 1);
+  });
+  if (contagem.size <= 1) return null;
+  let melhor = null;
+  let maior = 0;
+  contagem.forEach((n, k) => { if (n > maior) { maior = n; melhor = k; } });
+  return melhor;
+}
+
+// Uma letra errada perdoada: tira-se a mais recente, que é a que ainda dói.
+export function chaosMissToForgive(room) {
+  const lista = wrongLetters(room);
+  return lista.length > 0 ? lista[lista.length - 1].letter : null;
+}
+
+export async function fireBoardChaos(code, room, uid, word) {
+  if (room?.hangman?.leaderId !== uid) return null;
+  if (!boardChaosOn(room)) return null;
+  if (!room.hangman.mask || room.hangman.solved) return null;
+
+  // Escolhe só entre o que pode MESMO acontecer agora. Escolher às cegas e
+  // desistir se não desse deitava fora a oportunidade toda em silêncio: a
+  // gata não aparecia, e só voltaria a tentar muitos erros depois.
+  const letraPossivel = chaosLetterToReveal(word, room.hangman.mask);
+  const erroPossivel = chaosMissToForgive(room);
+  const tracoPossivel = lastStrokeKeys(room.hangman.doodle?.points).length > 0;
+  const vezPossivel = hangmanGuessers(room).length > 1;
+  const possiveis = BOARD_CHAOS.filter((e) => {
+    if (e.kind === "revealLetter") return !!letraPossivel;
+    if (e.kind === "forgiveMiss") return !!erroPossivel;
+    if (e.kind === "eraseBit") return tracoPossivel;
+    if (e.kind === "skipTurn") return vezPossivel;
+    return false;
+  });
+  if (possiveis.length === 0) return null;
+  const anterior = room.hangman.chaos?.id;
+  const semRepetir = possiveis.filter((e) => e.id !== anterior);
+  const lista = semRepetir.length > 0 ? semRepetir : possiveis;
+  const evento = lista[Math.floor(Math.random() * lista.length)];
+  const patch = { chaos: { id: evento.id, at: serverNow() } };
+
+  if (evento.kind === "revealLetter") {
+    const letra = letraPossivel;
+    patch.mask = revealLetter(word, room.hangman.mask, letra);
+    if (guessesAreAnonymous(room)) {
+      // Com palavras pessoais, a prenda é para todos: dar a um só seria a gata
+      // a escolher o vencedor.
+      hangmanGuessers(room).forEach((g) => {
+        patch[`masks/${g}`] = revealLetter(word, playerMask(room, g), letra);
+      });
+    }
+  } else if (evento.kind === "skipTurn") {
+    patch.turnUid = nextGuesser(room, currentGuesser(room));
+  } else if (evento.kind === "forgiveMiss") {
+    patch[`wrong/${erroPossivel}`] = null;
+    patch.misses = Math.max(0, (room.hangman.misses || 0) - 1);
+  } else if (evento.kind === "eraseBit") {
+    // Apaga o último traço do desenho, não a folha: a diferença entre uma
+    // partida e um estrago.
+    lastStrokeKeys(room.hangman.doodle?.points).forEach((k) => { patch[`doodle/points/${k}`] = null; });
+  }
+
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return evento.id;
 }
 
 export function wordHistory(room) {

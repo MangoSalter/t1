@@ -362,6 +362,53 @@ await host.waitForFunction((c) => !window.__testDb.get(`rooms/${c}`).hangman.mas
 if (!(await guest.locator("#hangman-word-form").isVisible())) fail("devia voltar a caixa de escrever a palavra");
 if (await host.locator("#hangman-word-zone").isVisible()) fail("a zona da palavra devia desaparecer sem palavra definida");
 
+console.log("15b) A Dona Manga interfere ao fim de N erros, e nunca estraga...");
+// Ligada de propósito: por omissão está desligada, porque interferir no jogo
+// dos outros escolhe-se.
+await guest.click("#hangman-settings-btn");
+await guest.click('[data-setting="chaos"][data-setting-value="1"]');
+await guest.click('[data-setting="maxMisses"][data-setting-value="0"]');
+await guest.click("#hangman-settings-close-btn");
+// Sem palavra em jogo, o formulário de escrever já está aberto — o botão
+// "Outra palavra" só existe quando há uma palavra para trocar.
+await guest.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });
+await guest.fill("#hangman-word-input", "banana");
+await guest.click("#hangman-word-form button[type=submit]");
+await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.mask, code, { timeout: 8000 });
+
+// Erros suficientes para a gata aparecer. Os erros não têm teto (maxMisses 0),
+// por isso o jogo não acaba antes.
+for (const letra of ["q", "w", "x"]) {
+  await host.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 10000 });
+  await host.fill("#hangman-guess-input", letra);
+  await host.click("#hangman-guess-form button[type=submit]");
+  await host.waitForFunction((args) => !!window.__testDb.get(`rooms/${args[0]}`).hangman.wrong?.[args[1]], [code, letra], { timeout: 10000 });
+}
+await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.chaos, code, { timeout: 10000 });
+const oCaos = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman, code);
+console.log(`   a Dona Manga fez: ${oCaos.chaos.id}, com a forma "${oCaos.mask}" e ${oCaos.misses} erros`);
+if (!oCaos.chaos?.id) fail("a Dona Manga devia ter interferido ao fim de 3 erros");
+// E o que ela fez NUNCA pode ser resolver a palavra nem limpar a folha.
+if (oCaos.solved) fail("a Dona Manga resolveu a palavra — isso é ganhar o jogo pelas pessoas");
+if (!oCaos.mask.includes("_")) fail("a palavra ficou toda revelada");
+// A fala dela chega aos dois ecrãs.
+for (const p of [host, guest]) {
+  await p.waitForFunction(() => !document.getElementById("hangman-quip").classList.contains("hidden"), { timeout: 8000 });
+}
+const balaoCaos = await guest.evaluate(() => ({
+  texto: document.getElementById("hangman-quip").textContent.trim(),
+  marca: document.getElementById("hangman-quip").dataset.quipIndex,
+}));
+console.log(`   o Beto lê: "${balaoCaos.texto}"`);
+if (!/^caos:/.test(balaoCaos.marca)) fail("o balão devia estar a mostrar a interferência, não uma gozação");
+// Volta a desligar e repõe o teto, para os passos seguintes.
+await guest.click("#hangman-settings-btn");
+await guest.click('[data-setting="chaos"][data-setting-value="0"]');
+await guest.click('[data-setting="maxMisses"][data-setting-value="6"]');
+await guest.click("#hangman-settings-close-btn");
+await guest.click("#hangman-newword-btn");
+await guest.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });
+
 console.log("16) A partida ACABA ao fim das palavras combinadas...");
 // As equipas contavam letras e ninguém ganhava nunca. Um jogo que não acaba
 // não tem vencedor, e sem vencedor as equipas são só uma lista de nomes.

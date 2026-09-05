@@ -9,7 +9,7 @@ import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, MAX_PLAYERS, catKey, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, LANDMARKS,
-  BOARD_QUIPS,
+  BOARD_QUIPS, BOARD_CHAOS,
 } from "./data.js";
 import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig, maybeReclaimHost, updatePlayerAvatar,
@@ -29,7 +29,8 @@ import {
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
   individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved,
-  matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, wordHistory, canDrawOnBoard,
+  matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, wordHistory,
+  fireBoardChaos, boardChaosOn, BOARD_CHAOS_EVERY, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -2123,6 +2124,9 @@ let hangmanSecretWord = "";
 // de "acertaste e a vez continua a ser tua" — que é a diferença entre uma
 // informação e uma resposta ao que se acabou de fazer.
 let hangmanQuipTimer = null;
+// Com quantos erros a Dona Manga interferiu da última vez. Serve para ela
+// aparecer A CADA N ERROS e não a cada desenho de ecrã.
+let hangmanChaosNosErros = -1;
 let hangmanUltimaMascara = null;
 let hangmanUltimaVez = null;
 function contarLetras(mask) {
@@ -2298,14 +2302,21 @@ function renderWrongLetters(room) {
   // room chega aqui já filtrado: fora da Forca vem sem hangman, e é isso que
   // faz o balão não aparecer noutros modos. "naForca" e "hangman" são de
   // renderHangman e não existem nesta função — usá-los aqui rebentava.
+  // Duas fontes de fala, o mesmo balão: as gozações (a cada erro) e as
+  // interferências da Dona Manga (a cada N erros). Mostra-se a mais recente
+  // das duas — dois balões ao mesmo tempo tapavam-se um ao outro.
   const quip = room?.hangman?.quip;
-  const fala = quip && BOARD_QUIPS[quip.i];
-  const fresca = fala && serverNow() - (quip.at || 0) < 7000;
+  const caos = room?.hangman?.chaos;
+  const caosFala = caos && BOARD_CHAOS.find((e) => e.id === caos.id);
+  const caosMaisNovo = !!caosFala && (!quip || (caos.at || 0) >= (quip.at || 0));
+  const fala = caosMaisNovo ? caosFala : (quip && BOARD_QUIPS[quip.i]);
+  const quando = caosMaisNovo ? (caos.at || 0) : (quip?.at || 0);
+  const fresca = fala && serverNow() - quando < 7000;
   hangmanEls.quip.classList.toggle("hidden", !fresca);
   if (fresca) {
     hangmanEls.quipWho.textContent = `${fala.who}:`;
     hangmanEls.quipText.textContent = fala.text;
-    hangmanEls.quip.dataset.quipIndex = String(quip.i);
+    hangmanEls.quip.dataset.quipIndex = caosMaisNovo ? `caos:${caos.id}` : String(quip.i);
     // Sem isto, o balão ficava para sempre depois do último desenho de ecrã:
     // nada mais mexe na sala, logo nada mais o mandava embora.
     if (hangmanQuipTimer) clearTimeout(hangmanQuipTimer);
@@ -2777,6 +2788,21 @@ function renderHangman(room) {
   if (amLeader && naForca) {
     queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
     queueMicrotask(() => hangmanJudgeWordGuesses(state.room));
+    // A Dona Manga entra a cada N erros da ronda: aparece quando o jogo está
+    // a correr mal, que é quando faz falta, em vez de aparecer ao acaso e
+    // atrapalhar quem estava a ir bem. Corre no cliente de quem tem a caneta,
+    // como tudo o que precisa de conhecer a palavra.
+    const errosAgora = hangman.misses || 0;
+    if (!mask) {
+      hangmanChaosNosErros = -1;
+    } else if (boardChaosOn(room) && !hangman.solved
+      && errosAgora > 0 && errosAgora % BOARD_CHAOS_EVERY === 0
+      && errosAgora !== hangmanChaosNosErros) {
+      // Guardado ANTES de disparar: sem isto, os vários desenhos de ecrã que
+      // um erro provoca chamavam a gata várias vezes pelo mesmo erro.
+      hangmanChaosNosErros = errosAgora;
+      queueMicrotask(() => fireBoardChaos(state.code, state.room, state.uid, hangmanSecretWord));
+    }
   }
 }
 
