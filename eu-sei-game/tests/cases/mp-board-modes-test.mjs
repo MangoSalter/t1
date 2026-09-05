@@ -135,6 +135,70 @@ await guest.click('[data-hangman-color="#5b7442"]');
 const borrachaDepois = await guest.evaluate(() => document.getElementById("hangman-eraser-btn").getAttribute("aria-pressed"));
 if (borrachaDepois !== "false") fail("escolher uma cor devia largar a borracha");
 
+console.log("10) O Beto escreve a palavra — e ela NÃO vai para a sala...");
+// A regra mais importante deste modo. Sem servidor, tudo o que fique na sala
+// é legível por qualquer jogador que abra as ferramentas do browser. Só a
+// FORMA da palavra pode viajar.
+await guest.fill("#hangman-word-input", "Dona Manga");
+await guest.click("#hangman-word-form button[type=submit]");
+await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman?.mask, code, { timeout: 8000 });
+const salaCrua = JSON.stringify(await host.evaluate((c) => window.__testDb.get(`rooms/${c}`), code));
+console.log(`   forma na sala: "${await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code)}"`);
+if (/dona manga/i.test(salaCrua)) fail("A PALAVRA FOI PARAR À SALA — qualquer jogador a conseguiria ler");
+const forma = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
+if (forma !== "____ _____") fail(`a forma da palavra está errada: "${forma}"`);
+
+console.log("11) A Ana vê os espaços, com o branco entre as duas palavras...");
+await host.waitForSelector("#hangman-word-zone:not(.hidden)", { timeout: 5000 });
+const slots = await host.evaluate(() => {
+  const els = [...document.querySelectorAll("#hangman-slots .hangman-slot")];
+  return {
+    total: els.length,
+    brancos: els.filter((e) => e.classList.contains("hangman-slot-space")).length,
+    preenchidos: els.filter((e) => e.classList.contains("hangman-slot-filled")).length,
+  };
+});
+console.log(`   espaços: ${JSON.stringify(slots)}`);
+if (slots.total !== 10) fail(`esperava 10 posições, tenho ${slots.total}`);
+if (slots.brancos !== 1) fail("o branco entre as duas palavras devia aparecer");
+if (slots.preenchidos !== 0) fail("nenhuma letra devia estar revelada ainda");
+// E quem escreveu a palavra não vê a caixa de escrever outra vez, vê as
+// ferramentas de arbitrar.
+if (await guest.locator("#hangman-word-form").isVisible()) fail("quem já definiu a palavra não devia ver a caixa outra vez");
+if (!(await guest.locator("#hangman-word-tools").isVisible())) fail("quem tem a caneta devia ver as ferramentas de arbitrar");
+
+console.log("12) Revelar uma letra chega a toda a gente...");
+await guest.fill("#hangman-letter-input", "a");
+await guest.click("#hangman-reveal-btn");
+await host.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.mask || "").includes("a"), code, { timeout: 8000 });
+const depois = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
+console.log(`   forma agora: "${depois}"`);
+if (depois !== "___a _a__a") fail(`revelar o "a" deu "${depois}"`);
+const slots2 = await host.evaluate(() => [...document.querySelectorAll("#hangman-slots .hangman-slot-filled")].map((e) => e.textContent).join(""));
+console.log(`   a Ana vê revelado: "${slots2}"`);
+if (slots2 !== "aaa") fail("a Ana devia ver os três 'a' revelados");
+
+console.log("13) Os erros contam-se, e param no máximo...");
+for (let i = 0; i < 8; i += 1) await guest.click("#hangman-miss-btn");
+await host.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.misses || 0) >= 6, code, { timeout: 8000 });
+const misses = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses, code);
+console.log(`   erros depois de 8 cliques: ${misses} (o máximo é 6)`);
+if (misses !== 6) fail(`os erros deviam parar em 6, estão em ${misses}`);
+
+console.log("14) Acertar a palavra toda marca-a como resolvida...");
+await guest.fill("#hangman-letter-input", "");
+await guest.click("#hangman-reveal-btn");
+await host.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman.solved === true, code, { timeout: 8000 });
+const textoFinal = await host.locator("#hangman-misses").textContent();
+console.log(`   a Ana lê: "${textoFinal.trim()}"`);
+if (!textoFinal.includes("Acertaram")) fail("o fim de jogo devia aparecer a toda a gente");
+
+console.log("15) 'Outra palavra' limpa tudo e volta à caixa de escrever...");
+await guest.click("#hangman-newword-btn");
+await host.waitForFunction((c) => !window.__testDb.get(`rooms/${c}`).hangman.mask, code, { timeout: 8000 });
+if (!(await guest.locator("#hangman-word-form").isVisible())) fail("devia voltar a caixa de escrever a palavra");
+if (await host.locator("#hangman-word-zone").isVisible()) fail("a zona da palavra devia desaparecer sem palavra definida");
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

@@ -663,6 +663,73 @@ export async function passHangmanPenRandom(code, room, uid) {
 // para funcionar em qualquer tamanho de ecrã) e escreve a lista completa
 // resultante, cortada ao limite — os traços mais antigos vão desaparecendo
 // para dar lugar aos novos, como tinta limitada.
+// --- Modo Forca: a palavra e os espaços ---
+//
+// A PALAVRA NUNCA VAI PARA A SALA. Só viaja a sua FORMA: os espaços por
+// preencher, com os brancos e os hífens no sítio. Isto não é preciosismo —
+// este jogo não tem servidor, cada cliente lê a base de dados toda, e uma
+// palavra guardada na sala seria legível por qualquer jogador que abrisse as
+// ferramentas do browser. Como se adivinha em voz alta e é quem tem a caneta
+// que arbitra, guardar só a forma não tira nada ao jogo e tira a tentação.
+export const HANGMAN_MAX_MISSES = 6;
+
+// Letras viram "_"; brancos, hífens e pontuação ficam à vista, porque é isso
+// que diz se são duas palavras ou uma palavra composta.
+export function maskWord(word) {
+  return String(word || "")
+    .split("")
+    .map((ch) => (/[\p{L}\p{N}]/u.test(ch) ? "_" : ch))
+    .join("");
+}
+
+// Revela todas as posições de uma letra. Recebe a palavra (que só existe no
+// browser de quem tem a caneta) e a máscara atual, e devolve a máscara nova.
+export function revealLetter(word, mask, letter) {
+  const w = String(word || "");
+  const m = String(mask || "");
+  const alvo = String(letter || "").toLocaleLowerCase("pt");
+  if (!alvo) return m;
+  return w
+    .split("")
+    .map((ch, i) => (ch.toLocaleLowerCase("pt") === alvo ? ch : m[i] ?? maskWord(ch)))
+    .join("");
+}
+
+export function maskIsSolved(mask) {
+  return !!mask && !mask.includes("_");
+}
+
+export async function setHangmanPuzzle(code, room, uid, mask) {
+  if (room?.hangman?.leaderId !== uid) return;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    mask: mask || null,
+    misses: 0,
+    solved: false,
+    hands: null,
+  });
+}
+
+export async function updateHangmanMask(code, room, uid, mask) {
+  if (room?.hangman?.leaderId !== uid) return;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    mask,
+    solved: maskIsSolved(mask),
+  });
+}
+
+export async function addHangmanMiss(code, room, uid) {
+  if (room?.hangman?.leaderId !== uid) return;
+  const misses = Math.min(HANGMAN_MAX_MISSES, (room.hangman.misses || 0) + 1);
+  await update(ref(db, `rooms/${code}/hangman`), { misses });
+}
+
+export async function clearHangmanPuzzle(code, room, uid) {
+  if (room?.hangman?.leaderId !== uid) return;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    mask: null, misses: 0, solved: false, hands: null,
+  });
+}
+
 // --- Votações do quadro ---
 // A regra é sempre a mesma: MAIORIA DOS LIGADOS, não maioria de quem votou.
 // Com "maioria de quem votou", um só jogador a votar depressa decidia por
@@ -747,6 +814,11 @@ export async function applyBoardVotes(code, room) {
     } else {
       patch.leaderId = hangman.leaderId || room.hostId;
     }
+    // A forma da palavra pertence a quem a escreveu: mudar de modo (ou de
+    // caneta, mais abaixo) começa de folha limpa.
+    patch.mask = null;
+    patch.misses = 0;
+    patch.solved = false;
     await update(ref(db, `rooms/${code}/hangman`), patch);
     return;
   }
@@ -759,6 +831,9 @@ export async function applyBoardVotes(code, room) {
       // Quem pediu a palavra pediu-a à ronda anterior; a fila não transita
       // para quem acabou de pegar na caneta.
       hands: null,
+      mask: null,
+      misses: 0,
+      solved: false,
     });
   }
 }

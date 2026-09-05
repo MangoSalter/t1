@@ -868,3 +868,39 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .hangman-toolbar .board-tool-name { display: none; }
   .hangman-mode-bar { padding: 5px 8px; gap: 6px; }
 }
+
+/* Zona da palavra do modo Forca: fora da folha, para o meio do quadro ficar
+   livre para quem desenha o enforcado. */
+.hangman-word-zone {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--card-bg); border-top: 2px solid var(--ink);
+}
+.hangman-role-viewer .hangman-word-zone { border-top-color: #9a958c; }
+.hangman-slots {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  font-size: 1.6rem; font-weight: 700; letter-spacing: 2px;
+}
+/* Cada letra é uma caixa com risco por baixo: assim vê-se de longe quantas
+   letras faltam, e onde acabam as palavras. */
+.hangman-slot { display: inline-block; min-width: 22px; text-align: center; border-bottom: 3px solid var(--ink); padding: 0 2px; }
+.hangman-slot-space { border-bottom: none; min-width: 18px; }
+.hangman-slot-punct { border-bottom: none; }
+.hangman-slot-filled { color: var(--success); }
+.hangman-misses { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+.hangman-misses[data-danger="1"] { color: var(--danger); }
+
+.hangman-word-form { display: flex; gap: 6px; align-items: center; flex: 1 1 260px; }
+.hangman-word-form input { flex: 1 1 auto; margin: 0; min-height: 44px; }
+.hangman-word-form button { width: auto; margin: 0; min-height: 44px; }
+.hangman-word-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hangman-word-tools input { width: 68px; margin: 0; min-height: 44px; text-align: center; }
+.hangman-secret { font-weight: 700; white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .hangman-slots { font-size: 1.2rem; letter-spacing: 1px; }
+  .hangman-slot { min-width: 16px; }
+  .hangman-secret { display: none; }
+}

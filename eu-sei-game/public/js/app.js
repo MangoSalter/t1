@@ -15,6 +15,8 @@ import {
   passHangmanPen, passHangmanPenRandom,
   BOARD_MODES, DEFAULT_BOARD_MODE, voteBoardMode, votePenHolder, applyBoardVotes,
   raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
+  maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
+  addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -869,6 +871,17 @@ const hangmanEls = {
   penVoteOverlay: document.getElementById("hangman-penvote-overlay"),
   penVoteList: document.getElementById("hangman-penvote-list"),
   penVoteCancelBtn: document.getElementById("hangman-penvote-cancel-btn"),
+  wordZone: document.getElementById("hangman-word-zone"),
+  slots: document.getElementById("hangman-slots"),
+  missesLabel: document.getElementById("hangman-misses"),
+  wordForm: document.getElementById("hangman-word-form"),
+  wordInput: document.getElementById("hangman-word-input"),
+  wordTools: document.getElementById("hangman-word-tools"),
+  secretLabel: document.getElementById("hangman-secret"),
+  letterInput: document.getElementById("hangman-letter-input"),
+  revealBtn: document.getElementById("hangman-reveal-btn"),
+  missBtn: document.getElementById("hangman-miss-btn"),
+  newWordBtn: document.getElementById("hangman-newword-btn"),
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
   clearBtn: document.getElementById("hangman-doodle-clear-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
@@ -1203,6 +1216,62 @@ hangmanEls.penVoteCancelBtn.addEventListener("click", hangmanClosePenVote);
 
 // Pedir a palavra: quem não tem a caneta levanta o braço para falar com o
 // grupo. É um botão de alternar — quem já falou baixa o braço.
+// A PALAVRA VIVE SÓ AQUI, no browser de quem tem a caneta. Para a sala vai
+// apenas a sua forma (ver maskWord em room.js): sem servidor, tudo o que
+// fosse guardado na sala era legível por qualquer jogador que abrisse as
+// ferramentas do browser, e o jogo acabava antes de começar.
+let hangmanSecretWord = "";
+
+hangmanEls.wordForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const word = hangmanEls.wordInput.value.trim();
+  if (!word) return;
+  hangmanSecretWord = word;
+  hangmanEls.wordInput.value = "";
+  await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(word));
+});
+
+hangmanEls.revealBtn.addEventListener("click", async () => {
+  const letra = hangmanEls.letterInput.value.trim();
+  hangmanEls.letterInput.value = "";
+  const mask = state.room?.hangman?.mask;
+  if (!mask) return;
+  // Sem letra escrita, "Acertaram" revela a palavra toda: é o fim de jogo
+  // normal quando o grupo diz a palavra de uma vez.
+  const nova = letra ? revealLetter(hangmanSecretWord, mask, letra) : hangmanSecretWord;
+  await updateHangmanMask(state.code, state.room, state.uid, nova);
+});
+
+hangmanEls.missBtn.addEventListener("click", () => addHangmanMiss(state.code, state.room, state.uid));
+hangmanEls.newWordBtn.addEventListener("click", () => {
+  hangmanSecretWord = "";
+  clearHangmanPuzzle(state.code, state.room, state.uid);
+});
+
+// Desenha os espaços por preencher. Cada letra é uma caixa com risco por
+// baixo; brancos e hífens ficam à vista, porque é isso que diz se são duas
+// palavras ou uma palavra composta.
+function renderHangmanSlots(mask) {
+  hangmanEls.slots.innerHTML = "";
+  [...String(mask || "")].forEach((ch) => {
+    const el = document.createElement("span");
+    if (ch === " ") {
+      el.className = "hangman-slot hangman-slot-space";
+      el.innerHTML = "&nbsp;";
+    } else if (ch === "_") {
+      el.className = "hangman-slot";
+      el.innerHTML = "&nbsp;";
+    } else if (/[\p{L}\p{N}]/u.test(ch)) {
+      el.className = "hangman-slot hangman-slot-filled";
+      el.textContent = ch;
+    } else {
+      el.className = "hangman-slot hangman-slot-punct";
+      el.textContent = ch;
+    }
+    hangmanEls.slots.appendChild(el);
+  });
+}
+
 hangmanEls.handBtn.addEventListener("click", () => {
   const raised = !!state.room?.hangman?.hands?.[state.uid];
   if (raised) lowerHand(state.code, state.uid);
@@ -1258,6 +1327,27 @@ function renderHangman(room) {
   const raised = !!hangman.hands?.[state.uid];
   hangmanEls.handBtn.textContent = raised ? "✋ Baixar o braço" : "✋ Pedir a palavra";
   hangmanEls.handBtn.setAttribute("aria-pressed", String(raised));
+
+  // --- Modo Forca: a palavra e os espaços ---
+  const naForca = mode === "forca";
+  const mask = hangman.mask || "";
+  const temPalavra = naForca && !!mask;
+  hangmanEls.wordZone.classList.toggle("hidden", !temPalavra);
+  hangmanEls.wordForm.classList.toggle("hidden", !(naForca && amLeader && !mask));
+  hangmanEls.wordTools.classList.toggle("hidden", !(naForca && amLeader && !!mask));
+  if (temPalavra) {
+    renderHangmanSlots(mask);
+    const misses = hangman.misses || 0;
+    hangmanEls.missesLabel.textContent = hangman.solved
+      ? "Acertaram! 🎉"
+      : `Erros: ${misses}/${HANGMAN_MAX_MISSES}${misses >= HANGMAN_MAX_MISSES ? " — enforcado!" : ""}`;
+    hangmanEls.missesLabel.dataset.danger = misses >= HANGMAN_MAX_MISSES - 1 && !hangman.solved ? "1" : "0";
+  }
+  if (amLeader && mask) {
+    // Só quem tem a caneta vê a palavra, e vê-a sempre — depois de a escrever
+    // ainda tem de a saber para julgar quem arrisca em voz alta.
+    hangmanEls.secretLabel.textContent = hangmanSecretWord ? `Palavra: ${hangmanSecretWord}` : "";
+  }
 
   const fila = handQueue(room).map((uid) => room.players[uid]?.name).filter(Boolean);
   hangmanEls.handQueue.textContent = fila.length

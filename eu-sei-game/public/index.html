@@ -653,8 +653,30 @@
 
     <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
 
+    <!-- Zona da palavra: fica FORA da folha de propósito. Os espaços por
+         preencher ocupariam o meio do quadro, que é justamente onde quem tem
+         a caneta precisa de espaço para ir desenhando o enforcado. -->
+    <div class="hangman-word-zone hidden" id="hangman-word-zone">
+      <div class="hangman-slots" id="hangman-slots"></div>
+      <span class="hangman-misses" id="hangman-misses"></span>
+    </div>
+
     <!-- zona 3 / zona a: a barra de baixo, que muda com o modo e com o papel -->
     <div class="hangman-mode-bar" id="hangman-mode-bar">
+      <!-- Só para quem tem a caneta, e só no modo Forca. -->
+      <form class="hangman-word-form hidden" id="hangman-word-form">
+        <input id="hangman-word-input" type="text" maxlength="40" autocomplete="off"
+               placeholder="Palavra a adivinhar (só tu a vês)" aria-label="Palavra a adivinhar" />
+        <button type="submit" class="primary">Definir</button>
+      </form>
+      <div class="hangman-word-tools hidden" id="hangman-word-tools">
+        <span class="hangman-secret" id="hangman-secret"></span>
+        <input id="hangman-letter-input" type="text" maxlength="1" autocomplete="off"
+               placeholder="Letra" aria-label="Revelar uma letra" />
+        <button type="button" id="hangman-reveal-btn" class="ghost">✅ Acertaram</button>
+        <button type="button" id="hangman-miss-btn" class="ghost">❌ Errou</button>
+        <button type="button" id="hangman-newword-btn" class="ghost">🔁 Outra palavra</button>
+      </div>
       <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
       <button id="hangman-hand-btn" type="button" class="ghost hidden">✋ Pedir a palavra</button>
       <span id="hangman-hand-queue" class="hint small"></span>

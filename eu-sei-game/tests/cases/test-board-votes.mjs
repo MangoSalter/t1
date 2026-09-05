@@ -62,3 +62,34 @@ check("modos completos", maus.map(([k]) => k), []);
 
 console.log(falhas === 0 ? "\n=> test-board-votes ok" : `\n=> test-board-votes FALHOU (${falhas})`);
 if (falhas > 0) process.exitCode = 1;
+
+console.log("9) A forma da palavra mostra o que deve e esconde o que deve...");
+const { maskWord, revealLetter, maskIsSolved } = await import("./js/room.js");
+const check2 = (nome, real, esperado) => {
+  const ok = real === esperado;
+  console.log(`   ${ok ? "ok" : "FALHOU"}  ${nome}${ok ? "" : ` — esperava "${esperado}", tenho "${real}"`}`);
+  if (!ok) process.exitCode = 1;
+};
+// O que interessa: quantas letras, onde acabam as palavras, e se há hífen.
+check2("palavra simples", maskWord("Manga"), "_____");
+check2("duas palavras", maskWord("Dona Manga"), "____ _____");
+check2("com hífen", maskWord("guarda-chuva"), "______-_____");
+check2("com acentos (contam como letra)", maskWord("café"), "____");
+check2("com número", maskWord("A4"), "__");
+
+console.log("10) Revelar uma letra revela TODAS as suas posições...");
+check2("todos os 'a' de banana", revealLetter("banana", "______", "a"), "_a_a_a");
+// Procurar não distingue maiúsculas de minúsculas, mas o que aparece é a
+// letra COMO ELA ESTÁ na palavra — senão "Ana" revelava-se como "ANA".
+check2("procura sem acentos de caixa, revela como está escrito", revealLetter("Ana", "___", "A"), "A_a");
+check2("minúscula encontra a maiúscula", revealLetter("Ana", "___", "a"), "A_a");
+check2("letra que não existe não muda nada", revealLetter("banana", "______", "z"), "______");
+check2("respeita o que já estava revelado", revealLetter("banana", "_a_a_a", "n"), "_anana");
+check2("brancos ficam onde estão", revealLetter("dona manga", maskWord("dona manga"), "a"), "___a _a__a");
+
+console.log("11) Resolvido é quando não sobra nenhum espaço...");
+const solved = (m) => (maskIsSolved(m) ? "sim" : "nao");
+check2("ainda por acabar", solved("_an_na"), "nao");
+check2("acabada", solved("banana"), "sim");
+check2("com branco no meio", solved("dona manga"), "sim");
+check2("vazia não conta como acabada", solved(""), "nao");
