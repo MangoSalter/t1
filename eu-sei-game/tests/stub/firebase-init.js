@@ -194,8 +194,40 @@ export async function remove(r) {
   notifyPath(r.path, "set", null);
 }
 
-export function onDisconnect() {
-  return { set: async () => {} };
+// onDisconnect a sério. Era um vazio que não fazia nada, e por isso fechar um
+// separador não marcava ninguém como desligado — no jogo real a Firebase
+// escreve o valor combinado assim que a ligação cai. Sem isto, nenhum teste
+// conseguia ver o que acontece à sala quando alguém sai a meio, que é das
+// coisas que mais acontece a jogar de verdade.
+//
+// Aqui a "queda da ligação" é a página a fechar-se: guarda-se o que ficou
+// combinado e escreve-se no pagehide, difundindo para os outros separadores
+// como qualquer outra escrita.
+const pendingOnDisconnect = [];
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    pendingOnDisconnect.forEach(({ path, value }) => {
+      try {
+        setAt(splitPath(path), value);
+        publishShared("set", path, value);
+      } catch {
+        // A página está a fechar-se: não há nada a fazer com um erro aqui.
+      }
+    });
+  });
+}
+
+export function onDisconnect(r) {
+  return {
+    set: async (value) => {
+      pendingOnDisconnect.push({ path: r.path, value });
+    },
+    cancel: async () => {
+      const i = pendingOnDisconnect.findIndex((p) => p.path === r.path);
+      if (i >= 0) pendingOnDisconnect.splice(i, 1);
+    },
+  };
 }
 
 export function serverTimestamp() {
