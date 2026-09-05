@@ -97,3 +97,44 @@ check2("ainda por acabar", solved("_an_na"), "nao");
 check2("acabada", solved("banana"), "sim");
 check2("com branco no meio", solved("dona manga"), "sim");
 check2("vazia não conta como acabada", solved(""), "nao");
+
+console.log("12) Definições do jogo: valores por omissão e validação...");
+const { boardSetting, maxMissesOf, BOARD_SETTINGS_SPEC, freeGuessing, canGuessNow } = await import("./js/room.js");
+const vazia = { hangman: { mode: "forca" } };
+check2("erros por omissão", String(boardSetting(vazia, "forca", "maxMisses")), "6");
+check2("quem arrisca por omissão", String(boardSetting(vazia, "forca", "guessMode")), "turnos");
+// Um valor inventado não pode passar: cairia num teto que ninguém escolheu.
+const inventado = { hangman: { mode: "forca", settings: { maxMisses: 99 } } };
+check2("valor inválido cai no valor por omissão", String(boardSetting(inventado, "forca", "maxMisses")), "6");
+check2("chave que não existe", String(boardSetting(vazia, "forca", "naoExiste")), "null");
+check2("modo sem definições", String((BOARD_SETTINGS_SPEC.livre || []).length), "0");
+
+console.log("13) 'Sem limite' é 0, e 0 não pode ser lido como 'nenhum erro permitido'...");
+// Este é o engano fácil: um teto de 0 lido como número faz "misses >= 0"
+// dar verdadeiro logo à primeira, e o jogo acabava enforcado sem nenhum erro.
+const semLimite = { hangman: { mode: "forca", settings: { maxMisses: 0 } } };
+check2("sem limite", String(maxMissesOf(semLimite)), "0");
+check2("normal", String(maxMissesOf(vazia)), "6");
+const teto = maxMissesOf(semLimite);
+check2("com teto 0 o jogo NÃO acaba", String(teto > 0 && 0 >= teto), "false");
+check2("com teto 6 e 6 erros o jogo acaba", String(6 >= maxMissesOf(vazia)), "true");
+
+console.log("14) 'Qualquer um arrisca' tira a vez...");
+const salaForca = (settings) => ({
+  hostId: "a",
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true } },
+  hangman: { mode: "forca", leaderId: "a", mask: "___", turnUid: "b", settings },
+});
+check2("por turnos: só o da vez", String(canGuessNow(salaForca({}), "b")), "true");
+check2("por turnos: o outro espera", String(canGuessNow(salaForca({}), "c")), "false");
+check2("livre: qualquer um", String(canGuessNow(salaForca({ guessMode: "livre" }), "c")), "true");
+check2("mas nunca quem tem a caneta", String(canGuessNow(salaForca({ guessMode: "livre" }), "a")), "false");
+check2("nem quem já tem uma tentativa pendente", String(canGuessNow({
+  ...salaForca({ guessMode: "livre" }),
+  hangman: { ...salaForca({ guessMode: "livre" }).hangman, guesses: { c: { letter: "x" } } },
+}, "c")), "false");
+check2("nem depois de acertada", String(canGuessNow({
+  ...salaForca({}),
+  hangman: { ...salaForca({}).hangman, solved: true },
+}, "b")), "false");
+check2("livre lê-se das definições", String(freeGuessing(salaForca({ guessMode: "livre" }))), "true");

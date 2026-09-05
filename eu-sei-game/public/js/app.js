@@ -24,6 +24,8 @@ import {
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool,
+  BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
+  freeGuessing,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -880,6 +882,11 @@ const hangmanEls = {
   penVoteList: document.getElementById("hangman-penvote-list"),
   penVoteCancelBtn: document.getElementById("hangman-penvote-cancel-btn"),
   backToFreeBtn: document.getElementById("hangman-backtofree-btn"),
+  settingsBtn: document.getElementById("hangman-settings-btn"),
+  settingsBtnViewer: document.getElementById("hangman-settings-btn-viewer"),
+  settingsOverlay: document.getElementById("hangman-settings-overlay"),
+  settingsList: document.getElementById("hangman-settings-list"),
+  settingsCloseBtn: document.getElementById("hangman-settings-close-btn"),
   wordZone: document.getElementById("hangman-word-zone"),
   slots: document.getElementById("hangman-slots"),
   missesLabel: document.getElementById("hangman-misses"),
@@ -1402,6 +1409,55 @@ function hangmanClosePenVote() {
   hangmanEls.penVoteOverlay.classList.add("hidden");
 }
 
+// --- Definições do jogo ---
+
+function hangmanOpenSettings() {
+  const room = state.room;
+  if (!room?.hangman) return;
+  const modo = room.hangman.mode || DEFAULT_BOARD_MODE;
+  const spec = BOARD_SETTINGS_SPEC[modo] || [];
+  hangmanEls.settingsList.innerHTML = "";
+  if (spec.length === 0) {
+    hangmanEls.settingsList.innerHTML = '<p class="hint small">Este modo não tem nada para definir.</p>';
+  }
+  spec.forEach((def) => {
+    const atual = boardSetting(room, modo, def.key);
+    const bloco = document.createElement("div");
+    const label = document.createElement("span");
+    label.className = "hangman-setting-label";
+    label.textContent = def.label;
+    bloco.appendChild(label);
+    const linha = document.createElement("div");
+    linha.className = "hangman-setting-options";
+    def.options.forEach((op) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.dataset.setting = def.key;
+      btn.dataset.settingValue = String(op.value);
+      btn.textContent = op.label;
+      btn.setAttribute("aria-pressed", String(op.value === atual));
+      btn.addEventListener("click", async () => {
+        await setBoardSetting(state.code, state.room, state.uid, def.key, op.value);
+        // Só refresca se ainda estiver aberto — mesma razão da votação da
+        // caneta: entre o clique e o fim do await o ecrã pode já ter fechado.
+        if (!hangmanEls.settingsOverlay.classList.contains("hidden")) hangmanOpenSettings();
+      });
+      linha.appendChild(btn);
+    });
+    bloco.appendChild(linha);
+    hangmanEls.settingsList.appendChild(bloco);
+  });
+  hangmanEls.settingsOverlay.classList.remove("hidden");
+}
+
+function hangmanCloseSettings() {
+  hangmanEls.settingsOverlay.classList.add("hidden");
+}
+
+hangmanEls.settingsBtn.addEventListener("click", hangmanOpenSettings);
+hangmanEls.settingsBtnViewer.addEventListener("click", hangmanOpenSettings);
+hangmanEls.settingsCloseBtn.addEventListener("click", hangmanCloseSettings);
+
 hangmanEls.modeBtn.addEventListener("click", hangmanOpenModePicker);
 hangmanEls.modeBtnViewer.addEventListener("click", hangmanOpenModePicker);
 hangmanEls.modeCancelBtn.addEventListener("click", hangmanCloseModePicker);
@@ -1629,6 +1685,10 @@ function renderHangman(room) {
   // (zona a), que é onde o esboço os põe.
   hangmanEls.modeBtn.classList.toggle("hidden", !(mandaNoQuadro && amLeader));
   hangmanEls.modeBtnViewer.classList.toggle("hidden", !(mandaNoQuadro && !amLeader));
+  const temDefinicoes = (BOARD_SETTINGS_SPEC[mode] || []).length > 0;
+  hangmanEls.settingsBtn.classList.toggle("hidden", !(mandaNoQuadro && amLeader && temDefinicoes));
+  hangmanEls.settingsBtnViewer.classList.toggle("hidden", !(mandaNoQuadro && !amLeader && temDefinicoes));
+  if (!hangmanEls.settingsOverlay.classList.contains("hidden") && !temDefinicoes) hangmanCloseSettings();
   // Pedir a palavra é de quem NÃO tem a caneta — quem desenha já a tem.
   hangmanEls.handBtn.classList.toggle("hidden", amLeader || mode !== "forca");
   const raised = !!hangman.hands?.[state.uid];
@@ -1672,13 +1732,17 @@ function renderHangman(room) {
   // As duas vias de arriscar, como pedido: quem tem a caneta escreve a letra
   // que ouviu por voz (clicando num espaço), e quem está na vez arrisca ele
   // próprio pela caixinha. Nenhuma exclui a outra.
-  const possoArriscar = naForca && !!mask && !hangman.solved && !amLeader && daVez === state.uid && !hangman.guesses?.[state.uid];
+  const possoArriscar = naForca && canGuessNow(room, state.uid);
   hangmanEls.guessForm.classList.toggle("hidden", !possoArriscar);
   if (naForca && mask && !hangman.solved) {
     const nomeDaVez = room.players?.[daVez]?.name;
-    hangmanEls.turnLabel.textContent = daVez === state.uid
-      ? (hangman.guesses?.[state.uid] ? "A tua letra está a ser verificada..." : "É a tua vez de arriscar.")
-      : (nomeDaVez ? `É a vez de ${nomeDaVez}.` : "");
+    if (freeGuessing(room)) {
+      hangmanEls.turnLabel.textContent = amLeader ? "" : "Arrisca quando quiseres.";
+    } else {
+      hangmanEls.turnLabel.textContent = daVez === state.uid
+        ? (hangman.guesses?.[state.uid] ? "A tua letra está a ser verificada..." : "É a tua vez de arriscar.")
+        : (nomeDaVez ? `É a vez de ${nomeDaVez}.` : "");
+    }
   } else {
     hangmanEls.turnLabel.textContent = "";
   }
@@ -1686,17 +1750,27 @@ function renderHangman(room) {
 
   // A pista fica na faixa de baixo, fora da folha: à vista de todos sem
   // atrapalhar quem está a desenhar no meio do quadro.
-  const pista = temPalavra ? (hangman.hint || "") : "";
+  // A pista pode estar escondida até ao primeiro erro, se assim for definido:
+  // dá uma primeira tentativa mais difícil e uma ajuda a quem tropeça.
+  const pistaSempre = boardSetting(room, "forca", "showHintAlways") !== 0;
+  const podeVerPista = pistaSempre || (hangman.misses || 0) > 0 || amLeader;
+  const pista = temPalavra && podeVerPista ? (hangman.hint || "") : "";
   hangmanEls.hintLabel.classList.toggle("hidden", !pista);
   hangmanEls.hintLabel.textContent = pista ? `Pista: ${pista}` : "";
 
   if (temPalavra) {
     renderHangmanSlots(mask, amLeader);
     const misses = hangman.misses || 0;
-    hangmanEls.missesLabel.textContent = hangman.solved
-      ? "Acertaram! 🎉"
-      : `Erros: ${misses}/${HANGMAN_MAX_MISSES}${misses >= HANGMAN_MAX_MISSES ? " — enforcado!" : ""}`;
-    hangmanEls.missesLabel.dataset.danger = misses >= HANGMAN_MAX_MISSES - 1 && !hangman.solved ? "1" : "0";
+    const teto = maxMissesOf(room);
+    if (hangman.solved) {
+      hangmanEls.missesLabel.textContent = "Acertaram! 🎉";
+    } else if (teto > 0) {
+      hangmanEls.missesLabel.textContent = `Erros: ${misses}/${teto}${misses >= teto ? " — enforcado!" : ""}`;
+    } else {
+      // Sem limite: os erros continuam a contar-se, só não acabam o jogo.
+      hangmanEls.missesLabel.textContent = `Erros: ${misses}`;
+    }
+    hangmanEls.missesLabel.dataset.danger = teto > 0 && misses >= teto - 1 && !hangman.solved ? "1" : "0";
   }
   if (amLeader && mask) {
     // Só quem tem a caneta vê a palavra, e vê-a sempre — depois de a escrever

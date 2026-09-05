@@ -698,6 +698,69 @@ export async function passHangmanPenRandom(code, room, uid) {
 // que arbitra, guardar só a forma não tira nada ao jogo e tira a tentação.
 export const HANGMAN_MAX_MISSES = 6;
 
+// --- Definições do jogo ---
+// Definem-se ANTES de começar e ficam guardadas na sala: quem manda no quadro
+// escolhe uma vez e vale para todas as palavras seguintes, em vez de as ter de
+// reescolher a cada ronda.
+export const BOARD_SETTINGS_SPEC = {
+  forca: [
+    {
+      key: "maxMisses",
+      label: "Erros permitidos",
+      // 0 é "sem limite" de propósito: é o modo de jogar com crianças, ou
+      // quando a palavra é difícil e ninguém quer perder por causa disso.
+      options: [
+        { value: 3, label: "3 (difícil)" },
+        { value: 6, label: "6 (normal)" },
+        { value: 10, label: "10 (fácil)" },
+        { value: 0, label: "Sem limite" },
+      ],
+      default: 6,
+    },
+    {
+      key: "guessMode",
+      label: "Quem arrisca",
+      options: [
+        { value: "turnos", label: "À vez, um de cada vez" },
+        { value: "livre", label: "Qualquer um, quando quiser" },
+      ],
+      default: "turnos",
+    },
+    {
+      key: "showHintAlways",
+      label: "Pista",
+      options: [
+        { value: 1, label: "Sempre à vista" },
+        { value: 0, label: "Só depois do primeiro erro" },
+      ],
+      default: 1,
+    },
+  ],
+  livre: [],
+};
+
+export function boardSetting(room, modeKey, key) {
+  const spec = (BOARD_SETTINGS_SPEC[modeKey] || []).find((d) => d.key === key);
+  if (!spec) return null;
+  const guardado = room?.hangman?.settings?.[key];
+  const valido = spec.options.some((o) => o.value === guardado);
+  return valido ? guardado : spec.default;
+}
+
+export function maxMissesOf(room) {
+  const v = boardSetting(room, "forca", "maxMisses");
+  return v === null ? HANGMAN_MAX_MISSES : v;
+}
+
+export async function setBoardSetting(code, room, uid, key, value) {
+  if (!canSetBoardMode(room, uid)) return false;
+  const modo = room?.hangman?.mode || DEFAULT_BOARD_MODE;
+  const spec = (BOARD_SETTINGS_SPEC[modo] || []).find((d) => d.key === key);
+  if (!spec || !spec.options.some((o) => o.value === value)) return false;
+  await set(ref(db, `rooms/${code}/hangman/settings/${key}`), value);
+  return true;
+}
+
 // Ao comparar letras, os acentos não contam. Quem arrisca "c" está a arriscar
 // o "ç" de "coração", e quem arrisca "e" está a arriscar o "é" de "café" —
 // obrigar a acertar o acento seria adivinhar ortografia, não a palavra. O que
@@ -784,6 +847,10 @@ export function nextGuesser(room, afterUid) {
   return fila[(i + 1) % fila.length];
 }
 
+export function freeGuessing(room) {
+  return boardSetting(room, "forca", "guessMode") === "livre";
+}
+
 export function currentGuesser(room) {
   const fila = hangmanGuessers(room);
   if (fila.length === 0) return null;
@@ -791,12 +858,17 @@ export function currentGuesser(room) {
   return fila.includes(turno) ? turno : fila[0];
 }
 
+export function canGuessNow(room, uid) {
+  if (!room?.hangman?.mask || room.hangman.solved) return false;
+  if (!hangmanGuessers(room).includes(uid)) return false;
+  if (room.hangman.guesses?.[uid]) return false;
+  return freeGuessing(room) || currentGuesser(room) === uid;
+}
+
 export async function submitLetterGuess(code, room, uid, letter) {
   const letra = String(letter || "").trim().slice(0, 1);
   if (!letra) return false;
-  if (!room?.hangman?.mask) return false;
-  if (currentGuesser(room) !== uid) return false;
-  if (room.hangman.guesses?.[uid]) return false;
+  if (!canGuessNow(room, uid)) return false;
   await set(ref(db, `rooms/${code}/hangman/guesses/${uid}`), { letter: letra, at: serverNow() });
   return true;
 }
@@ -835,7 +907,9 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     const jaEsteve = !!room.hangman.wrong?.[letter];
     patch[`wrong/${letter}`] = { uid: guesserUid, at: serverNow() };
     if (!jaEsteve) {
-      patch.misses = Math.min(HANGMAN_MAX_MISSES, (room.hangman.misses || 0) + 1);
+      const teto = maxMissesOf(room);
+      const proximos = (room.hangman.misses || 0) + 1;
+      patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
     }
   }
   await update(ref(db, `rooms/${code}/hangman`), patch);
@@ -876,8 +950,13 @@ export async function updateHangmanMask(code, room, uid, mask) {
 
 export async function addHangmanMiss(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
-  const misses = Math.min(HANGMAN_MAX_MISSES, (room.hangman.misses || 0) + 1);
-  await update(ref(db, `rooms/${code}/hangman`), { misses });
+  const teto = maxMissesOf(room);
+  const proximos = (room.hangman.misses || 0) + 1;
+  // Sem limite (teto 0) os erros continuam a contar-se: contam-se para se
+  // saber quantos foram, só não acabam o jogo.
+  await update(ref(db, `rooms/${code}/hangman`), {
+    misses: teto > 0 ? Math.min(teto, proximos) : proximos,
+  });
 }
 
 export async function clearHangmanPuzzle(code, room, uid) {

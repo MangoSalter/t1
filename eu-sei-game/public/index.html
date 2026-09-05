@@ -643,7 +643,8 @@
 
       <!-- zona 2: opções do quadro -->
       <div class="hangman-board-zone" id="hangman-board-zone">
-        <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
+        <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
+        <button id="hangman-settings-btn" type="button" class="ghost hidden">⚙️ Definições</button>
         <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
         <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
         <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
@@ -695,7 +696,8 @@
         <button type="button" id="hangman-passturn-btn" class="ghost">⏭️ Saltar a vez</button>
         <button type="button" id="hangman-newword-btn" class="ghost">🔁 Outra palavra</button>
       </div>
-      <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
+      <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
+      <button id="hangman-settings-btn-viewer" type="button" class="ghost hidden">⚙️ Definições</button>
       <form class="hangman-guess-form hidden" id="hangman-guess-form">
         <input id="hangman-guess-input" type="text" maxlength="1" autocomplete="off"
                placeholder="Letra" aria-label="Arriscar uma letra" />
@@ -919,6 +921,16 @@
       <p class="hint small">É a cor com que as tuas tentativas vão aparecer no quadro.</p>
       <div id="hangman-color-choices" class="hangman-color-choices"></div>
       <p id="hangman-color-waiting" class="hint small"></p>
+    </div>
+  </div>
+
+  <!-- Definições do jogo: definem-se antes de começar e ficam na sala. -->
+  <div id="hangman-settings-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Definições do jogo</h2>
+      <p class="hint small">Valem para a sala toda e para as palavras seguintes.</p>
+      <div id="hangman-settings-list" class="hangman-settings-list"></div>
+      <button type="button" id="hangman-settings-close-btn" class="primary">Pronto</button>
     </div>
   </div>
 
