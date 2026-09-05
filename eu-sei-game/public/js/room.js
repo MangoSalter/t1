@@ -724,6 +724,121 @@ export function maskIsSolved(mask) {
   return !!mask && !mask.includes("_");
 }
 
+// --- Cores dos jogadores ---
+// Cada jogador escolhe a sua ao entrar no modo. Serve para as tentativas
+// erradas no topo do quadro dizerem QUEM as disse sem ter de escrever o nome
+// ao lado de cada letra.
+export const HANGMAN_PLAYER_COLORS = [
+  "#b24b38", "#5c7e91", "#5b7442", "#e3a53d", "#7a4fb5",
+  "#2f7d6e", "#d1691f", "#c2569b", "#3a3126", "#8a8a8a",
+];
+
+export function takenHangmanColors(room, exceptUid) {
+  const cores = room?.hangman?.colors || {};
+  const ligados = connectedPlayerIds(room);
+  return Object.entries(cores)
+    .filter(([uid]) => uid !== exceptUid && ligados.includes(uid))
+    .map(([, cor]) => cor);
+}
+
+export async function pickHangmanColor(code, room, uid, color) {
+  if (!HANGMAN_PLAYER_COLORS.includes(color)) return false;
+  // Duas pessoas com a mesma cor tornavam as letras erradas ilegíveis: não se
+  // saberia de quem era qual, que é a única coisa que a cor está aqui a fazer.
+  if (takenHangmanColors(room, uid).includes(color)) return false;
+  await set(ref(db, `rooms/${code}/hangman/colors/${uid}`), color);
+  return true;
+}
+
+export function playerColor(room, uid) {
+  return room?.hangman?.colors?.[uid] || "#3a3126";
+}
+
+// --- Tentativas de letra ---
+//
+// Quem arrisca é qualquer jogador que não tenha a caneta, uma letra de cada
+// vez. Quem JULGA é sempre o cliente de quem tem a caneta, porque só esse
+// browser conhece a palavra (ver maskWord). Não há aqui um servidor a
+// arbitrar: há uma pessoa, e é a mesma que já arbitrava por voz.
+export function hangmanGuessers(room) {
+  return connectedPlayerIds(room).filter((uid) => uid !== room?.hangman?.leaderId);
+}
+
+// A vez roda entre quem arrisca. Se quem estava na vez sair, passa ao
+// seguinte em vez de o jogo ficar à espera de alguém que já não está.
+export function nextGuesser(room, afterUid) {
+  const fila = hangmanGuessers(room);
+  if (fila.length === 0) return null;
+  const i = fila.indexOf(afterUid);
+  return fila[(i + 1) % fila.length];
+}
+
+export function currentGuesser(room) {
+  const fila = hangmanGuessers(room);
+  if (fila.length === 0) return null;
+  const turno = room?.hangman?.turnUid;
+  return fila.includes(turno) ? turno : fila[0];
+}
+
+export async function submitLetterGuess(code, room, uid, letter) {
+  const letra = String(letter || "").trim().slice(0, 1);
+  if (!letra) return false;
+  if (!room?.hangman?.mask) return false;
+  if (currentGuesser(room) !== uid) return false;
+  if (room.hangman.guesses?.[uid]) return false;
+  await set(ref(db, `rooms/${code}/hangman/guesses/${uid}`), { letter: letra, at: serverNow() });
+  return true;
+}
+
+export async function passGuessTurn(code, room, uid) {
+  if (room?.hangman?.leaderId !== uid) return;
+  await set(ref(db, `rooms/${code}/hangman/turnUid`), nextGuesser(room, currentGuesser(room)));
+}
+
+export function letterAlreadyTried(room, letter) {
+  const letra = String(letter || "").toLocaleLowerCase("pt");
+  if (!letra) return false;
+  const erradas = room?.hangman?.wrong || {};
+  if (Object.keys(erradas).some((l) => !!erradas[l] && l.toLocaleLowerCase("pt") === letra)) return true;
+  return String(room?.hangman?.mask || "").toLocaleLowerCase("pt").includes(letra);
+}
+
+// Resolve UMA tentativa. Corre só no cliente de quem tem a caneta, que passa
+// a palavra como argumento — ela nunca entra na base de dados.
+export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
+  if (room?.hangman?.leaderId !== uid) return null;
+  const mask = room.hangman.mask || "";
+  const nova = revealLetter(word, mask, letter);
+  const acertou = nova !== mask;
+  const patch = {
+    [`guesses/${guesserUid}`]: null,
+    turnUid: nextGuesser(room, guesserUid),
+  };
+  if (acertou) {
+    patch.mask = nova;
+    patch.solved = maskIsSolved(nova);
+  } else {
+    // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
+    // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma
+    // letra é distração, não é uma tentativa a mais.
+    const jaEsteve = !!room.hangman.wrong?.[letter];
+    patch[`wrong/${letter}`] = { uid: guesserUid, at: serverNow() };
+    if (!jaEsteve) {
+      patch.misses = Math.min(HANGMAN_MAX_MISSES, (room.hangman.misses || 0) + 1);
+    }
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return acertou;
+}
+
+export function wrongLetters(room) {
+  const wrong = room?.hangman?.wrong || {};
+  return Object.entries(wrong)
+    .filter(([, info]) => !!info)
+    .sort((a, b) => (a[1]?.at || 0) - (b[1]?.at || 0))
+    .map(([letter, info]) => ({ letter, uid: info?.uid || null }));
+}
+
 export async function setHangmanPuzzle(code, room, uid, mask) {
   if (room?.hangman?.leaderId !== uid) return;
   await update(ref(db, `rooms/${code}/hangman`), {
@@ -731,6 +846,9 @@ export async function setHangmanPuzzle(code, room, uid, mask) {
     misses: 0,
     solved: false,
     hands: null,
+    wrong: null,
+    guesses: null,
+    turnUid: null,
   });
 }
 
@@ -752,6 +870,7 @@ export async function clearHangmanPuzzle(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
   await update(ref(db, `rooms/${code}/hangman`), {
     mask: null, misses: 0, solved: false, hands: null,
+    wrong: null, guesses: null, turnUid: null,
   });
 }
 
@@ -844,6 +963,9 @@ export async function applyBoardVotes(code, room) {
     patch.mask = null;
     patch.misses = 0;
     patch.solved = false;
+    patch.wrong = null;
+    patch.guesses = null;
+    patch.turnUid = null;
     await update(ref(db, `rooms/${code}/hangman`), patch);
     return;
   }
@@ -859,6 +981,9 @@ export async function applyBoardVotes(code, room) {
       mask: null,
       misses: 0,
       solved: false,
+      wrong: null,
+      guesses: null,
+      turnUid: null,
     });
   }
 }

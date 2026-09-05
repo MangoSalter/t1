@@ -651,13 +651,26 @@
       <span id="hangman-status" class="hint small"></span>
     </div>
 
-    <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+    <!-- A folha e as duas faixas da Forca vivem na mesma caixa: as faixas
+         ficam POR CIMA da folha, encostadas ao topo e ao fundo, para não lhe
+         roubarem altura. O meio, que é onde se desenha o enforcado, fica
+         livre. -->
+    <div class="hangman-canvas-wrap">
+      <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+      <div class="hangman-wrong-strip hidden" id="hangman-wrong-strip">
+        <span class="hangman-wrong-label">Erradas:</span>
+        <span id="hangman-wrong-letters"></span>
+      </div>
+      <div class="hangman-slots-strip hidden" id="hangman-slots-strip">
+        <div class="hangman-slots" id="hangman-slots"></div>
+      </div>
+    </div>
 
     <!-- Zona da palavra: fica FORA da folha de propósito. Os espaços por
          preencher ocupariam o meio do quadro, que é justamente onde quem tem
          a caneta precisa de espaço para ir desenhando o enforcado. -->
     <div class="hangman-word-zone hidden" id="hangman-word-zone">
-      <div class="hangman-slots" id="hangman-slots"></div>
+      <span class="hangman-players" id="hangman-players"></span>
       <span class="hangman-misses" id="hangman-misses"></span>
     </div>
 
@@ -675,9 +688,16 @@
                placeholder="Letra" aria-label="Revelar uma letra" />
         <button type="button" id="hangman-reveal-btn" class="ghost">✅ Acertaram</button>
         <button type="button" id="hangman-miss-btn" class="ghost">❌ Errou</button>
+        <button type="button" id="hangman-passturn-btn" class="ghost">⏭️ Saltar a vez</button>
         <button type="button" id="hangman-newword-btn" class="ghost">🔁 Outra palavra</button>
       </div>
       <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
+      <form class="hangman-guess-form hidden" id="hangman-guess-form">
+        <input id="hangman-guess-input" type="text" maxlength="1" autocomplete="off"
+               placeholder="Letra" aria-label="Arriscar uma letra" />
+        <button type="submit" class="primary">Arriscar</button>
+      </form>
+      <span id="hangman-turn-label" class="hint small"></span>
       <button id="hangman-hand-btn" type="button" class="ghost hidden">✋ Pedir a palavra</button>
       <span id="hangman-hand-queue" class="hint small"></span>
       <span id="hangman-mode-hint" class="hint small"></span>
@@ -884,6 +904,17 @@
       <p class="hint small">O quadro muda quando a maioria da sala votar no mesmo modo.</p>
       <div id="hangman-mode-list" class="draw-winner-list"></div>
       <button type="button" id="hangman-mode-cancel-btn" class="ghost">Fechar</button>
+    </div>
+  </div>
+
+  <!-- Cada jogador escolhe a sua cor ao entrar no modo Forca: é ela que diz
+       de quem foi cada letra errada, sem escrever nomes ao lado das letras. -->
+  <div id="hangman-color-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Escolhe a tua cor</h2>
+      <p class="hint small">É a cor com que as tuas tentativas vão aparecer no quadro.</p>
+      <div id="hangman-color-choices" class="hangman-color-choices"></div>
+      <p id="hangman-color-waiting" class="hint small"></p>
     </div>
   </div>
 

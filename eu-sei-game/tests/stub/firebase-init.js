@@ -106,7 +106,12 @@ function deepMergeInto(node, segments, value) {
     if (typeof cur[seg] !== "object" || cur[seg] === null) cur[seg] = {};
     cur = cur[seg];
   }
-  cur[segments[segments.length - 1]] = value;
+  const last = segments[segments.length - 1];
+  // Na Firebase, escrever null APAGA a chave. O stub deixava-a lá a valer
+  // null, e um Object.entries passava a devolver entradas vazias que no jogo
+  // real nunca existiriam — o duble tem de mentir o menos possivel.
+  if (value === null || value === undefined) delete cur[last];
+  else cur[last] = value;
 }
 
 function applyUpdate(baseSegments, partial) {

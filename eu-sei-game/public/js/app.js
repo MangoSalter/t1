@@ -17,6 +17,9 @@ import {
   raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
   maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
+  HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
+  hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
+  resolveGuess, wrongLetters, letterAlreadyTried,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -882,6 +885,17 @@ const hangmanEls = {
   revealBtn: document.getElementById("hangman-reveal-btn"),
   missBtn: document.getElementById("hangman-miss-btn"),
   newWordBtn: document.getElementById("hangman-newword-btn"),
+  passTurnBtn: document.getElementById("hangman-passturn-btn"),
+  wrongStrip: document.getElementById("hangman-wrong-strip"),
+  wrongLetters: document.getElementById("hangman-wrong-letters"),
+  slotsStrip: document.getElementById("hangman-slots-strip"),
+  players: document.getElementById("hangman-players"),
+  guessForm: document.getElementById("hangman-guess-form"),
+  guessInput: document.getElementById("hangman-guess-input"),
+  turnLabel: document.getElementById("hangman-turn-label"),
+  colorOverlay: document.getElementById("hangman-color-overlay"),
+  colorChoices: document.getElementById("hangman-color-choices"),
+  colorWaiting: document.getElementById("hangman-color-waiting"),
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
   clearBtn: document.getElementById("hangman-doodle-clear-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
@@ -1257,10 +1271,12 @@ hangmanEls.newWordBtn.addEventListener("click", () => {
 
 // Desenha os espaços por preencher. Cada letra é uma caixa com risco por
 // baixo; brancos e hífens ficam à vista, porque é isso que diz se são duas
-// palavras ou uma palavra composta.
-function renderHangmanSlots(mask) {
+// palavras ou uma palavra composta. Para quem tem a caneta, cada espaço por
+// preencher é CLICÁVEL: ouve a letra por voz e escreve-a ali, sem ter de a
+// ir escrever noutro sítio do ecrã.
+function renderHangmanSlots(mask, interactive) {
   hangmanEls.slots.innerHTML = "";
-  [...String(mask || "")].forEach((ch) => {
+  [...String(mask || "")].forEach((ch, i) => {
     const el = document.createElement("span");
     if (ch === " ") {
       el.className = "hangman-slot hangman-slot-space";
@@ -1275,8 +1291,111 @@ function renderHangmanSlots(mask) {
       el.className = "hangman-slot hangman-slot-punct";
       el.textContent = ch;
     }
-    hangmanEls.slots.appendChild(el);
+    if (interactive && ch === "_") {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "hangman-slot-btn";
+      btn.dataset.slotIndex = String(i);
+      btn.setAttribute("aria-label", `Escrever a letra da posição ${i + 1}`);
+      btn.appendChild(el);
+      btn.addEventListener("click", () => hangmanFillSlot(i));
+      hangmanEls.slots.appendChild(btn);
+    } else {
+      hangmanEls.slots.appendChild(el);
+    }
   });
+}
+
+// Clicar num espaço: quem tem a caneta escreve a letra que ouviu. Revela
+// todas as posições dessa letra, como qualquer forca de papel.
+async function hangmanFillSlot(index) {
+  const mask = state.room?.hangman?.mask;
+  if (!mask || !hangmanSecretWord) return;
+  const certa = hangmanSecretWord[index];
+  if (!certa) return;
+  const escrita = window.prompt(`Que letra vai na posição ${index + 1}?`);
+  if (!escrita) return;
+  if (escrita.trim().toLocaleLowerCase("pt") !== certa.toLocaleLowerCase("pt")) {
+    hangmanEls.status.textContent = `Nesse espaço não vai "${escrita.trim()}".`;
+    return;
+  }
+  await updateHangmanMask(state.code, state.room, state.uid, revealLetter(hangmanSecretWord, mask, certa));
+}
+
+// As letras erradas, cada uma na cor de quem a disse — é para isso que serve
+// a cor escolhida no início do modo.
+function renderWrongLetters(room) {
+  const erradas = wrongLetters(room);
+  hangmanEls.wrongStrip.classList.toggle("hidden", erradas.length === 0);
+  hangmanEls.wrongLetters.innerHTML = "";
+  erradas.forEach(({ letter, uid }) => {
+    const el = document.createElement("span");
+    el.className = "hangman-wrong-letter";
+    el.style.color = playerColor(room, uid);
+    el.title = room.players?.[uid]?.name || "";
+    el.textContent = letter.toLocaleUpperCase("pt");
+    hangmanEls.wrongLetters.appendChild(el);
+  });
+}
+
+// --- Escolher a cor ---
+
+function hangmanRenderColorPicker(room) {
+  const minha = room.hangman?.colors?.[state.uid] || null;
+  const ocupadas = takenHangmanColors(room, state.uid);
+  hangmanEls.colorChoices.innerHTML = "";
+  HANGMAN_PLAYER_COLORS.forEach((cor) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "hangman-color-choice";
+    btn.dataset.colorChoice = cor;
+    btn.style.background = cor;
+    btn.disabled = ocupadas.includes(cor);
+    btn.setAttribute("aria-label", `Cor ${cor}`);
+    btn.setAttribute("aria-pressed", String(minha === cor));
+    btn.addEventListener("click", () => pickHangmanColor(state.code, state.room, state.uid, cor));
+    hangmanEls.colorChoices.appendChild(btn);
+  });
+  const semCor = connectedPlayerIds(room).filter((uid) => !room.hangman?.colors?.[uid]);
+  hangmanEls.colorWaiting.textContent = minha
+    ? (semCor.length ? `À espera de ${semCor.map((u) => room.players[u]?.name).filter(Boolean).join(", ")}...` : "")
+    : "";
+}
+
+// --- Tentativas de letra ---
+
+hangmanEls.guessForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const letra = hangmanEls.guessInput.value.trim();
+  hangmanEls.guessInput.value = "";
+  if (!letra) return;
+  if (letterAlreadyTried(state.room, letra)) {
+    hangmanEls.status.textContent = `A letra "${letra}" já foi tentada.`;
+    return;
+  }
+  await submitLetterGuess(state.code, state.room, state.uid, letra);
+});
+
+hangmanEls.passTurnBtn.addEventListener("click", () => passGuessTurn(state.code, state.room, state.uid));
+
+// Quem tem a caneta é quem julga: é o único browser que conhece a palavra.
+// Uma tentativa de cada vez, e com trinco, senão dois desenhos de ecrã
+// seguidos julgavam a mesma letra duas vezes e contavam dois erros.
+let hangmanJudging = false;
+async function hangmanJudgePendingGuesses(room) {
+  if (hangmanJudging || !hangmanSecretWord) return;
+  // Filtra as entradas vazias: uma tentativa já resolvida pode ficar como
+  // null em vez de desaparecer, e ler ".letter" de null rebentava o cliente
+  // de quem tem a caneta — logo o único que consegue julgar seja o que for.
+  const pendentes = Object.entries(room.hangman?.guesses || {}).filter(([, g]) => g && g.letter);
+  if (pendentes.length === 0) return;
+  hangmanJudging = true;
+  try {
+    const [guesserUid, info] = pendentes[0];
+    await resolveGuess(state.code, room, state.uid, guesserUid, info.letter, hangmanSecretWord);
+  } finally {
+    hangmanJudging = false;
+  }
 }
 
 hangmanEls.handBtn.addEventListener("click", () => {
@@ -1305,7 +1424,9 @@ function renderHangman(room) {
   // No modo Forca ninguém tem a caneta até a sala votar. Enquanto isso, o
   // quadro pergunta de quem é a vez em vez de ficar mudo.
   const semCaneta = !hangman.leaderId || !room.players?.[hangman.leaderId]?.connected;
-  const aVotarCaneta = mode === "forca" && semCaneta;
+  // A escolha da cor vem PRIMEIRO. As duas votações ao mesmo tempo davam dois
+  // ecrãs sobrepostos, e o de baixo ficava inalcançável.
+  const aVotarCaneta = mode === "forca" && semCaneta && !!hangman.colors?.[state.uid];
 
   if (aVotarCaneta) {
     hangmanEls.status.textContent = "Votem em quem fica com a caneta.";
@@ -1342,8 +1463,50 @@ function renderHangman(room) {
   hangmanEls.wordZone.classList.toggle("hidden", !temPalavra);
   hangmanEls.wordForm.classList.toggle("hidden", !(naForca && amLeader && !mask));
   hangmanEls.wordTools.classList.toggle("hidden", !(naForca && amLeader && !!mask));
+
+  // Cor de cada um: pede-se ao entrar no modo, e só depois de todos terem
+  // escolhido é que as letras erradas dizem alguma coisa.
+  const jaTenhoCor = !!hangman.colors?.[state.uid];
+  const precisaDeCor = naForca && !jaTenhoCor;
+  hangmanEls.colorOverlay.classList.toggle("hidden", !precisaDeCor);
+  if (naForca) hangmanRenderColorPicker(room);
+
+  hangmanEls.slotsStrip.classList.toggle("hidden", !temPalavra);
+  hangmanEls.slotsStrip.classList.toggle("hangman-slots-interactive", temPalavra && amLeader);
+  renderWrongLetters(naForca ? room : { hangman: {} });
+
+  // Os nomes com a cor de cada um, e um sublinhado em quem está na vez.
+  const daVez = naForca ? currentGuesser(room) : null;
+  if (naForca) {
+    hangmanEls.players.innerHTML = "";
+    connectedPlayerIds(room).forEach((uid) => {
+      const tag = document.createElement("span");
+      tag.className = "hangman-player-tag";
+      tag.style.color = playerColor(room, uid);
+      tag.dataset.turn = uid === daVez ? "1" : "0";
+      tag.dataset.playerTag = uid;
+      tag.textContent = (room.players[uid]?.name || "?") + (uid === hangman.leaderId ? " 🖊️" : "");
+      hangmanEls.players.appendChild(tag);
+    });
+  }
+
+  // As duas vias de arriscar, como pedido: quem tem a caneta escreve a letra
+  // que ouviu por voz (clicando num espaço), e quem está na vez arrisca ele
+  // próprio pela caixinha. Nenhuma exclui a outra.
+  const possoArriscar = naForca && !!mask && !hangman.solved && !amLeader && daVez === state.uid && !hangman.guesses?.[state.uid];
+  hangmanEls.guessForm.classList.toggle("hidden", !possoArriscar);
+  if (naForca && mask && !hangman.solved) {
+    const nomeDaVez = room.players?.[daVez]?.name;
+    hangmanEls.turnLabel.textContent = daVez === state.uid
+      ? (hangman.guesses?.[state.uid] ? "A tua letra está a ser verificada..." : "É a tua vez de arriscar.")
+      : (nomeDaVez ? `É a vez de ${nomeDaVez}.` : "");
+  } else {
+    hangmanEls.turnLabel.textContent = "";
+  }
+  hangmanEls.passTurnBtn.classList.toggle("hidden", !(amLeader && naForca && !!mask));
+
   if (temPalavra) {
-    renderHangmanSlots(mask);
+    renderHangmanSlots(mask, amLeader);
     const misses = hangman.misses || 0;
     hangmanEls.missesLabel.textContent = hangman.solved
       ? "Acertaram! 🎉"
@@ -1394,6 +1557,9 @@ function renderHangman(room) {
   // retrato ANTIGO da sala e voltava a fechá-la. O ecrã acabava a esconder
   // aquilo que a escrita tinha acabado de tornar necessário.
   if (host) queueMicrotask(() => applyBoardVotes(state.code, state.room));
+  // E quem tem a caneta julga as tentativas pendentes, pelo mesmo motivo de
+  // ordem: fora do desenho de ecrã, para a escrita não voltar a meio dele.
+  if (amLeader && naForca) queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
 }
 
 // ---------- DESENHA E ADIVINHA EM EQUIPA ----------

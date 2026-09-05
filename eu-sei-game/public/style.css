@@ -904,3 +904,40 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .hangman-slot { min-width: 16px; }
   .hangman-secret { display: none; }
 }
+
+/* Faixas da Forca: por cima da folha, encostadas ao topo e ao fundo, para o
+   meio do quadro ficar livre para o enforcado. */
+.hangman-canvas-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+.hangman-canvas-wrap .hangman-doodle-canvas { flex: 1 1 auto; }
+.hangman-wrong-strip, .hangman-slots-strip {
+  position: absolute; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 6px 12px; pointer-events: none;
+}
+.hangman-wrong-strip { top: 0; }
+.hangman-slots-strip { bottom: 0; }
+.hangman-wrong-label { font-weight: 700; opacity: 0.75; }
+.hangman-wrong-letter { font-size: 1.7rem; font-weight: 700; margin: 0 4px; text-decoration: line-through; }
+.hangman-slots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+/* Quem tem a caneta pode escrever nos espaços: aí deixam de ser decoração e
+   passam a ser alvos de clique. */
+.hangman-slots-strip.hangman-slots-interactive { pointer-events: auto; }
+.hangman-slot-btn { background: none; border: none; padding: 0; margin: 0; width: auto; cursor: pointer; font: inherit; }
+.hangman-slot-btn:hover .hangman-slot { background: var(--accent-soft); }
+.hangman-slots .hangman-slot { font-size: 2rem; min-width: 30px; }
+.hangman-players { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.hangman-player-tag { font-weight: 700; white-space: nowrap; }
+.hangman-player-tag[data-turn="1"] { text-decoration: underline; text-underline-offset: 4px; }
+.hangman-guess-form { display: flex; gap: 6px; align-items: center; }
+.hangman-guess-form input { width: 74px; margin: 0; min-height: 44px; text-align: center; font-size: 1.2rem; }
+.hangman-guess-form button { width: auto; margin: 0; min-height: 44px; }
+.hangman-color-choices { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 14px 0; }
+.hangman-color-choice { width: 52px; height: 52px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; padding: 0; }
+.hangman-color-choice:disabled { opacity: 0.25; cursor: not-allowed; }
+.hangman-color-choice[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }
+
+@media (max-width: 720px) {
+  .hangman-slots .hangman-slot { font-size: 1.4rem; min-width: 20px; }
+  .hangman-wrong-letter { font-size: 1.3rem; }
+  .hangman-players { display: none; }
+}

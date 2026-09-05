@@ -77,6 +77,23 @@ console.log(`   modo: ${await modeOf(host)}`);
 await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.mode === "forca", code, { timeout: 8000 });
 console.log("   os dois clientes estão no mesmo modo");
 
+console.log("4b) Ao entrar na Forca, cada um escolhe a sua cor...");
+// A cor é o que faz as letras erradas dizerem QUEM as disse. Vem antes da
+// votação da caneta de propósito: os dois ecrãs ao mesmo tempo tapavam-se.
+await host.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 5000 });
+await guest.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 5000 });
+await host.click('[data-color-choice="#b24b38"]');
+await host.waitForFunction(() => document.getElementById("hangman-color-overlay").classList.contains("hidden"), { timeout: 5000 });
+// A cor já tirada não pode ser escolhida outra vez: duas pessoas da mesma cor
+// tornariam as letras erradas ilegíveis, que é a única coisa que a cor faz.
+await guest.waitForFunction(() => {
+  const b = document.querySelector('[data-color-choice="#b24b38"]');
+  return b && b.disabled;
+}, { timeout: 8000 });
+console.log("   a cor da Ana ficou indisponível para o Beto");
+await guest.click('[data-color-choice="#5c7e91"]');
+await guest.waitForFunction(() => document.getElementById("hangman-color-overlay").classList.contains("hidden"), { timeout: 5000 });
+
 console.log("5) Entrar na Forca tira a caneta até a sala votar...");
 const leaderOf = (p) => p.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman?.leaderId || null, code);
 console.log(`   quem tem a caneta: ${await leaderOf(host)} (esperado ninguém)`);
@@ -178,11 +195,62 @@ const slots2 = await host.evaluate(() => [...document.querySelectorAll("#hangman
 console.log(`   a Ana vê revelado: "${slots2}"`);
 if (slots2 !== "aaa") fail("a Ana devia ver os três 'a' revelados");
 
+console.log("12b) O jogador da vez arrisca uma letra CERTA: aparece nos espaços...");
+// A palavra é "Dona Manga" e vive só no browser do Beto (que tem a caneta).
+// Quem julga é o cliente dele — é o único que a conhece. A Ana só envia a
+// letra; nunca chega a ver a palavra.
+await host.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 8000 });
+await host.fill("#hangman-guess-input", "o");
+await host.click("#hangman-guess-form button[type=submit]");
+await host.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.mask || "").includes("o"), code, { timeout: 8000 });
+const comO = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
+console.log(`   forma depois do "o": "${comO}"`);
+if (!comO.includes("o")) fail("a letra certa não foi revelada");
+const erradasDepois = await host.evaluate((c) => Object.keys(window.__testDb.get(`rooms/${c}`).hangman.wrong || {}), code);
+if (erradasDepois.length !== 0) fail("uma letra certa não devia ir para as erradas");
+
+console.log("12c) Uma letra ERRADA sobe para o topo, na cor de quem a disse...");
+await host.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 8000 });
+await host.fill("#hangman-guess-input", "z");
+await host.click("#hangman-guess-form button[type=submit]");
+await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.wrong?.z, code, { timeout: 8000 });
+const zInfo = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.wrong.z, code);
+const anaId = await host.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  return Object.keys(r.players).find((u) => r.players[u].name === "Ana");
+}, code);
+console.log(`   letra errada guardada: ${JSON.stringify(zInfo)}`);
+if (zInfo.uid !== anaId) fail("a letra errada não guardou quem a disse");
+// E aparece no topo, com a cor que a Ana escolheu.
+await guest.waitForFunction(() => document.querySelectorAll("#hangman-wrong-letters .hangman-wrong-letter").length > 0, { timeout: 8000 });
+const corNoEcra = await guest.evaluate(() => {
+  const el = document.querySelector("#hangman-wrong-letters .hangman-wrong-letter");
+  return { letra: el.textContent, cor: el.style.color };
+});
+console.log(`   o Beto vê "${corNoEcra.letra}" na cor ${corNoEcra.cor}`);
+if (corNoEcra.letra !== "Z") fail("a letra errada devia aparecer no topo");
+// #b24b38 é a cor que a Ana escolheu no passo 4b.
+if (!/178, ?75, ?56/.test(corNoEcra.cor)) fail(`a letra errada não está na cor da Ana (${corNoEcra.cor})`);
+const missesAgora = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses, code);
+if (missesAgora !== 1) fail(`uma letra errada devia contar 1 erro, conta ${missesAgora}`);
+
+console.log("12d) A mesma letra errada outra vez não conta erro novo...");
+// Errar duas vezes a mesma letra é distração, não é uma tentativa a mais.
+await host.evaluate(async ({ c, ana }) => {
+  const m = await import("./js/room.js");
+  const r = window.__testDb.get(`rooms/${c}`);
+  await m.resolveGuess(c, r, r.hangman.leaderId, ana, "z", "Dona Manga");
+}, { c: code, ana: anaId });
+await host.waitForTimeout(400);
+const missesRepetida = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses, code);
+console.log(`   erros depois de repetir o "z": ${missesRepetida} (devia continuar 1)`);
+if (missesRepetida !== 1) fail(`repetir a mesma letra contou outro erro (${missesRepetida})`);
+
 console.log("13) Os erros contam-se, e param no máximo...");
 for (let i = 0; i < 8; i += 1) await guest.click("#hangman-miss-btn");
 await host.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.misses || 0) >= 6, code, { timeout: 8000 });
 const misses = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.misses, code);
-console.log(`   erros depois de 8 cliques: ${misses} (o máximo é 6)`);
+console.log(`   erros depois de mais 8 cliques: ${misses} (o máximo é 6)`);
 if (misses !== 6) fail(`os erros deviam parar em 6, estão em ${misses}`);
 
 console.log("14) Acertar a palavra toda marca-a como resolvida...");
