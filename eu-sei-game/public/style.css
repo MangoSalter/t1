@@ -799,9 +799,13 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
      chegar-se, mas a barra fica com a altura de uma linha só. */
   .board-tool-row, .board-color-row {
     flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-    flex: 1 1 100%; min-width: 0;
-    padding-bottom: 2px; scrollbar-width: thin;
+    min-width: 0; padding-bottom: 2px; scrollbar-width: thin;
   }
+  /* A fila das ferramentas divide a primeira linha com o "← Voltar" em vez de
+     o deixar sozinho a ocupar uma linha inteira — media 250px de 664 (38% do
+     ecrã) só porque o botão de voltar empurrava tudo para baixo. */
+  .board-tool-row { flex: 1 1 0; }
+  .board-color-row { flex: 1 1 100%; }
   .board-color { flex: 0 0 auto; }
   .board-tool { flex: 0 0 auto; }
   /* O painel abria ancorado ao botão "Mais", que no telemóvel está a meio da

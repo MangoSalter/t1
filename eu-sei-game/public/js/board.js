@@ -351,6 +351,11 @@ function drawBackground(ctx, w, h, cam) {
 
 function strokeAlpha(stroke) {
   const tool = BOARD_TOOLS[stroke.tool] || BOARD_TOOLS.pen;
+  // A borracha apaga sempre a fundo. A transparência é uma propriedade da
+  // TINTA, e deixá-la mandar na borracha dava uma borracha que apaga a meias
+  // sem ninguém ter pedido: bastava ter escrito antes com 25% para depois
+  // ficar sempre um resto por apagar, sem nada no ecrã a explicar porquê.
+  if (tool.composite === "destination-out") return 1;
   return Math.max(0.02, Math.min(1, tool.alpha * (stroke.opacity ?? 1)));
 }
 
