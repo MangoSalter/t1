@@ -157,7 +157,11 @@ await page.uncheck('[data-marathon-game="memory"]');
 await page.uncheck('[data-marathon-game="map"]');
 await page.check('[data-marathon-game="hangman"]');
 await page.click("#solo-marathon-start-btn");
-await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 3000 });
+// Tal como nos passos 3 e 5: o portão "pronto?" aparece antes de cada jogo
+// da maratona, e este teste é anterior a ele.
+await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 5000 });
+await page.click("#ready-start-btn");
+await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 5000 });
 const streakInfoMarathon = await page.locator("#solo-hangman-streak-info").textContent();
 console.log(`   texto de sequência dentro da maratona: "${streakInfoMarathon}" (esperado vazio)`);
 if (streakInfoMarathon.trim() !== "") { console.log("   FALHOU: maratona não devia mostrar sequência"); process.exitCode = 1; }
