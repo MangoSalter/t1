@@ -7,13 +7,20 @@
   --card-bg: #fbf6e9;
   --ink: #3a3126;
   --text: #3a3126;
-  --muted: #8a7b5c;
-  --primary: #c65d4a;
-  --primary-dark: #a34535;
+  /* Contraste medido contra a WCAG AA (4.5:1 para texto normal), porque este
+     jogo joga-se no telemóvel e muitas vezes na rua. Os tons antigos ficavam
+     abaixo: --muted a 3.84:1 (e é a cor de TODAS as instruções do jogo),
+     --primary a 3.61:1 com o texto claro por cima nos botões, --success a
+     3.40:1. Escurecidos o mínimo para passarem, mantendo o mesmo tom. */
+  --muted: #776a4f;
+  --primary: #b24b38;
+  /* Também escurecido: serve de hover do --primary e, com o novo tom deste,
+     a diferença ficava quase invisível (0.02 de luminância). */
+  --primary-dark: #8f3a2b;
   --accent: #e3a53d;
   --accent-soft: #f0cf8f;
   --blue: #5c7e91;
-  --success: #6c8a4f;
+  --success: #5b7442;
   --danger: #b8483a;
   --radius: 16px;
 }

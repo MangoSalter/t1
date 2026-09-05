@@ -99,6 +99,35 @@ const animatedNormally = await p3.evaluate(() => {
 console.log(`   animação da mascote em modo normal: ${animatedNormally} (esperado wobble)`);
 if (animatedNormally === "none") { console.log("   FALHOU: as animações desapareceram para todos"); process.exitCode = 1; }
 
+console.log("6) Contraste do texto cumpre a WCAG AA (4.5:1) — este jogo joga-se na rua...");
+const contrast = await p3.evaluate(() => {
+  const lum = (rgb) => {
+    const [r, g, b] = rgb.match(/\d+/g).map(Number).map((c) => c / 255);
+    const f = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const ratio = (a, b) => {
+    const la = lum(a), lb = lum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n) => cs.getPropertyValue(n).trim();
+  const toRgb = (hex) => {
+    const d = document.createElement("div");
+    d.style.color = hex; document.body.appendChild(d);
+    const out = getComputedStyle(d).color; d.remove(); return out;
+  };
+  return {
+    dica: ratio(toRgb(v("--muted")), toRgb(v("--card-bg"))),
+    botao: ratio(toRgb(v("--paper")), toRgb(v("--primary"))),
+    acerto: ratio(toRgb(v("--paper")), toRgb(v("--success"))),
+  };
+});
+Object.entries(contrast).forEach(([k, r]) => {
+  console.log(`   ${k}: ${r.toFixed(2)}:1 ${r >= 4.5 ? "ok" : "FALHA (mínimo 4.5)"}`);
+  if (r < 4.5) process.exitCode = 1;
+});
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));
