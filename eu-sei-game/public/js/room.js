@@ -958,8 +958,39 @@ export function playerColor(room, uid) {
 // vez. Quem JULGA é sempre o cliente de quem tem a caneta, porque só esse
 // browser conhece a palavra (ver maskWord). Não há aqui um servidor a
 // arbitrar: há uma pessoa, e é a mesma que já arbitrava por voz.
+// A fila de quem arrisca. A ordem deixou de ser a ordem dos uid (que não quer
+// dizer nada a ninguém) e passa a ser uma ordem GUARDADA, para poder ser
+// reordenada por mérito no fim de cada ronda. Quem sai da sala sai da fila;
+// quem entra a meio vai para o fim, em vez de furar.
 export function hangmanGuessers(room) {
-  return connectedPlayerIds(room).filter((uid) => uid !== room?.hangman?.leaderId);
+  const ligados = connectedPlayerIds(room).filter((uid) => uid !== room?.hangman?.leaderId);
+  const ordem = room?.hangman?.turnOrder;
+  if (!Array.isArray(ordem)) return ligados;
+  const naOrdem = ordem.filter((uid) => ligados.includes(uid));
+  const novos = ligados.filter((uid) => !naOrdem.includes(uid));
+  return [...naOrdem, ...novos];
+}
+
+// Reordena por quem mais acertou nesta ronda. O sort do JavaScript é estável,
+// por isso quem empata mantém a ordem que já tinha — dois jogadores com o
+// mesmo número de acertos não trocam de lugar por acaso.
+export function orderByCorrect(room, contagens) {
+  const certas = contagens || room?.hangman?.correctCount || {};
+  return [...hangmanGuessers(room)].sort((a, b) => (certas[b] || 0) - (certas[a] || 0));
+}
+
+export function correctCountOf(room, uid) {
+  return room?.hangman?.correctCount?.[uid] || 0;
+}
+
+// O que muda quando uma ronda ACABA (a palavra saiu, ou os erros esgotaram-se):
+// a fila é reordenada por quem mais acertou, e quem mais acertou fica em
+// primeiro na ronda seguinte. É a recompensa por jogar bem — e como a ordem
+// fica guardada, vê-se logo no ecrã em vez de só aparecer na próxima palavra.
+function roundEndPatch(room, contagens) {
+  const novaOrdem = orderByCorrect(room, contagens);
+  if (novaOrdem.length === 0) return {};
+  return { turnOrder: novaOrdem, turnUid: novaOrdem[0] };
 }
 
 // A vez roda entre quem arrisca. Se quem estava na vez sair, passa ao
@@ -1035,6 +1066,13 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     if (equipa) {
       patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 1;
     }
+    // ACERTAR DÁ OUTRA TENTATIVA: a vez NÃO passa. Só se perde a vez ao
+    // errar. Repara que turnUid não é tocado aqui de propósito — quem
+    // acertou continua a ser quem está na vez.
+    const contagens = { ...(room.hangman.correctCount || {}) };
+    contagens[guesserUid] = (contagens[guesserUid] || 0) + 1;
+    patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens));
   } else {
     // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
     // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma
@@ -1045,6 +1083,8 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
       const teto = maxMissesOf(room);
       const proximos = (room.hangman.misses || 0) + 1;
       patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
+      // Esgotar os erros também acaba a ronda, e também reordena.
+      if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
     }
   }
   await update(ref(db, `rooms/${code}/hangman`), patch);
@@ -1061,8 +1101,13 @@ export function wrongLetters(room) {
 
 export async function setHangmanPuzzle(code, room, uid, mask, hint) {
   if (room?.hangman?.leaderId !== uid) return;
+  const fila = hangmanGuessers(room);
   await update(ref(db, `rooms/${code}/hangman`), {
     [`drawnBy/${uid}`]: true,
+    // A contagem é POR RONDA: zera-se com a palavra nova. A ordem, essa, fica
+    // — foi ganha na ronda anterior e é para valer nesta.
+    correctCount: null,
+    turnUid: fila[0] || null,
     // A pista é o contrário da palavra: é para ser vista por todos. Vai para a
     // sala tal e qual, sem máscara nenhuma.
     hint: (hint || "").trim() || null,
@@ -1260,10 +1305,17 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
       // passo.
       patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 3;
     }
+    // Acertar a palavra toda conta como três acertos para a reordenação: quem
+    // a viu inteira jogou melhor do que quem foi tirando letras.
+    const contagens = { ...(room.hangman.correctCount || {}) };
+    contagens[guesserUid] = (contagens[guesserUid] || 0) + 3;
+    patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
+    Object.assign(patch, roundEndPatch(room, contagens));
   } else {
     const teto = maxMissesOf(room);
     const proximos = (room.hangman.misses || 0) + 1;
     patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
+    if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
     patch[`wrongWords/w${Date.now().toString(36)}`] = {
       text: String(tentativa).slice(0, 40), uid: guesserUid, at: serverNow(),
     };

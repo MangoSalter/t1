@@ -25,7 +25,7 @@ import {
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
-  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, canDrawOnBoard,
+  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -1994,6 +1994,14 @@ hangmanEls.backToFreeBtn.addEventListener("click", () => setBoardMode(state.code
 // fosse guardado na sala era legível por qualquer jogador que abrisse as
 // ferramentas do browser, e o jogo acabava antes de começar.
 let hangmanSecretWord = "";
+// Guardados entre desenhos de ecrã só para se poder distinguir "a vez é tua"
+// de "acertaste e a vez continua a ser tua" — que é a diferença entre uma
+// informação e uma resposta ao que se acabou de fazer.
+let hangmanUltimaMascara = null;
+let hangmanUltimaVez = null;
+function contarLetras(mask) {
+  return [...String(mask || "")].filter((ch) => ch !== "_").length;
+}
 
 // A palavra tem de sobreviver a um F5 de quem tem a caneta. Não sobrevivia: era
 // só uma variável em memória, e recarregar a página deixava o jogo PENDURADO —
@@ -2402,7 +2410,12 @@ function renderHangman(room) {
         tag.style.color = playerColor(room, uid);
         tag.dataset.turn = uid === daVez ? "1" : "0";
         tag.dataset.playerTag = uid;
-        tag.textContent = (room.players[uid]?.name || "?") + (uid === hangman.leaderId ? " 🖊️" : "");
+        // O número de acertos vai ao lado do nome: é ele que decide a ordem
+        // da ronda seguinte, por isso tem de estar à vista enquanto se joga,
+        // e não só no fim.
+        const certas = correctCountOf(room, uid);
+        tag.textContent = (room.players[uid]?.name || "?")
+          + (uid === hangman.leaderId ? " 🖊️" : (certas > 0 ? ` ${certas}` : ""));
         hangmanEls.players.appendChild(tag);
       });
     }
@@ -2418,9 +2431,20 @@ function renderHangman(room) {
     if (freeGuessing(room)) {
       hangmanEls.turnLabel.textContent = amLeader ? "" : "Arrisca quando quiseres.";
     } else {
+      // "Acertaste, joga outra vez" só se diz quando foi mesmo isso que
+      // aconteceu: a vez ficou na mesma pessoa E a palavra revelou mais uma
+      // letra desde o desenho anterior. Sem esta comparação, a frase aparecia
+      // também numa vez ganha por outro ter errado, e passava a ser ruído em
+      // vez de resposta.
+      const acabouDeAcertar = daVez === hangmanUltimaVez
+        && !!hangmanUltimaMascara && contarLetras(mask) > contarLetras(hangmanUltimaMascara);
       hangmanEls.turnLabel.textContent = daVez === state.uid
-        ? (hangman.guesses?.[state.uid] ? "A tua letra está a ser verificada..." : "É a tua vez de arriscar.")
-        : (nomeDaVez ? `É a vez de ${nomeDaVez}.` : "");
+        ? (hangman.guesses?.[state.uid]
+          ? "A tua letra está a ser verificada..."
+          : (acabouDeAcertar ? "Acertaste! Joga outra vez." : "É a tua vez de arriscar."))
+        : (nomeDaVez
+          ? (acabouDeAcertar ? `${nomeDaVez} acertou e joga outra vez.` : `É a vez de ${nomeDaVez}.`)
+          : "");
     }
   } else {
     hangmanEls.turnLabel.textContent = "";
@@ -2493,6 +2517,12 @@ function renderHangman(room) {
   if (!amLeader && !host) hangmanClosePenPicker();
   refreshHangmanPenZone(mode);
   hangmanDoodleRedraw();
+
+  // Guardados no fim, depois de já terem sido lidos acima: é a comparação
+  // entre o desenho anterior e este que distingue "a vez é tua" de
+  // "acertaste e continuas".
+  hangmanUltimaMascara = mask || null;
+  hangmanUltimaVez = daVez;
 
   narrarQuadro(room, amLeader);
 

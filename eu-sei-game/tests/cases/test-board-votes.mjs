@@ -190,3 +190,36 @@ console.log("17) A volta é uma OPÇÃO, e por omissão está desligada...");
 check2("por omissão", String(autoPenOn({ hangman: { mode: "forca" } })), "false");
 check2("ligada", String(autoPenOn({ hangman: { mode: "forca", settings: { autoPen: 1 } } })), "true");
 check2("desligada à mão", String(autoPenOn({ hangman: { mode: "forca", settings: { autoPen: 0 } } })), "false");
+
+console.log("18) Acertar dá outra tentativa: a vez fica em quem acertou...");
+const { orderByCorrect, hangmanGuessers } = await import("./js/room.js");
+const salaFila = (extra) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true }, d: { connected: true } },
+  hangman: { mode: "forca", leaderId: "a", mask: "___", ...extra },
+});
+// Sem ordem guardada, a fila é quem está ligado menos quem tem a caneta.
+check2("fila sem ordem guardada", hangmanGuessers(salaFila({})).join(","), "b,c,d");
+// Com ordem guardada, é ela que manda.
+check2("ordem guardada manda", hangmanGuessers(salaFila({ turnOrder: ["d", "b", "c"] })).join(","), "d,b,c");
+// Quem saiu da sala sai da fila, mesmo que a ordem ainda o tenha.
+const semC = salaFila({ turnOrder: ["d", "c", "b"] });
+semC.players.c.connected = false;
+check2("quem saiu sai da fila", hangmanGuessers(semC).join(","), "d,b");
+// Quem entra a meio vai para o FIM, em vez de furar a ordem ganha pelos outros.
+check2("quem entra vai para o fim", hangmanGuessers(salaFila({ turnOrder: ["d", "b"] })).join(","), "d,b,c");
+
+console.log("19) No fim da ronda, a ordem muda por quem mais acertou...");
+const comContagens = salaFila({ turnOrder: ["b", "c", "d"], correctCount: { c: 3, d: 1, b: 0 } });
+check2("mais acertos joga primeiro", orderByCorrect(comContagens).join(","), "c,d,b");
+// Empate NÃO troca ninguém de lugar: o sort é estável, e dois jogadores com o
+// mesmo número não podem trocar por acaso de ronda para ronda.
+const empate = salaFila({ turnOrder: ["b", "c", "d"], correctCount: { b: 2, c: 2, d: 2 } });
+check2("empate mantém a ordem", orderByCorrect(empate).join(","), "b,c,d");
+const empateParcial = salaFila({ turnOrder: ["b", "c", "d"], correctCount: { d: 5, b: 1, c: 1 } });
+check2("empate parcial mantém a ordem relativa", orderByCorrect(empateParcial).join(","), "d,b,c");
+// Sem ninguém a acertar, a ordem fica como estava.
+check2("ronda sem acertos", orderByCorrect(salaFila({ turnOrder: ["d", "b", "c"] })).join(","), "d,b,c");
+// E as contagens passadas por fora mandam sobre as guardadas: é assim que a
+// reordenação usa o acerto que ACABOU de acontecer, e não o estado anterior.
+check2("contagens de fora mandam",
+  orderByCorrect(salaFila({ turnOrder: ["b", "c", "d"], correctCount: { b: 9 } }), { c: 1 }).join(","), "c,b,d");
