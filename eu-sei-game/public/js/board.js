@@ -303,24 +303,25 @@ function currentBackground() {
 
 // O fundo é desenhado em coordenadas de ECRÃ, mas o padrão acompanha o zoom:
 // a grelha tem de crescer e encolher com o desenho, senão afastar transforma-a
-// numa mancha sólida de linhas.
-function drawBackground(ctx, w, h) {
+// numa mancha sólida de linhas. Recebe a câmara em vez de a ir buscar ao
+// estado, para a imagem exportada poder usar o seu próprio enquadramento.
+function drawBackground(ctx, w, h, cam) {
   const bg = currentBackground();
   ctx.save();
-  ctx.setTransform(board.dpr, 0, 0, board.dpr, 0, 0);
+  ctx.setTransform(cam.dpr, 0, 0, cam.dpr, 0, 0);
   ctx.fillStyle = bg.paper;
   ctx.fillRect(0, 0, w, h);
 
   if (bg.pattern !== "none") {
     const dark = bg.paper !== "#fffdf7";
-    const step = 28 * board.zoom;
+    const step = 28 * cam.zoom;
     // Abaixo de 6px o padrão deixa de se ler e passa a sujar o ecrã.
     if (step >= 6) {
       ctx.strokeStyle = dark ? "rgba(242,234,216,0.13)" : "rgba(58,49,38,0.13)";
       ctx.fillStyle = dark ? "rgba(242,234,216,0.22)" : "rgba(58,49,38,0.22)";
       ctx.lineWidth = 1;
-      const offX = ((board.panX % step) + step) % step;
-      const offY = ((board.panY % step) + step) % step;
+      const offX = ((cam.panX % step) + step) % step;
+      const offY = ((cam.panY % step) + step) % step;
       if (bg.pattern === "grid") {
         for (let x = offX; x < w; x += step) {
           ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, h); ctx.stroke();
@@ -331,13 +332,13 @@ function drawBackground(ctx, w, h) {
       } else if (bg.pattern === "dotted") {
         for (let x = offX; x < w; x += step) {
           for (let y = offY; y < h; y += step) {
-            ctx.beginPath(); ctx.arc(x, y, Math.max(1, 1.4 * board.zoom), 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x, y, Math.max(1, 1.4 * cam.zoom), 0, Math.PI * 2); ctx.fill();
           }
         }
       } else if (bg.pattern === "lined") {
-        const lstep = 34 * board.zoom;
+        const lstep = 34 * cam.zoom;
         if (lstep >= 6) {
-          const loff = ((board.panY % lstep) + lstep) % lstep;
+          const loff = ((cam.panY % lstep) + lstep) % lstep;
           for (let y = loff; y < h; y += lstep) {
             ctx.beginPath(); ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(w, Math.round(y) + 0.5); ctx.stroke();
           }
@@ -453,16 +454,42 @@ function drawStroke(ctx, stroke) {
   ctx.restore();
 }
 
+// A TINTA VIVE NUMA CAMADA À PARTE, e só no fim é que assenta sobre o fundo.
+// Isto não é arrumação: a borracha apaga com "destination-out", que come tudo
+// o que estiver na mesma tela. Com o fundo por baixo na mesma tela, passar a
+// borracha num quadro de giz abria buracos brancos, e num fundo quadriculado
+// apagava as linhas da grelha por onde passasse. Numa camada só de tinta, a
+// borracha só tem tinta para comer.
+const inkLayer = document.createElement("canvas");
+
+function renderScene(ctx, pxW, pxH, cam, strokes) {
+  const w = pxW / cam.dpr;
+  const h = pxH / cam.dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, pxW, pxH);
+  drawBackground(ctx, w, h, cam);
+
+  if (inkLayer.width !== pxW || inkLayer.height !== pxH) {
+    inkLayer.width = pxW;
+    inkLayer.height = pxH;
+  }
+  const ink = inkLayer.getContext("2d");
+  ink.setTransform(1, 0, 0, 1, 0, 0);
+  ink.clearRect(0, 0, pxW, pxH);
+  const k = cam.dpr * cam.zoom;
+  ink.setTransform(k, 0, 0, k, cam.dpr * cam.panX, cam.dpr * cam.panY);
+  strokes.forEach((st) => drawStroke(ink, st));
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(inkLayer, 0, 0);
+}
+
 export function redrawBoard() {
   if (!boardAvailable || !syncCanvasSize()) return;
   const ctx = els.canvas.getContext("2d");
-  ctx.setTransform(board.dpr, 0, 0, board.dpr, 0, 0);
-  ctx.clearRect(0, 0, board.rectW, board.rectH);
-  drawBackground(ctx, board.rectW, board.rectH);
-  const d = board.dpr;
-  ctx.setTransform(d * board.zoom, 0, 0, d * board.zoom, d * board.panX, d * board.panY);
-  board.strokes.forEach((s) => drawStroke(ctx, s));
-  if (board.current) drawStroke(ctx, board.current);
+  const strokes = board.current ? [...board.strokes, board.current] : board.strokes;
+  renderScene(ctx, els.canvas.width, els.canvas.height,
+    { dpr: board.dpr, zoom: board.zoom, panX: board.panX, panY: board.panY }, strokes);
 }
 
 // --- Interação ---
@@ -632,18 +659,23 @@ export function saveBoardImage() {
   // A imagem guardada é o DESENHO, não a janela: exporta-se a área ocupada
   // pelos traços, a 2x, e não o que calha estar visível. Guardar só o que
   // está no ecrã cortava metade do quadro sem avisar.
-  const scale = 2;
   const margin = 24;
-  const w = Math.ceil((b.maxX - b.minX + margin * 2) * scale);
-  const h = Math.ceil((b.maxY - b.minY + margin * 2) * scale);
+  const worldW = b.maxX - b.minX + margin * 2;
+  const worldH = b.maxY - b.minY + margin * 2;
+  // 2x para a imagem sair nítida, mas com o lado maior travado nos 4000px: a
+  // camada de tinta é uma tela do mesmo tamanho, e um quadro muito espalhado
+  // pedia duas telas de 8000x8000 (256 MB cada) — no telemóvel isso não
+  // exporta nada, rebenta o separador.
+  const scale = Math.min(2, 4000 / Math.max(worldW, worldH));
   const out = document.createElement("canvas");
-  out.width = Math.max(1, Math.min(8000, w));
-  out.height = Math.max(1, Math.min(8000, h));
-  const ctx = out.getContext("2d");
-  ctx.fillStyle = currentBackground().paper;
-  ctx.fillRect(0, 0, out.width, out.height);
-  ctx.setTransform(scale, 0, 0, scale, -(b.minX - margin) * scale, -(b.minY - margin) * scale);
-  board.strokes.forEach((s) => drawStroke(ctx, s));
+  out.width = Math.max(1, Math.ceil(worldW * scale));
+  out.height = Math.max(1, Math.ceil(worldH * scale));
+  // Mesmo caminho do ecrã: fundo (com o seu padrão) por baixo, tinta por cima
+  // numa camada própria. Desenhar aqui à parte era como o ecrã tinha o defeito
+  // da borracha — a imagem guardada saía com os mesmos buracos.
+  renderScene(out.getContext("2d"), out.width, out.height,
+    { dpr: 1, zoom: scale, panX: -(b.minX - margin) * scale, panY: -(b.minY - margin) * scale },
+    board.strokes);
 
   downloadBlobUrl(out.toDataURL("image/png"), `quadro-eu-sei-${stamp()}.png`);
   setStatus("Imagem guardada.");
@@ -834,6 +866,16 @@ function showBoardScreen() {
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === "board");
   });
+  // Entrar no quadro deixa uma marca no histórico do browser, para o botão
+  // "voltar" do telemóvel (e do browser) sair do quadro em vez de fechar o
+  // jogo. Quem entra num ecrã de ecrã inteiro carrega em "voltar" por
+  // instinto muito antes de procurar um botão na barra.
+  try {
+    history.pushState({ euSeiBoard: true }, "");
+  } catch {
+    // Se o histórico não estiver disponível (ficheiro local, por exemplo),
+    // fica o botão "← Voltar" e o Escape, que chegam.
+  }
   // O canvas só tem tamanho depois de o ecrã estar visível.
   requestAnimationFrame(() => {
     redrawBoard();
@@ -842,11 +884,23 @@ function showBoardScreen() {
   });
 }
 
-function leaveBoardScreen() {
+function goHome() {
   saveDrawingNow();
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === "home");
   });
+}
+
+function leaveBoardScreen() {
+  saveDrawingNow();
+  // Sair pelo botão consome a marca que a entrada deixou; é o popstate que
+  // troca o ecrã, para os dois caminhos (botão e "voltar" do telemóvel)
+  // acabarem no mesmo sítio em vez de o histórico ficar a meio.
+  if (history.state && history.state.euSeiBoard) {
+    history.back();
+    return;
+  }
+  goHome();
 }
 
 function boardIsActive() {
@@ -988,6 +1042,10 @@ if (boardAvailable) {
 
   window.addEventListener("resize", () => {
     if (boardIsActive()) redrawBoard();
+  });
+
+  window.addEventListener("popstate", () => {
+    if (boardIsActive()) goHome();
   });
 
   // Atalhos de teclado — quem desenha no computador espera-os, e o Ctrl+Z é

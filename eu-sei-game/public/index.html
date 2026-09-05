@@ -558,6 +558,8 @@
        painel "Mais opções" para não empurrar a folha para fora do ecrã. -->
   <section data-screen="board" class="screen board-screen">
     <div class="board-toolbar">
+      <button type="button" id="board-exit-btn" class="ghost board-back-btn">← Voltar</button>
+      <div class="board-toolbar-sep"></div>
       <div class="board-tool-row" id="board-tool-row"></div>
       <div class="board-toolbar-sep"></div>
       <div class="board-color-row" id="board-color-row"></div>
@@ -612,7 +614,6 @@
         </div>
       </details>
 
-      <button type="button" id="board-exit-btn" class="ghost">Sair</button>
       <span id="board-status" class="hint small"></span>
     </div>
     <canvas id="board-canvas" class="board-canvas"></canvas>

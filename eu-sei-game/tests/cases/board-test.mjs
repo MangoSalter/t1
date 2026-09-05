@@ -219,16 +219,83 @@ const wrongErasers = await page.evaluate(async () => {
 });
 if (wrongErasers.length > 0) fail(`estas ferramentas apagam sem ser a borracha: ${wrongErasers.join(", ")}`);
 
-console.log("14) Sair volta ao início e não perde nada...");
+console.log("14) A BORRACHA não pode comer o fundo...");
+// A borracha apaga com "destination-out", que come tudo o que estiver na mesma
+// tela. Com o fundo por baixo na mesma tela, apagar num quadro de giz abria
+// buracos brancos e num fundo quadriculado apagava a grelha. Mede-se o pixel:
+// onde a borracha passou tem de continuar a ler-se o papel escuro.
+await page.evaluate(async () => {
+  const m = await import("./js/board.js");
+  m.__board.strokes = [];
+  m.setBoardBackground("chalk");
+  m.selectColor("#f2ead8");
+  m.selectWidth(9);
+});
+const readPixel = (x, y) => page.evaluate(([px, py]) => {
+  const c = document.getElementById("board-canvas");
+  const r = window.devicePixelRatio || 1;
+  const d = c.getContext("2d").getImageData(Math.round(px * r), Math.round(py * r), 1, 1).data;
+  return [d[0], d[1], d[2], d[3]];
+}, [x, y]);
+await page.click('[data-board-tool="pen"]');
+await drag([300, 150], [700, 150]);
+const paper = await readPixel(120, 300);
+console.log(`   papel do quadro de giz: ${paper.join(",")}`);
+await page.click('[data-board-tool="eraser"]');
+await drag([300, 150], [700, 150]);
+const wiped = await readPixel(500, 150);
+console.log(`   onde a borracha passou: ${wiped.join(",")}`);
+if (wiped[3] < 250) fail("a borracha deixou o fundo transparente — abriu um buraco na folha");
+if (wiped[0] > 150 && wiped[1] > 150 && wiped[2] > 150) {
+  fail(`a borracha deixou uma mancha clara (${wiped.join(",")}) em vez do papel escuro`);
+}
+if (Math.abs(wiped[0] - paper[0]) > 12 || Math.abs(wiped[1] - paper[1]) > 12 || Math.abs(wiped[2] - paper[2]) > 12) {
+  fail(`onde se apagou não voltou ao papel (papel ${paper.join(",")}, apagado ${wiped.join(",")})`);
+}
+await page.evaluate(async () => {
+  const m = await import("./js/board.js");
+  m.setBoardBackground("plain");
+  m.__board.strokes = [];
+});
+await page.click('[data-board-tool="pen"]');
+
+console.log("15) Há sempre caminho de volta: o botão e o 'voltar' do browser...");
+// A queixa foi mesmo esta: entrava-se no quadro e não se via como sair. O
+// botão é agora o primeiro da barra; e quem carrega no "voltar" do telemóvel
+// por instinto também tem de sair do quadro, não do jogo.
+const backBtn = await page.evaluate(() => {
+  const b = document.getElementById("board-exit-btn");
+  const tb = document.querySelector(".board-toolbar").getBoundingClientRect();
+  const r = b.getBoundingClientRect();
+  const all = [...document.querySelectorAll(".board-toolbar button")];
+  return {
+    visible: r.width > 0 && r.height > 0,
+    dentroDaBarra: r.top >= tb.top - 1 && r.bottom <= tb.bottom + 1,
+    // Sem precisar de deslizar a barra para o encontrar:
+    naPrimeiraFila: r.top - tb.top < 8,
+    ordem: all.indexOf(b),
+    texto: b.textContent.trim(),
+  };
+});
+console.log(`   botão "${backBtn.texto}": visível=${backBtn.visible}, primeira fila=${backBtn.naPrimeiraFila}`);
+if (!backBtn.visible || !backBtn.dentroDaBarra) fail("o botão de voltar não está visível na barra");
+if (!backBtn.naPrimeiraFila) fail("o botão de voltar não está na primeira fila — obriga a procurar");
 await page.click("#board-exit-btn");
 await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
 
-console.log("15) Também se chega ao quadro pelo menu de jogar sozinho...");
+// E o "voltar" do browser/telemóvel também sai do quadro.
+await page.click("[data-open-board]");
+await page.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
+await page.goBack();
+await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
+console.log("   o 'voltar' do browser sai do quadro sem sair do jogo: ok");
+
+console.log("16) Também se chega ao quadro pelo menu de jogar sozinho...");
 await page.click("#solo-menu-btn");
 await page.click('.screen.active [data-open-board]');
 await page.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
 
-console.log("16) No telemóvel a folha manda, e os alvos dão-se com o dedo...");
+console.log("17) No telemóvel a folha manda, e os alvos dão-se com o dedo...");
 // Medido num iPhone 13: a barra chegou a ocupar 279px de 664 (42% do ecrã só
 // para botões). Este passo impede que volte a crescer, e mede os alvos de
 // toque como o resto da app faz — pela ETIQUETA, que é o que se toca, não
