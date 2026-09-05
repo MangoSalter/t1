@@ -29,7 +29,7 @@ import {
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
   individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved,
-  matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, canDrawOnBoard,
+  matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, wordHistory, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -932,6 +932,12 @@ const hangmanEls = {
   matchAgainBtn: document.getElementById("hangman-match-again-btn"),
   matchWait: document.getElementById("hangman-match-wait"),
   matchProgress: document.getElementById("hangman-match-progress"),
+  historyBtn: document.getElementById("hangman-history-btn"),
+  historyBtnViewer: document.getElementById("hangman-history-btn-viewer"),
+  historyOverlay: document.getElementById("hangman-history-overlay"),
+  historyList: document.getElementById("hangman-history-list"),
+  historyCloseBtn: document.getElementById("hangman-history-close-btn"),
+  matchHistoryBtn: document.getElementById("hangman-match-history-btn"),
   quipWho: document.getElementById("hangman-quip-who"),
   quipText: document.getElementById("hangman-quip-text"),
   modeOverlay: document.getElementById("hangman-mode-overlay"),
@@ -2049,6 +2055,49 @@ function hangmanRenderMatchOver(room) {
   hangmanEls.matchWait.textContent = manda ? "" : "À espera de quem manda no quadro para começar outra.";
 }
 
+// --- Histórico das palavras ---
+
+function hangmanOpenHistory() {
+  const lista = wordHistory(state.room);
+  hangmanEls.historyList.innerHTML = "";
+  if (lista.length === 0) {
+    hangmanEls.historyList.innerHTML = '<p class="hint small">Ainda não acabou nenhuma palavra.</p>';
+  }
+  lista.forEach((entrada, i) => {
+    const linha = document.createElement("div");
+    linha.className = "hangman-history-row";
+    linha.dataset.historyRow = String(i);
+    const palavra = document.createElement("span");
+    palavra.className = "hangman-history-word";
+    palavra.textContent = `${i + 1}. ${entrada.word}`;
+    linha.appendChild(palavra);
+    const meta = document.createElement("span");
+    meta.className = "hangman-history-meta";
+    const quemPos = state.room?.players?.[entrada.by]?.name;
+    const quemGanhou = entrada.winnerUid ? state.room?.players?.[entrada.winnerUid]?.name : null;
+    const partes = [];
+    if (entrada.hint) partes.push(`pista: ${entrada.hint}`);
+    if (quemPos) partes.push(`posta por ${quemPos}`);
+    if (quemGanhou) partes.push(`ganha por ${quemGanhou}`);
+    partes.push(`${entrada.misses || 0} erro${(entrada.misses || 0) === 1 ? "" : "s"}`);
+    meta.textContent = partes.join(" · ");
+    linha.appendChild(meta);
+    hangmanEls.historyList.appendChild(linha);
+  });
+  hangmanEls.historyOverlay.classList.remove("hidden");
+}
+
+function hangmanCloseHistory() {
+  hangmanEls.historyOverlay.classList.add("hidden");
+}
+
+hangmanEls.historyBtn.addEventListener("click", hangmanOpenHistory);
+hangmanEls.historyBtnViewer.addEventListener("click", hangmanOpenHistory);
+hangmanEls.historyCloseBtn.addEventListener("click", hangmanCloseHistory);
+// No fim da partida é justamente quando se quer olhar para trás. Sem isto, o
+// botão do histórico ficava atrás do ecrã de resultados, inalcançável.
+hangmanEls.matchHistoryBtn.addEventListener("click", hangmanOpenHistory);
+
 hangmanEls.matchAgainBtn.addEventListener("click", () => {
   startNewMatch(state.code, state.room, state.uid);
 });
@@ -2473,6 +2522,18 @@ function renderHangman(room) {
 
   // --- Modo Forca: a palavra e os espaços ---
   const naForca = mode === "forca";
+
+  // O histórico só aparece quando há alguma coisa nele: um botão que abre uma
+  // lista vazia é um botão que ensina a não voltar a carregar nele.
+  // Fica DEPOIS de naForca, e não antes — usá-lo antes de estar declarado
+  // rebentava o desenho do quadro inteiro e o ecrã nem chegava a abrir.
+  const temHistorico = naForca && wordHistory(room).length > 0;
+  hangmanEls.historyBtn.classList.toggle("hidden", !(temHistorico && amLeader));
+  hangmanEls.historyBtnViewer.classList.toggle("hidden", !(temHistorico && !amLeader));
+  if (!hangmanEls.historyOverlay.classList.contains("hidden")) {
+    if (!temHistorico) hangmanCloseHistory();
+    else hangmanOpenHistory();
+  }
   const mask = hangman.mask || "";
   // Se a palavra se perdeu (um F5 de quem tem a caneta), tenta recuperá-la do
   // browser antes de qualquer outra coisa — senão o resto do ecrã desenha-se

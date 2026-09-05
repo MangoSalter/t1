@@ -233,9 +233,30 @@ console.log("10) O Beto escreve a palavra — e ela NÃO vai para a sala...");
 await guest.fill("#hangman-word-input", "Dona Manga");
 await guest.click("#hangman-word-form button[type=submit]");
 await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman?.mask, code, { timeout: 8000 });
-const salaCrua = JSON.stringify(await host.evaluate((c) => window.__testDb.get(`rooms/${c}`), code));
+// O histórico é retirado da varredura DE PROPÓSITO, e só ele: guarda palavras
+// de rondas JÁ TERMINADAS, onde não há nada para esconder. O que esta
+// verificação protege é a palavra EM JOGO, e essa continua a não poder estar
+// em lado nenhum da sala.
+const salaCrua = JSON.stringify(await host.evaluate((c) => {
+  const r = JSON.parse(JSON.stringify(window.__testDb.get(`rooms/${c}`)));
+  delete r.hangman.history;
+  return r;
+}, code));
 console.log(`   forma na sala: "${await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code)}"`);
 if (/dona manga/i.test(salaCrua)) fail("A PALAVRA FOI PARAR À SALA — qualquer jogador a conseguiria ler");
+// E o histórico só pode ter tantas palavras quantas as rondas TERMINADAS. É
+// esta a regra que garante que a palavra em jogo lá não está: se uma entrada
+// aparecesse antes de a ronda acabar, as contas deixavam de bater.
+// (Comparar formas não servia: o quadro pode repetir uma palavra já jogada, e
+// aí a forma bate certo sem haver fuga nenhuma.)
+const contas = await host.evaluate((c) => {
+  const h = window.__testDb.get(`rooms/${c}`).hangman;
+  return { historico: Object.keys(h.history || {}).length, rondasFeitas: h.wordsDone || 0 };
+}, code);
+console.log(`   histórico: ${contas.historico} entradas para ${contas.rondasFeitas} rondas terminadas`);
+if (contas.historico !== contas.rondasFeitas) {
+  fail(`o histórico tem ${contas.historico} palavras para ${contas.rondasFeitas} rondas terminadas`);
+}
 const forma = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman.mask, code);
 if (forma !== "____ _____") fail(`a forma da palavra está errada: "${forma}"`);
 
@@ -388,6 +409,29 @@ if (fim.linhas.length !== 2) fail(`a classificação devia listar os dois (tem $
 // pior do que aparecer em último.
 if (!fim.linhas.some((l) => /0 letras/.test(l))) fail("quem não acertou devia aparecer com zero");
 
+console.log("16b) As palavras jogadas ficam no histórico da sessão...");
+// É no fim da ronda, e só aí, que a palavra pode sair do browser de quem a
+// escreveu: já não há nada para esconder.
+const historico = await host.evaluate((c) => {
+  const h = window.__testDb.get(`rooms/${c}`).hangman.history || {};
+  return Object.keys(h).sort().map((k) => h[k]);
+}, code);
+console.log(`   ${historico.length} palavras guardadas: ${JSON.stringify(historico.map((e) => e.word))}`);
+if (historico.length !== 3) fail(`o histórico devia ter as 3 palavras (tem ${historico.length})`);
+if (!historico.every((e) => e.word === "ai")) fail("as palavras guardadas não batem certo");
+if (!historico[0].by) fail("o histórico devia guardar quem pôs a palavra");
+// E vê-se no ecrã, dos dois lados.
+// No fim da partida chega-se ao histórico pelo próprio ecrã de resultados —
+// o botão da barra fica atrás dele, e é justamente aí que se quer olhar para
+// trás.
+await host.click("#hangman-match-history-btn");
+await host.waitForSelector("#hangman-history-overlay:not(.hidden)", { timeout: 5000 });
+const linhas = await host.evaluate(() =>
+  [...document.querySelectorAll("[data-history-row]")].map((e) => e.textContent.replace(/\s+/g, " ").trim()));
+console.log(`   no ecrã: ${JSON.stringify(linhas[0])}`);
+if (linhas.length !== 3) fail("o histórico no ecrã devia listar as 3");
+await host.click("#hangman-history-close-btn");
+
 console.log("17) 'Nova partida' recomeça a contagem, e só quem manda no quadro a vê...");
 const veBotao = async (p) => p.evaluate(() => !document.getElementById("hangman-match-again-btn").classList.contains("hidden"));
 console.log(`   botão de nova partida — Beto (tem a caneta): ${await veBotao(guest)}, Ana: ${await veBotao(host)}`);
@@ -401,6 +445,10 @@ const partidaNova = await host.evaluate((c) => {
 console.log(`   depois de recomeçar: ${JSON.stringify(partidaNova)}`);
 if (partidaNova.feitas !== 0 || partidaNova.acabou) fail("recomeçar devia zerar a partida");
 if (partidaNova.pontos) fail("recomeçar devia zerar os pontos da partida");
+// O histórico é da partida, não da sala: recomeçar limpa-o.
+const historicoDepois = await host.evaluate((c) =>
+  Object.keys(window.__testDb.get(`rooms/${c}`).hangman.history || {}).length, code);
+if (historicoDepois !== 0) fail(`o histórico devia ficar vazio (tem ${historicoDepois})`);
 
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);

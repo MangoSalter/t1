@@ -1088,7 +1088,7 @@ export function correctCountOf(room, uid) {
 // INDIVIDUAIS: cada um acumula os seus, e a cada X erros SEUS perde a vez
 // seguinte. Ninguém acaba a ronda dos outros por ser distraído — o que muda o
 // jogo de "não estragues isto para todos" para "olha o que te vai custar".
-function missPatch(room, guesserUid) {
+function missPatch(room, guesserUid, word) {
   const patch = {};
   const meus = (room.hangman?.missesBy?.[guesserUid] || 0) + 1;
   patch[`missesBy/${guesserUid}`] = meus;
@@ -1108,17 +1108,32 @@ function missPatch(room, guesserUid) {
   const proximos = (room.hangman?.misses || 0) + 1;
   patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
   // Esgotar os erros da sala acaba a ronda, e acabar a ronda reordena.
-  if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
+  if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room, null, word));
   return patch;
 }
 
 // Uma ronda acabou: a palavra saiu, ou os erros esgotaram-se. É o único sítio
 // onde isso acontece, por isso é aqui que se conta a palavra e se vê se a
 // partida chegou ao fim.
-function roundEndPatch(room, contagens) {
+function roundEndPatch(room, contagens, word) {
   const patch = {};
   const feitas = (room?.hangman?.wordsDone || 0) + 1;
   patch.wordsDone = feitas;
+
+  // A palavra entra no histórico da sessão. É aqui, e só aqui, que ela pode
+  // sair do browser de quem a escreveu: a ronda acabou, portanto já não há
+  // nada para esconder. Guardada com a pista e com quem a pôs, para no fim se
+  // poder olhar para trás e dizer "essa é que foi difícil".
+  if (word) {
+    patch[`history/h${String(feitas).padStart(4, "0")}`] = {
+      word,
+      hint: room?.hangman?.hint || null,
+      by: room?.hangman?.leaderId || null,
+      winnerUid: room?.hangman?.winnerUid || null,
+      misses: room?.hangman?.misses || 0,
+      at: serverNow(),
+    };
+  }
   const total = boardSetting(room, "forca", "matchWords") || 0;
   if (total > 0 && feitas >= total) patch.matchOver = true;
 
@@ -1128,6 +1143,11 @@ function roundEndPatch(room, contagens) {
     patch.turnUid = novaOrdem[0];
   }
   return patch;
+}
+
+export function wordHistory(room) {
+  const h = room?.hangman?.history || {};
+  return Object.keys(h).sort().map((k) => h[k]).filter(Boolean);
 }
 
 export function matchIsOver(room) {
@@ -1167,7 +1187,7 @@ export function matchRanking(room) {
 export async function startNewMatch(code, room, uid) {
   if (!canSetBoardMode(room, uid)) return false;
   await update(ref(db, `rooms/${code}/hangman`), {
-    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null,
+    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null, history: null,
     mask: null, hint: null, misses: 0, missesBy: null, solved: false, winnerUid: null,
     wrong: null, wrongWords: null, guesses: null, wordGuesses: null,
     masks: null, correctCount: null, skipNext: null,
@@ -1321,7 +1341,7 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     const contagens = { ...(room.hangman.correctCount || {}) };
     contagens[guesserUid] = (contagens[guesserUid] || 0) + 1;
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
-    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens));
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word));
   } else {
     // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
     // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma
@@ -1333,7 +1353,7 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     patch.turnUid = advanceTurn(room, guesserUid, patch);
     const jaEsteve = !!room.hangman.wrong?.[letter];
     patch[`wrong/${letter}`] = { uid: guesserUid, at: serverNow() };
-    if (!jaEsteve) Object.assign(patch, missPatch(room, guesserUid));
+    if (!jaEsteve) Object.assign(patch, missPatch(room, guesserUid, word));
   }
   await update(ref(db, `rooms/${code}/hangman`), patch);
   return acertou;
@@ -1578,9 +1598,9 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
     // A ronda só acaba quando o quadro TODO está resolvido. Com várias
     // palavras, acertar uma não pode reordenar a fila a meio da ronda.
-    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens));
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word));
   } else {
-    Object.assign(patch, missPatch(room, guesserUid));
+    Object.assign(patch, missPatch(room, guesserUid, word));
     patch[`wrongWords/w${Date.now().toString(36)}`] = {
       text: String(tentativa).slice(0, 40), uid: guesserUid, at: serverNow(),
     };

@@ -655,6 +655,7 @@
         <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
         <button id="hangman-settings-btn" type="button" class="ghost hidden">⚙️ Definições</button>
         <button id="hangman-teams-btn" type="button" class="ghost">👥 Equipas</button>
+        <button id="hangman-history-btn" type="button" class="ghost hidden">📜 Palavras</button>
         <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
         <button id="hangman-undo-btn" type="button" class="ghost" title="Anular o último traço (Ctrl+Z)">↩️</button>
         <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
@@ -720,6 +721,7 @@
       <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
       <button id="hangman-settings-btn-viewer" type="button" class="ghost hidden">⚙️ Definições</button>
       <button id="hangman-teams-btn-viewer" type="button" class="ghost">👥 Equipas</button>
+      <button id="hangman-history-btn-viewer" type="button" class="ghost hidden">📜 Palavras</button>
       <form class="hangman-guess-form hidden" id="hangman-guess-form">
         <input id="hangman-guess-input" type="text" maxlength="1" autocomplete="off"
                placeholder="Letra" aria-label="Arriscar uma letra" />
@@ -959,12 +961,22 @@
     </div>
   </div>
 
+  <!-- Histórico das palavras da sessão. -->
+  <div id="hangman-history-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Palavras desta partida</h2>
+      <div id="hangman-history-list" class="hangman-history-list"></div>
+      <button type="button" id="hangman-history-close-btn" class="primary">Fechar</button>
+    </div>
+  </div>
+
   <!-- Fim da partida: ao fim das palavras combinadas, quem ganhou. -->
   <div id="hangman-match-overlay" class="pause-overlay hidden">
     <div class="card center">
       <h2 id="hangman-match-title">Fim da partida!</h2>
       <p id="hangman-match-sub" class="hint small"></p>
       <div id="hangman-match-ranking" class="hangman-match-ranking"></div>
+      <button type="button" id="hangman-match-history-btn" class="ghost">📜 Ver as palavras</button>
       <button type="button" id="hangman-match-again-btn" class="primary hidden">🔁 Nova partida</button>
       <p id="hangman-match-wait" class="hint small"></p>
     </div>
