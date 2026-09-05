@@ -25,7 +25,8 @@ import {
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
-  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf, canDrawOnBoard,
+  resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
+  individualMisses, missesOfPlayer, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -2414,8 +2415,22 @@ function renderHangman(room) {
         // da ronda seguinte, por isso tem de estar à vista enquanto se joga,
         // e não só no fim.
         const certas = correctCountOf(room, uid);
-        tag.textContent = (room.players[uid]?.name || "?")
-          + (uid === hangman.leaderId ? " 🖊️" : (certas > 0 ? ` ${certas}` : ""));
+        const errosDele = individualMisses(room) ? missesOfPlayer(room, uid) : 0;
+        const deCastigo = !!hangman.skipNext?.[uid];
+        let sufixo = "";
+        if (uid === hangman.leaderId) {
+          sufixo = " 🖊️";
+        } else {
+          // Com erros de cada um, os erros DELE têm de estar à vista: sem
+          // isso, a penalização a cada X erros chegava sem aviso nenhum, e uma
+          // penalização que não se vê chegar é só uma coisa estranha que
+          // acontece.
+          if (certas > 0) sufixo += ` ${certas}`;
+          if (errosDele > 0) sufixo += ` ✗${errosDele}`;
+          if (deCastigo) sufixo += " ⏭️";
+        }
+        tag.textContent = (room.players[uid]?.name || "?") + sufixo;
+        if (deCastigo) tag.title = "Perde a vez seguinte";
         hangmanEls.players.appendChild(tag);
       });
     }
@@ -2467,13 +2482,21 @@ function renderHangman(room) {
     const teto = maxMissesOf(room);
     if (hangman.solved) {
       hangmanEls.missesLabel.textContent = "Acertaram! 🎉";
+    } else if (individualMisses(room)) {
+      // Com erros de cada um não há "enforcado": ninguém acaba a ronda dos
+      // outros por ser distraído. O contador da sala passa a ser só um total.
+      const meus = missesOfPlayer(room, state.uid);
+      hangmanEls.missesLabel.textContent = amLeader
+        ? `Erros de todos: ${Object.values(hangman.missesBy || {}).reduce((a, b) => a + b, 0)}`
+        : `Os teus erros: ${meus}`;
     } else if (teto > 0) {
       hangmanEls.missesLabel.textContent = `Erros: ${misses}/${teto}${misses >= teto ? " — enforcado!" : ""}`;
     } else {
       // Sem limite: os erros continuam a contar-se, só não acabam o jogo.
       hangmanEls.missesLabel.textContent = `Erros: ${misses}`;
     }
-    hangmanEls.missesLabel.dataset.danger = teto > 0 && misses >= teto - 1 && !hangman.solved ? "1" : "0";
+    hangmanEls.missesLabel.dataset.danger =
+      !individualMisses(room) && teto > 0 && misses >= teto - 1 && !hangman.solved ? "1" : "0";
   }
   if (perdiAPalavra) {
     hangmanEls.status.textContent =

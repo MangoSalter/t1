@@ -1,5 +1,10 @@
-// "Um de cada vez" no quadro branco: a caneta tem de poder passar de pessoa
-// para pessoa (à escolha ou à sorte), e só quem a tem é que consegue escrever.
+// Passar a caneta no quadro: à escolha, à sorte, e sempre com um dono claro.
+//
+// Este caso já testou também "só quem tem a caneta escreve". Deixou de o
+// fazer porque essa regra MUDOU: no desenho livre a folha é de todos, e a
+// caneta diz apenas quem manda no quadro (modo, definições, limpar). Quem
+// pode escrever passou a ser assunto do mp-board-shared-test, que cobre os
+// três casos — livre, Forca com palavra em jogo, e Forca à espera de palavra.
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
@@ -41,7 +46,10 @@ const guestSees = await guest.locator("#hangman-pass-pen-btn").isVisible();
 console.log(`   Ana: ${hostSees} (esperado true), Beto: ${guestSees} (esperado false)`);
 if (!hostSees || guestSees) { console.log("   FALHOU"); process.exitCode = 1; }
 
-console.log("3) Beto tenta escrever sem ter a caneta — não deve acontecer nada...");
+console.log("3) No desenho livre, quem NÃO tem a caneta escreve à mesma...");
+// É a regra nova, e é o contrário do que este passo testava antes: a folha do
+// desenho livre é coletiva. A caneta aqui não é permissão de escrita, é quem
+// manda no quadro.
 await guest.evaluate(async ({ c, uid }) => {
   const m = await import("./js/room.js");
   const r = window.__testDb.get(`rooms/${c}`);
@@ -49,8 +57,9 @@ await guest.evaluate(async ({ c, uid }) => {
 }, { c: code, uid: betoId });
 await guest.waitForTimeout(200);
 let room = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`), code);
-console.log(`   pontos no quadro: ${Object.keys(room.hangman.doodle.points || {}).length} (esperado 0)`);
-if (Object.keys(room.hangman.doodle.points || {}).length !== 0) { console.log("   FALHOU"); process.exitCode = 1; }
+const doBeto = Object.keys(room.hangman.doodle.points || {}).length;
+console.log(`   pontos escritos pelo Beto, sem ter a caneta: ${doBeto} (esperado > 0)`);
+if (doBeto === 0) { console.log("   FALHOU: no desenho livre a folha é de todos"); process.exitCode = 1; }
 
 console.log("4) Ana passa a caneta ao Beto pelo seletor...");
 await host.click("#hangman-pass-pen-btn");
@@ -67,7 +76,7 @@ room = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`), code);
 console.log(`   caneta agora com o Beto: ${room.hangman.leaderId === betoId}`);
 if (room.hangman.leaderId !== betoId) { console.log("   FALHOU"); process.exitCode = 1; }
 
-console.log("5) Agora é o Beto que escreve — e a Ana já não consegue...");
+console.log("5) Com a caneta trocada, os dois continuam a poder escrever...");
 await guest.waitForTimeout(300);
 const canvasBox = await guest.locator("#hangman-doodle-canvas").boundingBox();
 await guest.mouse.move(canvasBox.x + 120, canvasBox.y + 160);
@@ -85,8 +94,9 @@ await host.evaluate(async ({ c, uid }) => {
 }, { c: code, uid: hostId });
 await host.waitForTimeout(200);
 room = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`), code);
-console.log(`   depois de a Ana tentar escrever: ${Object.keys(room.hangman.doodle.points || {}).length} (esperado continuar ${afterBeto})`);
-if (Object.keys(room.hangman.doodle.points || {}).length !== afterBeto) { console.log("   FALHOU: quem já não tem a caneta conseguiu escrever"); process.exitCode = 1; }
+const depoisDaAna = Object.keys(room.hangman.doodle.points || {}).length;
+console.log(`   depois de a Ana escrever: ${depoisDaAna} (esperado mais do que ${afterBeto})`);
+if (depoisDaAna <= afterBeto) { console.log("   FALHOU: no desenho livre, quem não tem a caneta devia escrever à mesma"); process.exitCode = 1; }
 
 console.log("6) A Ana continua a ver o botão (é anfitriã, pode destravar) e o Beto passa a vê-lo...");
 const hostStill = await host.locator("#hangman-pass-pen-btn").isVisible();
@@ -105,10 +115,17 @@ if (room.hangman.leaderId !== hostId) { console.log("   FALHOU"); process.exitCo
 const overlayClosed = await guest.evaluate(() => document.getElementById("hangman-pen-overlay").classList.contains("hidden"));
 if (!overlayClosed) { console.log("   FALHOU: o seletor devia fechar"); process.exitCode = 1; }
 
-console.log("8) O texto de estado explica de quem é a vez (as regras combinam-se por voz)...");
-const guestStatus = await guest.locator("#hangman-status").textContent();
+console.log("8) O texto de estado diz o que se pode fazer agora...");
+// No desenho livre não faz sentido dizer "fulano tem a caneta" como se os
+// outros não pudessem escrever — podem. O texto tem de dizer a verdade sobre
+// a folha, senão as pessoas nem tentam.
+const guestStatus = (await guest.locator("#hangman-status").textContent()).trim();
 console.log(`   Beto vê: "${guestStatus}"`);
-if (!guestStatus.includes("Ana")) { console.log("   FALHOU: devia dizer quem tem a caneta"); process.exitCode = 1; }
+if (!guestStatus) { console.log("   FALHOU: o estado não devia ficar vazio"); process.exitCode = 1; }
+if (/só .*caneta|apenas .*caneta/i.test(guestStatus)) {
+  console.log("   FALHOU: no desenho livre não se pode dizer que só um escreve");
+  process.exitCode = 1;
+}
 
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));

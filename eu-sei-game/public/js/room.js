@@ -751,6 +751,28 @@ export const BOARD_SETTINGS_SPEC = {
       default: "turnos",
     },
     {
+      key: "missMode",
+      label: "Erros",
+      options: [
+        { value: "partilhados", label: "Da sala (o teto enforca todos)" },
+        { value: "individuais", label: "De cada um" },
+      ],
+      // Por omissão fica o de sempre: é a forca clássica, e é o que já está
+      // testado. Quem quiser o outro escolhe-o.
+      default: "partilhados",
+    },
+    {
+      key: "penaltyEvery",
+      label: "Penalização por erros (só com erros de cada um)",
+      options: [
+        { value: 0, label: "Sem penalização" },
+        { value: 2, label: "A cada 2 erros, perde a vez seguinte" },
+        { value: 3, label: "A cada 3 erros, perde a vez seguinte" },
+        { value: 5, label: "A cada 5 erros, perde a vez seguinte" },
+      ],
+      default: 0,
+    },
+    {
       key: "autoPen",
       label: "Caneta entre palavras",
       options: [
@@ -987,6 +1009,33 @@ export function correctCountOf(room, uid) {
 // a fila é reordenada por quem mais acertou, e quem mais acertou fica em
 // primeiro na ronda seguinte. É a recompensa por jogar bem — e como a ordem
 // fica guardada, vê-se logo no ecrã em vez de só aparecer na próxima palavra.
+// Um erro de alguém. Dois modelos, à escolha nas definições:
+//
+// PARTILHADOS (o de sempre, e o por omissão): há um contador da sala e chegar
+// ao teto enforca toda a gente. É a forca clássica.
+//
+// INDIVIDUAIS: cada um acumula os seus, e a cada X erros SEUS perde a vez
+// seguinte. Ninguém acaba a ronda dos outros por ser distraído — o que muda o
+// jogo de "não estragues isto para todos" para "olha o que te vai custar".
+function missPatch(room, guesserUid) {
+  const patch = {};
+  const meus = (room.hangman?.missesBy?.[guesserUid] || 0) + 1;
+  patch[`missesBy/${guesserUid}`] = meus;
+
+  if (individualMisses(room)) {
+    const aCada = boardSetting(room, "forca", "penaltyEvery") || 0;
+    if (aCada > 0 && meus % aCada === 0) patch[`skipNext/${guesserUid}`] = true;
+    return patch;
+  }
+
+  const teto = maxMissesOf(room);
+  const proximos = (room.hangman?.misses || 0) + 1;
+  patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
+  // Esgotar os erros da sala acaba a ronda, e acabar a ronda reordena.
+  if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
+  return patch;
+}
+
 function roundEndPatch(room, contagens) {
   const novaOrdem = orderByCorrect(room, contagens);
   if (novaOrdem.length === 0) return {};
@@ -1000,6 +1049,33 @@ export function nextGuesser(room, afterUid) {
   if (fila.length === 0) return null;
   const i = fila.indexOf(afterUid);
   return fila[(i + 1) % fila.length];
+}
+
+export function individualMisses(room) {
+  return boardSetting(room, "forca", "missMode") === "individuais";
+}
+
+export function missesOfPlayer(room, uid) {
+  return room?.hangman?.missesBy?.[uid] || 0;
+}
+
+// A vez seguinte, saltando quem está de castigo. Quem é saltado GASTA o
+// castigo ao ser saltado — senão ficava preso a saltar para sempre, que não
+// era uma penalização, era uma expulsão.
+function advanceTurn(room, afterUid, patch) {
+  const fila = hangmanGuessers(room);
+  if (fila.length === 0) return null;
+  let atual = afterUid;
+  // No máximo uma volta completa: se estiverem todos de castigo, alguém tem
+  // de jogar na mesma, ou o jogo parava.
+  for (let i = 0; i < fila.length; i += 1) {
+    const seguinte = nextGuesser({ ...room, hangman: { ...room.hangman, turnOrder: fila } }, atual);
+    if (!seguinte) return null;
+    if (!room.hangman?.skipNext?.[seguinte]) return seguinte;
+    patch[`skipNext/${seguinte}`] = null;
+    atual = seguinte;
+  }
+  return nextGuesser(room, afterUid);
 }
 
 export function freeGuessing(room) {
@@ -1053,10 +1129,7 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
   // certa era contada como erro — com direito a subir para as erradas.
   const alvo = normalizeLetter(letter);
   const acertou = !!alvo && [...String(word || "")].some((ch) => normalizeLetter(ch) === alvo);
-  const patch = {
-    [`guesses/${guesserUid}`]: null,
-    turnUid: nextGuesser(room, guesserUid),
-  };
+  const patch = { [`guesses/${guesserUid}`]: null };
   if (acertou) {
     patch.mask = nova;
     patch.solved = maskIsSolved(nova);
@@ -1077,15 +1150,14 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
     // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma
     // letra é distração, não é uma tentativa a mais.
+    //
+    // E é AQUI que a vez passa — só a quem erra. Calculada dentro deste ramo
+    // de propósito: fora dele, corria também no acerto e desfazia o "acertar
+    // dá outra tentativa".
+    patch.turnUid = advanceTurn(room, guesserUid, patch);
     const jaEsteve = !!room.hangman.wrong?.[letter];
     patch[`wrong/${letter}`] = { uid: guesserUid, at: serverNow() };
-    if (!jaEsteve) {
-      const teto = maxMissesOf(room);
-      const proximos = (room.hangman.misses || 0) + 1;
-      patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
-      // Esgotar os erros também acaba a ronda, e também reordena.
-      if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
-    }
+    if (!jaEsteve) Object.assign(patch, missPatch(room, guesserUid));
   }
   await update(ref(db, `rooms/${code}/hangman`), patch);
   return acertou;
@@ -1312,10 +1384,7 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
     Object.assign(patch, roundEndPatch(room, contagens));
   } else {
-    const teto = maxMissesOf(room);
-    const proximos = (room.hangman.misses || 0) + 1;
-    patch.misses = teto > 0 ? Math.min(teto, proximos) : proximos;
-    if (teto > 0 && proximos >= teto) Object.assign(patch, roundEndPatch(room));
+    Object.assign(patch, missPatch(room, guesserUid));
     patch[`wrongWords/w${Date.now().toString(36)}`] = {
       text: String(tentativa).slice(0, 40), uid: guesserUid, at: serverNow(),
     };
