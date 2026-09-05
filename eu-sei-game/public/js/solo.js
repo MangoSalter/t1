@@ -619,6 +619,7 @@ const solo = {
   hangmanUsedWords: new Set(),
   marathonQueue: [],
   marathonTotalGames: 0,
+  inMarathon: false,
   mapActive: false,
   mapRoundIndex: 0,
   mapScore: 0,
@@ -1008,13 +1009,24 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
     const a = fresh[0];
     const extra = fresh.length > 1 ? ` (+${fresh.length - 1})` : "";
     els.mgeQuip.textContent = `${a.icon} Conquista: ${a.name}${extra} — ${a.who}: “${a.quip}”`;
+    // A conquista e a boca da mascote partilham este elemento; marcar qual e
+    // qual deixa de ser ambiguo para quem le o ecra (e para os testes, que de
+    // outra forma nao distinguem "nao ha boca" de "ha uma conquista").
+    els.mgeQuip.dataset.kind = "achievement";
     els.mgeQuip.classList.remove("hidden");
-  } else {
-    // Antes só falavam entre jogos da maratona; a jogar avulso o fim era
-    // mudo, e os mini-jogos soltos não pareciam do mesmo jogo.
+  } else if (solo.marathonQueue.length > 0 || !solo.inMarathon) {
+    // A boca da mascote é uma ponte ENTRE jogos: aparece quando ainda vem
+    // mais alguma coisa a seguir (maratona a meio), e também a jogar avulso,
+    // onde antes o fim era mudo e os mini-jogos soltos não pareciam do mesmo
+    // jogo. No ÚLTIMO jogo da maratona fica calada — a seguir vem o ecrã de
+    // resultado da maratona, e uma boca solta ali era só ruído.
     const quip = randomMascotQuip();
     els.mgeQuip.textContent = `${quip.who}: "${quip.text}"`;
+    els.mgeQuip.dataset.kind = "mascot";
     els.mgeQuip.classList.remove("hidden");
+  } else {
+    els.mgeQuip.dataset.kind = "none";
+    els.mgeQuip.classList.add("hidden");
   }
   els.mgeOverlay.classList.remove("hidden");
 }
@@ -1026,6 +1038,7 @@ els.mgeContinueBtn.addEventListener("click", () => {
 els.mgeExitBtn.addEventListener("click", () => {
   els.mgeOverlay.classList.add("hidden");
   solo.marathonQueue = [];
+  solo.inMarathon = false;
   solo.inRound = false;
   solo.hangmanActive = false;
   solo.hangmanStreakMode = false;
@@ -1151,6 +1164,7 @@ function exitGameToMenu() {
   clearActiveGame();
   hideGameHud();
   solo.marathonQueue = [];
+  solo.inMarathon = false;
   solo.inRound = false;
   solo.hangmanActive = false;
   solo.hangmanStreakMode = false;
@@ -2040,6 +2054,7 @@ function startMarathon() {
   if (keys.length === 0) return;
   solo.marathonQueue = shuffleArray(keys);
   solo.marathonTotalGames = keys.length;
+  solo.inMarathon = true;
   solo.runScore = 0;
   solo.round = 1;
   solo.afterMinigame = runNextMarathonGame;
@@ -2058,6 +2073,7 @@ function runNextMarathonGame() {
 }
 
 function showMarathonResult() {
+  solo.inMarathon = false;
   addScoreHistoryEntry({
     score: solo.runScore,
     mode: "Maratona",

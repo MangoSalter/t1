@@ -152,7 +152,7 @@ const screenAfterStart = await page.evaluate(() => document.querySelector(".scre
 console.log(`   primeiro jogo da maratona: ${screenAfterStart}`);
 await page.click("#game-hud-skip-btn");
 await page.waitForFunction(() => !document.getElementById("minigame-end-overlay").classList.contains("hidden"), { timeout: 3000 });
-const quipVisible = await page.locator("#mge-quip").isVisible();
+const quipVisible = await page.locator('#mge-quip[data-kind="mascot"]').isVisible();
 console.log(`   fala da mascote visível (deve ser true, ainda há mais 1 jogo): ${quipVisible}`);
 if (!quipVisible) { console.log("   FALHOU: esperava fala da mascote entre jogos da maratona"); process.exitCode = 1; }
 await page.click("#mge-continue-btn");
@@ -162,7 +162,7 @@ const screenAfterContinue = await page.evaluate(() => document.querySelector(".s
 console.log(`   segundo jogo da maratona: ${screenAfterContinue}`);
 await page.click("#game-hud-skip-btn");
 await page.waitForFunction(() => !document.getElementById("minigame-end-overlay").classList.contains("hidden"), { timeout: 3000 });
-const quipVisible2 = await page.locator("#mge-quip").isVisible();
+const quipVisible2 = await page.locator('#mge-quip[data-kind="mascot"]').isVisible();
 console.log(`   fala da mascote visível no último jogo (deve ser false): ${quipVisible2}`);
 if (quipVisible2) { console.log("   FALHOU: não devia haver fala da mascote no último jogo da maratona"); process.exitCode = 1; }
 await page.click("#mge-continue-btn");
