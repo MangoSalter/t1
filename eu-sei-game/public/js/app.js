@@ -28,7 +28,8 @@ import {
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
-  individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved, canDrawOnBoard,
+  individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved,
+  matchIsOver, wordsDone, matchWordsTotal, matchRanking, startNewMatch, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -924,6 +925,13 @@ const hangmanEls = {
   wordGuessInput: document.getElementById("hangman-wordguess-input"),
   wrongWords: document.getElementById("hangman-wrong-words"),
   quip: document.getElementById("hangman-quip"),
+  matchOverlay: document.getElementById("hangman-match-overlay"),
+  matchTitle: document.getElementById("hangman-match-title"),
+  matchSub: document.getElementById("hangman-match-sub"),
+  matchRanking: document.getElementById("hangman-match-ranking"),
+  matchAgainBtn: document.getElementById("hangman-match-again-btn"),
+  matchWait: document.getElementById("hangman-match-wait"),
+  matchProgress: document.getElementById("hangman-match-progress"),
   quipWho: document.getElementById("hangman-quip-who"),
   quipText: document.getElementById("hangman-quip-text"),
   modeOverlay: document.getElementById("hangman-mode-overlay"),
@@ -1983,6 +1991,68 @@ hangmanEls.teamsBtn.addEventListener("click", () => hangmanOpenTeams(true));
 hangmanEls.teamsBtnViewer.addEventListener("click", () => hangmanOpenTeams(true));
 hangmanEls.teamsCloseBtn.addEventListener("click", hangmanCloseTeams);
 
+// --- Fim da partida ---
+
+function hangmanRenderMatchOver(room) {
+  const acabou = matchIsOver(room);
+  hangmanEls.matchOverlay.classList.toggle("hidden", !acabou);
+  if (!acabou) return;
+
+  const ordem = matchRanking(room);
+  const maisPontos = ordem.length > 0 ? ordem[0].pontos : 0;
+  hangmanEls.matchRanking.innerHTML = "";
+  let lugar = 0;
+  let pontosAnteriores = null;
+  ordem.forEach((entrada, i) => {
+    // Empate fica no mesmo lugar: dois primeiros são dois primeiros.
+    if (entrada.pontos !== pontosAnteriores) lugar = i + 1;
+    pontosAnteriores = entrada.pontos;
+    const linha = document.createElement("div");
+    linha.className = "hangman-match-row";
+    linha.dataset.place = String(lugar);
+    linha.dataset.matchRow = entrada.id;
+    linha.style.borderColor = entrada.cor;
+
+    const pos = document.createElement("span");
+    pos.className = "hangman-match-place";
+    pos.textContent = `${lugar}º`;
+    linha.appendChild(pos);
+
+    const nome = document.createElement("span");
+    nome.className = "hangman-match-name";
+    nome.style.color = entrada.cor;
+    nome.textContent = entrada.nome;
+    // Numa equipa, quem lá está — senão o nome da equipa não diz de quem é.
+    if (entrada.membros.length > 1 || teamsOn(room)) {
+      const quem = document.createElement("span");
+      quem.className = "hangman-match-members";
+      quem.textContent = ` (${entrada.membros.map((u) => room.players?.[u]?.name).filter(Boolean).join(", ") || "sem ninguém"})`;
+      nome.appendChild(quem);
+    }
+    linha.appendChild(nome);
+
+    const pts = document.createElement("span");
+    pts.className = "hangman-match-points";
+    pts.textContent = `${entrada.pontos} letra${entrada.pontos === 1 ? "" : "s"}`;
+    linha.appendChild(pts);
+    hangmanEls.matchRanking.appendChild(linha);
+  });
+
+  const ganhou = ordem.filter((e) => e.pontos === maisPontos && maisPontos > 0);
+  hangmanEls.matchTitle.textContent = ganhou.length === 0
+    ? "Fim da partida — ninguém acertou nada!"
+    : (ganhou.length > 1 ? "Fim da partida — empate!" : `Fim da partida — ganhou ${ganhou[0].nome}!`);
+  hangmanEls.matchSub.textContent = `${wordsDone(room)} palavra${wordsDone(room) === 1 ? "" : "s"} jogada${wordsDone(room) === 1 ? "" : "s"}.`;
+
+  const manda = canSetBoardMode(room, state.uid);
+  hangmanEls.matchAgainBtn.classList.toggle("hidden", !manda);
+  hangmanEls.matchWait.textContent = manda ? "" : "À espera de quem manda no quadro para começar outra.";
+}
+
+hangmanEls.matchAgainBtn.addEventListener("click", () => {
+  startNewMatch(state.code, state.room, state.uid);
+});
+
 hangmanEls.settingsBtn.addEventListener("click", hangmanOpenSettings);
 hangmanEls.settingsBtnViewer.addEventListener("click", hangmanOpenSettings);
 hangmanEls.settingsCloseBtn.addEventListener("click", hangmanCloseSettings);
@@ -2430,6 +2500,14 @@ function renderHangman(room) {
   // Uma escolha obrigatória fecha os ecrãs opcionais. Sem isto, quem tivesse
   // as equipas ou as definições abertas ficava com a escolha de cor por
   // baixo — visível mas impossível de carregar.
+  // O fim da partida manda em tudo o resto: é o único ecrã que não se fecha
+  // por causa de outro.
+  hangmanRenderMatchOver(naForca ? room : { hangman: {}, players: {} });
+  if (matchIsOver(room) && naForca) {
+    hangmanCloseTeams();
+    hangmanCloseSettings();
+    hangmanCloseModePicker();
+  }
   if (precisaDeCor) {
     hangmanCloseTeams();
     hangmanCloseSettings();
@@ -2532,6 +2610,16 @@ function renderHangman(room) {
   const pista = temPalavra && podeVerPista ? (hangman.hint || "") : "";
   hangmanEls.hintLabel.classList.toggle("hidden", !pista);
   hangmanEls.hintLabel.textContent = pista ? `Pista: ${pista}` : "";
+
+  // Quantas palavras faltam. Sem isto, uma partida com fim acabava de
+  // surpresa — e um fim que apanha as pessoas desprevenidas parece uma avaria,
+  // não um resultado.
+  const totalPalavras = matchWordsTotal(room);
+  const feitas = wordsDone(room);
+  hangmanEls.matchProgress.classList.toggle("hidden", !(naForca && totalPalavras > 0));
+  if (naForca && totalPalavras > 0) {
+    hangmanEls.matchProgress.textContent = `Palavra ${Math.min(feitas + 1, totalPalavras)} de ${totalPalavras}`;
+  }
 
   if (temPalavra) {
     // Com tentativas anónimas, cada um vê revelado só o que ELE acertou. Quem

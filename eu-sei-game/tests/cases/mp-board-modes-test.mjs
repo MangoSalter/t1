@@ -341,6 +341,67 @@ await host.waitForFunction((c) => !window.__testDb.get(`rooms/${c}`).hangman.mas
 if (!(await guest.locator("#hangman-word-form").isVisible())) fail("devia voltar a caixa de escrever a palavra");
 if (await host.locator("#hangman-word-zone").isVisible()) fail("a zona da palavra devia desaparecer sem palavra definida");
 
+console.log("16) A partida ACABA ao fim das palavras combinadas...");
+// As equipas contavam letras e ninguém ganhava nunca. Um jogo que não acaba
+// não tem vencedor, e sem vencedor as equipas são só uma lista de nomes.
+// Põe-se a partida a durar 3 palavras e joga-se até ao fim.
+await guest.click("#hangman-settings-btn");
+await guest.click('[data-setting="matchWords"][data-setting-value="3"]');
+await guest.click("#hangman-settings-close-btn");
+await guest.evaluate(async (c) => {
+  // Recomeça a contagem para o teste não depender das palavras já jogadas.
+  const m = await import("./js/room.js");
+  const r = window.__testDb.get(`rooms/${c}`);
+  await m.startNewMatch(c, r, r.hangman.leaderId);
+}, code);
+await host.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.wordsDone || 0) === 0, code, { timeout: 8000 });
+
+for (let i = 1; i <= 3; i += 1) {
+  await guest.waitForFunction(() => !document.getElementById("hangman-word-form").classList.contains("hidden"), { timeout: 8000 });
+  await guest.fill("#hangman-word-input", "ai");
+  await guest.click("#hangman-word-form button[type=submit]");
+  await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.mask, code, { timeout: 8000 });
+  // A Ana acerta a palavra toda, o que fecha a ronda.
+  await host.waitForFunction(() => !document.getElementById("hangman-wordguess-form").classList.contains("hidden"), { timeout: 8000 });
+  await host.fill("#hangman-wordguess-input", "ai");
+  await host.click("#hangman-wordguess-form button[type=submit]");
+  await host.waitForFunction((args) => (window.__testDb.get(`rooms/${args[0]}`).hangman.wordsDone || 0) >= args[1], [code, i], { timeout: 10000 });
+  console.log(`   palavra ${i} de 3 feita`);
+  if (i < 3) {
+    await guest.click("#hangman-newword-btn");
+  }
+}
+
+// Ao fim das três, o ecrã de fim aparece AOS DOIS.
+for (const p of [host, guest]) {
+  await p.waitForSelector("#hangman-match-overlay:not(.hidden)", { timeout: 10000 });
+}
+const fim = await host.evaluate(() => ({
+  titulo: document.getElementById("hangman-match-title").textContent,
+  linhas: [...document.querySelectorAll("[data-match-row]")].map((e) => e.textContent.replace(/\s+/g, " ").trim()),
+}));
+console.log(`   ${fim.titulo}`);
+console.log(`   classificação: ${JSON.stringify(fim.linhas)}`);
+if (!/ganhou|empate|ninguém/i.test(fim.titulo)) fail("o ecrã de fim devia dizer quem ganhou");
+if (fim.linhas.length !== 2) fail(`a classificação devia listar os dois (tem ${fim.linhas.length})`);
+// Quem não acertou nada aparece na mesma, com zero: desaparecer da tabela era
+// pior do que aparecer em último.
+if (!fim.linhas.some((l) => /0 letras/.test(l))) fail("quem não acertou devia aparecer com zero");
+
+console.log("17) 'Nova partida' recomeça a contagem, e só quem manda no quadro a vê...");
+const veBotao = async (p) => p.evaluate(() => !document.getElementById("hangman-match-again-btn").classList.contains("hidden"));
+console.log(`   botão de nova partida — Beto (tem a caneta): ${await veBotao(guest)}, Ana: ${await veBotao(host)}`);
+if (!(await veBotao(guest))) fail("quem manda no quadro devia poder começar outra");
+await guest.click("#hangman-match-again-btn");
+await host.waitForFunction(() => document.getElementById("hangman-match-overlay").classList.contains("hidden"), { timeout: 8000 });
+const partidaNova = await host.evaluate((c) => {
+  const h = window.__testDb.get(`rooms/${c}`).hangman;
+  return { feitas: h.wordsDone || 0, acabou: !!h.matchOver, pontos: h.matchScore || null };
+}, code);
+console.log(`   depois de recomeçar: ${JSON.stringify(partidaNova)}`);
+if (partidaNova.feitas !== 0 || partidaNova.acabou) fail("recomeçar devia zerar a partida");
+if (partidaNova.pontos) fail("recomeçar devia zerar os pontos da partida");
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

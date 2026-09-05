@@ -322,3 +322,40 @@ check2("quem montou a palavra ganhou", String(playerSolved(quaseGanhou, "b")), "
 check2("quem não montou, não", String(playerSolved(quaseGanhou, "c")), "false");
 // Sem palavra em jogo não há máscara nenhuma.
 check2("sem palavra", playerMask({ hangman: {} }, "b"), "");
+
+console.log("27) A partida acaba ao fim das palavras combinadas, e há vencedor...");
+const { matchIsOver, matchWordsTotal, matchRanking } = await import("./js/room.js");
+const salaPartida = (settings, extra) => ({
+  players: {
+    a: { connected: true, name: "Ana" },
+    b: { connected: true, name: "Beto" },
+    c: { connected: true, name: "Carla" },
+  },
+  hangman: { mode: "forca", leaderId: "a", settings, ...extra },
+});
+check2("por omissão, 5 palavras", String(matchWordsTotal(salaPartida({}))), "5");
+check2("sem fim quando escolhido", String(matchWordsTotal(salaPartida({ matchWords: 0 }))), "0");
+check2("ainda a jogar", String(matchIsOver(salaPartida({}, { wordsDone: 2 }))), "false");
+check2("acabada", String(matchIsOver(salaPartida({}, { matchOver: true }))), "true");
+
+console.log("28) A classificação: equipas quando há equipas, pessoas quando não há...");
+// Cada um por si: conta a pessoa.
+const soloRank = matchRanking(salaPartida({}, { matchScore: { b: 5, c: 2, a: 9 } }));
+check2("por pontos, do maior para o menor", soloRank.map((e) => e.nome).join(","), "Ana,Beto,Carla");
+check2("com os pontos certos", soloRank.map((e) => e.pontos).join(","), "9,5,2");
+// Quem não acertou nada aparece na mesma, com zero — desaparecer da tabela
+// seria pior do que aparecer em último.
+const comZero = matchRanking(salaPartida({}, { matchScore: { a: 3 } }));
+check2("quem não acertou aparece com zero", comZero.length, 3);
+check2("e fica em último", comZero[comZero.length - 1].pontos, 0);
+// Em equipas, conta a equipa e não a pessoa.
+const equipasRank = matchRanking(salaPartida({}, {
+  play: "equipas",
+  teams: { t1: { name: "Os Kotas" }, t2: { name: "Equipa B" } },
+  teamOf: { a: "t1", b: "t2", c: "t2" },
+  teamScore: { t1: 4, t2: 7 },
+  matchScore: { a: 99 },
+}));
+check2("ganha a equipa com mais pontos", equipasRank[0].nome, "Equipa B");
+check2("e os pontos são os da equipa", equipasRank.map((e) => e.pontos).join(","), "7,4");
+check2("com quem lá está", equipasRank[0].membros.join(","), "b,c");

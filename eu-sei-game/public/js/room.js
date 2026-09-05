@@ -751,6 +751,20 @@ export const BOARD_SETTINGS_SPEC = {
       default: "turnos",
     },
     {
+      key: "matchWords",
+      label: "A partida dura",
+      options: [
+        { value: 3, label: "3 palavras" },
+        { value: 5, label: "5 palavras" },
+        { value: 8, label: "8 palavras" },
+        { value: 0, label: "Sem fim (joga-se até se querer parar)" },
+      ],
+      // 5 por omissão: as equipas contavam letras e ninguém ganhava nunca. Um
+      // jogo que não acaba não tem vencedor, e sem vencedor as equipas são só
+      // uma lista de nomes. Quem preferir jogar sem fim escolhe-o.
+      default: 5,
+    },
+    {
       key: "missMode",
       label: "Erros",
       options: [
@@ -1098,10 +1112,67 @@ function missPatch(room, guesserUid) {
   return patch;
 }
 
+// Uma ronda acabou: a palavra saiu, ou os erros esgotaram-se. É o único sítio
+// onde isso acontece, por isso é aqui que se conta a palavra e se vê se a
+// partida chegou ao fim.
 function roundEndPatch(room, contagens) {
+  const patch = {};
+  const feitas = (room?.hangman?.wordsDone || 0) + 1;
+  patch.wordsDone = feitas;
+  const total = boardSetting(room, "forca", "matchWords") || 0;
+  if (total > 0 && feitas >= total) patch.matchOver = true;
+
   const novaOrdem = orderByCorrect(room, contagens);
-  if (novaOrdem.length === 0) return {};
-  return { turnOrder: novaOrdem, turnUid: novaOrdem[0] };
+  if (novaOrdem.length > 0) {
+    patch.turnOrder = novaOrdem;
+    patch.turnUid = novaOrdem[0];
+  }
+  return patch;
+}
+
+export function matchIsOver(room) {
+  return !!room?.hangman?.matchOver;
+}
+
+export function wordsDone(room) {
+  return room?.hangman?.wordsDone || 0;
+}
+
+export function matchWordsTotal(room) {
+  return boardSetting(room, "forca", "matchWords") || 0;
+}
+
+// A classificação final da partida. Em equipas conta a equipa; cada um por si,
+// conta a pessoa. É a mesma pergunta ("quem ganhou?") com dois sujeitos.
+export function matchRanking(room) {
+  if (teamsOn(room)) {
+    return teamList(room)
+      .map((eq) => ({ id: eq.id, nome: eq.name, cor: eq.color, pontos: eq.score, membros: eq.members }))
+      .sort((a, b) => b.pontos - a.pontos);
+  }
+  const pontos = room?.hangman?.matchScore || {};
+  return connectedPlayerIds(room)
+    .map((uid) => ({
+      id: uid,
+      nome: room.players?.[uid]?.name || "?",
+      cor: playerColor(room, uid),
+      pontos: pontos[uid] || 0,
+      membros: [uid],
+    }))
+    .sort((a, b) => b.pontos - a.pontos);
+}
+
+// Recomeçar a partida: zera o que é da partida (palavras feitas, pontos) e
+// deixa em paz o que é da sala (equipas, cores, quem tem a caneta).
+export async function startNewMatch(code, room, uid) {
+  if (!canSetBoardMode(room, uid)) return false;
+  await update(ref(db, `rooms/${code}/hangman`), {
+    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null,
+    mask: null, hint: null, misses: 0, missesBy: null, solved: false, winnerUid: null,
+    wrong: null, wrongWords: null, guesses: null, wordGuesses: null,
+    masks: null, correctCount: null, skipNext: null,
+  });
+  return true;
 }
 
 // A vez roda entre quem arrisca. Se quem estava na vez sair, passa ao
@@ -1241,6 +1312,9 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     if (equipa) {
       patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 1;
     }
+    // O da partida conta sempre, com ou sem equipas: é o que responde a "quem
+    // ganhou" quando se joga cada um por si.
+    patch[`matchScore/${guesserUid}`] = (room.hangman.matchScore?.[guesserUid] || 0) + 1;
     // ACERTAR DÁ OUTRA TENTATIVA: a vez NÃO passa. Só se perde a vez ao
     // errar. Repara que turnUid não é tocado aqui de propósito — quem
     // acertou continua a ser quem está na vez.
@@ -1496,6 +1570,7 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
       // passo.
       patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 3;
     }
+    patch[`matchScore/${guesserUid}`] = (room.hangman.matchScore?.[guesserUid] || 0) + 3;
     // Acertar uma palavra inteira conta como três acertos para a reordenação:
     // quem a viu inteira jogou melhor do que quem foi tirando letras.
     const contagens = { ...(room.hangman.correctCount || {}) };

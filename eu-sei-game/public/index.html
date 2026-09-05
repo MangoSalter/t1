@@ -692,6 +692,7 @@
          preencher ocupariam o meio do quadro, que é justamente onde quem tem
          a caneta precisa de espaço para ir desenhando o enforcado. -->
     <div class="hangman-word-zone hidden" id="hangman-word-zone">
+      <span class="hangman-match-progress hidden" id="hangman-match-progress"></span>
       <span class="hangman-hint-label hidden" id="hangman-hint-label"></span>
       <span class="hangman-players" id="hangman-players"></span>
       <span class="hangman-misses" id="hangman-misses"></span>
@@ -955,6 +956,17 @@
       <p class="hint small">É a cor com que as tuas tentativas vão aparecer no quadro.</p>
       <div id="hangman-color-choices" class="hangman-color-choices"></div>
       <p id="hangman-color-waiting" class="hint small"></p>
+    </div>
+  </div>
+
+  <!-- Fim da partida: ao fim das palavras combinadas, quem ganhou. -->
+  <div id="hangman-match-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2 id="hangman-match-title">Fim da partida!</h2>
+      <p id="hangman-match-sub" class="hint small"></p>
+      <div id="hangman-match-ranking" class="hangman-match-ranking"></div>
+      <button type="button" id="hangman-match-again-btn" class="primary hidden">🔁 Nova partida</button>
+      <p id="hangman-match-wait" class="hint small"></p>
     </div>
   </div>
 
