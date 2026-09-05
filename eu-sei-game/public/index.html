@@ -579,6 +579,7 @@
       <div class="board-toolbar-sep"></div>
       <button type="button" id="board-undo-btn" class="ghost" title="Anular (Ctrl+Z)">↩️</button>
       <button type="button" id="board-redo-btn" class="ghost" title="Refazer (Ctrl+Shift+Z)">↪️</button>
+      <button type="button" id="board-clear-btn" class="ghost board-danger" title="Limpar tudo">🧹<span class="board-btn-name"> Limpar tudo</span></button>
 
       <details class="board-panel" id="board-panel">
         <summary title="Mais opções">⚙️ Mais</summary>
@@ -604,8 +605,6 @@
           <button type="button" id="board-export-btn" class="ghost">📤 Exportar quadro</button>
           <button type="button" id="board-import-btn" class="ghost">📥 Importar quadro</button>
           <input type="file" id="board-import-input" accept="application/json,.json" hidden />
-          <div class="board-panel-sep"></div>
-          <button type="button" id="board-clear-btn" class="ghost board-danger">🧹 Limpar tudo</button>
           <p class="hint small board-shortcuts">
             Atalhos: <b>Ctrl+Z</b> anular · <b>B</b> caneta · <b>E</b> borracha ·
             <b>T</b> texto · <b>H</b> mover · <b>espaço</b> arrastar a folha ·
@@ -619,16 +618,49 @@
     <canvas id="board-canvas" class="board-canvas"></canvas>
   </section>
 
-  <!-- QUADRO BRANCO: folha partilhada em ecrã inteiro, escreve um de cada vez -->
+  <!-- QUADRO BRANCO DE SALA. A folha é a mesma para todos, mas o ecrã à
+       volta dela muda com o PAPEL de cada um, e o modo muda o que a app
+       garante. Duas versões, como no esboço:
+
+       versão de quem tem a caneta — moldura forte, e três zonas:
+         (1) opções da caneta   (2) opções do quadro   (3) barra do modo
+       versão de quem não tem — moldura cinzenta e só a barra do modo (a).
+
+       O modo escolhe-se por votação: ninguém manda sozinho no que se joga. -->
   <section data-screen="hangman" class="screen hangman-board">
     <div class="hangman-toolbar">
-      <span class="hangman-title">Quadro branco</span>
+      <span class="hangman-title" id="hangman-mode-title">Quadro branco</span>
+
+      <!-- zona 1: opções da caneta (só para quem desenha) -->
+      <div class="board-tool-row hangman-pen-zone" id="hangman-pen-zone">
+        <div class="board-color-row" id="hangman-color-row"></div>
+        <button id="hangman-eraser-btn" type="button" class="board-tool" title="Borracha" aria-pressed="false">
+          <span aria-hidden="true">🧽</span><span class="board-tool-name">Borracha</span>
+        </button>
+        <div class="board-width-row" id="hangman-width-row"></div>
+      </div>
+
+      <!-- zona 2: opções do quadro -->
+      <div class="hangman-board-zone" id="hangman-board-zone">
+        <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
+        <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
+        <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
+        <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
+      </div>
+
       <span id="hangman-status" class="hint small"></span>
-      <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
-      <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
-      <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
     </div>
+
     <canvas id="hangman-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+
+    <!-- zona 3 / zona a: a barra de baixo, que muda com o modo e com o papel -->
+    <div class="hangman-mode-bar" id="hangman-mode-bar">
+      <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🗳️ Modo do quadro</button>
+      <button id="hangman-hand-btn" type="button" class="ghost hidden">✋ Pedir a palavra</button>
+      <span id="hangman-hand-queue" class="hint small"></span>
+      <span id="hangman-mode-hint" class="hint small"></span>
+    </div>
+
   </section>
 
   <!-- DESENHA E ADIVINHA EM EQUIPA: quadro branco em ecrã inteiro, a vez de
@@ -820,6 +852,26 @@
       <button type="button" id="hangman-pen-random-btn" class="primary">🎲 Aleatório</button>
       <div id="hangman-pen-list" class="draw-winner-list"></div>
       <button type="button" id="hangman-pen-cancel-btn" class="ghost">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Votação do modo do quadro: o grupo escolhe, não uma pessoa. -->
+  <div id="hangman-mode-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Selecionar modo</h2>
+      <p class="hint small">O quadro muda quando a maioria da sala votar no mesmo modo.</p>
+      <div id="hangman-mode-list" class="draw-winner-list"></div>
+      <button type="button" id="hangman-mode-cancel-btn" class="ghost">Fechar</button>
+    </div>
+  </div>
+
+  <!-- Votação de quem fica com a caneta (modo Forca). -->
+  <div id="hangman-penvote-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Quem fica com a caneta?</h2>
+      <p class="hint small">Escolhe uma pessoa. Quando a maioria votar na mesma, é ela que desenha.</p>
+      <div id="hangman-penvote-list" class="draw-winner-list"></div>
+      <button type="button" id="hangman-penvote-cancel-btn" class="ghost">Fechar</button>
     </div>
   </div>
 

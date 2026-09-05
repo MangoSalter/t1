@@ -46,13 +46,17 @@ const canvasBox = await page.locator("#hangman-doodle-canvas").boundingBox();
 // por isso o seletor tem de ser limitado a este ecrã (senão o Playwright
 // recusa por corresponder a dois elementos).
 const toolbarBox = await page.locator('[data-screen="hangman"] .hangman-toolbar').boundingBox();
+// A barra de baixo (zona 3 do desenhador / zona a de quem vê) entrou depois
+// deste teste e também ocupa altura: a regra continua a ser "as três peças
+// juntas enchem o browser", não "duas".
+const modeBarBox = await page.locator('[data-screen="hangman"] .hangman-mode-bar').boundingBox();
 const viewport = page.viewportSize();
-console.log(`   canvas: ${canvasBox.width}x${canvasBox.height} a partir de y=${canvasBox.y}, barra: altura ${toolbarBox.height}, viewport: ${viewport.width}x${viewport.height}`);
+console.log(`   canvas: ${canvasBox.width}x${canvasBox.height} a partir de y=${canvasBox.y}, barra de cima: ${toolbarBox.height}, barra do modo: ${modeBarBox.height}, viewport: ${viewport.width}x${viewport.height}`);
 if (Math.abs(canvasBox.width - viewport.width) > 2) {
   console.log("   FALHOU: canvas devia ocupar a largura toda do browser");
   process.exitCode = 1;
 }
-if (Math.abs(canvasBox.height + toolbarBox.height - viewport.height) > 2) {
+if (Math.abs(canvasBox.height + toolbarBox.height + modeBarBox.height - viewport.height) > 2) {
   console.log("   FALHOU: canvas + barra juntos deviam ocupar a altura toda do browser");
   process.exitCode = 1;
 }

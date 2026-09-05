@@ -13,6 +13,8 @@ import {
   castVote, finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom,
   finishHangman, clearHangmanDoodle, pushHangmanDoodlePoints, pointsObjectToArray,
   passHangmanPen, passHangmanPenRandom,
+  BOARD_MODES, DEFAULT_BOARD_MODE, voteBoardMode, votePenHolder, applyBoardVotes,
+  raiseHand, lowerHand, handQueue, connectedPlayerIds, tallyVotes, votesNeeded,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
   submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish, voteAcceptMapTriviaAnswer,
@@ -848,6 +850,25 @@ const HANGMAN_DOODLE_MIN_DIST = 0.004;
 
 const hangmanEls = {
   status: document.getElementById("hangman-status"),
+  screen: document.querySelector('[data-screen="hangman"]'),
+  modeTitle: document.getElementById("hangman-mode-title"),
+  penZone: document.getElementById("hangman-pen-zone"),
+  boardZone: document.getElementById("hangman-board-zone"),
+  colorRow: document.getElementById("hangman-color-row"),
+  widthRow: document.getElementById("hangman-width-row"),
+  eraserBtn: document.getElementById("hangman-eraser-btn"),
+  modeBar: document.getElementById("hangman-mode-bar"),
+  modeBtn: document.getElementById("hangman-mode-btn"),
+  modeBtnViewer: document.getElementById("hangman-mode-btn-viewer"),
+  modeHint: document.getElementById("hangman-mode-hint"),
+  handBtn: document.getElementById("hangman-hand-btn"),
+  handQueue: document.getElementById("hangman-hand-queue"),
+  modeOverlay: document.getElementById("hangman-mode-overlay"),
+  modeList: document.getElementById("hangman-mode-list"),
+  modeCancelBtn: document.getElementById("hangman-mode-cancel-btn"),
+  penVoteOverlay: document.getElementById("hangman-penvote-overlay"),
+  penVoteList: document.getElementById("hangman-penvote-list"),
+  penVoteCancelBtn: document.getElementById("hangman-penvote-cancel-btn"),
   doodleCanvas: document.getElementById("hangman-doodle-canvas"),
   clearBtn: document.getElementById("hangman-doodle-clear-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
@@ -858,6 +879,12 @@ const hangmanEls = {
   penCancelBtn: document.getElementById("hangman-pen-cancel-btn"),
 };
 
+// Cores e espessuras do quadro de sala. Menos do que no quadro solo de
+// propósito: aqui cada traço viaja pela rede, e cada opção a mais é mais um
+// campo em cada ponto enviado. Estas chegam para separar quem escreve o quê.
+const HANGMAN_COLORS = ["#3a3126", "#b24b38", "#5c7e91", "#5b7442", "#e3a53d"];
+const HANGMAN_WIDTHS = [2, 4, 9];
+
 const hangmanDoodleState = {
   drawing: false,
   lastPoint: null,
@@ -866,6 +893,9 @@ const hangmanDoodleState = {
   dpr: 1,
   rectW: 0,
   rectH: 0,
+  color: HANGMAN_COLORS[0],
+  width: HANGMAN_WIDTHS[1],
+  erasing: false,
 };
 
 function hangmanAmLeader() {
@@ -898,24 +928,37 @@ function hangmanDoodleRedraw() {
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
   const points = [...pointsObjectToArray(room?.hangman?.doodle?.points), ...hangmanDoodleState.pending];
-  ctx.strokeStyle = HANGMAN_DOODLE_INK;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 4;
+  // O estilo viaja só no PRIMEIRO ponto de cada traço, não em todos: repeti-lo
+  // em cada ponto multiplicava por três o que vai para a rede a cada arrasto.
+  // Pontos antigos não trazem estilo nenhum e caem nos valores de sempre.
   let prev = null;
+  let style = { color: HANGMAN_DOODLE_INK, width: 4, erase: false };
   points.forEach((p) => {
     const x = p.x * rectW;
     const y = p.y * rectH;
     if (p.newStroke || !prev) {
+      if (p.newStroke) {
+        style = {
+          color: p.color || HANGMAN_DOODLE_INK,
+          width: p.width || 4,
+          erase: !!p.erase,
+        };
+      }
       prev = { x, y };
       return;
     }
+    ctx.globalCompositeOperation = style.erase ? "destination-out" : "source-over";
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.erase ? style.width * 3.5 : style.width;
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(x, y);
     ctx.stroke();
     prev = { x, y };
   });
+  ctx.globalCompositeOperation = "source-over";
 }
 
 function hangmanDoodlePointFromEvent(e) {
@@ -940,7 +983,12 @@ hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
   hangmanDoodleState.drawing = true;
   const p = hangmanDoodlePointFromEvent(e);
   hangmanDoodleState.lastPoint = p;
-  hangmanDoodleState.pending.push({ x: p.x, y: p.y, newStroke: true });
+  hangmanDoodleState.pending.push({
+    x: p.x, y: p.y, newStroke: true,
+    color: hangmanDoodleState.color,
+    width: hangmanDoodleState.width,
+    erase: hangmanDoodleState.erasing,
+  });
   hangmanDoodleRedraw();
 });
 
@@ -1016,24 +1064,239 @@ window.addEventListener("resize", () => {
   if (screens["hangman"]?.classList.contains("active")) hangmanDoodleRedraw();
 });
 
+// --- Opções da caneta (zona 1 do esboço) ---
+
+function buildHangmanPenZone() {
+  hangmanEls.colorRow.innerHTML = "";
+  HANGMAN_COLORS.forEach((color) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "board-color";
+    btn.dataset.hangmanColor = color;
+    btn.style.background = color;
+    btn.setAttribute("aria-label", `Cor ${color}`);
+    btn.addEventListener("click", () => selectHangmanColor(color));
+    hangmanEls.colorRow.appendChild(btn);
+  });
+  hangmanEls.widthRow.innerHTML = "";
+  HANGMAN_WIDTHS.forEach((w) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "board-width";
+    btn.dataset.hangmanWidth = String(w);
+    btn.setAttribute("aria-label", `Espessura ${w}`);
+    btn.innerHTML = `<span class="board-width-dot" style="width:${w + 3}px;height:${w + 3}px"></span>`;
+    btn.addEventListener("click", () => selectHangmanWidth(w));
+    hangmanEls.widthRow.appendChild(btn);
+  });
+  refreshHangmanPenZone();
+}
+
+function refreshHangmanPenZone() {
+  const st = hangmanDoodleState;
+  hangmanEls.colorRow.querySelectorAll("[data-hangman-color]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(!st.erasing && b.dataset.hangmanColor === st.color));
+  });
+  hangmanEls.widthRow.querySelectorAll("[data-hangman-width]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(Number(b.dataset.hangmanWidth) === st.width));
+  });
+  hangmanEls.eraserBtn.setAttribute("aria-pressed", String(st.erasing));
+}
+
+function selectHangmanColor(color) {
+  hangmanDoodleState.color = color;
+  // Escolher cor com a borracha na mão quer dizer "voltar a escrever".
+  hangmanDoodleState.erasing = false;
+  refreshHangmanPenZone();
+}
+
+function selectHangmanWidth(w) {
+  hangmanDoodleState.width = w;
+  refreshHangmanPenZone();
+}
+
+buildHangmanPenZone();
+hangmanEls.eraserBtn.addEventListener("click", () => {
+  hangmanDoodleState.erasing = !hangmanDoodleState.erasing;
+  refreshHangmanPenZone();
+});
+
+// --- Votar o modo do quadro (zonas 2 e a) ---
+
+// Guarda o modo que estava a jogar-se quando o menu abriu: é assim que se
+// sabe que a votação já deu resultado e o menu deixou de ter razão de estar
+// aberto. Sem isto ficava a tapar o quadro depois de a mudança acontecer —
+// exatamente o momento em que a pessoa quer ver a folha.
+let hangmanModePickerOpenedFor = null;
+
+function hangmanOpenModePicker() {
+  const room = state.room;
+  if (!room?.hangman) return;
+  if (hangmanEls.modeOverlay.classList.contains("hidden")) {
+    hangmanModePickerOpenedFor = room.hangman.mode;
+  }
+  const connected = connectedPlayerIds(room);
+  const counts = tallyVotes(room.hangman.modeVotes, connected);
+  const needed = votesNeeded(connected);
+  const myVote = room.hangman.modeVotes?.[state.uid];
+  hangmanEls.modeList.innerHTML = "";
+  Object.entries(BOARD_MODES).forEach(([key, mode]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.modeChoice = key;
+    const votes = counts[key] || 0;
+    const mine = myVote === key ? " ✓" : "";
+    const atual = room.hangman.mode === key ? " (a jogar agora)" : "";
+    btn.innerHTML = `<b>${escapeHtml(mode.label)}${mine}${atual}</b><br>` +
+      `<span class="hint small">${escapeHtml(mode.hint)}</span><br>` +
+      `<span class="hint small">${votes} de ${needed} votos precisos</span>`;
+    btn.addEventListener("click", async () => {
+      await voteBoardMode(state.code, state.room, state.uid, key);
+      hangmanOpenModePicker();
+    });
+    hangmanEls.modeList.appendChild(btn);
+  });
+  hangmanEls.modeOverlay.classList.remove("hidden");
+}
+
+function hangmanCloseModePicker() {
+  hangmanEls.modeOverlay.classList.add("hidden");
+  hangmanModePickerOpenedFor = null;
+}
+
+// --- Votar quem fica com a caneta (modo Forca) ---
+
+function hangmanOpenPenVote() {
+  const room = state.room;
+  if (!room?.hangman) return;
+  const connected = connectedPlayerIds(room);
+  const counts = tallyVotes(room.hangman.penVotes, connected);
+  const needed = votesNeeded(connected);
+  const myVote = room.hangman.penVotes?.[state.uid];
+  hangmanEls.penVoteList.innerHTML = "";
+  connected.forEach((uid) => {
+    const p = room.players[uid];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.penVoteChoice = uid;
+    const votes = counts[uid] || 0;
+    const mine = myVote === uid ? " ✓" : "";
+    btn.innerHTML = `${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}${mine}` +
+      ` <span class="hint small">(${votes}/${needed})</span>`;
+    btn.addEventListener("click", async () => {
+      await votePenHolder(state.code, state.room, state.uid, uid);
+      hangmanOpenPenVote();
+    });
+    hangmanEls.penVoteList.appendChild(btn);
+  });
+  hangmanEls.penVoteOverlay.classList.remove("hidden");
+}
+
+function hangmanClosePenVote() {
+  hangmanEls.penVoteOverlay.classList.add("hidden");
+}
+
+hangmanEls.modeBtn.addEventListener("click", hangmanOpenModePicker);
+hangmanEls.modeBtnViewer.addEventListener("click", hangmanOpenModePicker);
+hangmanEls.modeCancelBtn.addEventListener("click", hangmanCloseModePicker);
+hangmanEls.penVoteCancelBtn.addEventListener("click", hangmanClosePenVote);
+
+// Pedir a palavra: quem não tem a caneta levanta o braço para falar com o
+// grupo. É um botão de alternar — quem já falou baixa o braço.
+hangmanEls.handBtn.addEventListener("click", () => {
+  const raised = !!state.room?.hangman?.hands?.[state.uid];
+  if (raised) lowerHand(state.code, state.uid);
+  else raiseHand(state.code, state.uid);
+});
+
 function renderHangman(room) {
   const hangman = room.hangman;
   if (!hangman) return;
+  const mode = BOARD_MODES[hangman.mode] ? hangman.mode : DEFAULT_BOARD_MODE;
   const amLeader = hangman.leaderId === state.uid;
-  const leaderName = room.players?.[hangman.leaderId]?.name || "O anfitrião";
-  hangmanEls.status.textContent = amLeader
-    ? "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa."
-    : `${leaderName} tem a caneta. Combinem as regras em voz alta — a vez passa quando ${leaderName} quiser.`;
+  const leaderName = room.players?.[hangman.leaderId]?.name || null;
+  const host = isHost(room);
+
+
+  // As duas versões do esboço. Quem tem a caneta vê a moldura forte e as
+  // opções todas; quem não tem vê a moldura cinzenta e só a barra do modo.
+  hangmanEls.screen.classList.toggle("hangman-role-drawer", amLeader);
+  hangmanEls.screen.classList.toggle("hangman-role-viewer", !amLeader);
+  hangmanEls.penZone.classList.toggle("hidden", !amLeader);
+  hangmanEls.modeTitle.textContent = `Quadro — ${BOARD_MODES[mode].label}`;
+  hangmanEls.modeHint.textContent = BOARD_MODES[mode].hint;
+
+  // No modo Forca ninguém tem a caneta até a sala votar. Enquanto isso, o
+  // quadro pergunta de quem é a vez em vez de ficar mudo.
+  const semCaneta = !hangman.leaderId || !room.players?.[hangman.leaderId]?.connected;
+  const aVotarCaneta = mode === "forca" && semCaneta;
+
+  if (aVotarCaneta) {
+    hangmanEls.status.textContent = "Votem em quem fica com a caneta.";
+  } else if (amLeader) {
+    hangmanEls.status.textContent = mode === "forca"
+      ? "Tens a caneta — desenha a forca e os espaços da palavra. Os outros pedem a palavra para arriscar."
+      : "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa.";
+  } else {
+    hangmanEls.status.textContent = `${leaderName || "Ninguém"} tem a caneta. ` +
+      (mode === "forca" ? "Pede a palavra para arriscar uma letra." : "Combinem as regras em voz alta.");
+  }
+
   hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amLeader);
   hangmanEls.clearBtn.classList.toggle("hidden", !amLeader);
   // O anfitrião também pode passar a caneta: se quem estava a escrever sair
   // ou se distrair, mais ninguém conseguiria destravar o quadro.
-  hangmanEls.passPenBtn.classList.toggle("hidden", !amLeader && !isHost(room));
-  hangmanEls.continueBtn.classList.toggle("hidden", !isHost(room));
-  // Se a caneta passou para outra pessoa enquanto o seletor estava aberto,
-  // fecha-o — a lista mostrada já não corresponde a nada.
-  if (!amLeader && !isHost(room)) hangmanClosePenPicker();
+  hangmanEls.passPenBtn.classList.toggle("hidden", !amLeader && !host);
+  hangmanEls.continueBtn.classList.toggle("hidden", !host);
+  // O botão do modo aparece nas duas zonas, mas nunca nas duas ao mesmo
+  // tempo: quem desenha tem-no em cima (zona 2), quem vê tem-no em baixo
+  // (zona a), que é onde o esboço os põe.
+  hangmanEls.modeBtn.classList.toggle("hidden", !amLeader);
+  hangmanEls.modeBtnViewer.classList.toggle("hidden", amLeader);
+  // Pedir a palavra é de quem NÃO tem a caneta — quem desenha já a tem.
+  hangmanEls.handBtn.classList.toggle("hidden", amLeader || mode !== "forca");
+  const raised = !!hangman.hands?.[state.uid];
+  hangmanEls.handBtn.textContent = raised ? "✋ Baixar o braço" : "✋ Pedir a palavra";
+  hangmanEls.handBtn.setAttribute("aria-pressed", String(raised));
+
+  const fila = handQueue(room).map((uid) => room.players[uid]?.name).filter(Boolean);
+  hangmanEls.handQueue.textContent = fila.length
+    ? `A pedir a palavra: ${fila.map((n, i) => `${i + 1}. ${n}`).join("  ")}`
+    : "";
+
+  // As votações abertas acompanham o estado: se a caneta já foi decidida
+  // enquanto o menu estava aberto, a lista mostrada já não quer dizer nada.
+  if (aVotarCaneta) {
+    // Sem caneta não há quadro: a votação é obrigatória, e por isso não tem
+    // "Fechar" — um botão que fechasse e reabrisse à décima de segundo
+    // seguinte lia-se como avaria.
+    hangmanEls.penVoteCancelBtn.classList.add("hidden");
+    hangmanOpenPenVote();
+  } else {
+    hangmanEls.penVoteCancelBtn.classList.remove("hidden");
+    hangmanClosePenVote();
+  }
+  if (!hangmanEls.modeOverlay.classList.contains("hidden")) {
+    if (hangmanModePickerOpenedFor !== null && mode !== hangmanModePickerOpenedFor) {
+      hangmanCloseModePicker();
+    } else {
+      hangmanOpenModePicker();
+    }
+  }
+  if (!amLeader && !host) hangmanClosePenPicker();
+  refreshHangmanPenZone();
   hangmanDoodleRedraw();
+
+  // Só o anfitrião fecha as votações, como resolve as rondas: dois clientes a
+  // aplicarem o mesmo resultado escreveriam duas vezes, e a segunda apagaria
+  // os votos já a caminho da votação seguinte.
+  //
+  // E fica para DEPOIS deste desenho de ecrã, de propósito. Chamado a meio, a
+  // escrita disparava um desenho novo lá dentro (que já abria a votação da
+  // caneta) e, ao voltar, a segunda metade deste continuava a correr com o
+  // retrato ANTIGO da sala e voltava a fechá-la. O ecrã acabava a esconder
+  // aquilo que a escrita tinha acabado de tornar necessário.
+  if (host) queueMicrotask(() => applyBoardVotes(state.code, state.room));
 }
 
 // ---------- DESENHA E ADIVINHA EM EQUIPA ----------

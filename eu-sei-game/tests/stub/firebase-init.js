@@ -24,7 +24,6 @@ const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("
 // "correr" para sempre em vez de dar resultado. unref() so existe no Node; no
 // browser nao ha nada para desfazer.
 channel?.unref?.();
-let applyingRemote = false;
 
 function loadShared() {
   try {
@@ -42,7 +41,6 @@ function loadShared() {
 // da escrita da outra e desfazia-a. A Firebase real funde por caminho; passar
 // a fazer o mesmo tira dos testes uma fonte de falhas que nao existe no jogo.
 function publishShared(kind, path, payload) {
-  if (applyingRemote) return;
   try {
     localStorage.setItem(SYNC_KEY, JSON.stringify(rootData));
     channel?.postMessage({ kind, path, payload });
@@ -53,15 +51,17 @@ if (channel) {
   channel.onmessage = (ev) => {
     const msg = ev.data;
     if (!msg || !msg.kind) return;
-    applyingRemote = true;
-    try {
-      const segs = splitPath(msg.path);
-      if (msg.kind === "set") setAt(segs, msg.payload);
-      else applyUpdate(segs, msg.payload);
-      notifyPath(msg.path);
-    } finally {
-      applyingRemote = false;
-    }
+    const segs = splitPath(msg.path);
+    if (msg.kind === "set") setAt(segs, msg.payload);
+    else applyUpdate(segs, msg.payload);
+    // Sem "kind" nao republica: e assim que se evita o eco, e nao com um
+    // sinalizador global. O sinalizador anterior calava TODAS as escritas
+    // feitas enquanto se aplicava uma mensagem remota — incluindo as do
+    // anfitriao, que por desenho escreve EM REACAO ao que os outros escrevem
+    // (fechar uma votacao, resolver uma ronda). O resultado era o anfitriao
+    // aplicar o resultado no seu lado e mais ninguem chegar a saber: codigo
+    // de jogo correto a falhar por causa do duble de teste.
+    notifyPath(msg.path);
   };
 }
 loadShared();

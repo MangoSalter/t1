@@ -592,11 +592,30 @@ export async function leaveRoom(code, uid) {
 // o resto da equipa vê e adivinha em voz alta (fora da app). Sem mais
 // estado do que isto — nenhuma pontuação, nenhuma palavra guardada.
 
+// Modos do quadro. O quadro é a mesma folha para todos; o MODO só muda o que
+// aparece à volta dela — que botões, que papéis, que regras a app garante. É
+// o grupo que escolhe, por votação: ninguém manda sozinho no que se joga.
+export const BOARD_MODES = {
+  livre: {
+    label: "Desenho livre",
+    hint: "A folha é de todos, escreve um de cada vez. As regras combinam-se por voz.",
+  },
+  forca: {
+    label: "Forca",
+    hint: "Um desenha a forca e a palavra escondida; os outros pedem a palavra para arriscar letras em voz alta.",
+  },
+};
+export const DEFAULT_BOARD_MODE = "livre";
+
 export async function startHangman(code, room) {
   await update(roomRef(code), {
     state: "hangman",
     hangman: {
       leaderId: room.hostId,
+      mode: DEFAULT_BOARD_MODE,
+      modeVotes: null,
+      penVotes: null,
+      hands: null,
       doodle: { points: null },
     },
   });
@@ -644,6 +663,106 @@ export async function passHangmanPenRandom(code, room, uid) {
 // para funcionar em qualquer tamanho de ecrã) e escreve a lista completa
 // resultante, cortada ao limite — os traços mais antigos vão desaparecendo
 // para dar lugar aos novos, como tinta limitada.
+// --- Votações do quadro ---
+// A regra é sempre a mesma: MAIORIA DOS LIGADOS, não maioria de quem votou.
+// Com "maioria de quem votou", um só jogador a votar depressa decidia por
+// todos antes de os outros terem tempo de abrir o menu.
+export function connectedPlayerIds(room) {
+  return Object.keys(room?.players || {}).filter((uid) => room.players[uid].connected);
+}
+
+export function tallyVotes(votes, connectedIds) {
+  const counts = {};
+  Object.entries(votes || {}).forEach(([uid, choice]) => {
+    // Votos de quem já saiu não contam, senão uma sala que esvaziou ficava
+    // presa num resultado que já ninguém quer.
+    if (!connectedIds.includes(uid) || !choice) return;
+    counts[choice] = (counts[choice] || 0) + 1;
+  });
+  return counts;
+}
+
+export function voteWinner(votes, connectedIds) {
+  const counts = tallyVotes(votes, connectedIds);
+  const needed = Math.floor(connectedIds.length / 2) + 1;
+  const winner = Object.keys(counts).find((k) => counts[k] >= needed);
+  return winner || null;
+}
+
+export function votesNeeded(connectedIds) {
+  return Math.floor(connectedIds.length / 2) + 1;
+}
+
+export async function voteBoardMode(code, room, uid, modeKey) {
+  if (!BOARD_MODES[modeKey] || !room?.hangman) return;
+  await set(ref(db, `rooms/${code}/hangman/modeVotes/${uid}`), modeKey);
+}
+
+export async function votePenHolder(code, room, uid, targetUid) {
+  if (!room?.hangman || !room.players?.[targetUid]) return;
+  await set(ref(db, `rooms/${code}/hangman/penVotes/${uid}`), targetUid);
+}
+
+// Pedir a palavra: quem não tem a caneta levanta o braço para falar com o
+// grupo. Guarda-se a hora para a fila ter ordem — quem pediu primeiro fala
+// primeiro, que é a única coisa que a app consegue arbitrar de forma justa
+// quando a conversa acontece toda em voz alta.
+export async function raiseHand(code, uid) {
+  await set(ref(db, `rooms/${code}/hangman/hands/${uid}`), serverNow());
+}
+
+export async function lowerHand(code, uid) {
+  await set(ref(db, `rooms/${code}/hangman/hands/${uid}`), null);
+}
+
+export function handQueue(room) {
+  const hands = room?.hangman?.hands || {};
+  const connected = connectedPlayerIds(room);
+  return Object.keys(hands)
+    .filter((uid) => connected.includes(uid))
+    .sort((a, b) => (hands[a] || 0) - (hands[b] || 0));
+}
+
+// Só o anfitrião fecha as votações, pelo mesmo motivo que resolve as rondas:
+// dois clientes a aplicarem o mesmo resultado ao mesmo tempo escreveriam
+// duas vezes, e a segunda escrita apagaria os votos que já iam a caminho da
+// votação seguinte. Quem verifica isso é quem chama (app.js), como em
+// resolveRaceRound — este módulo não sabe quem é o utilizador local.
+export async function applyBoardVotes(code, room) {
+  const hangman = room?.hangman;
+  if (!hangman) return;
+  const connected = connectedPlayerIds(room);
+  if (connected.length === 0) return;
+
+  const modeWinner = voteWinner(hangman.modeVotes, connected);
+  if (modeWinner && modeWinner !== hangman.mode) {
+    const patch = { mode: modeWinner, modeVotes: null };
+    // Entrar na Forca abre logo a votação da caneta: enquanto ninguém for
+    // escolhido, a folha fica sem dono — é isso que faz a votação acontecer
+    // em vez de ficar um botão à espera de ser carregado.
+    if (modeWinner === "forca") {
+      patch.leaderId = null;
+      patch.penVotes = null;
+      patch.hands = null;
+    } else {
+      patch.leaderId = hangman.leaderId || room.hostId;
+    }
+    await update(ref(db, `rooms/${code}/hangman`), patch);
+    return;
+  }
+
+  const penWinner = voteWinner(hangman.penVotes, connected);
+  if (penWinner && penWinner !== hangman.leaderId) {
+    await update(ref(db, `rooms/${code}/hangman`), {
+      leaderId: penWinner,
+      penVotes: null,
+      // Quem pediu a palavra pediu-a à ronda anterior; a fila não transita
+      // para quem acabou de pegar na caneta.
+      hands: null,
+    });
+  }
+}
+
 export async function pushHangmanDoodlePoints(code, room, uid, newPoints) {
   const hangman = room.hangman;
   if (!hangman || hangman.leaderId !== uid) return;

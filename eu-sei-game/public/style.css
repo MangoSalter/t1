@@ -775,7 +775,7 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 .board-field input[type="range"] { width: 100%; margin: 0; height: 44px; }
 .board-field select { width: 100%; margin: 0; min-height: 40px; font-family: inherit; }
 .board-panel-body button.ghost { width: 100%; }
-.board-panel-body .board-danger { border-color: var(--danger); color: var(--danger); }
+.board-danger { border-color: var(--danger); color: var(--danger); }
 .board-panel-sep { height: 2px; background: var(--paper-line); border-radius: 2px; }
 .board-shortcuts { margin: 0; line-height: 1.5; }
 
@@ -795,6 +795,13 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   #board-status { display: none; }
   #board-zoom-fit-btn { font-size: 0; padding: 4px 8px; min-width: 44px; }
   #board-zoom-fit-btn::before { content: "🔍"; font-size: 1rem; }
+  /* No telemóvel os nomes saem e ficam os ícones, para o "Limpar tudo" caber
+     na mesma linha do anular/refazer em vez de empurrar a barra para baixo. */
+  .board-btn-name { display: none; }
+  /* min-width a par do padding: sem ele, apertar o espaçamento deixava os
+     botões de ícone com 38px de largura — abaixo do mínimo para o dedo. */
+  .board-toolbar button.ghost { padding: 4px 8px; min-width: 44px; }
+  #board-zoom-label { min-width: 2.9em; }
   /* Uma fila que desliza em vez de dobrar: as ferramentas todas continuam a
      chegar-se, mas a barra fica com a altura de uma linha só. */
   .board-tool-row, .board-color-row {
@@ -820,4 +827,44 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 /* Em ecrãs muito baixos (telemóvel deitado) a barra não pode comer a folha. */
 @media (max-height: 480px) {
   .board-toolbar { max-height: 40vh; overflow-y: auto; }
+}
+
+/* ---------- QUADRO BRANCO DE SALA: papéis e modos ----------
+   Duas versões do mesmo quadro, como no esboço. Quem tem a caneta vê a
+   moldura forte e as opções todas; quem não tem vê a moldura cinzenta, sem
+   as opções da caneta, e só a barra do modo em baixo. A moldura é a forma
+   mais rápida de saber, ao olhar de longe para o ecrã de outra pessoa, quem
+   é que está a desenhar. */
+.hangman-board .hangman-doodle-canvas { border-left: 6px solid transparent; border-right: 6px solid transparent; }
+.hangman-role-drawer .hangman-doodle-canvas { border-color: var(--ink); }
+.hangman-role-viewer .hangman-doodle-canvas { border-color: #9a958c; }
+.hangman-role-viewer .hangman-toolbar { background: var(--paper-soft); border-bottom-color: #9a958c; }
+
+/* Zona 1: opções da caneta. Zona 2: opções do quadro. */
+.hangman-pen-zone { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hangman-pen-zone.hidden { display: none; }
+.hangman-board-zone { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* Zona 3 (quem desenha) / zona a (quem vê): a barra de baixo muda com o modo. */
+.hangman-mode-bar {
+  flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--paper); border-top: 2px solid var(--ink);
+}
+.hangman-role-viewer .hangman-mode-bar { border-top-color: #9a958c; background: var(--paper-soft); }
+.hangman-mode-bar button { width: auto; min-height: 44px; margin: 0; padding: 4px 10px; font-size: 0.9rem; }
+.hangman-mode-btn { white-space: nowrap; }
+#hangman-hand-btn[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--ink); font-weight: 700; }
+#hangman-hand-queue { font-weight: 700; }
+#hangman-mode-hint { margin-left: auto; text-align: right; }
+
+.hangman-toolbar { row-gap: 6px; }
+.hangman-toolbar .board-color, .hangman-toolbar .board-width { width: 36px; height: 36px; }
+.hangman-toolbar .board-tool { min-height: 40px; }
+
+@media (max-width: 720px) {
+  #hangman-mode-hint { display: none; }
+  .hangman-toolbar .board-tool-name { display: none; }
+  .hangman-mode-bar { padding: 5px 8px; gap: 6px; }
 }
