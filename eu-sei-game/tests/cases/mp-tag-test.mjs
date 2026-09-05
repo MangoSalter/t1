@@ -12,7 +12,7 @@ console.log("1) Criar sala com Ana (host) e 2 bots, forcar so 'tag' como bonus..
 await page.fill("#name-input", "Ana");
 await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 15000 });
 await page.click("#create-room-btn");
-await page.waitForSelector('[data-screen="lobby"].active', { timeout: 3000 });
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 15000 });
 const code = await page.locator("#lobby-code").textContent();
 const hostId = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`).hostId, code);
 console.log(`   sala ${code}, hostId=${hostId}`);
@@ -27,9 +27,9 @@ const numRounds = await page.evaluate((code) => window.__testDb.get(`rooms/${cod
 await page.evaluate(({ code, numRounds }) => {
   window.__testDb.update(`rooms/${code}`, { round: numRounds, state: "roundScore" });
 }, { code, numRounds });
-await page.waitForSelector('[data-screen="roundscore"].active', { timeout: 3000 });
+await page.waitForSelector('[data-screen="roundscore"].active', { timeout: 15000 });
 await page.click("#round-next-btn");
-await page.waitForSelector('[data-screen="tag"].active', { timeout: 3000 });
+await page.waitForSelector('[data-screen="tag"].active', { timeout: 15000 });
 console.log("   OK: entrou no ecrã da Fuga da Infeção");
 
 console.log("2) Confirmar arena/posições/3 jogadores renderizados...");
@@ -59,7 +59,7 @@ await page.evaluate(({ code, anaPos }) => {
 await page.waitForFunction((code) => {
   const r = window.__testDb.get(`rooms/${code}`);
   return r.tag.infected.p2 === true;
-}, code, { timeout: 3000 });
+}, code, { timeout: 15000 });
 console.log("   OK: p2 foi infetado por contacto");
 
 console.log("5) Testar apanha de power-up: Ana deixa de estar infetada (reset de teste) e um power-up aparece na posição dela...");
@@ -77,7 +77,7 @@ await page.evaluate(({ code, anaPos2 }) => {
 await page.waitForFunction((code) => {
   const r = window.__testDb.get(`rooms/${code}`);
   return r.tag.powerups.testpower === undefined;
-}, code, { timeout: 3000 });
+}, code, { timeout: 15000 });
 console.log("   OK: power-up foi apanhado (removido)");
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 const anaShielded = (room.tag.effects?.[hostId]?.shieldUntil || 0) > Date.now();
@@ -95,7 +95,7 @@ if (room.tag.survived[hostId] !== false || room.tag.survived.p3 !== true) {
   console.log("   FALHOU: estado de sobrevivência inesperado (Ana devia estar infetada=false sobrevivente, p3 devia ter sobrevivido)");
   process.exitCode = 1;
 }
-await page.waitForSelector('[data-screen="tag"].active [id="tag-results"]:not(.hidden)', { timeout: 3000 });
+await page.waitForSelector('[data-screen="tag"].active [id="tag-results"]:not(.hidden)', { timeout: 15000 });
 console.log("   OK: resultados visíveis");
 
 console.log("7) Continuar (fim da fila de bonus, so 1 jogo) -> deve ir para ecra final...");

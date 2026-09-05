@@ -50,7 +50,10 @@ async function skipIfNotWordFlash() {
 await page.click("#solo-menu-btn"); await page.click("#solo-classic-btn"); await page.click("#solo-setup-start-btn");
 
 let foundWordFlash = false;
-for (let attempt = 0; attempt < 10 && !foundWordFlash; attempt++) {
+// 30 e nao 10: com seis mini-jogos no sorteio, dez tentativas deixavam
+// ~16% de hipotese de nunca calhar o certo — o teste falhava por azar, nao
+// por defeito, e o proprio aviso admitia isso.
+for (let attempt = 0; attempt < 30 && !foundWordFlash; attempt++) {
   console.log(`Tentativa ${attempt + 1}: a jogar ronda e a chegar ao mini-jogo...`);
   await playRoundAndReachMinigame();
   foundWordFlash = await skipIfNotWordFlash();
@@ -58,7 +61,7 @@ for (let attempt = 0; attempt < 10 && !foundWordFlash; attempt++) {
 }
 
 if (!foundWordFlash) {
-  console.log("AVISO: não calhou Palavra Relâmpago em 10 tentativas (aleatório, pode acontecer).");
+  console.log("FALHOU: não calhou Palavra Relâmpago em 30 tentativas — com esta margem já não é azar.");
   process.exitCode = 1;
 } else {
   const letterShown = await page.locator("#wf-letter").textContent();
