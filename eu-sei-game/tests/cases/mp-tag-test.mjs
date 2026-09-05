@@ -10,7 +10,7 @@ await page.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" }
 
 console.log("1) Criar sala com Ana (host) e 2 bots, forcar so 'tag' como bonus...");
 await page.fill("#name-input", "Ana");
-await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 3000 });
+await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 15000 });
 await page.click("#create-room-btn");
 await page.waitForSelector('[data-screen="lobby"].active', { timeout: 3000 });
 const code = await page.locator("#lobby-code").textContent();
@@ -88,7 +88,7 @@ console.log("6) Forçar fim da ronda (endAt no passado) e confirmar resolução 
 await page.evaluate((code) => {
   window.__testDb.update(`rooms/${code}/tag`, { endAt: Date.now() - 1000 });
 }, code);
-await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).tag.resolved === true, code, { timeout: 3000 });
+await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).tag.resolved === true, code, { timeout: 15000 });
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   resolvido. survived: ${JSON.stringify(room.tag.survived)}, roundPoints: ${JSON.stringify(room.tag.roundPoints)}`);
 if (room.tag.survived[hostId] !== false || room.tag.survived.p3 !== true) {

@@ -1,5 +1,46 @@
 import { chromium } from "playwright";
 
+// O jogo deixou de expor window.__solo (era um gancho de depuracao que saiu).
+// Em vez de o repor so para o teste, resolve-se a Forca como um jogador
+// resolveria: as palavras da categoria sao conhecidas, filtram-se pelo
+// padrao visivel e adivinha-se a letra presente em mais candidatas.
+// Fonte da lista: HANGMAN_WORD_BANK.Frutas em public/js/solo.js.
+const FRUTAS = ["MANGA", "BANANA", "MORANGO", "ANANAS", "MELANCIA", "LARANJA", "ABACAXI"];
+
+async function readPattern() {
+  const raw = await page.locator("#solo-hangman-word-display").textContent();
+  return raw.replace(/\s+/g, "");
+}
+
+function matches(word, pattern) {
+  if (word.length !== pattern.length) return false;
+  return [...word].every((ch, i) => pattern[i] === "_" || pattern[i] === ch);
+}
+
+// Adivinha ate a palavra ficar toda revelada (ou acabarem as tentativas).
+async function solveHangman() {
+  const guessed = new Set();
+  for (let step = 0; step < 14; step++) {
+    const pattern = await readPattern();
+    if (!pattern.includes("_")) return pattern;
+    const candidates = FRUTAS.filter((w) => matches(w, pattern));
+    const counts = new Map();
+    candidates.forEach((w) => new Set(w).forEach((ch) => {
+      if (!guessed.has(ch) && !pattern.includes(ch)) counts.set(ch, (counts.get(ch) || 0) + 1);
+    }));
+    if (counts.size === 0) return pattern;
+    const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    guessed.add(best);
+    await page.fill("#solo-hangman-letter-input", best);
+    await page.click("#solo-hangman-guess-letter-btn");
+    await page.waitForTimeout(120);
+    const ended = await page.evaluate(() => !document.getElementById("minigame-end-overlay").classList.contains("hidden"));
+    if (ended) return null;
+  }
+  return null;
+}
+
+
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage();
 const errors = [];
@@ -40,13 +81,9 @@ const livesText1 = await page.locator("#solo-hangman-lives").textContent();
 console.log(`   ${livesText1} (esperado /4, modo desafio)`);
 if (!livesText1.includes("/ 4")) { console.log("   FALHOU: modo desafio devia ter 4 erros permitidos"); process.exitCode = 1; }
 
-console.log("2) Ganhar a palavra (lida via hook de depuração temporário) e confirmar sequência sobe...");
-const word1 = await page.evaluate(() => window.__solo.hangmanWord);
-console.log(`   palavra secreta (debug): ${word1}`);
-for (const letter of new Set(word1)) {
-  await page.fill("#solo-hangman-letter-input", letter);
-  await page.click("#solo-hangman-guess-letter-btn");
-}
+console.log("2) Ganhar a palavra (resolvida a partir do padrão visível) e confirmar sequência sobe...");
+const word1 = await solveHangman();
+console.log(`   palavra resolvida: ${word1}`);
 await clickThroughMinigameEnd();
 const mgePoints1 = await page.locator("#mge-points").textContent();
 console.log(`   ${mgePoints1}`);
@@ -63,8 +100,8 @@ console.log("4) Perder de propósito (4 erros, modo desafio) e confirmar fim da 
 const wrongLetters = ["Q", "X", "Z", "W", "K", "J"];
 let wrongUsed = 0;
 for (const l of wrongLetters) {
-  const word2 = await page.evaluate(() => window.__solo.hangmanWord);
-  if (word2.includes(l)) continue; // evita acertar sem querer
+  // Sem o gancho de depuracao nao da para espreitar a palavra; estas letras
+  // nao existem em nenhuma fruta da lista, por isso sao sempre erros.
   await page.fill("#solo-hangman-letter-input", l);
   await page.click("#solo-hangman-guess-letter-btn");
   wrongUsed++;

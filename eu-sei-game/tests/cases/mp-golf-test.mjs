@@ -51,7 +51,16 @@ const before = (await guest.evaluate((c) => window.__testDb.get(`rooms/${c}`).go
 await host.keyboard.down("ArrowRight");
 await host.waitForTimeout(900);
 await host.keyboard.up("ArrowRight");
-await host.waitForTimeout(400);
+// Esperar pela CONDICAO em vez de um tempo fixo: o jogo corre a
+// requestAnimationFrame e transmite a cada 120ms, e com varios browsers a
+// competir pela maquina o ritmo cai — um sleep de 400ms bastava sozinho mas
+// nao com a suite toda a correr, e o teste falhava por lentidao, nao por
+// defeito.
+await guest.waitForFunction(
+  ({ c, uid, x0 }) => (window.__testDb.get(`rooms/${c}`).golf.balls?.[uid]?.x || 0) > x0 + 20,
+  { c: code, uid: anaId, x0: before.x },
+  { timeout: 15000 },
+).catch(() => {});
 const after = (await guest.evaluate((c) => window.__testDb.get(`rooms/${c}`).golf.balls, code))[anaId];
 console.log(`   bola da Ana: x ${before.x} -> ${after.x} (visto pelo cliente do Beto)`);
 if (!(after.x > before.x + 20)) { console.log("   FALHOU: a posição não chegou ao outro cliente"); process.exitCode = 1; }

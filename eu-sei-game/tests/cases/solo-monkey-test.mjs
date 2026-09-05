@@ -1,5 +1,10 @@
 import { chromium } from "playwright";
 
+// A lista dos ecras de mini-jogo tem de estar COMPLETA: estes testes
+// esperam que a run caia num deles, e quando saiu um jogo novo (memoria,
+// mapa) a espera rebentava por timeout num jogo perfeitamente valido.
+const MINIGAME_SCREENS = ["solo-minigame", "solo-minigame-word", "solo-minigame-bug", "solo-minigame-monkey", "solo-minigame-memory", "solo-minigame-map"];
+
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage();
 const errors = [];
@@ -18,17 +23,20 @@ async function playRoundToMinigame() {
   await page.click("#solo-finish-btn");
   await page.waitForSelector('[data-screen="solo-result"].active', { timeout: 3000 });
   await page.click("#solo-continue-btn");
+  // A lista tem de ser PASSADA para o browser: o callback corre la dentro,
+  // onde a constante do Node nao existe.
   await page.waitForFunction(
-    () => ["solo-minigame", "solo-minigame-word", "solo-minigame-bug", "solo-minigame-monkey"].some((id) => {
+    (screens) => screens.some((id) => {
       const el = document.querySelector(`[data-screen="${id}"]`);
       return el && el.classList.contains("active");
     }),
-    { timeout: 3000 }
+    MINIGAME_SCREENS,
+    { timeout: 15000 }
   );
 }
 
 async function currentMinigame() {
-  for (const id of ["solo-minigame", "solo-minigame-word", "solo-minigame-bug", "solo-minigame-monkey"]) {
+  for (const id of MINIGAME_SCREENS) {
     const active = await page.locator(`[data-screen="${id}"].active`).count();
     if (active > 0) return id;
   }

@@ -10,7 +10,7 @@ await page.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" }
 
 console.log("1) Criar sala com Ana (host) e 2 bots, forcar so 'battle' como bonus...");
 await page.fill("#name-input", "Ana");
-await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 3000 });
+await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 15000 });
 await page.click("#create-room-btn");
 await page.waitForSelector('[data-screen="lobby"].active', { timeout: 3000 });
 const code = await page.locator("#lobby-code").textContent();
@@ -88,7 +88,7 @@ await page.evaluate(({ code, movedPos }) => {
 }, { code, movedPos });
 await page.waitForTimeout(150);
 await page.keyboard.press("Space");
-await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.lives.p2 === 2, code, { timeout: 3000 });
+await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.lives.p2 === 2, code, { timeout: 15000 });
 console.log("   OK: p2 perdeu 1 vida (3 -> 2) por ataque real via Espaço");
 
 console.log("6) Terminar p2 usando a função real do servidor duas vezes (respeitando a transação de vidas)...");
@@ -97,13 +97,13 @@ await page.evaluate(async ({ code, hostId }) => {
   const room = window.__testDb.get(`rooms/${code}`);
   await roomModule.claimBattleHit(code, room, hostId, "p2");
 }, { code, hostId });
-await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.lives.p2 === 1, code, { timeout: 3000 });
+await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.lives.p2 === 1, code, { timeout: 15000 });
 await page.evaluate(async ({ code, hostId }) => {
   const roomModule = await import("./js/room.js");
   const room = window.__testDb.get(`rooms/${code}`);
   await roomModule.claimBattleHit(code, room, hostId, "p2");
 }, { code, hostId });
-await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.eliminated?.p2 === true, code, { timeout: 3000 });
+await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.eliminated?.p2 === true, code, { timeout: 15000 });
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   OK: p2 eliminado. vidas: ${room.battle.lives.p2}, abates da Ana: ${room.battle.kills?.[hostId]}`);
 // Só o golpe que ZERA as vidas conta como abate (3->2 via Espaço, 2->1 e
@@ -131,7 +131,7 @@ for (let i = 0; i < 3; i++) {
 }
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   p3 vidas: ${room.battle.lives.p3}, eliminada: ${room.battle.eliminated?.p3}`);
-await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.resolved === true, code, { timeout: 3000 });
+await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.resolved === true, code, { timeout: 15000 });
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   resolvido automaticamente pelo host (sem forçar endAt). alive: ${JSON.stringify(room.battle.alive)}, roundPoints: ${JSON.stringify(room.battle.roundPoints)}`);
 if (room.battle.alive[hostId] !== true || room.battle.alive.p2 !== false || room.battle.alive.p3 !== false) {
