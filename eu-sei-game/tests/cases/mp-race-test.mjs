@@ -46,19 +46,39 @@ if (hostScreen !== "race" || guestScreen !== "race") { console.log("   FALHOU");
 
 console.log("4) O ESSENCIAL: a estrada é a MESMA para os dois (mesmas faixas, mesmas cores)...");
 await host.waitForTimeout(2500);
-const readRoad = (p) => p.evaluate(() => Array.from(document.querySelectorAll("#race-road .car-obstacle")).map((el) => `${el.style.left}|${el.style.background}`));
+// Comparação por IDENTIDADE do carro, não por posição na lista. Os dois
+// clientes desenham cada um no seu ritmo: basta um ir uns fotogramas à frente
+// (e já ter deitado fora o carro mais antigo) para as listas ficarem
+// desalinhadas e uma corrida perfeitamente correta parecer diferente. O que
+// tem mesmo de ser verdade é que o carro nº N está na mesma faixa e da mesma
+// cor nos dois ecrãs.
+const readRoad = (p) => p.evaluate(() => {
+  const out = {};
+  document.querySelectorAll("#race-road .car-obstacle").forEach((el) => {
+    out[el.dataset.index] = `${el.style.left}|${el.style.background}`;
+  });
+  return out;
+});
 const roadHost = await readRoad(host);
 const roadGuest = await readRoad(guest);
-console.log(`   carros no ecrã da Ana: ${roadHost.length}, no do Beto: ${roadGuest.length}`);
-console.log(`   faixas/cores (Ana):  ${JSON.stringify(roadHost.slice(0, 4))}`);
-console.log(`   faixas/cores (Beto): ${JSON.stringify(roadGuest.slice(0, 4))}`);
-if (roadHost.length === 0) { console.log("   FALHOU: não nasceu nenhum obstáculo"); process.exitCode = 1; }
-const shared = Math.min(roadHost.length, roadGuest.length);
-if (shared === 0 || roadHost.slice(0, shared).join() !== roadGuest.slice(0, shared).join()) {
-  console.log("   FALHOU: as duas estradas não são iguais — a corrida seria injusta");
+const idsHost = Object.keys(roadHost);
+const idsGuest = Object.keys(roadGuest);
+console.log(`   carros no ecrã da Ana: ${idsHost.length}, no do Beto: ${idsGuest.length}`);
+const common = idsHost.filter((i) => i in roadGuest);
+console.log(`   carros que ambos têm no ecrã: ${common.length} (nºs ${common.slice(0, 6).join(", ")})`);
+if (idsHost.length === 0) { console.log("   FALHOU: não nasceu nenhum obstáculo"); process.exitCode = 1; }
+if (common.length === 0) {
+  console.log("   FALHOU: os dois ecrãs não têm um único carro em comum");
   process.exitCode = 1;
 } else {
-  console.log("   OK: os dois estão a apanhar exatamente os mesmos carros");
+  const diff = common.filter((i) => roadHost[i] !== roadGuest[i]);
+  diff.slice(0, 3).forEach((i) => console.log(`   carro ${i}: Ana ${roadHost[i]} != Beto ${roadGuest[i]}`));
+  if (diff.length > 0) {
+    console.log("   FALHOU: as duas estradas não são iguais — a corrida seria injusta");
+    process.exitCode = 1;
+  } else {
+    console.log(`   OK: os ${common.length} carros comuns estão na mesma faixa e cor nos dois ecrãs`);
+  }
 }
 
 console.log("5) A classificação ao vivo mostra os dois jogadores, com o tempo a correr...");

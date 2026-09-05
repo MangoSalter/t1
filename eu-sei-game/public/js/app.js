@@ -2080,6 +2080,11 @@ function raceSpawnObstacle(seed) {
   el.style.width = `${RACE_CAR_W}px`;
   el.style.height = `${RACE_CAR_H}px`;
   el.style.background = RACE_COLORS[(index * 3 + lane) % RACE_COLORS.length];
+  // O número do carro fica no DOM: é o que permite comparar a estrada de dois
+  // jogadores por identidade ("o carro 7 está na mesma faixa nos dois ecrãs")
+  // em vez de por posição na lista, que difere quando um cliente vai uns
+  // fotogramas à frente do outro.
+  el.dataset.index = String(index);
   raceEls.road.appendChild(el);
   raceState.obstacleEls[index] = el;
 }
