@@ -91,7 +91,6 @@ if (await strokeCount() !== 1) fail("anular não desfez a marca da borracha");
 
 console.log("6) 'Limpar tudo' pergunta antes, e só aí apaga tudo...");
 page.once("dialog", (d) => d.dismiss());
-await page.click("#board-panel > summary");
 await page.click("#board-clear-btn");
 if (await strokeCount() !== 1) fail("recusar a confirmação apagou o quadro na mesma");
 page.once("dialog", (d) => d.accept());
@@ -147,9 +146,9 @@ if (!visible) fail("enquadrar não trouxe o desenho para o ecrã");
 
 console.log("10) Espessura e transparência mudam mesmo o traço seguinte...");
 await page.click('[data-board-tool="pen"]');
+await page.click("#board-panel > summary");
 await page.locator("#board-width-range").fill("30");
 await page.locator("#board-opacity-range").fill("25");
-await page.click("#board-panel > summary");
 await drag([600, 400], [750, 500]);
 const last = await page.evaluate(() => {
   const s = window.__boardTest.strokes[window.__boardTest.strokes.length - 1];
@@ -158,6 +157,27 @@ const last = await page.evaluate(() => {
 console.log(`   traço novo: espessura ${last.width}, transparência ${last.opacity}`);
 if (last.width !== 30) fail(`a espessura escolhida não foi usada (${last.width})`);
 if (Math.abs(last.opacity - 0.25) > 0.01) fail(`a transparência escolhida não foi usada (${last.opacity})`);
+
+console.log("10b) Cada ferramenta guarda a SUA espessura...");
+// Uma espessura só para todas obrigava a reajustar o deslizador a cada troca:
+// a borracha quer-se larga e o lápis fino. Trocar e voltar tem de repor o que
+// lá estava, não arrastar o número da outra ferramenta.
+await page.click('[data-board-tool="pen"]');
+await page.locator("#board-width-range").fill("8");
+await page.click('[data-board-tool="eraser"]');
+const larguraBorracha = await page.evaluate(() => window.__boardTest.width);
+await page.locator("#board-width-range").fill("40");
+await page.click('[data-board-tool="pen"]');
+const larguraCaneta = await page.evaluate(() => window.__boardTest.width);
+await page.click('[data-board-tool="eraser"]');
+const borrachaOutraVez = await page.evaluate(() => window.__boardTest.width);
+console.log(`   caneta 8 -> borracha ${larguraBorracha} -> borracha 40 -> caneta ${larguraCaneta} -> borracha ${borrachaOutraVez}`);
+if (larguraCaneta !== 8) fail(`a caneta devia continuar nos 8, está em ${larguraCaneta}`);
+if (borrachaOutraVez !== 40) fail(`a borracha devia continuar nos 40, está em ${borrachaOutraVez}`);
+if (larguraBorracha === 8) fail("a borracha não devia nascer com a espessura da caneta");
+await page.click('[data-board-tool="pen"]');
+await page.locator("#board-width-range").fill("30");
+await page.click("#board-panel > summary");
 
 console.log("11) Cores, formas e texto...");
 await page.click('[data-board-color="#b24b38"]');

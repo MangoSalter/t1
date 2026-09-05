@@ -95,7 +95,11 @@ const board = {
   drawing: false,
   tool: "pen",
   color: BOARD_COLORS[0],
+  // Cada ferramenta guarda a SUA espessura. Uma espessura só para todas
+  // obrigava a reajustar o deslizador a cada troca: a borracha quer-se larga,
+  // o lápis fino, e trocar de uma para a outra apagava a escolha anterior.
   width: BOARD_WIDTHS[1].value,
+  widthByTool: {},
   opacity: 1,
   fillShapes: false,
   background: "plain",
@@ -198,6 +202,7 @@ function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       tool: board.tool, color: board.color, width: board.width,
+      widthByTool: board.widthByTool,
       opacity: board.opacity, fillShapes: board.fillShapes, background: board.background,
     }));
   } catch {
@@ -798,9 +803,23 @@ function buildToolbar() {
   els.bgSelect.value = board.background;
 }
 
+export function toolWidth(key) {
+  const saved = board.widthByTool[key];
+  if (Number.isFinite(saved)) return saved;
+  // Valores de partida por ferramenta, não um número só para todas: a
+  // borracha nasce larga e o lápis fino, que é como se usam.
+  if (key === "eraser") return 12;
+  if (key === "highlighter") return 6;
+  if (key === "pencil") return 3;
+  if (key === "marker") return 6;
+  return BOARD_WIDTHS[1].value;
+}
+
 export function selectTool(key) {
   if (!BOARD_TOOLS[key]) return;
   board.tool = key;
+  // A espessura mostrada passa a ser a desta ferramenta.
+  selectWidth(toolWidth(key), true);
   els.toolRow.querySelectorAll("[data-board-tool]").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.boardTool === key));
   });
@@ -825,8 +844,12 @@ export function selectColor(color) {
   savePrefs();
 }
 
-export function selectWidth(value) {
+export function selectWidth(value, fromToolSwitch) {
   board.width = Math.max(WIDTH_MIN, Math.min(WIDTH_MAX, Number(value) || WIDTH_MIN));
+  // Ao trocar de ferramenta só se mostra a espessura dela; escrever no
+  // deslizador é que a guarda. Sem esta distinção, trocar de ferramenta e
+  // voltar atrás reescrevia a espessura da primeira com a da segunda.
+  if (!fromToolSwitch) board.widthByTool[board.tool] = board.width;
   if (els.widthRange) els.widthRange.value = String(board.width);
   if (els.widthValue) els.widthValue.textContent = `${board.width}px`;
   savePrefs();
@@ -917,6 +940,11 @@ if (boardAvailable) {
   if (BOARD_TOOLS[prefs.tool] && !BOARD_TOOLS[prefs.tool].pan) board.tool = prefs.tool;
   if (typeof prefs.color === "string") board.color = prefs.color;
   if (Number.isFinite(prefs.width)) board.width = prefs.width;
+  if (prefs.widthByTool && typeof prefs.widthByTool === "object") {
+    Object.entries(prefs.widthByTool).forEach(([k, v]) => {
+      if (BOARD_TOOLS[k] && Number.isFinite(v)) board.widthByTool[k] = v;
+    });
+  }
   if (Number.isFinite(prefs.opacity)) board.opacity = prefs.opacity;
   board.fillShapes = !!prefs.fillShapes;
   if (BOARD_BACKGROUNDS[prefs.background]) board.background = prefs.background;
@@ -928,9 +956,8 @@ if (boardAvailable) {
   if (Number.isFinite(view.panY)) board.panY = view.panY;
 
   buildToolbar();
-  selectTool(board.tool);
   selectColor(board.color);
-  selectWidth(board.width);
+  selectTool(board.tool);
   selectOpacity(board.opacity);
   setFillShapes(board.fillShapes);
   refreshButtons();
