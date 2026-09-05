@@ -786,6 +786,15 @@ export const BOARD_SETTINGS_SPEC = {
       default: 0,
     },
     {
+      key: "revealGuesses",
+      label: "Tentativas",
+      options: [
+        { value: 1, label: "À vista: vê-se quem tentou o quê" },
+        { value: 0, label: "Anónimas: ninguém sabe de quem foi" },
+      ],
+      default: 1,
+    },
+    {
       key: "showHintAlways",
       label: "Pista",
       options: [
@@ -855,6 +864,54 @@ export function revealLetter(word, mask, letter) {
 
 export function maskIsSolved(mask) {
   return !!mask && !mask.includes("_");
+}
+
+// --- Várias palavras do mesmo tema ao mesmo tempo ---
+//
+// A decisão que faz isto ser barato: várias palavras são UMA máscara só,
+// separadas por um caráter que não é letra. Como o revealLetter já percorre a
+// máscara inteira, "uma letra certa revela em TODAS as palavras" sai de
+// graça, sem uma linha de lógica nova na resolução — que era exatamente a
+// regra pedida. O separador não é letra, por isso maskWord deixa-o à vista e
+// as palavras leem-se separadas.
+export const WORD_SEP = " · ";
+
+export function joinWords(palavras) {
+  return palavras
+    .map((p) => String(p || "").trim())
+    .filter(Boolean)
+    .join(WORD_SEP);
+}
+
+// Aceita vírgulas, barras ou o próprio separador: quem escreve não tem de
+// saber qual é o caráter interno.
+export function splitWordsInput(texto) {
+  return String(texto || "")
+    .split(/[,/·]|\s\|\s/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+export function wordsOfMask(mask) {
+  return String(mask || "").split(WORD_SEP);
+}
+
+// Uma tentativa de palavra inteira, com várias palavras em jogo, só pode
+// revelar A PALAVRA acertada — não o quadro todo. Devolve a máscara nova, ou
+// null se não acertou nenhuma.
+export function revealWholeWord(secret, mask, tentativa) {
+  const partes = wordsOfMask(secret);
+  const atuais = wordsOfMask(mask);
+  if (partes.length !== atuais.length) return sameWord(tentativa, secret) ? secret : null;
+  let acertou = false;
+  const novas = partes.map((parte, i) => {
+    if (!acertou && sameWord(tentativa, parte) && atuais[i] !== parte) {
+      acertou = true;
+      return parte;
+    }
+    return atuais[i];
+  });
+  return acertou ? novas.join(WORD_SEP) : null;
 }
 
 // --- Solo ou equipas ---
@@ -1083,6 +1140,36 @@ function advanceTurn(room, afterUid, patch) {
   return nextGuesser(room, afterUid);
 }
 
+// Com tentativas anónimas, as letras erradas CONTINUAM à vista — só se
+// esconde de quem foram. Esconder as letras também faria toda a gente repetir
+// as mesmas e o jogo passava a ser só frustração; o que se quer esconder é
+// quem falhou, não o que já foi tentado.
+export function guessesAreAnonymous(room) {
+  return boardSetting(room, "forca", "revealGuesses") === 0;
+}
+
+// Com tentativas anónimas a palavra passa a ser PESSOAL: cada um vê revelado
+// só o que ELE acertou. As letras erradas continuam de todos (senão toda a
+// gente repetia as mesmas), mas o progresso é de cada um — o que transforma a
+// forca de um esforço coletivo numa corrida a ver quem monta a palavra
+// primeiro.
+//
+// Quem ainda não acertou nada vê a forma toda por preencher. Essa forma
+// tira-se da máscara partilhada, voltando a tapar o que lá esteja revelado —
+// assim ninguém precisa da palavra para saber quantas letras ela tem.
+export function playerMask(room, uid) {
+  const hangman = room?.hangman;
+  if (!hangman?.mask) return "";
+  if (!guessesAreAnonymous(room)) return hangman.mask;
+  return hangman.masks?.[uid] || maskWord(hangman.mask);
+}
+
+// Quem já montou a palavra toda. Serve para o ecrã de quem joga e para saber
+// quem ganhou a ronda.
+export function playerSolved(room, uid) {
+  return maskIsSolved(playerMask(room, uid));
+}
+
 export function freeGuessing(room) {
   return boardSetting(room, "forca", "guessMode") === "livre";
 }
@@ -1137,7 +1224,17 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
   const patch = { [`guesses/${guesserUid}`]: null };
   if (acertou) {
     patch.mask = nova;
-    patch.solved = maskIsSolved(nova);
+    if (guessesAreAnonymous(room)) {
+      // Anónimas: a letra certa revela-se só na palavra DELE. A máscara
+      // partilhada continua a somar tudo, mas serve só a quem tem a caneta —
+      // é o que lhe deixa ver o andamento da ronda.
+      const minha = revealLetter(word, playerMask(room, guesserUid), letter);
+      patch[`masks/${guesserUid}`] = minha;
+      patch.solved = maskIsSolved(minha);
+      if (patch.solved) patch.winnerUid = guesserUid;
+    } else {
+      patch.solved = maskIsSolved(nova);
+    }
     // Uma letra certa conta para a equipa de quem a disse: é o que dá às
     // equipas um propósito para lá de serem uma lista de nomes.
     const equipa = teamOfPlayer(room, guesserUid);
@@ -1243,6 +1340,7 @@ export async function clearHangmanPuzzle(code, room, uid) {
   const patch = {
     mask: null, hint: null, misses: 0, solved: false,
     wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
+    masks: null, winnerUid: null,
   };
   if (autoPenOn(room)) {
     const seguinte = nextPenByRotation(room);
@@ -1313,6 +1411,7 @@ export async function setBoardMode(code, room, uid, modeKey) {
     modeVotes: null,
     mask: null, hint: null, misses: 0, solved: false,
     wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
+    masks: null, winnerUid: null,
   };
   if (modeKey === "forca") {
     // Entrar na Forca abre a votação da caneta: enquanto ninguém for
@@ -1371,23 +1470,40 @@ export function wrongWordList(room) {
 // cliente de quem tem a caneta — o único que conhece a palavra.
 export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, word) {
   if (room?.hangman?.leaderId !== uid) return null;
-  const acertou = sameWord(tentativa, word);
+  // Com várias palavras em jogo, acertar UMA revela essa e só essa: o quadro
+  // esvazia-se aos poucos em vez de acabar de repente. Com uma palavra só,
+  // revela-a e acaba, como sempre.
+  const anonimo = guessesAreAnonymous(room);
+  const baseDele = anonimo ? playerMask(room, guesserUid) : (room.hangman.mask || "");
+  const novaMascara = revealWholeWord(word, baseDele, tentativa);
+  const acertou = !!novaMascara;
   const patch = { [`wordGuesses/${guesserUid}`]: null };
   if (acertou) {
-    patch.mask = word;
-    patch.solved = true;
+    if (anonimo) {
+      patch[`masks/${guesserUid}`] = novaMascara;
+      // A máscara partilhada continua a somar, para quem tem a caneta ver o
+      // andamento; o que se mostra a cada um é a dele.
+      patch.mask = revealWholeWord(word, room.hangman.mask || "", tentativa) || room.hangman.mask;
+      patch.solved = maskIsSolved(novaMascara);
+      if (patch.solved) patch.winnerUid = guesserUid;
+    } else {
+      patch.mask = novaMascara;
+      patch.solved = maskIsSolved(novaMascara);
+    }
     const equipa = teamOfPlayer(room, guesserUid);
     if (equipa) {
       // A palavra inteira vale mais do que uma letra: foi um salto, não um
       // passo.
       patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + 3;
     }
-    // Acertar a palavra toda conta como três acertos para a reordenação: quem
-    // a viu inteira jogou melhor do que quem foi tirando letras.
+    // Acertar uma palavra inteira conta como três acertos para a reordenação:
+    // quem a viu inteira jogou melhor do que quem foi tirando letras.
     const contagens = { ...(room.hangman.correctCount || {}) };
     contagens[guesserUid] = (contagens[guesserUid] || 0) + 3;
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
-    Object.assign(patch, roundEndPatch(room, contagens));
+    // A ronda só acaba quando o quadro TODO está resolvido. Com várias
+    // palavras, acertar uma não pode reordenar a fila a meio da ronda.
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens));
   } else {
     Object.assign(patch, missPatch(room, guesserUid));
     patch[`wrongWords/w${Date.now().toString(36)}`] = {

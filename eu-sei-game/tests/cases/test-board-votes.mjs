@@ -260,3 +260,65 @@ check2("todas as falas estão completas e curtas", String(falasMas.length), "0")
 // E só falam as duas personagens que existem.
 const vozes = [...new Set(BOARD_QUIPS.map((q) => q.who))].sort().join(",");
 check2("só a Dona Manga e o Brasa", vozes, "Brasa,Dona Manga");
+
+console.log("23) Várias palavras: uma letra certa revela em TODAS...");
+const { joinWords, splitWordsInput, wordsOfMask, revealWholeWord, WORD_SEP, maskWord: mw, revealLetter: rl } =
+  await import("./js/room.js");
+// A decisão que faz isto ser barato: várias palavras são UMA máscara só. Como
+// revealLetter percorre a máscara inteira, "revela em todas" sai de graça.
+const tres = joinWords(["banana", "manga", "ananás"]);
+check2("juntas com separador", tres, `banana${WORD_SEP}manga${WORD_SEP}ananás`);
+check2("separam-se outra vez", wordsOfMask(tres).join("|"), "banana|manga|ananás");
+const mascara = mw(tres);
+check2("o separador fica à vista", mascara, `______${WORD_SEP}_____${WORD_SEP}______`);
+// O "a" aparece nas três: tem de aparecer nas três de uma vez.
+const comA = rl(tres, mascara, "a");
+check2("um 'a' revela nas três", comA, `_a_a_a${WORD_SEP}_a__a${WORD_SEP}a_a__á`);
+// E o acento não impede: "a" apanha o "á" de ananás.
+check2("o acento não escapa", comA.includes("á"), true);
+
+console.log("24) Quem escreve não tem de saber qual é o separador interno...");
+check2("vírgulas", splitWordsInput("banana, manga, ananás").join("|"), "banana|manga|ananás");
+check2("barras", splitWordsInput("banana / manga").join("|"), "banana|manga");
+check2("espaços a mais", splitWordsInput("  banana ,,  manga  ").join("|"), "banana|manga");
+check2("uma palavra só", splitWordsInput("banana").join("|"), "banana");
+// Uma palavra composta com espaços continua a ser UMA palavra.
+check2("palavra composta", splitWordsInput("Dona Manga").join("|"), "Dona Manga");
+
+console.log("25) Acertar UMA palavra inteira revela essa e só essa...");
+// O quadro esvazia-se aos poucos, em vez de acabar de repente.
+const parcial = revealWholeWord(tres, mascara, "manga");
+check2("revela a acertada", parcial, `______${WORD_SEP}manga${WORD_SEP}______`);
+check2("e não as outras", parcial.startsWith("______"), true);
+check2("palavra que não está lá", String(revealWholeWord(tres, mascara, "melancia")), "null");
+// Acertar a mesma outra vez não conta como acerto novo.
+check2("repetir a já revelada", String(revealWholeWord(tres, parcial, "manga")), "null");
+// Com uma palavra só, revela-a e acaba, como sempre.
+const uma = "banana";
+check2("uma palavra só", revealWholeWord(uma, mw(uma), "BANANA"), "banana");
+
+console.log("26) Tentativas anónimas: erradas de todos, certas só na tua palavra...");
+const { guessesAreAnonymous, playerMask, playerSolved } = await import("./js/room.js");
+const salaAnon = (settings, extra) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true } },
+  hangman: { mode: "forca", leaderId: "a", mask: "_a_a_a", settings, ...extra },
+});
+check2("por omissão, tudo à vista", String(guessesAreAnonymous(salaAnon({}))), "false");
+check2("anónimas quando escolhido", String(guessesAreAnonymous(salaAnon({ revealGuesses: 0 }))), "true");
+// À vista, todos veem a mesma palavra.
+check2("à vista, a palavra é a mesma", playerMask(salaAnon({}), "b"), "_a_a_a");
+// Anónimas: quem ainda não acertou nada vê a forma toda por preencher — e a
+// forma sai da máscara partilhada, para ninguém precisar da palavra para
+// saber quantas letras ela tem.
+check2("anónimas, quem não acertou vê tudo tapado", playerMask(salaAnon({ revealGuesses: 0 }), "b"), "______");
+// E quem acertou vê só o que acertou.
+const comMascaras = salaAnon({ revealGuesses: 0 }, { masks: { b: "_a_a_a", c: "b_____" } });
+check2("cada um vê o seu", playerMask(comMascaras, "b"), "_a_a_a");
+check2("e o outro vê o dele", playerMask(comMascaras, "c"), "b_____");
+check2("quem não jogou continua tapado", playerMask(comMascaras, "z"), "______");
+// Ganhar é montar a palavra toda na SUA.
+const quaseGanhou = salaAnon({ revealGuesses: 0 }, { masks: { b: "banana", c: "b_____" } });
+check2("quem montou a palavra ganhou", String(playerSolved(quaseGanhou, "b")), "true");
+check2("quem não montou, não", String(playerSolved(quaseGanhou, "c")), "false");
+// Sem palavra em jogo não há máscara nenhuma.
+check2("sem palavra", playerMask({ hangman: {} }, "b"), "");

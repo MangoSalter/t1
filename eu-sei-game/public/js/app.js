@@ -23,11 +23,12 @@ import {
   BOARD_MODES, DEFAULT_BOARD_MODE, setBoardMode, canSetBoardMode, votePenHolder, applyBoardVotes,
   submitWordGuess, resolveWordGuess, wrongWordList, connectedPlayerIds, tallyVotes, votesNeeded,
   maskWord, revealLetter, maskIsSolved, setHangmanPuzzle, updateHangmanMask,
+  joinWords, splitWordsInput, wordsOfMask, WORD_SEP,
   addHangmanMiss, clearHangmanPuzzle, HANGMAN_MAX_MISSES, DOODLE_BOARD_FULL,
   HANGMAN_PLAYER_COLORS, takenHangmanColors, pickHangmanColor, playerColor,
   hangmanGuessers, currentGuesser, submitLetterGuess, passGuessTurn,
   resolveGuess, wrongLetters, letterAlreadyTried, modeAllowsTool, correctCountOf,
-  individualMisses, missesOfPlayer, canDrawOnBoard,
+  individualMisses, missesOfPlayer, guessesAreAnonymous, playerMask, playerSolved, canDrawOnBoard,
   BOARD_SETTINGS_SPEC, boardSetting, setBoardSetting, maxMissesOf, canGuessNow,
   freeGuessing, MAX_TEAMS, teamsOn, teamsLocked, teamList, setPlayMode,
   setTeamCount, joinTeam, renameTeam, teamOfPlayer,
@@ -2053,15 +2054,19 @@ hangmanEls.wordForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const word = hangmanEls.wordInput.value.trim();
   if (!word) return;
+  const palavras = splitWordsInput(word);
+  const juntas = joinWords(palavras);
   const maskAtual = state.room?.hangman?.mask || "";
   // Reescrever a MESMA palavra depois de a perder retoma o jogo onde estava,
   // em vez de recomeçar: as letras já reveladas e os erros já contados não
   // podem desaparecer só porque quem arbitra recarregou a página.
   const retoma = !!maskAtual
-    && maskWord(word) === maskWord(maskAtual)
-    && [...maskAtual].every((ch, i) => ch === "_" || ch === word[i]);
-  hangmanSecretWord = word;
-  saveSecretWord(state.code, word);
+    && maskWord(juntas) === maskWord(maskAtual)
+    && [...maskAtual].every((ch, i) => ch === "_" || ch === juntas[i]);
+  // A partir daqui trabalha-se sempre com as palavras JUNTAS: é assim que
+  // uma letra certa revela em todas de uma vez, sem lógica nova.
+  hangmanSecretWord = juntas;
+  saveSecretWord(state.code, juntas);
   const pista = hangmanEls.hintInput.value.trim();
   hangmanEls.wordInput.value = "";
   hangmanEls.hintInput.value = "";
@@ -2070,7 +2075,7 @@ hangmanEls.wordForm.addEventListener("submit", async (e) => {
     renderHangman(state.room);
     return;
   }
-  await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(word), pista);
+  await setHangmanPuzzle(state.code, state.room, state.uid, maskWord(juntas), pista);
 });
 
 hangmanEls.revealBtn.addEventListener("click", async () => {
@@ -2098,7 +2103,26 @@ hangmanEls.newWordBtn.addEventListener("click", () => {
 // ir escrever noutro sítio do ecrã.
 function renderHangmanSlots(mask, interactive) {
   hangmanEls.slots.innerHTML = "";
-  [...String(mask || "")].forEach((ch, i) => {
+  // Com várias palavras, cada uma vai no seu bloco: assim quebram entre
+  // palavras e não a meio de uma. O deslocamento lateral da faixa trata do
+  // resto quando não cabem.
+  const palavras = wordsOfMask(mask);
+  let base = 0;
+  palavras.forEach((palavra, wi) => {
+    const bloco = document.createElement("span");
+    bloco.className = "hangman-slot-word";
+    bloco.dataset.slotWord = String(wi);
+    renderSlotsInto(bloco, palavra, base, interactive);
+    hangmanEls.slots.appendChild(bloco);
+    base += palavra.length + WORD_SEP.length;
+  });
+}
+
+// Desenha os espaços de UMA palavra. "base" é a posição dela dentro da
+// máscara toda, para o clique escrever no sítio certo.
+function renderSlotsInto(destino, mask, base, interactive) {
+  [...String(mask || "")].forEach((ch, offset) => {
+    const i = base + offset;
     const el = document.createElement("span");
     if (ch === " ") {
       el.className = "hangman-slot hangman-slot-space";
@@ -2121,9 +2145,9 @@ function renderHangmanSlots(mask, interactive) {
       btn.setAttribute("aria-label", `Escrever a letra da posição ${i + 1}`);
       btn.appendChild(el);
       btn.addEventListener("click", () => hangmanFillSlot(i));
-      hangmanEls.slots.appendChild(btn);
+      destino.appendChild(btn);
     } else {
-      hangmanEls.slots.appendChild(el);
+      destino.appendChild(el);
     }
   });
 }
@@ -2176,16 +2200,19 @@ function renderWrongLetters(room) {
     const el = document.createElement("span");
     el.className = "hangman-wrong-word";
     el.dataset.wrongWord = text;
-    el.style.color = playerColor(room, uid);
-    el.title = room.players?.[uid]?.name || "";
+    el.style.color = anonimo ? "var(--ink)" : playerColor(room, uid);
+    el.title = anonimo ? "" : (room.players?.[uid]?.name || "");
     el.textContent = text;
     hangmanEls.wrongWords.appendChild(el);
   });
+  const anonimo = guessesAreAnonymous(room);
   erradas.forEach(({ letter, uid }) => {
     const el = document.createElement("span");
     el.className = "hangman-wrong-letter";
-    el.style.color = playerColor(room, uid);
-    el.title = room.players?.[uid]?.name || "";
+    // Anónimas: a letra fica à vista (senão toda a gente repetia as mesmas),
+    // mas em tinta neutra e sem nome — é de quem falhou que ninguém sabe.
+    el.style.color = anonimo ? "var(--ink)" : playerColor(room, uid);
+    el.title = anonimo ? "" : (room.players?.[uid]?.name || "");
     el.textContent = letter.toLocaleUpperCase("pt");
     hangmanEls.wrongLetters.appendChild(el);
   });
@@ -2449,9 +2476,12 @@ function renderHangman(room) {
           // isso, a penalização a cada X erros chegava sem aviso nenhum, e uma
           // penalização que não se vê chegar é só uma coisa estranha que
           // acontece.
-          if (certas > 0) sufixo += ` ${certas}`;
-          if (errosDele > 0) sufixo += ` ✗${errosDele}`;
-          if (deCastigo) sufixo += " ⏭️";
+          // Com tentativas anónimas, cada um vê só a SUA contagem: mostrar a
+          // dos outros seria dizer por outras palavras quem andou a falhar.
+          const posso = !guessesAreAnonymous(room) || uid === state.uid;
+          if (posso && certas > 0) sufixo += ` ${certas}`;
+          if (posso && errosDele > 0) sufixo += ` ✗${errosDele}`;
+          if (posso && deCastigo) sufixo += " ⏭️";
         }
         tag.textContent = (room.players[uid]?.name || "?") + sufixo;
         if (deCastigo) tag.title = "Perde a vez seguinte";
@@ -2501,11 +2531,18 @@ function renderHangman(room) {
   hangmanEls.hintLabel.textContent = pista ? `Pista: ${pista}` : "";
 
   if (temPalavra) {
-    renderHangmanSlots(mask, amLeader);
+    // Com tentativas anónimas, cada um vê revelado só o que ELE acertou. Quem
+    // tem a caneta vê a máscara partilhada, porque precisa de ver o andamento
+    // da ronda para saber quando acabar.
+    const minhaMascara = amLeader ? mask : playerMask(room, state.uid);
+    renderHangmanSlots(minhaMascara, amLeader);
     const misses = hangman.misses || 0;
     const teto = maxMissesOf(room);
     if (hangman.solved) {
-      hangmanEls.missesLabel.textContent = "Acertaram! 🎉";
+      const vencedor = hangman.winnerUid ? room.players?.[hangman.winnerUid]?.name : null;
+      hangmanEls.missesLabel.textContent = vencedor
+        ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} montou a palavra primeiro.`)
+        : "Acertaram! 🎉";
     } else if (individualMisses(room)) {
       // Com erros de cada um não há "enforcado": ninguém acaba a ronda dos
       // outros por ser distraído. O contador da sala passa a ser só um total.
