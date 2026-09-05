@@ -279,6 +279,59 @@ await page.evaluate(async () => {
 });
 await page.click('[data-board-tool="pen"]');
 
+console.log("14b) O quadro cheio PARA de aceitar — nunca come o que já lá está...");
+// Mesma regra do quadro de sala, e pelo mesmo motivo: a borracha também é um
+// traço, por isso um teto que deitasse fora os antigos fazia o desenho
+// encolher por trás de quem estava a apagar um canto.
+const marcado = await page.evaluate(async () => {
+  const m = await import("./js/board.js");
+  const b = m.__board;
+  b.strokes = [{ tool: "pen", color: "#111111", width: 4, points: [{ x: 5, y: 5 }, { x: 9, y: 9 }], marca: "PRIMEIRO" }];
+  // Enche até ao teto com traços sintéticos.
+  while (b.strokes.length < 4000) {
+    b.strokes.push({ tool: "pen", color: "#222222", width: 2, points: [{ x: 1, y: 1 }, { x: 2, y: 2 }] });
+  }
+  return { total: b.strokes.length, primeiro: b.strokes[0].marca };
+});
+console.log(`   antes de desenhar: ${marcado.total} traços, o primeiro é "${marcado.primeiro}"`);
+await drag([200, 300], [400, 380]);
+await drag([220, 320], [420, 400]);
+const depoisDeCheio = await page.evaluate(() => ({
+  total: window.__boardTest.strokes.length,
+  primeiro: window.__boardTest.strokes[0].marca || "(perdido)",
+  aviso: document.getElementById("board-status").textContent,
+}));
+console.log(`   depois: ${depoisDeCheio.total} traços, o primeiro é "${depoisDeCheio.primeiro}"`);
+console.log(`   aviso no ecrã: "${depoisDeCheio.aviso}"`);
+if (depoisDeCheio.primeiro !== "PRIMEIRO") fail("o quadro cheio comeu o traço mais antigo");
+if (depoisDeCheio.total > 4000) fail(`passou do teto: ${depoisDeCheio.total}`);
+if (!/cheio/i.test(depoisDeCheio.aviso)) fail("o quadro cheio tem de dizer que está cheio");
+
+console.log("14c) Anular um 'limpar tudo' devolve o desenho INTEIRO...");
+// Com um corte pelo tamanho da pilha de anulações, quem tivesse mais traços
+// do que isso recuperava só o fim e ficava com meio desenho a achar que era
+// tudo — pior do que não recuperar nada, porque parece que correu bem.
+await page.evaluate(async () => {
+  const m = await import("./js/board.js");
+  const b = m.__board;
+  b.strokes = [];
+  for (let i = 0; i < 300; i += 1) {
+    b.strokes.push({ tool: "pen", color: "#333333", width: 2, points: [{ x: i, y: i }, { x: i + 1, y: i + 1 }], n: i });
+  }
+  b.redo = [];
+});
+page.once("dialog", (d) => d.accept());
+await page.click("#board-clear-btn");
+if (await strokeCount() !== 0) fail("limpar não esvaziou o quadro");
+await page.click("#board-redo-btn");
+const recuperados = await page.evaluate(() => window.__boardTest.strokes.length);
+console.log(`   300 traços -> limpar -> anular devolveu ${recuperados}`);
+if (recuperados !== 300) fail(`devolveu só ${recuperados} dos 300 traços`);
+const ordemOk = await page.evaluate(() => window.__boardTest.strokes.every((s, i) => s.n === i));
+if (!ordemOk) fail("os traços voltaram fora da ordem em que foram desenhados");
+await page.evaluate(() => { window.__boardTest.strokes = []; window.__boardTest.redo = []; });
+await drag([200, 200], [400, 300]);
+
 console.log("15) Há sempre caminho de volta: o botão e o 'voltar' do browser...");
 // A queixa foi mesmo esta: entrava-se no quadro e não se via como sair. O
 // botão é agora o primeiro da barra; e quem carrega no "voltar" do telemóvel

@@ -22,9 +22,12 @@
 const STORAGE_KEY = "euSei_boardDrawing";
 const VIEW_KEY = "euSei_boardView";
 const PREFS_KEY = "euSei_boardPrefs";
-// Acima disto o redesenho começa a notar-se ao arrastar. Chega para muito
-// mais do que um quadro cheio; é rede de segurança, não limite de uso.
-const MAX_STROKES = 1200;
+// Trave de segurança, não limite de uso. Ao ser atingida o quadro PARA de
+// aceitar traços e diz-o — nunca deita fora os antigos. A versão anterior
+// fazia isso (board.strokes.shift()) e tinha o mesmo defeito que o quadro de
+// sala: como a borracha também é um traço, apagar um canto ia comendo o
+// princípio do desenho por trás, sem nada no ecrã a explicar porquê.
+const MAX_STROKES = 4000;
 const MAX_UNDO = 80;
 // Distância mínima entre pontos guardados, em pixéis de ECRÃ (convertida
 // para mundo conforme o zoom). Sem isto um arrasto lento enche a lista de
@@ -571,8 +574,11 @@ function extendStroke(e) {
 }
 
 function commitStroke(stroke) {
+  if (board.strokes.length >= MAX_STROKES) {
+    setStatus("O quadro está cheio — anula ou limpa para continuar.");
+    return;
+  }
   board.strokes.push(stroke);
-  if (board.strokes.length > MAX_STROKES) board.strokes.shift();
   // Desenhar depois de desfazer corta o futuro: é o que qualquer editor faz,
   // e evita um "refazer" que reporia um traço por cima de outro caminho.
   board.redo = [];
@@ -639,7 +645,9 @@ export function undoStroke() {
 
 export function redoStroke() {
   if (board.redo.length === 0) return;
-  board.strokes.push(board.redo.pop());
+  const entrada = board.redo.pop();
+  if (entrada && entrada.restauraTudo) board.strokes = entrada.restauraTudo;
+  else board.strokes.push(entrada);
   redrawBoard();
   refreshButtons();
   saveDrawingSoon();
@@ -651,7 +659,12 @@ export function clearBoard(skipConfirm) {
   // isso pergunta primeiro. A borracha, essa, apaga só onde se passa e nunca
   // pergunta nada — são coisas diferentes de propósito.
   if (!skipConfirm && !window.confirm("Limpar o quadro todo? Isto apaga tudo o que está desenhado.")) return;
-  board.redo = board.strokes.slice(-MAX_UNDO).reverse();
+  // "Limpar" é UMA ação, por isso desfaz-se com UM passo. Empilhar os traços
+  // um a um fazia com que desfazer uma limpeza de 300 traços pedisse 300
+  // cliques — na prática, o mesmo que não se poder desfazer. E volta o desenho
+  // INTEIRO: devolver só um pedaço seria pior do que não devolver nada, porque
+  // parece que correu bem.
+  board.redo = [{ restauraTudo: board.strokes.slice() }];
   board.strokes = [];
   redrawBoard();
   refreshButtons();
@@ -711,7 +724,7 @@ async function importBoardFile(file) {
     }
     // Importar ACRESCENTA em vez de substituir, e o que estava continua a
     // poder ser desfeito — importar por engano não pode apagar o quadro.
-    board.strokes = board.strokes.concat(strokes).slice(-MAX_STROKES);
+    board.strokes = board.strokes.concat(strokes).slice(0, MAX_STROKES);
     redrawBoard();
     refreshButtons();
     zoomToFit();
