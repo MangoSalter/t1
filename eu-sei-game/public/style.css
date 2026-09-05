@@ -755,16 +755,28 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 .board-panel > summary::-webkit-details-marker { display: none; }
 .board-panel[open] > summary { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--ink); }
+/* O painel era uma gaveta agarrada ao botão: ao rolar, saía do ecrã e ficava
+   impossível de ler o que se queria escolher. Passa a ser um painel LATERAL
+   preso ao ecrã (position: fixed), encostado à direita e centrado na vertical:
+   nunca sai do ecrã, tenha a barra a altura que tiver.
+   
+   E não tem fundo escurecido de propósito, ao contrário das outras janelas do
+   jogo. Uma janela modal aqui tapava a barra de ferramentas, e num quadro isso
+   é mau: quer-se escolher a borracha e ver a espessura dela mudar no mesmo
+   gesto. É o que as apps de desenho fazem — as paletas flutuam ao lado, não
+   por cima. Fecha-se no "Pronto" ou com Escape. */
 .board-panel-body {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 3;
+  position: fixed; right: 12px; top: 50%; transform: translateY(-50%); z-index: 40;
   display: flex; flex-direction: column; gap: 8px;
-  width: min(300px, calc(100vw - 24px));
-  max-height: 70vh; overflow-y: auto;
-  padding: 12px;
-  background: var(--card-bg); border: 2px solid var(--ink); border-radius: 12px;
-  box-shadow: 3px 3px 0 rgba(58,49,38,0.25);
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(84vh, 640px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--card-bg); border: 3px solid var(--ink); border-radius: 14px 16px 12px 15px;
+  box-shadow: 4px 4px 0 rgba(58,49,38,0.3);
   text-align: left;
 }
+.board-panel-title { font-weight: 700; font-size: 1.1rem; margin: 0 0 2px; }
 /* flex-shrink: 0 é essencial. O painel é uma coluna flex com max-height e,
    quando o conteúdo passava dessa altura, os filhos encolhiam — os
    deslizadores ficavam com 24px em vez de 44 e deixavam de se acertar com o
@@ -818,10 +830,7 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   /* O painel abria ancorado ao botão "Mais", que no telemóvel está a meio da
      barra: com right:0 as suas 300px saíam pela margem ESQUERDA fora (medido:
      ia de -217px a 83px). Preso ao ecrã, cabe sempre. */
-  .board-panel-body {
-    position: fixed; top: auto; left: 8px; right: 8px; width: auto;
-    max-height: 60vh;
-  }
+  .board-panel-body { width: calc(100vw - 20px); max-height: 78vh; }
 }
 
 /* Em ecrãs muito baixos (telemóvel deitado) a barra não pode comer a folha. */

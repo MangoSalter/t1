@@ -591,6 +591,7 @@
       <details class="board-panel" id="board-panel">
         <summary title="Mais opções">⚙️ Mais</summary>
         <div class="board-panel-body">
+          <p class="board-panel-title">Opções do quadro</p>
           <label class="board-field">
             <span>Espessura da linha <b id="board-width-value">4px</b></span>
             <input type="range" id="board-width-range" min="1" max="60" step="1" value="4" />
@@ -612,6 +613,7 @@
           <button type="button" id="board-export-btn" class="ghost">📤 Exportar quadro</button>
           <button type="button" id="board-import-btn" class="ghost">📥 Importar quadro</button>
           <input type="file" id="board-import-input" accept="application/json,.json" hidden />
+          <button type="button" id="board-panel-close-btn" class="primary">Pronto</button>
           <p class="hint small board-shortcuts">
             Atalhos: <b>Ctrl+Z</b> anular · <b>B</b> caneta · <b>E</b> borracha ·
             <b>T</b> texto · <b>H</b> mover · <b>espaço</b> arrastar a folha ·

@@ -401,6 +401,8 @@ const layout = await mpage.evaluate(() => {
     vw: window.innerWidth,
     panelLeft: Math.round(panel.left),
     panelRight: Math.round(panel.right),
+    panelTop: Math.round(panel.top),
+    panelBottom: Math.round(panel.bottom),
     small,
   };
 });
@@ -413,6 +415,26 @@ if (layout.small.length > 0) fail(`alvos pequenos demais para o dedo: ${layout.s
 if (layout.panelLeft < 0 || layout.panelRight > layout.vw) {
   fail(`o painel sai do ecrã (de ${layout.panelLeft} a ${layout.panelRight}, ecrã ${layout.vw})`);
 }
+// E também não pode sair por cima nem por baixo: era assim que fugia — ficava
+// agarrado ao botão e, ao rolar, saía do ecrã.
+if (layout.panelTop < 0 || layout.panelBottom > layout.vh) {
+  fail(`o painel sai do ecrã na vertical (de ${layout.panelTop} a ${layout.panelBottom}, ecrã ${layout.vh})`);
+}
+// E com o painel aberto a barra continua a funcionar: num quadro quer-se
+// escolher a borracha e ver a espessura dela mudar no mesmo gesto, sem ter de
+// fechar e abrir a cada troca.
+const barraUsavelComPainel = await mpage.evaluate(() => {
+  const b = document.querySelector('[data-board-tool="eraser"]');
+  const r = b.getBoundingClientRect();
+  const emCima = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return !!b.contains(emCima) || b === emCima;
+});
+console.log(`   a barra continua a funcionar com o painel aberto: ${barraUsavelComPainel}`);
+if (!barraUsavelComPainel) fail("o painel não pode tapar a barra de ferramentas");
+// Fecha-se pelo "Pronto".
+await mpage.click("#board-panel-close-btn");
+const fechou = await mpage.evaluate(() => !document.getElementById("board-panel").hasAttribute("open"));
+if (!fechou) fail("o botão Pronto devia fechar o painel");
 await mob.close();
 
 if (errors.length > 0) {

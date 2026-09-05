@@ -150,6 +150,7 @@ const els = {
   exitBtn: document.getElementById("board-exit-btn"),
   status: document.getElementById("board-status"),
   panel: document.getElementById("board-panel"),
+  panelCloseBtn: document.getElementById("board-panel-close-btn"),
   openBtns: document.querySelectorAll("[data-open-board]"),
 };
 
@@ -1085,6 +1086,8 @@ if (boardAvailable) {
   els.zoomFitBtn?.addEventListener("click", zoomToFit);
   els.openBtns.forEach((btn) => btn.addEventListener("click", showBoardScreen));
 
+  els.panelCloseBtn?.addEventListener("click", () => els.panel.removeAttribute("open"));
+
   window.addEventListener("resize", () => {
     if (boardIsActive()) redrawBoard();
   });
@@ -1111,7 +1114,13 @@ if (boardAvailable) {
     else if (!ctrl && k === "b") selectTool("pen");
     else if (!ctrl && k === "h") selectTool("hand");
     else if (!ctrl && k === "t") selectTool("text");
-    else if (!ctrl && k === "escape") leaveBoardScreen();
+    else if (!ctrl && k === "escape") {
+      // Escape fecha primeiro o que está aberto por cima; só sai do quadro
+      // quando já não há nada aberto. Sair do quadro com uma janela aberta
+      // por cima era uma saída que ninguém pediu.
+      if (els.panel?.hasAttribute("open")) els.panel.removeAttribute("open");
+      else leaveBoardScreen();
+    }
   });
   window.addEventListener("keyup", (e) => {
     if (e.key === " ") {
