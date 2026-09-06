@@ -40,9 +40,13 @@
       <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
+      <label class="lingua-escolha">
+        <span id="lingua-rotulo">Língua</span>
+        <select id="lingua-select" aria-label="Língua / Language / Idioma"></select>
+      </label>
       <button id="solo-menu-btn" class="ghost-primary">Jogar sozinho</button>
       <button data-open-board class="ghost">🖊️ Quadro branco</button>
-      <button data-open-mapa class="ghost">🌍 Mapa-Múndi (novo)</button>
+      <button data-open-mapa class="ghost" data-i18n="mapaAbrir">🌍 Mapa-Múndi</button>
       <p id="home-error" class="error"></p>
     </div>
   </section>
@@ -72,7 +76,7 @@
       </div>
       <div class="divider"></div>
       <button data-open-board>🖊️ Quadro branco</button>
-      <button data-open-mapa>🌍 Mapa-Múndi (novo)</button>
+      <button data-open-mapa data-i18n="mapaAbrir">🌍 Mapa-Múndi</button>
       <button id="solo-leaderboard-btn">🏆 Recordes</button>
       <button id="solo-achievements-btn">🏅 Conquistas</button>
       <details class="cat-picker solo-presentation">
@@ -568,19 +572,19 @@
 
   <section data-screen="mapa" class="screen mapa-screen">
     <div class="mapa-toolbar">
-      <button type="button" id="mapa-exit-btn" class="ghost">← Voltar</button>
+      <button type="button" id="mapa-exit-btn" class="ghost" data-i18n="mapaVoltar">← Voltar</button>
       <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo"></select>
       <select id="mapa-dificuldade" class="mapa-modo" aria-label="Dificuldade"></select>
       <span id="mapa-progresso" class="mapa-progresso"></span>
       <form id="mapa-form" class="mapa-form">
         <input id="mapa-input" type="text" autocomplete="off" spellcheck="false"
                placeholder="Clica num país e escreve o nome" aria-label="Nome do país" />
-        <button type="submit" class="primary">Escrever</button>
+        <button type="submit" class="primary" data-i18n="mapaEscrever">Escrever</button>
       </form>
-      <button type="button" id="mapa-fit-btn" class="ghost" title="Ver o mundo todo">🌍</button>
-      <button type="button" id="mapa-ajuda-btn" class="ghost">🐈‍⬛ Pedir ajuda</button>
-      <button type="button" id="mapa-hipoteses-btn" class="ghost hidden">❓ Três hipóteses</button>
-      <button type="button" id="mapa-recomecar-btn" class="ghost">Recomeçar</button>
+      <button type="button" id="mapa-fit-btn" class="ghost" data-i18n-title="mapaVerMundo" title="Ver o mundo todo">🌍</button>
+      <button type="button" id="mapa-ajuda-btn" class="ghost" data-i18n="mapaPedirAjuda">🐈‍⬛ Pedir ajuda</button>
+      <button type="button" id="mapa-hipoteses-btn" class="ghost hidden" data-i18n="mapaHipoteses">❓ Três hipóteses</button>
+      <button type="button" id="mapa-recomecar-btn" class="ghost" data-i18n="mapaRecomecar">Recomeçar</button>
     </div>
     <div class="mapa-zona">
       <canvas id="mapa-canvas"></canvas>
@@ -1109,6 +1113,7 @@
   <script type="module" src="js/app.js"></script>
   <script type="module" src="js/solo.js"></script>
   <script type="module" src="js/board.js"></script>
+  <script type="module" src="js/i18n-ecra.js"></script>
   <script type="module" src="js/mapa-ecra.js"></script>
 </body>
 </html>

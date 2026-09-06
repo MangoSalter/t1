@@ -1169,6 +1169,14 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .mapa-toolbar button { min-height: 44px; padding: 6px 10px; }
   .mapa-form { order: 3; flex: 1 0 100%; }
   .mapa-form input { min-height: 44px; }
-  .mapa-modo { min-height: 44px; max-width: 140px; flex: 1 1 auto; }
+  /* Os dois seletores partilham uma linha e encolhem: com cada um a ocupar a
+     sua, a barra passava de um terço do ecrã e comia o mapa. */
+  .mapa-modo { min-height: 44px; max-width: none; flex: 1 1 40%; min-width: 0; font-size: 0.9rem; }
+  .mapa-toolbar button { padding: 6px 8px; font-size: 0.9rem; }
   .mapa-status { left: 8px; right: 8px; bottom: 8px; max-width: none; font-size: 0.95rem; }
 }
+
+/* O seletor de língua na entrada: à vista, mas sem roubar o palco aos botões
+   de jogar. */
+.lingua-escolha { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 4px 0 8px; }
+.lingua-escolha select { min-height: 40px; }

@@ -248,6 +248,11 @@ const QUANTOS_GRANDES = 60;
 //  - livre: escreve-se o nome de qualquer país e ele pinta-se onde estiver.
 //    Basta lembrar-se dele; encontrar é com o jogo.
 export const DIFICULDADES = [
+  // Sem escrever nada: clica-se e escolhe-se de três. É o modo do telemóvel,
+  // onde escrever um nome com o teclado a tapar o mapa é o que mais estraga o
+  // jogo — e serve também a quem reconhece a bandeira mas não arrisca a
+  // ortografia.
+  { chave: "escolher", nome: "Só clicar e escolher", desc: "Clica num território e escolhe entre três. Sem escrever." },
   { chave: "livre", nome: "Escrever à vontade", desc: "Escreve o nome de qualquer país. Mais fácil." },
   { chave: "apontado", nome: "Apontar primeiro", desc: "Clica no território e só depois diz o nome. Mais difícil." },
 ];
@@ -412,6 +417,61 @@ export function conquistar(pais, cor) {
 // descarregar, nada que possa faltar do servidor e nada com marca de água.
 // Onde o sistema não desenhar bandeiras (o Windows não desenha), aparecem as
 // duas letras, que continuam a ser uma pista.
+// O SISTEMA DESENHA BANDEIRAS? Nem todos desenham: o Windows mostra as duas
+// letras, e há sistemas que não mostram nada — e "não mostra nada" foi o que
+// aconteceu no ecrã de quem pediu ajuda e não viu acontecer coisa nenhuma.
+//
+// Testa-se uma vez, desenhando a bandeira portuguesa fora do ecrã e contando
+// as cores. Sem bandeiras, a pista passa a ser o código do país num crachá —
+// sempre visível, e continua a ser uma pista a sério.
+let sabeBandeiras = null;
+export function suportaBandeiras() {
+  if (sabeBandeiras !== null) return sabeBandeiras;
+  try {
+    const c = document.createElement("canvas");
+    c.width = 24; c.height = 24;
+    const x = c.getContext("2d");
+    x.font = '20px "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif';
+    x.fillText("🇵🇹", 0, 20);
+    const dados = x.getImageData(0, 0, 24, 24).data;
+    const cores = new Set();
+    for (let i = 0; i < dados.length; i += 4) {
+      if (dados[i + 3] > 30) cores.add(`${dados[i]},${dados[i + 1]},${dados[i + 2]}`);
+    }
+    // Uma bandeira a sério tem mais do que uma cor. Duas letras a preto têm uma.
+    sabeBandeiras = cores.size > 2;
+  } catch {
+    sabeBandeiras = false;
+  }
+  return sabeBandeiras;
+}
+
+// A bandeira num ponto do ecrã: a bandeira a sério onde o sistema a saiba
+// desenhar, um crachá com o código do país onde não saiba. Nunca nada — foi
+// por não haver este segundo caminho que a ajuda parecia não fazer nada.
+export function desenharBandeira(ctx, pais, x, y, tamanho) {
+  const emoji = bandeiraDe(pais);
+  if (emoji && suportaBandeiras()) {
+    ctx.font = `${tamanho}px "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.fillStyle = "#3a3126";
+    ctx.fillText(emoji, x, y);
+    return;
+  }
+  const texto = pais.iso || pais.nome.slice(0, 3).toUpperCase();
+  const altura = Math.max(12, tamanho * 0.62);
+  ctx.font = `bold ${altura}px "Patrick Hand", cursive, sans-serif`;
+  const largura = ctx.measureText(texto).width + altura * 0.7;
+  ctx.fillStyle = "#fffdf7";
+  ctx.strokeStyle = "#3a3126";
+  ctx.lineWidth = Math.max(1, altura * 0.09);
+  ctx.beginPath();
+  ctx.roundRect(x - largura / 2, y - altura * 0.72, largura, altura * 1.44, altura * 0.28);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#3a3126";
+  ctx.fillText(texto, x, y);
+}
+
 export function bandeiraDe(pais) {
   const iso = pais?.iso;
   if (!iso || iso.length !== 2) return "";
@@ -420,6 +480,17 @@ export function bandeiraDe(pais) {
 
 // Onde pousar a bandeira: no meio do MAIOR pedaço do país. No meio de todos os
 // pedaços juntos, a bandeira da Indonésia ia parar ao mar entre as ilhas.
+// A cor do jogador, desmaiada, para servir de fundo à bandeira sem competir
+// com ela.
+export function corClara(cor) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(cor).trim());
+  if (!m) return "#f0e9dd";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255; const g = (n >> 8) & 255; const b = n & 255;
+  const mistura = (v) => Math.round(v + (255 - v) * 0.72);
+  return `rgb(${mistura(r)}, ${mistura(g)}, ${mistura(b)})`;
+}
+
 export function centroDe(pais) {
   let melhor = null;
   let melhorArea = -1;
@@ -542,10 +613,18 @@ export function desenhar(ctx) {
     // da Europa com o resto do mundo em branco ajuda a situar, e tirá-lo do
     // desenho era pior do que deixá-lo lá quieto.
     const joga = emJogoSet.has(p);
-    ctx.fillStyle = dono || (joga ? "#f6f2e8" : "#d9d3c6");
+    // Conquistado: a cor de quem o conquistou, mas CLARA — é o fundo por baixo
+    // da bandeira, não a resposta. A cor forte fica na moldura, que é o
+    // indicador de dono: pouco intrusivo e impossível de confundir.
+    ctx.fillStyle = dono ? corClara(dono) : (joga ? "#f6f2e8" : "#d9d3c6");
     ctx.fill();
-    ctx.strokeStyle = p === mapa.selecionado ? "#3a3126" : "rgba(58,49,38,0.45)";
-    ctx.lineWidth = p === mapa.selecionado ? 2.5 : 0.8;
+    if (dono) {
+      ctx.strokeStyle = dono;
+      ctx.lineWidth = 2.2;
+    } else {
+      ctx.strokeStyle = p === mapa.selecionado ? "#3a3126" : "rgba(58,49,38,0.45)";
+      ctx.lineWidth = p === mapa.selecionado ? 2.5 : 0.8;
+    }
     ctx.stroke();
   });
 
@@ -553,19 +632,26 @@ export function desenhar(ctx) {
   // pertence. Desenhadas no fim para nenhum país as tapar.
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+
+  // A bandeira de cada país CONQUISTADO, dentro dele: mostra de quem é sem se
+  // ter de decorar cores, e de caminho ensina a bandeira a quem não a sabia.
+  mapa.paises.forEach((p) => {
+    if (!mapa.donos[p.nome] || !emJogoSet.has(p)) return;
+    const c = centroDe(p);
+    const s = ecraDoMundo(c.x, c.y);
+    desenharBandeira(ctx, p, s.x, s.y, Math.max(12, Math.min(34, mapa.zoom * 0.04)));
+  });
+
   mapa.pistas.forEach((nome) => {
     const p = mapa.porNome.get(nome) || OCEANOS.find((o) => o.nome === nome);
     if (!p || mapa.donos[nome]) return;
     const c = centroDe(p);
     const s = ecraDoMundo(c.x, c.y);
     const tamanho = Math.max(14, Math.min(42, mapa.zoom * 0.05));
-    ctx.font = `${tamanho}px "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif`;
-    const bandeira = bandeiraDe(p);
-    // Sem bandeira (os territórios sem código ISO), a pista é o nome — mais
-    // vale isso do que um espaço em branco que não ajuda ninguém.
-    if (bandeira) {
-      ctx.fillText(bandeira, s.x, s.y);
+    if (p.iso) {
+      desenharBandeira(ctx, p, s.x, s.y, tamanho);
     } else {
+      // Sem código não há bandeira: a pista é o nome.
       ctx.font = `bold ${Math.max(10, tamanho * 0.45)}px "Patrick Hand", cursive, sans-serif`;
       ctx.fillStyle = "#3a3126";
       ctx.fillText(p.nome, s.x, s.y);

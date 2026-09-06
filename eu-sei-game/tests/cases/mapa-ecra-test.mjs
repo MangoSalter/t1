@@ -12,7 +12,12 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("net::ERR_")) errors.push(m.text()); });
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 
+// A língua é escolhida por quem joga, e sem escolha arranca na do browser —
+// que aqui é inglês. O teste fixa o português para poder verificar as frases;
+// sem isto estaria a testar a deteção automática sem querer.
 await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await page.reload({ waitUntil: "networkidle" });
 
 console.log("1) O mapa abre a partir do menu de jogar sozinho...");
 await page.click("#solo-menu-btn");
@@ -76,18 +81,54 @@ const jaEsta = await page.locator("#mapa-status").textContent();
 console.log(`   ao clicar outra vez: "${jaEsta.trim()}"`);
 if (!/já está/i.test(jaEsta)) fail("um país conquistado devia dizer que já está");
 
-console.log("5) O território pintado vê-se mesmo no ecrã...");
-// Lê o pixel onde está Brasília: tem de ter a cor de quem o conquistou, e não
-// o creme do mapa por preencher.
-const cor = await page.evaluate(async ([lo, la]) => {
+console.log("5) O território conquistado vê-se mesmo no ecrã: fundo claro, moldura da cor do jogador, bandeira dentro...");
+// O desenho de um país conquistado tem três camadas e o teste lê as três nos
+// pixels: o preenchimento CLARO da cor do jogador (não intrusivo), a moldura
+// na cor FORTE (o indicador de dono) e a bandeira do país por cima.
+const pintura = await page.evaluate(async ([lo, la]) => {
   const m = await import("./js/mapa.js");
   const c = document.getElementById("mapa-canvas");
+  const ctx = c.getContext("2d");
+  const rgb = (d, i) => `${d[i]},${d[i + 1]},${d[i + 2]}`;
   const s = m.ecraDoMundo((lo + 180) / 360, (90 - la) / 180);
-  const d = c.getContext("2d").getImageData(Math.round(s.x * m.mapa.dpr), Math.round(s.y * m.mapa.dpr), 1, 1).data;
-  return `${d[0]},${d[1]},${d[2]}`;
-}, [-47.88, -15.79]);
-console.log(`   cor em Brasília: rgb(${cor}) — esperado o vermelho do jogador (178,75,56)`);
-if (cor !== "178,75,56") fail("o território conquistado devia estar pintado da cor do jogador");
+  const dentro = rgb(ctx.getImageData(Math.round(s.x * m.mapa.dpr), Math.round(s.y * m.mapa.dpr), 1, 1).data, 0);
+  const claro = m.corClara(m.mapa.donos.Brasil).match(/\d+/g).join(",");
+  const forte = m.mapa.donos.Brasil;
+  const hex = (h) => { const n = parseInt(h.slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; };
+  const alvoForte = hex(forte);
+  // Varre a tela toda: quantos pixels de cada camada.
+  const todos = ctx.getImageData(0, 0, c.width, c.height).data;
+  let nClaro = 0; let nForte = 0;
+  for (let i = 0; i < todos.length; i += 4) {
+    const p = rgb(todos, i);
+    if (p === claro) nClaro++;
+    else if (p === alvoForte) nForte++;
+  }
+  return { dentro, claro, alvoForte, nClaro, nForte };
+}, [-45, -20]);
+console.log(`   dentro do Brasil: rgb(${pintura.dentro}) — esperado o claro do jogador (${pintura.claro})`);
+if (pintura.dentro !== pintura.claro) fail("o país conquistado devia ficar com o fundo claro da cor do jogador");
+console.log(`   pixels: ${pintura.nClaro} do fundo claro, ${pintura.nForte} da moldura forte (${pintura.alvoForte})`);
+if (pintura.nForte < 20) fail("a moldura da cor forte do jogador não apareceu — sem ela não se sabe de quem é");
+if (pintura.nForte > pintura.nClaro / 3) fail("a moldura ficou intrusiva demais ao pé do fundo claro");
+
+// A bandeira: dentro do país há pixels que não são nem o fundo claro nem a
+// moldura. Se a bandeira não desenhasse nada, não havia nenhum.
+const temBandeira = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  const c = document.getElementById("mapa-canvas");
+  const ctx = c.getContext("2d");
+  const centro = m.centroDe(m.mapa.paises.find((p) => p.nome === "Brasil"));
+  const s = m.ecraDoMundo(centro.x, centro.y);
+  const claro = m.corClara(m.mapa.donos.Brasil).match(/\d+/g).join(",");
+  const lado = Math.round(40 * m.mapa.dpr);
+  const d = ctx.getImageData(Math.round(s.x * m.mapa.dpr) - lado / 2, Math.round(s.y * m.mapa.dpr) - lado / 2, lado, lado).data;
+  let outros = 0;
+  for (let i = 0; i < d.length; i += 4) if (`${d[i]},${d[i + 1]},${d[i + 2]}` !== claro) outros++;
+  return outros;
+});
+console.log(`   pixels da bandeira no centro do Brasil: ${temBandeira}`);
+if (temBandeira < 50) fail("a bandeira do país conquistado não foi desenhada");
 
 console.log("6) Recomeçar limpa o mapa...");
 await page.click("#mapa-recomecar-btn");
@@ -210,6 +251,8 @@ console.log("14) E no telemóvel também, com os alvos a darem-se com o dedo..."
 const telemovel = await browser.newContext({ ...devices["iPhone 13"] });
 const tlm = await telemovel.newPage();
 await tlm.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await tlm.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await tlm.reload({ waitUntil: "networkidle" });
 await tlm.click("#solo-menu-btn");
 await tlm.click('[data-screen="solo-menu"] [data-open-mapa]');
 await tlm.waitForSelector('[data-screen="mapa"].active', { timeout: 5000 });
@@ -277,6 +320,31 @@ await page.click("#mapa-hipoteses-btn");
 const naEspera = await page.locator("#mapa-status").textContent();
 console.log(`   pedir logo a seguir: "${naEspera.trim()}"`);
 if (!/espera/i.test(naEspera)) fail("devia haver espera entre dois pedidos de três hipóteses");
+
+console.log("17) Cada um joga na sua língua, e o jogo é o mesmo...");
+// Numa sala podem estar três pessoas em três línguas: o que viaja entre elas
+// são coisas (um país conquistado, uma cor), não frases. As frases nascem
+// sempre no ecrã de quem as lê.
+// O seletor vive na página de entrada, que agora está escondida por trás do
+// mapa. Muda-se pela mesma função que ele chama — o que interessa verificar é
+// que o ECRÃ acompanha, não que o <select> funciona.
+await page.evaluate(async () => (await import("./js/i18n.js")).definirLingua("en"));
+await page.waitForTimeout(150);
+const emIngles = await page.evaluate(() => ({
+  botao: document.getElementById("mapa-recomecar-btn").textContent.trim(),
+  caixa: document.getElementById("mapa-input").placeholder,
+}));
+console.log(`   em inglês: botão "${emIngles.botao}", caixa "${emIngles.caixa}"`);
+if (!/restart/i.test(emIngles.botao)) fail("o botão devia passar a inglês");
+await page.evaluate(async () => (await import("./js/i18n.js")).definirLingua("es"));
+await page.waitForTimeout(150);
+const emEspanhol = await page.evaluate(() => document.getElementById("mapa-recomecar-btn").textContent.trim());
+console.log(`   em espanhol: "${emEspanhol}"`);
+if (!/reiniciar/i.test(emEspanhol)) fail("o botão devia passar a espanhol");
+// E o jogo continua: a partida não se perde por se mudar de língua.
+const paisesAindaLa = await page.evaluate(async () => (await import("./js/mapa.js")).mapa.paises.length);
+if (paisesAindaLa !== 177) fail("mudar de língua não pode perder o mapa");
+await page.evaluate(async () => (await import("./js/i18n.js")).definirLingua("pt"));
 
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);

@@ -11,6 +11,7 @@ import {
   MODOS, emJogo, estaEmJogo, enquadrarJogo, revelarPista, bandeiraDe,
   tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, porNomeEscrito,
 } from "./mapa.js";
+import { t, aoMudarLingua } from "./i18n.js";
 
 const els = {
   screen: document.querySelector('[data-screen="mapa"]'),
@@ -100,14 +101,20 @@ function poisarCaixaNoMapa() {
 
 function redesenhar() {
   if (!ajustarTela()) return;
+  // A caixa de escrever some no modo de só clicar: um campo que não serve
+  // para nada só ocupa espaço, e no telemóvel esse espaço é o mapa.
+  const soClicar = mapa.dificuldade === "escolher";
+  els.form.classList.toggle("hidden", soClicar);
+  // E aí as três hipóteses são o jogo, não uma ajuda de recurso.
+  els.hipotesesBtn?.classList.toggle("hidden", soClicar || els.hipotesesBtn.dataset.destravado !== "1");
   desenhar(els.canvas.getContext("2d"));
   poisarCaixaNoMapa();
   const faltam = porConquistar().length;
   const total = emJogo().length;
   els.progresso.textContent = total ? `${total - faltam} de ${total}` : "";
   els.input.placeholder = mapa.selecionado
-    ? `Que país é este?`
-    : "Clica num país e escreve o nome";
+    ? t("mapaQualPais")
+    : t(mapa.dificuldade === "livre" ? "mapaCaixaLivre" : "mapaCaixa");
 }
 
 function dizer(texto) {
@@ -160,13 +167,13 @@ function trocarModo(chave) {
   jogo.jaSugeridos = [];
   jogo.hipotesesLivreEm = 0;
   esconderHipoteses();
-  els.hipotesesBtn?.classList.add("hidden");
+  if (els.hipotesesBtn) delete els.hipotesesBtn.dataset.destravado;
   // Escolher a Europa e continuar a olhar para o planeta todo era deixar o
   // trabalho de procurar a Europa a quem já disse que era a Europa que queria.
   enquadrarQuandoDer(true);
   redesenhar();
   const m = MODOS.find((x) => x.chave === chave);
-  dizer(`${m ? m.nome : chave}: ${emJogo().length} países. Clica num e escreve o nome.`);
+  dizer(t("mapaModoPronto", m ? m.nome : chave, emJogo().length));
   armarAjuda();
   focar();
 }
@@ -186,9 +193,9 @@ function armarAjuda() {
     jogo.jaSugeridos.push(p.nome);
     redesenhar();
     // A partir daqui o jogo esteve parado: as três hipóteses ficam à mão.
-    els.hipotesesBtn?.classList.remove("hidden");
+    if (els.hipotesesBtn) els.hipotesesBtn.dataset.destravado = "1";
     const b = bandeiraDe(p);
-    dizer(`O Brasa pousou uma bandeira${b ? ` ${b}` : ""} num país que ainda falta.`);
+    dizer(t("mapaBandeira", b));
     armarAjuda();
   }, AJUDA_APOS_MS);
 }
@@ -211,14 +218,14 @@ function mostrarHipoteses(pais) {
       esconderHipoteses();
       // Custa a espera QUER SE ACERTE QUER NÃO: se só custasse ao errar, valia
       // sempre a pena pedir.
-      jogo.hipotesesLivreEm = Date.now() + ESPERA_HIPOTESES_MS;
+      if (mapa.dificuldade !== "escolher") jogo.hipotesesLivreEm = Date.now() + ESPERA_HIPOTESES_MS;
       els.input.value = op.nome;
       els.form.requestSubmit();
     });
     els.hipoteses.appendChild(b);
   });
   els.hipoteses.classList.remove("hidden");
-  dizer("Três hipóteses. Escolhe uma.");
+  dizer(t("mapaTresEscolhe"));
 }
 
 function abrirMapa() {
@@ -228,15 +235,15 @@ function abrirMapa() {
   });
   jogo.ligado = true;
   if (mapa.paises.length === 0) {
-    dizer("A carregar o mundo...");
+    dizer(t("mapaACarregar"));
     carregarPaises()
       .then(() => {
         enquadrarQuandoDer();
         redesenhar();
-        dizer("Clica num país e escreve o nome dele.");
+        dizer(t("mapaComecar"));
         armarAjuda();
       })
-      .catch(() => dizer("Não consegui carregar o mapa. Tenta recarregar a página."));
+      .catch(() => dizer(t("mapaSemMapa")));
     return;
   }
   enquadrarQuandoDer();
@@ -259,6 +266,7 @@ if (haEcra()) {
   els.dificuldade?.addEventListener("change", () => {
     mapa.dificuldade = els.dificuldade.value;
     mapa.selecionado = null;
+    esconderHipoteses();
     redesenhar();
     const d = DIFICULDADES.find((x) => x.chave === mapa.dificuldade);
     dizer(d ? d.desc : "");
@@ -270,13 +278,13 @@ if (haEcra()) {
   els.ajudaBtn?.addEventListener("click", () => {
     const p = revelarPista(jogo.jaSugeridos);
     if (!p) {
-      dizer("Já não há mais nada para revelar.");
+      dizer(t("mapaSemPistas"));
       return;
     }
     jogo.jaSugeridos.push(p.nome);
     redesenhar();
     const b = bandeiraDe(p);
-    dizer(`O Brasa pousou uma bandeira${b ? ` ${b}` : ""} — vê se a reconheces.`);
+    dizer(t("mapaBandeiraPedida", b));
     armarAjuda();
     focar();
   });
@@ -286,12 +294,12 @@ if (haEcra()) {
   // tem espera entre usos, senão passava a ser a maneira normal de jogar.
   els.hipotesesBtn?.addEventListener("click", () => {
     if (!mapa.selecionado) {
-      dizer("Escolhe primeiro um país no mapa.");
+      dizer(t("mapaEscolhePrimeiro"));
       return;
     }
-    if (Date.now() < jogo.hipotesesLivreEm) {
+    if (mapa.dificuldade !== "escolher" && Date.now() < jogo.hipotesesLivreEm) {
       const faltam = Math.ceil((jogo.hipotesesLivreEm - Date.now()) / 1000);
-      dizer(`Ainda não — espera ${faltam}s.`);
+      dizer(t("mapaEspera", faltam));
       return;
     }
     mostrarHipoteses(mapa.selecionado);
@@ -303,7 +311,7 @@ if (haEcra()) {
     mapa.selecionado = null;
     jogo.jaSugeridos = [];
     redesenhar();
-    dizer("Mapa limpo. Outra vez do princípio.");
+    dizer(t("mapaLimpo"));
     armarAjuda();
   });
 
@@ -328,20 +336,27 @@ if (haEcra()) {
     mapa.selecionado = p;
     redesenhar();
     if (!p) {
-      dizer(mapa.modo === "oceanos" ? "Isso é terra. Clica na água." : "Isso é mar. Clica em terra.");
+      dizer(t(mapa.modo === "oceanos" ? "mapaETerra" : "mapaEMar"));
       return;
     }
     if (mapa.donos[p.nome]) {
-      dizer(`${p.nome} já está conquistado.`);
+      dizer(t("mapaJaEsta", p.nome));
       return;
     }
     if (!estaEmJogo(p)) {
       // Um clique que não faz nada lê-se como avaria. Dizer porquê custa uma
       // linha e poupa a quem está a jogar a dúvida de se o jogo encravou.
-      dizer("Esse país não entra nesta partida. Troca de modo se o quiseres.");
+      dizer(t("mapaForaDoModo"));
       return;
     }
-    dizer("Escreve o nome deste país.");
+    // No modo de escolher não se escreve nada: clicar já traz as três
+    // hipóteses. É o que torna o jogo jogável num telemóvel, onde o teclado
+    // tapa metade do mapa.
+    if (mapa.dificuldade === "escolher") {
+      mostrarHipoteses(p);
+      return;
+    }
+    dizer(t("mapaEscreveNome"));
     focar();
   });
 
@@ -376,14 +391,14 @@ if (haEcra()) {
       || (mapa.dificuldade === "livre" ? porNomeEscrito(escrito) : null);
     if (!alvo) {
       dizer(mapa.dificuldade === "livre"
-        ? `"${escrito}" não é nenhum que ainda falte.`
-        : "Aponta primeiro um território no mapa.");
+        ? t("mapaNaoFalta", escrito)
+        : t("mapaEscolhePrimeiro"));
       els.input.select();
       focar();
       return;
     }
     if (!acertou(alvo, escrito)) {
-      dizer(`"${escrito}" não é este país. Tenta outra vez.`);
+      dizer(t("mapaErrado", escrito));
       els.input.select();
       focar();
       return;
@@ -396,8 +411,8 @@ if (haEcra()) {
     redesenhar();
     armarAjuda();
     dizer(estaCompleto()
-      ? "Acabou — está tudo conquistado!"
-      : `${alvo.nome}, certo. Faltam ${porConquistar().length}.`);
+      ? t("mapaAcabou")
+      : t("mapaCerto", alvo.nome, porConquistar().length));
     focar();
   });
 
@@ -408,10 +423,13 @@ if (haEcra()) {
     els.input.value = "";
     mapa.selecionado = null;
     redesenhar();
-    dizer("Escolhe outro país.");
+    dizer(t("mapaEscolheOutro"));
   });
 
   window.addEventListener("resize", () => { if (jogo.ligado) redesenhar(); });
+  // Mudar de língua a meio de uma partida não pode obrigar a recomeçar: o que
+  // está no ecrã volta a ser escrito, e o jogo continua onde estava.
+  aoMudarLingua(() => { if (jogo.ligado) redesenhar(); });
 }
 
 // Exposto para os testes montarem uma partida sem passar pelo rato.
