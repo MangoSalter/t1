@@ -9,7 +9,7 @@ import {
   mapa, carregarPaises, enquadrar, zoomPor, mundoDoEcra, paisEm,
   porConquistar, estaCompleto, acertou, conquistar, sugerir, desenhar,
   MODOS, emJogo, estaEmJogo, enquadrarJogo, revelarPista, bandeiraDe,
-  tresHipoteses, ecraDoMundo, RACIO, oceanoEm,
+  tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, porNomeEscrito,
 } from "./mapa.js";
 
 const els = {
@@ -19,6 +19,7 @@ const els = {
   input: document.getElementById("mapa-input"),
   progresso: document.getElementById("mapa-progresso"),
   modo: document.getElementById("mapa-modo"),
+  dificuldade: document.getElementById("mapa-dificuldade"),
   status: document.getElementById("mapa-status"),
   exitBtn: document.getElementById("mapa-exit-btn"),
   fitBtn: document.getElementById("mapa-fit-btn"),
@@ -125,6 +126,18 @@ function focar() {
   requestAnimationFrame(() => {
     if (jogo.ligado) els.input.focus();
   });
+}
+
+function encherDificuldades() {
+  if (!els.dificuldade || els.dificuldade.options.length > 0) return;
+  DIFICULDADES.forEach((d) => {
+    const op = document.createElement("option");
+    op.value = d.chave;
+    op.textContent = d.nome;
+    op.title = d.desc;
+    els.dificuldade.appendChild(op);
+  });
+  els.dificuldade.value = mapa.dificuldade;
 }
 
 function encherModos() {
@@ -241,7 +254,16 @@ function sairDoMapa() {
 
 if (haEcra()) {
   encherModos();
+  encherDificuldades();
   els.modo?.addEventListener("change", () => trocarModo(els.modo.value));
+  els.dificuldade?.addEventListener("change", () => {
+    mapa.dificuldade = els.dificuldade.value;
+    mapa.selecionado = null;
+    redesenhar();
+    const d = DIFICULDADES.find((x) => x.chave === mapa.dificuldade);
+    dizer(d ? d.desc : "");
+    focar();
+  });
   els.openBtns.forEach((b) => b.addEventListener("click", abrirMapa));
   els.exitBtn.addEventListener("click", sairDoMapa);
   els.fitBtn.addEventListener("click", () => { enquadrarQuandoDer(); redesenhar(); });
@@ -347,9 +369,17 @@ if (haEcra()) {
     e.preventDefault();
     const escrito = els.input.value.trim();
     if (!escrito) return;
-    const alvo = mapa.selecionado;
+    // No modo LIVRE basta escrever: o jogo procura o país. No APONTADO é
+    // preciso ter apontado primeiro — é aí que está a dificuldade, porque
+    // obriga a reconhecer a forma e não só a lembrar-se do nome.
+    const alvo = mapa.selecionado
+      || (mapa.dificuldade === "livre" ? porNomeEscrito(escrito) : null);
     if (!alvo) {
-      dizer("Escolhe primeiro um país no mapa.");
+      dizer(mapa.dificuldade === "livre"
+        ? `"${escrito}" não é nenhum que ainda falte.`
+        : "Aponta primeiro um território no mapa.");
+      els.input.select();
+      focar();
       return;
     }
     if (!acertou(alvo, escrito)) {

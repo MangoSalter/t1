@@ -1,51 +1,302 @@
 {
-  "United States of America": ["eua", "usa", "estados unidos da america", "america", "estados unidos"],
-  "United Kingdom": ["uk", "reino unido", "inglaterra", "gra-bretanha", "gran bretanha", "grande bretanha"],
-  "Netherlands": ["holanda", "paises baixos"],
-  "United Arab Emirates": ["emirados", "eau", "uae", "emirados arabes"],
-  "Dem. Rep. Congo": ["rd congo", "rdc", "congo democratico", "republica democratica do congo", "zaire", "congo kinshasa"],
-  "Congo": ["congo brazzaville", "republica do congo"],
-  "Czechia": ["republica checa", "checa", "chequia", "checoslovaquia"],
-  "Myanmar": ["birmania", "burma"],
-  "eSwatini": ["suazilandia", "essuatini", "swazilandia"],
-  "Timor-Leste": ["timor", "timor leste"],
-  "Côte d'Ivoire": ["costa do marfim", "marfim", "ivory coast"],
-  "Bosnia and Herz.": ["bosnia", "bosnia e herzegovina", "bosnia herzegovina"],
-  "Macedonia": ["macedonia", "macedonia do norte"],
-  "W. Sahara": ["sara ocidental", "saara ocidental", "sahara ocidental"],
-  "Falkland Is.": ["malvinas", "falklands", "ilhas malvinas"],
-  "Central African Rep.": ["republica centro africana", "centro africana", "rca"],
-  "Dominican Rep.": ["republica dominicana", "dominicana"],
-  "Eq. Guinea": ["guine equatorial"],
-  "S. Sudan": ["sudao do sul"],
-  "N. Cyprus": ["chipre do norte"],
-  "Solomon Is.": ["ilhas salomao", "salomao"],
-  "Papua New Guinea": ["papua nova guine", "papua"],
-  "Trinidad and Tobago": ["trindade e tobago", "trindade", "trinidad"],
-  "South Korea": ["coreia do sul", "coreia sul"],
-  "North Korea": ["coreia do norte", "coreia norte"],
-  "South Africa": ["africa do sul", "rsa"],
-  "Fr. S. Antarctic Lands": ["terras austrais francesas", "kerguelen"],
-  "Russia": ["russia", "federacao russa"],
-  "Turkey": ["turquia", "turkiye"],
-  "Iran": ["persia"],
-  "Netherlands ": [],
-  "Cambodia": ["camboja"],
-  "Laos": ["laos", "republica do laos"],
-  "Vietnam": ["vietname", "vietnam"],
-  "New Zealand": ["nova zelandia"],
-  "New Caledonia": ["nova caledonia"],
-  "Greenland": ["gronelandia"],
-  "Iceland": ["islandia"],
-  "Ireland": ["irlanda"],
-  "Switzerland": ["suica"],
-  "Germany": ["alemanha"],
-  "Sri Lanka": ["ceilao", "sri lanca"],
-  "Thailand": ["tailandia", "siao"],
-  "Kazakhstan": ["cazaquistao"],
-  "Belarus": ["bielorrussia", "bielorussia"],
-  "Moldova": ["moldavia"],
-  "Puerto Rico": ["porto rico"],
-  "Somaliland": ["somalilandia"],
-  "Palestine": ["palestina"]
+ "United States of America": [
+  "america",
+  "ee uu",
+  "eeuu",
+  "estados unidos",
+  "estados unidos da america",
+  "eua",
+  "united states",
+  "us",
+  "usa"
+ ],
+ "United Kingdom": [
+  "britain",
+  "england",
+  "gra-bretanha",
+  "gran bretana",
+  "gran bretanha",
+  "grande bretanha",
+  "great britain",
+  "inglaterra",
+  "reino unido",
+  "uk"
+ ],
+ "Netherlands": [
+  "holanda",
+  "holland",
+  "paises baixos",
+  "paises bajos"
+ ],
+ "United Arab Emirates": [
+  "eau",
+  "emirados",
+  "emirados arabes",
+  "emiratos",
+  "emiratos arabes unidos",
+  "uae"
+ ],
+ "Dem. Rep. Congo": [
+  "rd congo",
+  "rdc",
+  "congo democratico",
+  "republica democratica do congo",
+  "zaire",
+  "congo kinshasa"
+ ],
+ "Congo": [
+  "congo brazzaville",
+  "republica do congo"
+ ],
+ "Czechia": [
+  "checa",
+  "checoslovaquia",
+  "chequia",
+  "czech republic",
+  "republica checa"
+ ],
+ "Myanmar": [
+  "birmania",
+  "burma"
+ ],
+ "eSwatini": [
+  "suazilandia",
+  "essuatini",
+  "swazilandia"
+ ],
+ "Timor-Leste": [
+  "timor",
+  "timor leste"
+ ],
+ "Côte d'Ivoire": [
+  "costa de marfil",
+  "costa do marfim",
+  "ivory coast",
+  "marfim"
+ ],
+ "Bosnia and Herz.": [
+  "bosnia",
+  "bosnia e herzegovina",
+  "bosnia herzegovina"
+ ],
+ "Macedonia": [
+  "macedonia",
+  "macedonia do norte"
+ ],
+ "W. Sahara": [
+  "sara ocidental",
+  "saara ocidental",
+  "sahara ocidental"
+ ],
+ "Falkland Is.": [
+  "malvinas",
+  "falklands",
+  "ilhas malvinas"
+ ],
+ "Central African Rep.": [
+  "republica centro africana",
+  "centro africana",
+  "rca"
+ ],
+ "Dominican Rep.": [
+  "republica dominicana",
+  "dominicana"
+ ],
+ "Eq. Guinea": [
+  "guine equatorial"
+ ],
+ "S. Sudan": [
+  "sudao do sul"
+ ],
+ "N. Cyprus": [
+  "chipre do norte"
+ ],
+ "Solomon Is.": [
+  "ilhas salomao",
+  "salomao"
+ ],
+ "Papua New Guinea": [
+  "papua nova guine",
+  "papua"
+ ],
+ "Trinidad and Tobago": [
+  "trindade e tobago",
+  "trindade",
+  "trinidad"
+ ],
+ "South Korea": [
+  "corea del sur",
+  "coreia do sul",
+  "coreia sul",
+  "korea"
+ ],
+ "North Korea": [
+  "corea del norte",
+  "coreia do norte",
+  "coreia norte"
+ ],
+ "South Africa": [
+  "africa do sul",
+  "rsa",
+  "south africa",
+  "sudafrica"
+ ],
+ "Fr. S. Antarctic Lands": [
+  "terras austrais francesas",
+  "kerguelen"
+ ],
+ "Russia": [
+  "federacao russa",
+  "rusia",
+  "russia"
+ ],
+ "Turkey": [
+  "turkiye",
+  "turquia"
+ ],
+ "Iran": [
+  "persia"
+ ],
+ "Cambodia": [
+  "camboja",
+  "camboya"
+ ],
+ "Laos": [
+  "laos",
+  "republica do laos"
+ ],
+ "Vietnam": [
+  "vietnam",
+  "vietname"
+ ],
+ "New Zealand": [
+  "nova zelandia",
+  "nueva zelanda"
+ ],
+ "New Caledonia": [
+  "nova caledonia"
+ ],
+ "Greenland": [
+  "gronelandia"
+ ],
+ "Iceland": [
+  "islandia"
+ ],
+ "Ireland": [
+  "irlanda"
+ ],
+ "Switzerland": [
+  "suica",
+  "suiza"
+ ],
+ "Germany": [
+  "alemanha",
+  "alemania",
+  "germany"
+ ],
+ "Sri Lanka": [
+  "ceilao",
+  "sri lanca"
+ ],
+ "Thailand": [
+  "siao",
+  "tailandia"
+ ],
+ "Kazakhstan": [
+  "cazaquistao"
+ ],
+ "Belarus": [
+  "bielorrussia",
+  "bielorussia"
+ ],
+ "Moldova": [
+  "moldavia"
+ ],
+ "Puerto Rico": [
+  "porto rico"
+ ],
+ "Somaliland": [
+  "somalilandia"
+ ],
+ "Palestine": [
+  "palestina"
+ ],
+ "Spain": [
+  "espana",
+  "spain"
+ ],
+ "France": [
+  "francia"
+ ],
+ "Italy": [
+  "italia"
+ ],
+ "Sweden": [
+  "suecia"
+ ],
+ "Greece": [
+  "grecia"
+ ],
+ "Egypt": [
+  "egipto"
+ ],
+ "Morocco": [
+  "marruecos"
+ ],
+ "Japan": [
+  "japon"
+ ],
+ "China": [
+  "china"
+ ],
+ "Poland": [
+  "polonia"
+ ],
+ "Brazil": [
+  "brasil",
+  "brazil"
+ ],
+ "Mexico": [
+  "mejico"
+ ],
+ "Norway": [
+  "noruega"
+ ],
+ "Denmark": [
+  "dinamarca"
+ ],
+ "Finland": [
+  "finlandia"
+ ],
+ "Saudi Arabia": [
+  "arabia saudi",
+  "arabia saudita"
+ ],
+ "Philippines": [
+  "filipinas"
+ ],
+ "India": [
+  "india"
+ ],
+ "Indonesia": [
+  "indonesia"
+ ],
+ "Australia": [
+  "australia"
+ ],
+ "Canada": [
+  "canada"
+ ],
+ "Argentina": [
+  "argentina"
+ ],
+ "Chile": [
+  "chile"
+ ],
+ "Peru": [
+  "peru"
+ ],
+ "Colombia": [
+  "colombia"
+ ]
 }

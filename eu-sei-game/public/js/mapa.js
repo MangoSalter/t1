@@ -50,6 +50,7 @@ export const mapa = {
   dpr: 1,
   selecionado: null,
   modo: "mundo",
+  dificuldade: "livre",
   // Os países cuja bandeira já foi revelada como pista. Some quando o país é
   // conquistado: a pista deixou de ser pista.
   pistas: [],
@@ -240,6 +241,29 @@ export const MODOS = [
 
 const QUANTOS_GRANDES = 60;
 
+// A DIFICULDADE, que é outra pergunta que não o tamanho do mundo.
+//
+//  - apontado: clica-se no território e diz-se o nome. É preciso reconhecer a
+//    FORMA, e é o mais difícil dos dois.
+//  - livre: escreve-se o nome de qualquer país e ele pinta-se onde estiver.
+//    Basta lembrar-se dele; encontrar é com o jogo.
+export const DIFICULDADES = [
+  { chave: "livre", nome: "Escrever à vontade", desc: "Escreve o nome de qualquer país. Mais fácil." },
+  { chave: "apontado", nome: "Apontar primeiro", desc: "Clica no território e só depois diz o nome. Mais difícil." },
+];
+
+// Encontra o país por NOME, entre os que ainda faltam. É o que faz o modo
+// livre funcionar: escreve-se e o jogo procura.
+export function porNomeEscrito(escrito) {
+  const faltam = porConquistar();
+  // Primeiro os que batem certo mesmo; só depois os que batem com uma gralha,
+  // senão uma gralha podia roubar um país cujo nome estava escrito bem.
+  return faltam.find((p) => sameWord(escrito, p.nome) || sameWord(escrito, p.en)
+      || (p.alt || []).some((a) => sameWord(escrito, a)))
+    || faltam.find((p) => acertou(p, escrito))
+    || null;
+}
+
 export function areaDoPais(p) {
   return p.aneis.reduce((soma, a) => soma + Math.abs(areaDoAnel(a)), 0);
 }
@@ -283,11 +307,55 @@ export function estaCompleto() {
 // O que NÃO se aceita é escrever meio nome: "Guiné" não vale por
 // "Guiné-Bissau", senão os países de nome parecido resolviam-se uns aos
 // outros.
+// Bate certo SEM tolerância nenhuma: o nome, noutra língua, uma alcunha, ou o
+// mesmo som. É o degrau em que não há dúvida possível.
+function batemCerto(pais, escrito) {
+  const nomes = [pais.nome, pais.en, ...(pais.alt || [])].filter(Boolean);
+  if (nomes.some((n) => sameWord(escrito, n))) return true;
+  const soa = comoSoa(escrito);
+  return !!soa && nomes.some((n) => comoSoa(n) === soa);
+}
+
 export function acertou(pais, escrito) {
   if (!pais) return false;
-  if (sameWord(escrito, pais.nome) || sameWord(escrito, pais.en)) return true;
-  if ((pais.alt || []).some((a) => sameWord(escrito, a))) return true;
-  return [pais.nome, pais.en, ...(pais.alt || [])].some((n) => quaseIgual(escrito, n));
+  if (batemCerto(pais, escrito)) return true;
+
+  // Só agora as gralhas. E com uma condição que a varredura dos 177 contra os
+  // 177 obrigou a pôr: uma gralha NÃO vale se o que foi escrito for o nome
+  // certo de outro país. Sem isto, "Zâmbia" passava por Gâmbia, "Austrália"
+  // por Áustria e "Eslovénia" por Eslováquia — dois países a responder um pelo
+  // outro, que é muito pior do que recusar uma gralha.
+  const conhecidos = [...mapa.paises, ...OCEANOS];
+  if (conhecidos.some((outro) => outro !== pais && batemCerto(outro, escrito))) return false;
+
+  const nomes = [pais.nome, pais.en, ...(pais.alt || [])].filter(Boolean);
+  return nomes.some((n) => quaseIgual(escrito, n));
+}
+
+// COMO SOA, e não como se escreve.
+//
+// O jogo é sobre saber que país é, não sobre ortografia: quem escreve "Kenia",
+// "Zimbabwe", "Philipinas" ou "Kazaquistão" sabe exatamente o país. Esta
+// função reduz uma palavra ao seu esqueleto sonoro, e a comparação faz-se aí.
+//
+// As regras são as trocas que as pessoas fazem mesmo, sobretudo entre línguas:
+// ph/f, k/qu/c, w/v, y/i, z/s, o h que não se lê, e as letras dobradas. Não é
+// fonética a sério; é o suficiente para não recusar quem sabe a resposta.
+//
+// O risco disto é juntar dois países diferentes no mesmo esqueleto — e é por
+// isso que o teste verifica os 177 e falha se dois colidirem.
+export function comoSoa(t) {
+  return limpar(t)
+    .replace(/ph/g, "f")
+    .replace(/qu/g, "k")
+    .replace(/c([ei])/g, "s$1")
+    .replace(/[ckq]/g, "k")
+    .replace(/w/g, "v")
+    .replace(/y/g, "i")
+    .replace(/z/g, "s")
+    .replace(/h/g, "")
+    .replace(/(.)\1+/g, "$1")
+    .replace(/[^a-z0-9 ]/g, "");
 }
 
 export function limpar(t) {
@@ -302,6 +370,10 @@ export function quaseIgual(a, b) {
   const x = limpar(a);
   const y = limpar(b);
   if (!x || !y) return false;
+  // Duas gralhas só em nomes LONGOS. Com o limite em sete letras, "Niger"
+  // passava por "Nigéria" e "Australia" por "Áustria" — dois países
+  // diferentes a responder um pelo outro, que é pior do que recusar uma
+  // gralha. As trocas de escrita a sério já são apanhadas pelo som.
   const tolerancia = y.length >= 9 ? 2 : (y.length >= 5 ? 1 : 0);
   if (tolerancia === 0) return false;
   if (Math.abs(x.length - y.length) > tolerancia) return false;

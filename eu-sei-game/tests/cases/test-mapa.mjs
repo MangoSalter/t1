@@ -260,3 +260,90 @@ m.emJogo().forEach((o) => m.conquistar(o, "#5c7e91"));
 check("conquistados os cinco, acabou", m.estaCompleto(), true);
 m.mapa.donos = {};
 m.mapa.modo = "mundo";
+
+console.log("16) Três línguas: quem sabe o país sabe-o na língua que aprendeu...");
+m.mapa.donos = {};
+m.mapa.modo = "mundo";
+const de = m.mapa.paises.find((p) => p.nome === "Alemanha");
+check("português", m.acertou(de, "Alemanha"), true);
+check("inglês", m.acertou(de, "Germany"), true);
+check("espanhol", m.acertou(de, "Alemania"), true);
+const es = m.mapa.paises.find((p) => p.nome === "Espanha");
+check("España", m.acertou(es, "España"), true);
+const usa = m.mapa.paises.find((p) => p.nome === "Estados Unidos");
+check("EEUU (espanhol)", m.acertou(usa, "eeuu"), true);
+check("USA (inglês)", m.acertou(usa, "usa"), true);
+check("EUA (português)", m.acertou(usa, "eua"), true);
+const jp = m.mapa.paises.find((p) => p.nome === "Japão");
+check("Japón", m.acertou(jp, "japon"), true);
+// Cobertura a sério: cada país tem de aceitar pelo menos duas línguas.
+const semCobertura = m.mapa.paises.filter((p) => {
+  const nomes = new Set([p.nome, p.en, ...(p.alt || [])].map((n) => String(n).toLowerCase()));
+  return nomes.size < 2;
+});
+console.log(`   países que só aceitam um nome: ${semCobertura.length}`);
+check("quase todos aceitam mais do que um nome", semCobertura.length < 15, true);
+
+console.log("17) A dificuldade: escrever à vontade, ou apontar primeiro...");
+m.mapa.dificuldade = "livre";
+check("escrever encontra o país", m.porNomeEscrito("angola")?.nome, "Angola");
+check("noutra língua também", m.porNomeEscrito("Germany")?.nome, "Alemanha");
+check("com gralha também", m.porNomeEscrito("portgual")?.nome, "Portugal");
+check("o que não existe não aparece", m.porNomeEscrito("nlandia"), null);
+// Um país já conquistado deixa de ser encontrado: já não falta.
+m.conquistar(m.mapa.paises.find((p) => p.nome === "Angola"), "#000");
+check("já conquistado não volta a aparecer", m.porNomeEscrito("angola"), null);
+m.mapa.donos = {};
+
+console.log("18) Escrito como soa, não como se escreve...");
+// Quem escreve "Kenia" sabe exatamente o país. O jogo é sobre conhecer, não
+// sobre ortografia.
+const casosSom = [
+  ["Quénia", "Kenia"], ["Quénia", "kenya"],
+  ["Zimbabué", "Zimbabwe"], ["Filipinas", "Philipinas"],
+  ["Cazaquistão", "Kazaquistao"], ["Moçambique", "Mozambique"],
+  ["Egito", "Egipto"], ["Azerbaijão", "Azerbeijao"],
+  ["Suíça", "Suissa"], ["Iraque", "Irak"],
+];
+casosSom.forEach(([pais, escrito]) => {
+  const p = m.mapa.paises.find((x) => x.nome === pais);
+  check(`${escrito} vale por ${pais}`, p ? m.acertou(p, escrito) : "país não existe", true);
+});
+
+console.log("19) ...mas sem juntar dois países no mesmo som...");
+// É este o risco de comparar pelo som: se dois países ficarem com o mesmo
+// esqueleto, um responde pelo outro e o jogo passa a mentir.
+const porSom = new Map();
+const colisoes = [];
+m.mapa.paises.forEach((p) => {
+  const k = m.comoSoa(p.nome);
+  if (porSom.has(k)) colisoes.push(`${porSom.get(k)} = ${p.nome} ("${k}")`);
+  else porSom.set(k, p.nome);
+});
+console.log(`   colisões entre os 177: ${colisoes.length ? colisoes.join("; ") : "nenhuma"}`);
+check("nenhum país responde pelo outro", colisoes.length, 0);
+// E os vizinhos de nome parecido continuam separados.
+const guineB = m.mapa.paises.find((p) => p.nome === "Guiné-Bissau");
+const guineE = m.mapa.paises.find((p) => p.nome === "Guiné Equatorial");
+check("Guiné-Bissau não é Guiné Equatorial", m.acertou(guineB, "Guiné Equatorial"), false);
+check("nem ao contrário", m.acertou(guineE, "Guiné-Bissau"), false);
+const niger = m.mapa.paises.find((p) => p.nome === "Níger");
+const nigeria = m.mapa.paises.find((p) => p.nome === "Nigéria");
+check("Níger não é Nigéria", m.acertou(niger, "Nigeria"), false);
+check("nem ao contrário", m.acertou(nigeria, "Niger"), false);
+const austria = m.mapa.paises.find((p) => p.nome === "Áustria");
+check("Áustria não é Austrália", m.acertou(austria, "Australia"), false);
+
+console.log("20) Nenhum país aceita o nome de outro — os 177 contra os 177...");
+// A varredura completa. É o único jeito de ter a certeza: as regras de
+// tolerância são generosas de propósito, e generosidade a mais faz um país
+// responder pelo outro.
+const enganos = [];
+m.mapa.paises.forEach((p) => {
+  m.mapa.paises.forEach((outro) => {
+    if (p === outro) return;
+    if (m.acertou(p, outro.nome)) enganos.push(`${outro.nome} -> ${p.nome}`);
+  });
+});
+console.log(`   nomes aceites pelo país errado: ${enganos.length ? enganos.slice(0, 6).join("; ") : "nenhum"}`);
+check("nenhum país responde pelo nome de outro", enganos.length, 0);

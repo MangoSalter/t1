@@ -109,6 +109,12 @@ const alcunhas = JSON.parse(await readFile(new URL("./alcunhas.json", import.met
 // só o nome.
 const numeroParaIso = JSON.parse(await readFile(new URL("./iso2.json", import.meta.url), "utf8"));
 
+// Os nomes noutras línguas, para o jogo aceitar quem sabe o país mas não o
+// aprendeu em português. Vêm do world-countries (as traduções oficiais), e
+// juntam-se às alcunhas — não substituem o nome principal, que é o que se
+// mostra e o que se diz.
+const traducoes = JSON.parse(await readFile(new URL("./traducoes.json", import.meta.url), "utf8"));
+
 const semNome = topo.objects.countries.geometries
   .map((g) => g.properties.name)
   .filter((n) => !nomesPt[n]);
@@ -142,7 +148,26 @@ const paises = topo.objects.countries.geometries.map((g) => {
     nome: nomesPt[g.properties.name],
     en: g.properties.name,
     cont: continenteDe[g.properties.name],
-    alt: alcunhas[g.properties.name] || [],
+    alt: (() => {
+      const chave = String(Number(g.id));
+      const juntas = [
+        ...(alcunhas[g.properties.name] || []),
+        traducoes.por[chave],
+        traducoes.spa[chave],
+        traducoes.eng[chave],
+      ].filter(Boolean);
+      // Sem repetidos e sem o próprio nome: já é aceite por outro caminho, e
+      // repetir só engorda o ficheiro.
+      const nome = nomesPt[g.properties.name];
+      const limpo = (t) => String(t).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+      const vistos = new Set([limpo(nome), limpo(g.properties.name)]);
+      return juntas.filter((n) => {
+        const k = limpo(n);
+        if (vistos.has(k)) return false;
+        vistos.add(k);
+        return true;
+      });
+    })(),
     iso: numeroParaIso[String(Number(g.id))] || null,
     aneis,
   };
