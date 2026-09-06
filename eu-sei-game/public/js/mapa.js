@@ -382,6 +382,16 @@ export function quaseIgual(a, b) {
   const tolerancia = y.length >= 9 ? 2 : (y.length >= 5 ? 1 : 0);
   if (tolerancia === 0) return false;
   if (Math.abs(x.length - y.length) > tolerancia) return false;
+  // A PRIMEIRA LETRA TEM DE BATER. Quem sabe o país sabe por onde começa; o
+  // que engana são as letras do meio. Sem esta regra, "nlandia" chegava à
+  // Finlândia a duas distâncias de nada, e a seguir qualquer coisa chegava a
+  // qualquer sítio.
+  if (x[0] !== y[0]) return false;
+  // Distância de Damerau: trocar duas letras seguidas custa UMA, não duas.
+  // "portgual" é o erro de dactilografia mais comum que há — os dedos trocam
+  // a ordem — e contava como dois enganos, que é o mesmo que dizer que quem
+  // escreveu não sabia o país. Sabia.
+  let doisAtras = null;
   let anterior = Array.from({ length: y.length + 1 }, (_, i) => i);
   for (let i = 1; i <= x.length; i += 1) {
     const atual = [i];
@@ -389,9 +399,13 @@ export function quaseIgual(a, b) {
     for (let j = 1; j <= y.length; j += 1) {
       const custo = x[i - 1] === y[j - 1] ? 0 : 1;
       atual[j] = Math.min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + custo);
+      if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1]) {
+        atual[j] = Math.min(atual[j], doisAtras[j - 2] + 1);
+      }
       if (atual[j] < melhor) melhor = atual[j];
     }
     if (melhor > tolerancia) return false;
+    doisAtras = anterior;
     anterior = atual;
   }
   return anterior[y.length] <= tolerancia;
@@ -406,10 +420,142 @@ export function revelarPista(evitar = []) {
   return p;
 }
 
-export function conquistar(pais, cor) {
+export function conquistar(pais, cor, agora = Date.now()) {
   if (!pais || mapa.donos[pais.nome]) return false;
   mapa.donos[pais.nome] = cor;
+  registarAcerto(pais, agora);
   return true;
+}
+
+// O MARCADOR. Conquistar o mapa todo é longo, e sem nada a contar pelo caminho
+// só se sente o fim. O marcador dá o que se sente ao jogar: quantos seguidos,
+// a que ritmo, que continente é que se sabe de cor — e, no fim, um retrato da
+// partida que não é só "acertaste 177".
+//
+// Fica AQUI, no motor, e não no ecrã, porque estas contas são as mesmas em
+// solo e em sala, e porque assim testam-se sem browser nenhum.
+export const marcador = {
+  inicio: null,      // quando arrancou o cronómetro (o 1.º clique conta)
+  jogadas: [],       // { nome, cont, ms, pontos, cadeia, compista }
+  erros: 0,
+  cadeia: 0,         // acertos seguidos, sem falhar nenhum
+  melhorCadeia: 0,
+  seguidosNoContinente: 0,
+  pontos: 0,
+};
+
+export function reiniciarMarcador() {
+  marcador.inicio = null;
+  marcador.jogadas = [];
+  marcador.erros = 0;
+  marcador.cadeia = 0;
+  marcador.melhorCadeia = 0;
+  marcador.seguidosNoContinente = 0;
+  marcador.pontos = 0;
+}
+
+// O cronómetro só arranca à primeira jogada. Abrir o mapa e ir ao café não
+// pode estragar o ritmo de quem depois jogou bem.
+export function arrancarMarcador(agora = Date.now()) {
+  if (marcador.inicio === null) marcador.inicio = agora;
+}
+
+export function registarErro(agora = Date.now()) {
+  arrancarMarcador(agora);
+  marcador.erros++;
+  marcador.cadeia = 0;
+  marcador.seguidosNoContinente = 0;
+}
+
+export const PONTOS_BASE = 10;
+export const CADEIA_MAX = 20;      // teto do bónus por acertos seguidos
+export const CONTINENTE_MAX = 25;  // teto do bónus por continente seguido
+
+// Quanto vale conquistar este país AGORA. Depende do que veio antes: seguidos
+// valem mais, e seguidos no mesmo continente valem mais ainda — é o que
+// transforma "clicar no que me lembro" em "vou arrumar a África toda".
+// Com a bandeira já revelada vale metade: a pista ajudou, e tem custo.
+export function pontosDe(pais) {
+  if (!pais) return 0;
+  const bonusCadeia = Math.min(CADEIA_MAX, marcador.cadeia * 2);
+  const mesmoCont = marcador.seguidosNoContinente > 0
+    && ultimoContinente() === pais.cont;
+  const bonusCont = mesmoCont
+    ? Math.min(CONTINENTE_MAX, marcador.seguidosNoContinente * 5)
+    : 0;
+  const total = PONTOS_BASE + bonusCadeia + bonusCont;
+  return mapa.pistas.includes(pais.nome) ? Math.round(total / 2) : total;
+}
+
+function ultimoContinente() {
+  const u = marcador.jogadas[marcador.jogadas.length - 1];
+  return u ? u.cont : null;
+}
+
+function registarAcerto(pais, agora = Date.now()) {
+  arrancarMarcador(agora);
+  const anterior = marcador.jogadas[marcador.jogadas.length - 1];
+  const desde = anterior ? anterior.quando : marcador.inicio;
+  const pontos = pontosDe(pais);
+  marcador.seguidosNoContinente = ultimoContinente() === pais.cont
+    ? marcador.seguidosNoContinente + 1
+    : 1;
+  marcador.cadeia++;
+  if (marcador.cadeia > marcador.melhorCadeia) marcador.melhorCadeia = marcador.cadeia;
+  marcador.pontos += pontos;
+  marcador.jogadas.push({
+    nome: pais.nome,
+    cont: pais.cont,
+    quando: agora,
+    ms: Math.max(0, agora - desde),
+    pontos,
+    cadeia: marcador.cadeia,
+    compista: mapa.pistas.includes(pais.nome),
+  });
+}
+
+// O retrato da partida. Cada linha aqui é uma coisa que dá vontade de contar a
+// alguém: "fiz 14 seguidos", "soube a África toda", "3,2 países por minuto".
+export function resumo(agora = Date.now()) {
+  const certos = marcador.jogadas.length;
+  const tentativas = certos + marcador.erros;
+  const decorrido = marcador.inicio === null ? 0 : Math.max(1, agora - marcador.inicio);
+  const porContinente = {};
+  let maisRapido = null;
+  let somaMs = 0;
+  let comPista = 0;
+  marcador.jogadas.forEach((j) => {
+    porContinente[j.cont] = (porContinente[j.cont] || 0) + 1;
+    somaMs += j.ms;
+    if (j.compista) comPista++;
+    if (!maisRapido || j.ms < maisRapido.ms) maisRapido = j;
+  });
+  const favorito = Object.entries(porContinente)
+    .sort((a, b) => b[1] - a[1])[0] || null;
+  // A cobertura de cada continente: 8 de 54 em África diz mais do que "8".
+  const cobertura = {};
+  emJogo().forEach((p) => {
+    if (!p.cont) return; // os oceanos não são de continente nenhum
+    cobertura[p.cont] = cobertura[p.cont] || { feitos: 0, total: 0 };
+    cobertura[p.cont].total++;
+    if (mapa.donos[p.nome]) cobertura[p.cont].feitos++;
+  });
+  return {
+    certos,
+    erros: marcador.erros,
+    pontos: marcador.pontos,
+    precisao: tentativas ? Math.round((certos / tentativas) * 100) : null,
+    segundos: marcador.inicio === null ? 0 : Math.round(decorrido / 1000),
+    porMinuto: marcador.inicio === null ? 0 : Math.round((certos / (decorrido / 60000)) * 10) / 10,
+    melhorCadeia: marcador.melhorCadeia,
+    cadeia: marcador.cadeia,
+    comPista,
+    semPista: certos - comPista,
+    tempoMedio: certos ? Math.round(somaMs / certos / 100) / 10 : null,
+    maisRapido: maisRapido ? { nome: maisRapido.nome, segundos: Math.round(maisRapido.ms / 100) / 10 } : null,
+    favorito: favorito ? { cont: favorito[0], quantos: favorito[1] } : null,
+    cobertura,
+  };
 }
 
 // A BANDEIRA como pista. Um emoji de bandeira são duas letras em alfabeto de

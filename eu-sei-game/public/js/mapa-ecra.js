@@ -10,6 +10,7 @@ import {
   porConquistar, estaCompleto, acertou, conquistar, sugerir, desenhar,
   MODOS, emJogo, estaEmJogo, enquadrarJogo, revelarPista, bandeiraDe,
   tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, porNomeEscrito,
+  marcador, reiniciarMarcador, registarErro, resumo,
 } from "./mapa.js";
 import { t, aoMudarLingua } from "./i18n.js";
 
@@ -19,6 +20,7 @@ const els = {
   form: document.getElementById("mapa-form"),
   input: document.getElementById("mapa-input"),
   progresso: document.getElementById("mapa-progresso"),
+  marcador: document.getElementById("mapa-marcador"),
   modo: document.getElementById("mapa-modo"),
   dificuldade: document.getElementById("mapa-dificuldade"),
   status: document.getElementById("mapa-status"),
@@ -112,6 +114,12 @@ function redesenhar() {
   const faltam = porConquistar().length;
   const total = emJogo().length;
   els.progresso.textContent = total ? `${total - faltam} de ${total}` : "";
+  // O marcador só aparece depois da primeira jogada: num mapa por estrear não
+  // há ritmo nenhum para mostrar, e "0/min" a piscar só desanima.
+  const r = resumo();
+  els.marcador.textContent = marcador.inicio === null
+    ? ""
+    : t("mapaMarcador", r.pontos, r.cadeia, r.porMinuto);
   els.input.placeholder = mapa.selecionado
     ? t("mapaQualPais")
     : t(mapa.dificuldade === "livre" ? "mapaCaixaLivre" : "mapaCaixa");
@@ -119,6 +127,18 @@ function redesenhar() {
 
 function dizer(texto) {
   els.status.textContent = texto;
+}
+
+// O que se diz depois de acertar. No fim, o retrato da partida — é o momento
+// em que apetece saber quanto se fez, e não só que acabou. A meio, uma
+// sequência a sério (3 ou mais) é notícia; abaixo disso, o de sempre.
+function mensagemDeAcerto(pais) {
+  if (estaCompleto()) return `${t("mapaAcabou")} ${t("mapaRetrato", resumo())}`;
+  const ultima = marcador.jogadas[marcador.jogadas.length - 1];
+  if (marcador.cadeia >= 3 && ultima) {
+    return t("mapaCadeia", marcador.cadeia, ultima.pontos);
+  }
+  return t("mapaCerto", pais.nome, porConquistar().length);
 }
 
 // O foco volta SEMPRE à caixa. Quem está a jogar escreve, carrega no Enter,
@@ -165,6 +185,9 @@ function trocarModo(chave) {
   mapa.pistas = [];
   mapa.selecionado = null;
   jogo.jaSugeridos = [];
+  // Trocar de modo é começar outra partida: o ritmo e a sequência da Europa
+  // não podem ser levados para a África.
+  reiniciarMarcador();
   jogo.hipotesesLivreEm = 0;
   esconderHipoteses();
   if (els.hipotesesBtn) delete els.hipotesesBtn.dataset.destravado;
@@ -310,6 +333,7 @@ if (haEcra()) {
     mapa.pistas = [];
     mapa.selecionado = null;
     jogo.jaSugeridos = [];
+    reiniciarMarcador();
     redesenhar();
     dizer(t("mapaLimpo"));
     armarAjuda();
@@ -398,7 +422,9 @@ if (haEcra()) {
       return;
     }
     if (!acertou(alvo, escrito)) {
+      registarErro();
       dizer(t("mapaErrado", escrito));
+      redesenhar();
       els.input.select();
       focar();
       return;
@@ -410,9 +436,7 @@ if (haEcra()) {
     jogo.jaSugeridos = [];
     redesenhar();
     armarAjuda();
-    dizer(estaCompleto()
-      ? t("mapaAcabou")
-      : t("mapaCerto", alvo.nome, porConquistar().length));
+    dizer(mensagemDeAcerto(alvo));
     focar();
   });
 

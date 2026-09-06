@@ -104,11 +104,8 @@ const depois = m.mundoDoEcra(400, 300);
 console.log(`   ponto sob o rato: (${antes.x.toFixed(4)}, ${antes.y.toFixed(4)}) -> (${depois.x.toFixed(4)}, ${depois.y.toFixed(4)})`);
 check("o ponto não fugiu", Math.abs(antes.x - depois.x) < 1e-6 && Math.abs(antes.y - depois.y) < 1e-6, true);
 
-if (falhas > 0) {
-  console.log(`=> test-mapa FALHOU (${falhas})`);
-  process.exit(1);
-}
-console.log("=> test-mapa ok");
+// Nota: o "ok" final só se diz no fim do ficheiro. Há mais secções a seguir,
+// e dizer que está tudo bem a meio já enganou uma vez.
 
 console.log("9) Escrever como as pessoas falam, não como os atlas escrevem...");
 // O jogo é sobre CONHECER o país. Quem escreve "EUA" sabe o país; quem escreve
@@ -282,7 +279,21 @@ const semCobertura = m.mapa.paises.filter((p) => {
   return nomes.size < 2;
 });
 console.log(`   países que só aceitam um nome: ${semCobertura.length}`);
-check("quase todos aceitam mais do que um nome", semCobertura.length < 15, true);
+// Um país com UM só nome não é falta de cobertura quando o nome é o mesmo nas
+// três línguas — "Portugal" é Portugal em português, inglês e espanhol, e não
+// há terceiro nome para dar. A lista está fechada de propósito: se um dia a
+// geração de dados perder as traduções de um país qualquer, ele aparece aqui e
+// o teste dá o nome dele.
+const SEM_TRADUCAO_PORQUE_NAO_PRECISAM = [
+  "Angola", "Argentina", "Brunei", "Chile", "China", "Costa Rica", "Cuba",
+  "El Salvador", "Guatemala", "Haiti", "Honduras", "Israel", "Jamaica",
+  "Kosovo", "Kuwait", "Mali", "Montenegro", "Nepal", "Peru", "Portugal",
+  "Senegal", "Togo", "Uganda", "Vanuatu", "Venezuela",
+];
+const inesperados = semCobertura
+  .map((p) => p.nome)
+  .filter((n) => !SEM_TRADUCAO_PORQUE_NAO_PRECISAM.includes(n));
+check("nenhum país perdeu as traduções", inesperados.join(", ") || "nenhum", "nenhum");
 
 console.log("17) A dificuldade: escrever à vontade, ou apontar primeiro...");
 m.mapa.dificuldade = "livre";
@@ -347,3 +358,79 @@ m.mapa.paises.forEach((p) => {
 });
 console.log(`   nomes aceites pelo país errado: ${enganos.length ? enganos.slice(0, 6).join("; ") : "nenhum"}`);
 check("nenhum país responde pelo nome de outro", enganos.length, 0);
+
+console.log("21) O marcador: pontos, sequências e o retrato da partida...");
+// Tempo fingido. As contas do marcador dependem do relógio, e um teste que
+// depende do relógio a sério é um teste que falha à sexta-feira.
+const t0 = 1_700_000_000_000;
+const conquistar = (nome, segundos, cor = "#b24b38") =>
+  m.conquistar(m.mapa.paises.find((p) => p.nome === nome), cor, t0 + segundos * 1000);
+
+m.mapa.modo = "mundo";
+m.mapa.donos = {};
+m.mapa.pistas = [];
+m.reiniciarMarcador();
+check("um marcador novo não tem cronómetro a andar", m.marcador.inicio, null);
+check("nem pontos", m.marcador.pontos, 0);
+
+// Primeiro país: só a base, que ainda não há sequência nenhuma.
+conquistar("França", 0);
+check("o 1.º país vale a base", m.marcador.pontos, m.PONTOS_BASE);
+check("e arranca o cronómetro", m.marcador.inicio, t0);
+
+// Segundo país no MESMO continente: soma o bónus de seguidos e o de continente.
+conquistar("Espanha", 10);
+check("dois seguidos na Europa contam a sequência", m.marcador.cadeia, 2);
+check("e os seguidos no continente", m.marcador.seguidosNoContinente, 2);
+check("o 2.º vale base + 2 de sequência + 5 de continente",
+  m.marcador.pontos - m.PONTOS_BASE, m.PONTOS_BASE + 2 + 5);
+
+// Saltar de continente parte a corrente do continente, mas não a dos seguidos.
+conquistar("Japão", 20);
+check("mudar de continente não parte a sequência", m.marcador.cadeia, 3);
+check("mas recomeça a do continente", m.marcador.seguidosNoContinente, 1);
+
+// Errar parte tudo.
+m.registarErro(t0 + 25_000);
+check("errar parte a sequência", m.marcador.cadeia, 0);
+check("e a do continente", m.marcador.seguidosNoContinente, 0);
+check("mas a melhor sequência fica guardada", m.marcador.melhorCadeia, 3);
+
+// Com a bandeira já dada, vale metade — a pista tem custo.
+const italia = m.mapa.paises.find((p) => p.nome === "Itália");
+m.mapa.pistas = ["Itália"];
+const antesDaPista = m.marcador.pontos;
+conquistar("Itália", 30);
+check("um país com a bandeira revelada vale metade", m.marcador.pontos - antesDaPista, Math.round(m.PONTOS_BASE / 2));
+check("e fica marcado como feito com pista", m.marcador.jogadas.at(-1).compista, true);
+m.mapa.pistas = [];
+
+// O mesmo país outra vez não pode contar duas vezes.
+const pontosAntes = m.marcador.pontos;
+const jogadasAntes = m.marcador.jogadas.length;
+conquistar("França", 40);
+check("reconquistar não dá pontos", m.marcador.pontos, pontosAntes);
+check("nem regista jogada", m.marcador.jogadas.length, jogadasAntes);
+
+console.log("22) O retrato: o que se conta a alguém no fim...");
+const r = m.resumo(t0 + 60_000);
+console.log(`   ${r.certos} países, ${r.pontos} pontos, ${r.porMinuto}/min, melhor sequência ${r.melhorCadeia}, ${r.precisao}% de acerto`);
+check("conta os acertos", r.certos, 4);
+check("conta o erro", r.erros, 1);
+check("a precisão são 4 em 5", r.precisao, 80);
+check("um minuto certo dá 4 por minuto", r.porMinuto, 4);
+check("o continente mais forte é a Europa", r.favorito.cont, italia.cont);
+check("o mais rápido foi o que demorou menos", r.maisRapido.nome, "França");
+check("separa os feitos com pista dos feitos de cabeça", `${r.comPista}/${r.semPista}`, "1/3");
+check("a cobertura da Europa conta o total do continente",
+  r.cobertura[italia.cont].feitos, 3);
+
+console.log("23) Recomeçar limpa o marcador...");
+m.reiniciarMarcador();
+const vazio = m.resumo(t0 + 60_000);
+check("sem jogadas", vazio.certos, 0);
+check("sem ritmo", vazio.porMinuto, 0);
+check("sem precisão para mostrar", String(vazio.precisao), "null");
+
+if (falhas > 0) { console.log(`=> test-mapa FALHOU (${falhas})`); process.exit(1); }
+console.log("=> test-mapa ok");
