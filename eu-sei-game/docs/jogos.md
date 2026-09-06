@@ -1,0 +1,129 @@
+# Os jogos que existem — o que fica, o que se corta
+
+Pediste a lista para cortar o que não vale a pena, melhorar o resto, e só
+depois voltar a expor. Aqui está, com o que eu **sei** e não com o que acho.
+
+O que eu consigo medir: quanto trabalho de desenho cada um levou, que testes
+tem, e que defeitos conhecidos estão em aberto. O que eu **não** consigo medir
+é se é divertido — isso só sai de te sentares a jogar com pessoas. Por isso a
+coluna da direita é uma recomendação, não um veredito.
+
+## Multijogador (na sala)
+
+| Jogo | Estado | O que eu recomendo |
+|---|---|---|
+| **Quadro branco** (livre, Forca, Desenha e Adivinha) | 13 ficheiros de teste, auditado de ponta a ponta, 9 defeitos reais corrigidos, pontos ligados ao placar, ajuda do Brasa, telemóvel medido | **Fica.** É a joia da coroa e é onde está o trabalho todo |
+| **Eu sei clássico** (letra + categorias + votação) | É o jogo que dá o nome à app; tem testes de fluxo e da votação | **Fica.** Sem ele a app perde a identidade |
+| **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão, sem palpites escritos | **Corta.** O modo novo do quadro faz o mesmo e melhor: palpites escritos, julgados sozinhos, cores, equipas e histórico. Ter os dois é confundir |
+| **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substitui** pelo jogo do mapa novo (plano em baixo) |
+| **Estrada Maluca** (corrida) | Defeito diagnosticado e por corrigir: quem se despista duas vezes reescreve o tempo depois de as classificações estarem feitas; o teste ainda assume o fluxo antigo | **Corrigir antes de expor** — ou cortar |
+| **Fuga da Infeção** (apanhada) | O teste falha de forma intermitente no passo dos power-ups, cerca de metade das vezes; nunca foi investigado a fundo | **Corrigir antes de expor** — ou cortar |
+| **Batalha no labirinto** | Tem testes (lógica e ecrã), mas nunca passou por uma revisão como a do quadro | **Rever antes de expor** |
+| **Mini-golfe** | Tem testes de lógica e de ecrã | **Rever antes de expor** |
+| **Onde Fica Isto?** (foto + alfinete) | Tem teste | **Rever antes de expor** |
+
+## Jogar sozinho
+
+| Jogo | Estado | O que eu recomendo |
+|---|---|---|
+| **Quadro branco solo** | 18 passos de teste, câmara, ferramentas, telemóvel, e agora o rato como deve ser | **Fica** |
+| **Forca** (rondas, sequência, categorias) | Bem desenvolvido, com teste de sequência e de maratona | **Fica** |
+| **Maratona de mini-jogos** | Não é um jogo, é a cola que liga os outros — com as falas da Dona Manga e do Brasa pelo meio | **Fica**, mas o valor dela depende de quais é que sobram |
+| **Descartando Juntos** (cartas) | O mais complexo de todos; tem testes de lógica e de "profundidade" | **Decide tu**: é muito código para um jogo que talvez não seja o que queres que a app seja |
+| **Kota Corre!**, **Mata o Inseto**, **Cada Macaco no Seu Galho**, **Memória**, **Olho de Lince**, **Palavra Relâmpago** | Seis mini-jogos pequenos, cada um com o seu teste | **Escolhe dois ou três.** Seis coisas pequenas e parecidas dão a sensação de muito para jogar e pouco para gostar; dois bem feitos valem mais |
+| **Mapa-Múndi**, **Onde Fica Isto?**, **Mini-Golfe**, **Estrada Maluca** | Versões solo dos de cima | Seguem o destino dos irmãos multijogador |
+| **Recordes** e **Conquistas** | Ecrãs de apoio | **Ficam** |
+
+### O corte que eu faria, se fosse meu
+
+Ficava com: **quadro branco** (sala e solo), **Eu sei clássico**, **Forca
+solo**, **o mapa novo**, e **dois** dos seis mini-jogos pequenos — os que te
+derem mais vontade de voltar. Tudo o resto sai de vista até valer a pena.
+
+Não apagava o código de nada: tirava do menu. Um jogo escondido pode voltar; um
+jogo apagado tem de ser reescrito.
+
+---
+
+# O jogo do mapa-múndi — plano
+
+## O jogo, como o descreveste
+
+Clica-se num país e escreve-se o nome. Se estiver certo, o território pinta-se
+da cor de quem acertou e fica trancado — ninguém lho tira nem lhe muda a cor. A
+partida acaba quando o mapa estiver completo. Quando faltarem poucos e ninguém
+souber mais nenhum, chega uma sugestão de um país que ainda falta, para o jogo
+não morrer parado.
+
+E um modo **difícil**: o mapa começa vazio — os países só APARECEM à medida que
+alguém escreve o nome certo, cada um na cor de quem o escreveu.
+
+## O que isto precisa que ainda não existe
+
+O mapa que a app tem hoje são 32 países marcados como **pontos** num fundo
+desenhado à mão. Para pintar territórios e para saber em qual se clicou, é
+preciso a forma de cada país. Isso não se inventa: são dados.
+
+Já confirmei que dá para ter, e a que custo:
+
+- **Fonte:** Natural Earth (domínio público) através do pacote `world-atlas`,
+  com licença ISC. Sem contas, sem chaves, sem pedir nada a ninguém em tempo
+  de jogo.
+- **Convertido para o formato do jogo:** 177 países, 286 anéis, 10 587 pontos.
+  **168 KB** num ficheiro só, com as coordenadas já em fração do mapa (0 a 1) e
+  arredondadas a quatro casas.
+- **A projeção é a mesma da imagem que mandaste** (equiretangular): x vem da
+  longitude, y da latitude, sem contas nenhumas. O que desenharmos assenta em
+  cima da tua imagem.
+
+Se 177 países for demais para uma partida, corta-se por continente ou por
+tamanho — os dados trazem o nome de cada um e dá para escolher.
+
+## Como eu o construía, por fases
+
+**Fase 1 — os dados e o desenho (sem jogo nenhum).**
+Gerar o ficheiro dos países a partir do `world-atlas`, desenhá-lo num canvas
+com a mesma câmara do quadro branco (afastar, aproximar, arrastar com o botão
+direito — já está feito e testado), e acertar no país onde se clicou. O teste
+desta fase é objetivo: clicar em cinco sítios conhecidos e receber cinco nomes
+certos.
+
+**Fase 2 — um jogador.**
+Clicar, escrever, acertar, pintar, trancar. Nomes em português com os acentos
+tratados como no quadro (o "c" e o "ç" já se resolvem, e reuso isso). Contador
+de quantos faltam.
+
+**Fase 3 — a sala.**
+O território é do primeiro que acertar. Como duas pessoas podem clicar no mesmo
+país ao mesmo tempo, quem ganha decide-se por transação, como já se faz na bola
+vermelha do jogo clássico — não por confiança, porque aqui há corrida a sério.
+Cada um na sua cor, escolhida como no quadro.
+
+**Fase 4 — não deixar o jogo morrer.**
+Quando ninguém acertar nada durante algum tempo, aparece o nome de um país que
+ainda falta. Preferia isto a um relógio: a sugestão chega quando **o jogo
+estagna**, não quando o tempo passa — assim uma sala rápida nunca a vê, e uma
+sala encravada recebe-a logo. Quanto mais tempo parado, mais fácil é o país
+sugerido.
+
+**Fase 5 — o modo difícil.**
+O mapa começa em branco: só o mar. Cada país aparece quando alguém o escreve,
+na cor de quem o escreveu. Sem formas para clicar, escreve-se à sorte e ao
+conhecimento — é outro jogo, com o mesmo material. Vale mais pontos, porque é
+mais difícil e porque escrever "Laos" de cabeça não é o mesmo que reconhecer a
+forma.
+
+**Fase 6 — a par do quadro.**
+Entrada própria no menu de jogar sozinho e na sala, ecrã inteiro como o quadro,
+a Dona Manga a comentar quando alguém erra três vezes seguidas, e os pontos a
+subirem ao placar da sala como agora acontece no quadro.
+
+## O que eu preciso de ti
+
+Nada para começar as fases 1 e 2 — isso é trabalho e não escolhas. Antes da
+fase 3 há duas decisões que são tuas:
+
+1. **Quantos países** por partida: os 177, ou um continente de cada vez?
+2. **Os pontos**: cada país vale o mesmo, ou os difíceis valem mais? (Dá para
+   medir a dificuldade pelo tamanho do território, que é um número que já
+   tenho.)
