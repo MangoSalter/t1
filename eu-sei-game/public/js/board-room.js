@@ -416,11 +416,23 @@ function drawHangmanItem(ctx, p, rectW, rectH) {
   ctx.restore();
 }
 
+// Os pontos vão para a rede em fração da folha (0 a 1), para funcionarem em
+// qualquer tamanho de ecrã. Sem arredondar, cada um ia com a precisão toda de
+// um número de vírgula flutuante — dezassete algarismos para dizer onde está um
+// pixel. Medido: 68 bytes por ponto, ~4 KB/s por pessoa a desenhar sem parar,
+// e cada ponto é DESCARREGADO por todos os outros da sala.
+//
+// Quatro casas decimais chegam: num quadro de 2560 px, um décimo de milésimo é
+// um quarto de pixel. Arredonda-se AQUI, e não só na hora de enviar, para o
+// que eu vejo no meu ecrã ser exatamente o que os outros veem no deles.
+const CASAS = 10000;
+const arredondar = (v) => Math.round(v * CASAS) / CASAS;
+
 function hangmanDoodlePointFromEvent(e) {
   const rect = hangmanEls.doodleCanvas.getBoundingClientRect();
   const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
   const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-  return { x, y };
+  return { x: arredondar(x), y: arredondar(y) };
 }
 
 function hangmanDoodleFlush() {

@@ -84,6 +84,29 @@ const outraVez = await tinta();
 console.log(`   depois de desenhar outra vez: ${outraVez} pixéis`);
 if (outraVez === 0) fail("depois de limpar, o quadro deixou de aceitar traço novo");
 
+console.log("6) Os pontos vão para a rede sem algarismos a mais...");
+// Sem arredondar, cada ponto ia com a precisão toda de um número de vírgula
+// flutuante: dezassete algarismos para dizer onde está um pixel. Medido, isso
+// eram 68 bytes por ponto e ~4 KB/s por pessoa a desenhar — e cada ponto é
+// DESCARREGADO por todos os outros da sala. Quatro casas decimais chegam: num
+// quadro de 2560 px, um décimo de milésimo é um quarto de pixel.
+const casas = await p.evaluate((c) => {
+  const pts = window.__testDb.get(`rooms/${c}`).hangman?.doodle?.points || {};
+  let pior = 0;
+  let exemplo = "";
+  Object.values(pts).forEach((pt) => {
+    [pt.x, pt.y].forEach((v) => {
+      if (typeof v !== "number") return;
+      const d = (String(v).split(".")[1] || "").length;
+      if (d > pior) { pior = d; exemplo = String(v); }
+    });
+  });
+  return { pior, exemplo, quantos: Object.keys(pts).length };
+}, code);
+console.log(`   ${casas.quantos} pontos, no máximo ${casas.pior} casas decimais${casas.exemplo ? ` (ex.: ${casas.exemplo})` : ""}`);
+if (casas.quantos === 0) fail("devia haver pontos para medir");
+if (casas.pior > 4) fail(`os pontos vão com ${casas.pior} casas decimais — é rede desperdiçada a cada traço`);
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;
