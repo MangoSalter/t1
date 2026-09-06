@@ -35,6 +35,10 @@ const els = {
 
 // A cor de quem joga sozinho. Em sala cada um terá a sua, como no quadro.
 const MINHA_COR = "#b24b38";
+// Sozinho é sempre a mesma; em sala é a que a sala deu a este jogador.
+function minhaCor() {
+  return jogo.sala?.minhaCor || MINHA_COR;
+}
 // Quanto tempo parado antes de a ajuda aparecer. Conta-se desde a última
 // CONQUISTA, não desde o início: uma sala a andar depressa nunca a vê, e uma
 // sala encravada recebe-a logo. Foi por isso que se escolheu isto em vez de um
@@ -52,7 +56,47 @@ const jogo = {
   jaSugeridos: [],
   hipotesesLivreEm: 0,
   ajudaTimer: null,
+  // A SALA, quando há uma. Sozinho isto fica a null e o ecrã comporta-se como
+  // sempre: escreve no mapa que tem à frente e mais nada. Numa sala, o mesmo
+  // ecrã passa a avisar quem manda — e é a sala que devolve o estado, porque
+  // o país pode ser de outro antes de a resposta chegar lá.
+  //
+  // O adaptador é propositadamente pequeno (quatro funções) para o motor e o
+  // ecrã continuarem sem saber o que é uma sala nem o que é a Firebase.
+  sala: null,
 };
+
+// Liga (ou desliga, com null) o mapa a uma sala. O adaptador traz:
+//   minhaCor            — a cor deste jogador
+//   aoConquistar(pais, pontos)  -> promessa de { ganhou, pontos, roubo }
+//   aoErrar(pais)               — avisa que este jogador falhou aqui
+//   aoRevelar(nome)             — a pista aparece no mapa de toda a gente
+export function ligarASala(adaptador) {
+  jogo.sala = adaptador || null;
+  // Recomeçar limpa o mapa de quem carrega. Numa sala isso seria limpar o
+  // trabalho dos outros no ecrã de um só — o mapa passaria a estar diferente
+  // em cada sítio. O botão sai.
+  els.recomecarBtn?.classList.toggle("hidden", !!jogo.sala);
+  els.modo?.toggleAttribute("disabled", !!jogo.sala);
+}
+
+// A sala manda o estado; o ecrã obedece. Os donos vêm por uid e passam a cor
+// aqui, que é onde se sabe quem é quem.
+export function aplicarEstadoDaSala(estado, corDe) {
+  if (!estado) return;
+  const donos = {};
+  Object.entries(estado.donos || {}).forEach(([pais, uid]) => {
+    donos[pais] = corDe(uid) || "#8a8177";
+  });
+  mapa.donos = donos;
+  mapa.pistas = estado.pistas || [];
+  if (estado.modo && estado.modo !== mapa.modo) {
+    mapa.modo = estado.modo;
+    if (els.modo) els.modo.value = estado.modo;
+  }
+  if (estado.dificuldade) mapa.dificuldade = estado.dificuldade;
+  if (jogo.ligado) redesenhar();
+}
 
 function haEcra() {
   return !!(els.screen && els.canvas);
@@ -129,6 +173,12 @@ function dizer(texto) {
   els.status.textContent = texto;
 }
 
+// A sala também precisa de falar na caixa de estado — para contar o que
+// aconteceu longe deste ecrã, como a Dona Manga a roubar um país a alguém.
+export function dizerNoMapa(texto) {
+  dizer(texto);
+}
+
 // O que se diz depois de acertar. No fim, o retrato da partida — é o momento
 // em que apetece saber quanto se fez, e não só que acabou. A meio, uma
 // sequência a sério (3 ou mais) é notícia; abaixo disso, o de sempre.
@@ -139,6 +189,25 @@ function mensagemDeAcerto(pais) {
     return t("mapaCadeia", marcador.cadeia, ultima.pontos);
   }
   return t("mapaCerto", pais.nome, porConquistar().length);
+}
+
+// Avisa a sala de uma conquista — e trata do caso que só existe em sala: dois
+// jogadores a escrever o mesmo país ao mesmo tempo. A sala decide, e quem
+// chegou tarde tem de largar o país que já tinha pintado no seu ecrã. Sem
+// isto, cada um ficava a ver um mapa diferente e ambos julgavam ter ganho.
+async function avisarASala(pais) {
+  if (!jogo.sala) return;
+  const ultima = marcador.jogadas[marcador.jogadas.length - 1];
+  const resposta = await jogo.sala.aoConquistar(pais, ultima ? ultima.pontos : 0);
+  if (!resposta || resposta.ganhou) {
+    if (resposta && resposta.roubo) dizer(t("mapaRoubado", pais.nome, resposta.pontos));
+    return;
+  }
+  delete mapa.donos[pais.nome];
+  marcador.jogadas = marcador.jogadas.filter((j) => j.nome !== pais.nome);
+  marcador.pontos = Math.max(0, marcador.pontos - (ultima ? ultima.pontos : 0));
+  redesenhar();
+  dizer(t("mapaTarde", pais.nome));
 }
 
 // O foco volta SEMPRE à caixa. Quem está a jogar escreve, carrega no Enter,
@@ -214,6 +283,7 @@ function armarAjuda() {
     const p = revelarPista(jogo.jaSugeridos);
     if (!p) return;
     jogo.jaSugeridos.push(p.nome);
+    jogo.sala?.aoRevelar(p.nome);
     redesenhar();
     // A partir daqui o jogo esteve parado: as três hipóteses ficam à mão.
     if (els.hipotesesBtn) els.hipotesesBtn.dataset.destravado = "1";
@@ -277,6 +347,13 @@ function abrirMapa() {
 function sairDoMapa() {
   jogo.ligado = false;
   if (jogo.ajudaTimer) clearTimeout(jogo.ajudaTimer);
+  // Numa sala, o botão de voltar não é para sair do mapa: o mapa é a partida,
+  // e sair dela é obra de quem manda. Quem toca aqui pede à sala para acabar,
+  // e a sala é que muda o ecrã de toda a gente.
+  if (jogo.sala) {
+    jogo.sala.aoSair?.();
+    return;
+  }
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === "solo-menu");
   });
@@ -305,6 +382,7 @@ if (haEcra()) {
       return;
     }
     jogo.jaSugeridos.push(p.nome);
+    jogo.sala?.aoRevelar(p.nome);
     redesenhar();
     const b = bandeiraDe(p);
     dizer(t("mapaBandeiraPedida", b));
@@ -423,13 +501,15 @@ if (haEcra()) {
     }
     if (!acertou(alvo, escrito)) {
       registarErro();
+      // Numa sala, errar em cima de um país deixa-o em causa para os outros.
+      jogo.sala?.aoErrar(alvo);
       dizer(t("mapaErrado", escrito));
       redesenhar();
       els.input.select();
       focar();
       return;
     }
-    conquistar(alvo, MINHA_COR);
+    conquistar(alvo, minhaCor());
     els.input.value = "";
     mapa.selecionado = null;
     jogo.ultimaConquista = Date.now();
@@ -437,6 +517,7 @@ if (haEcra()) {
     redesenhar();
     armarAjuda();
     dizer(mensagemDeAcerto(alvo));
+    avisarASala(alvo);
     focar();
   });
 

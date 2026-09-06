@@ -34,7 +34,7 @@ async function sairDoJogo(p) {
   await p.waitForSelector('[data-screen="solo-menu"].active', { timeout: 5000 });
 }
 
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 
 // Um sintetizador de mentira: esta máquina não tem vozes instaladas, e sem
 // isto não haveria como verificar o que a app TENTA dizer. Substitui só o
@@ -156,7 +156,7 @@ await semVoz.addInitScript(() => {
   delete window.speechSynthesis;
   delete window.SpeechSynthesisUtterance;
 });
-await semVoz.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await semVoz.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 const errosSemVoz = [];
 semVoz.on("pageerror", (e) => errosSemVoz.push(e.message));
 await semVoz.click("#solo-menu-btn");
@@ -197,13 +197,13 @@ for (const p of [anaP, betoP]) {
     localStorage.setItem("euSei_presentationMode", "guiado");
   });
 }
-await anaP.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await anaP.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await anaP.fill("#name-input", "Ana");
 await anaP.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
 await anaP.click("#create-room-btn");
 await anaP.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
 const codigo = (await anaP.locator("#lobby-code").textContent()).trim();
-await betoP.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await betoP.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await betoP.fill("#name-input", "Beto");
 await betoP.fill("#join-code-input", codigo);
 await betoP.waitForFunction(() => !document.getElementById("join-room-btn").disabled, { timeout: 5000 });

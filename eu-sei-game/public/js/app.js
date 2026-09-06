@@ -33,12 +33,19 @@ import {
   GOLF_MP_COURSE_W, GOLF_MP_COURSE_H, GOLF_MP_BALL_RADIUS, GOLF_MP_HOLE_RADIUS, GOLF_MP_START,
   GOLF_MP_HOLE, GOLF_MP_WALLS, GOLF_MP_POWERUP_RADIUS, GOLF_MP_POWERUP_MAX_ACTIVE, GOLF_MP_POWERUP_SPAWN_INTERVAL_MS,
   GOLF_MP_BROADCAST_MS, GOLF_MP_RESULT_DISPLAY_MS,
+  mapaMangaRouba, MAPA_MANGA_CADA_MS,
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
 import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
 // O quadro de sala (Forca / desenho livre) vive em módulo próprio: ver a nota
 // no topo do board-room.js.
 import { renderHangman, esquecerNarracao } from "./board-room.js";
+// O mapa de sala, pelo mesmo motivo: o motor e o ecrã do mapa já existem para
+// o modo sozinho, e este módulo só os liga à sala.
+import { renderMapaSala, esquecerMapaDaSala } from "./mapa-sala.js";
+// Os jogos que ainda não estão para se mostrar saem do ecrã aqui — o menu de
+// jogos da sala vive neste ficheiro.
+import { esconderAOficina } from "./oficina.js";
 
 
 function showScreen(name) {
@@ -304,6 +311,9 @@ function onRoomUpdate(room) {
     lastRenderedState = room.state;
   }
   if (room.state !== "hangman") esquecerNarracao();
+  // Sair do mapa desliga-o da sala. Sem isto, o ecrã do mapa continuava a
+  // escrever conquistas numa sala que já ia noutro jogo.
+  if (room.state !== "mapa") esquecerMapaDaSala();
   if (room.state !== "tag" && tagState.active) tagExit();
   if (room.state !== "battle" && battleState.active) battleExit();
   if (room.state !== "race" && raceState.active) raceExit();
@@ -324,6 +334,7 @@ function onRoomUpdate(room) {
     case "race": renderRace(room); showScreen("race"); break;
     case "landmark": renderLandmarkTeam(room); showScreen("landmark"); break;
     case "golf": renderGolfMp(room); showScreen("golf"); break;
+    case "mapa": renderMapaSala(room); showScreen("mapa"); break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }
@@ -385,7 +396,9 @@ const lobbyEls = {
 // de bónus de fim de partida), o que deixava os quadros de desenho mortos
 // numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
 // o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
-const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1, golf: 2 };
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1, golf: 2, mapa: 1 };
+
+esconderAOficina();
 
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
@@ -2653,6 +2666,13 @@ async function runHostLoopTick(room) {
       if (lp && !lp.chosen && !winnerConnected && now - (lp.startedAt || 0) > 8000) {
         await confirmLetter(state.code, room, lp.candidates[0]);
       }
+    } else if (room.state === "mapa") {
+      // A Dona Manga rouba um país de vez em quando. É a única coisa no mapa
+      // que não depende de ninguém escrever nada, e serve para o mapa nunca
+      // ficar "arrumado" a meio: um país que já era de alguém volta a estar
+      // por conquistar, e quem o souber outra vez fica com ele.
+      const ultima = room.mapa?.manga?.quando || room.mapa?.comecouEm || 0;
+      if (now - ultima > MAPA_MANGA_CADA_MS) await mapaMangaRouba(state.code, room);
     } else if (room.state === "categories") {
       const cr = room.categoriesRound;
       if (cr && (now >= cr.endAt || cr.finishedBy)) {

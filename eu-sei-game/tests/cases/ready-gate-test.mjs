@@ -4,7 +4,7 @@ const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 
 console.log("1) Abrir Mata o Inseto e confirmar que aparece o ecra 'pronto?' antes do jogo...");
 await page.click("#solo-menu-btn");

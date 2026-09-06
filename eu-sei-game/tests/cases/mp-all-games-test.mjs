@@ -8,7 +8,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
-await page.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8937/index.html?oficina=1", { waitUntil: "networkidle" });
 await page.fill("#name-input", "Ana");
 await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled);
 await page.click("#create-room-btn");

@@ -14,13 +14,13 @@ for (const [n, p] of [["host", host], ["guest", guest]]) {
 }
 
 console.log("1) Ana cria a sala, Beto entra...");
-await host.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+await host.goto("http://localhost:8937/index.html?oficina=1", { waitUntil: "networkidle" });
 await host.fill("#name-input", "Ana");
 await host.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
 await host.click("#create-room-btn");
 await host.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
 const code = (await host.locator("#lobby-code").textContent()).trim();
-await guest.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+await guest.goto("http://localhost:8937/index.html?oficina=1", { waitUntil: "networkidle" });
 await guest.fill("#name-input", "Beto");
 await guest.fill("#join-code-input", code);
 await guest.waitForFunction(() => !document.getElementById("join-room-btn").disabled, { timeout: 5000 });

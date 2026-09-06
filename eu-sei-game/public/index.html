@@ -61,18 +61,18 @@
       <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
       <div class="divider">jogar avulso</div>
       <div class="solo-menu-grid">
-        <button id="solo-play-reflex-btn">Olho de Lince</button>
+        <button data-oficina id="solo-play-reflex-btn">Olho de Lince</button>
         <button id="solo-play-wordflash-btn">Palavra Relâmpago</button>
-        <button id="solo-play-bug-btn">Mata o Inseto</button>
-        <button id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
+        <button data-oficina id="solo-play-bug-btn">Mata o Inseto</button>
+        <button data-oficina id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
         <button id="solo-play-memory-btn">Memória</button>
         <button id="solo-play-hangman-btn">Forca</button>
-        <button id="solo-play-map-btn">Mapa-Múndi</button>
-        <button id="solo-play-pac-btn">Kota Corre!</button>
+        <button data-oficina id="solo-play-map-btn">Mapa-Múndi</button>
+        <button data-oficina id="solo-play-pac-btn">Kota Corre!</button>
         <button id="solo-play-golf-btn">Mini-Golfe</button>
-        <button id="solo-play-cards-btn">Descartando Juntos</button>
-        <button id="solo-play-car-btn">Estrada Maluca</button>
-        <button id="solo-play-landmark-btn">Onde Fica Isto?</button>
+        <button data-oficina id="solo-play-cards-btn">Descartando Juntos</button>
+        <button data-oficina id="solo-play-car-btn">Estrada Maluca</button>
+        <button data-oficina id="solo-play-landmark-btn">Onde Fica Isto?</button>
       </div>
       <div class="divider"></div>
       <button data-open-board>🖊️ Quadro branco</button>
@@ -120,17 +120,17 @@
       <h2>Maratona de mini-jogos</h2>
       <p class="hint">Escolhe quais entram — a ordem é sorteada, um de cada vez, até todos terem sido jogados.</p>
       <div class="marathon-picker">
-        <label><input type="checkbox" data-marathon-game="reflex" checked /> Olho de Lince</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="reflex" checked /> Olho de Lince</label>
         <label><input type="checkbox" data-marathon-game="word" checked /> Palavra Relâmpago</label>
-        <label><input type="checkbox" data-marathon-game="bug" checked /> Mata o Inseto</label>
-        <label><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="bug" checked /> Mata o Inseto</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
         <label><input type="checkbox" data-marathon-game="memory" checked /> Memória</label>
         <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
-        <label><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
-        <label><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
         <label><input type="checkbox" data-marathon-game="golf" /> Mini-Golfe</label>
-        <label><input type="checkbox" data-marathon-game="car" /> Estrada Maluca</label>
-        <label><input type="checkbox" data-marathon-game="landmark" /> Onde Fica Isto?</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="car" /> Estrada Maluca</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="landmark" /> Onde Fica Isto?</label>
       </div>
       <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
       <button data-solo-home class="ghost">Voltar</button>
@@ -452,12 +452,13 @@
       <div class="solo-menu-grid">
         <button type="button" data-mp-game="draw">Desenha e Adivinha<span class="mp-game-desc">Um desenha uma palavra secreta, os outros adivinham em voz alta.</span></button>
         <button type="button" data-mp-game="hangman">Quadro branco<span class="mp-game-desc">Folha em branco partilhada. Escreve um de cada vez; as regras combinam-se por voz.</span></button>
-        <button type="button" data-mp-game="mapTrivia">Mapa-Múndi<span class="mp-game-desc">Escreve um país que cumpra o critério pedido. Há sempre mais do que uma resposta certa.</span></button>
+        <button type="button" data-oficina data-mp-game="mapTrivia">Mapa-Múndi<span class="mp-game-desc">Escreve um país que cumpra o critério pedido. Há sempre mais do que uma resposta certa.</span></button>
         <button type="button" data-mp-game="tag">Fuga da Infeção<span class="mp-game-desc">Perseguição no mesmo mapa: quem está infetado passa a infeção por contacto.</span></button>
         <button type="button" data-mp-game="battle">Labirinto: Batalha<span class="mp-game-desc">Apanha uma arma no chão e sobrevive. 3 vidas cada.</span></button>
-        <button type="button" data-mp-game="race">Estrada Maluca<span class="mp-game-desc">Todos apanham os mesmos carros ao mesmo tempo. Ganha quem aguentar mais.</span></button>
-        <button type="button" data-mp-game="landmark">Onde Fica Isto?<span class="mp-game-desc">Mesmo monumento para todos: acerta o país, e depressa.</span></button>
+        <button type="button" data-oficina data-mp-game="race">Estrada Maluca<span class="mp-game-desc">Todos apanham os mesmos carros ao mesmo tempo. Ganha quem aguentar mais.</span></button>
+        <button type="button" data-oficina data-mp-game="landmark">Onde Fica Isto?<span class="mp-game-desc">Mesmo monumento para todos: acerta o país, e depressa.</span></button>
         <button type="button" data-mp-game="golf">Mini-Golfe<span class="mp-game-desc">Mesmo buraco ao mesmo tempo, com power-ups para usar contra os outros.</span></button>
+        <button type="button" data-mp-game="mapa">Conquistar o Mapa<span class="mp-game-desc">O mapa-múndi para todos ao mesmo tempo: clica num país, escreve o nome, fica com ele. Quem errar deixa o país em causa — e vale a dobrar a quem o souber.</span></button>
       </div>
 
       <div class="divider"></div>
@@ -493,12 +494,13 @@
           <p class="hint small">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
           <div class="marathon-picker">
             <label><input type="checkbox" data-bonus-game="hangman" checked /> Quadro branco</label>
-            <label><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
+            <label data-oficina><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
+            <label><input type="checkbox" data-bonus-game="mapa" checked /> Conquistar o Mapa</label>
             <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa</label>
             <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
             <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
-            <label><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
-            <label><input type="checkbox" data-bonus-game="landmark" /> Onde Fica Isto? em equipa</label>
+            <label data-oficina><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
+            <label data-oficina><input type="checkbox" data-bonus-game="landmark" /> Onde Fica Isto? em equipa</label>
             <label><input type="checkbox" data-bonus-game="golf" /> Mini-Golfe em equipa</label>
           </div>
         </details>
@@ -591,6 +593,8 @@
       <canvas id="mapa-canvas"></canvas>
       <p id="mapa-status" class="mapa-status" role="status" aria-live="polite"></p>
       <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses"></div>
+      <!-- Só aparece em sala: sozinho não há classificação nenhuma para dar. -->
+      <ol id="mapa-sala-tabela" class="mapa-sala-tabela hidden" aria-label="Classificação"></ol>
     </div>
   </section>
   <section data-screen="board" class="screen board-screen">

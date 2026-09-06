@@ -8,7 +8,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 
 console.log("1) Num telemóvel, os comandos no ecrã começam escondidos (fora de jogo)...");
 let hidden = await page.locator("#touch-controls").evaluate((el) => el.classList.contains("hidden"));

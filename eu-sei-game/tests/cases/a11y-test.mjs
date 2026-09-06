@@ -10,7 +10,7 @@ console.log("1) Navegar por teclado mostra onde esta o foco...");
 const page = await browser.newPage();
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await page.keyboard.press("Tab");
 const focus = await page.evaluate(() => {
   const el = document.activeElement;
@@ -58,7 +58,7 @@ console.log("3) Com movimento reduzido, NENHUMA animação continua a correr..."
 const ctx = await browser.newContext({ reducedMotion: "reduce" });
 const p2 = await ctx.newPage();
 p2.on("pageerror", (e) => errors.push(e.message));
-await p2.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await p2.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 const moving = await p2.evaluate(() => {
   const bad = [];
   document.querySelectorAll("*").forEach((el) => {
@@ -91,7 +91,7 @@ if (stopped.anim !== "none" || (stopped.transform !== "none" && stopped.transfor
 console.log("5) Sem a preferência ligada, as animações continuam a existir (não se removeu tudo para sempre)...");
 const ctx2 = await browser.newContext();
 const p3 = await ctx2.newPage();
-await p3.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await p3.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 const animatedNormally = await p3.evaluate(() => {
   const el = document.querySelector(".mascot");
   return getComputedStyle(el).animationName;
@@ -132,7 +132,7 @@ console.log("7) Alvos de toque no telemovel: minimo 44px de altura...");
 const { devices } = await import("playwright");
 const mob = await browser.newContext({ ...devices["iPhone 13"] });
 const pm = await mob.newPage();
-await pm.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await pm.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await pm.click("#solo-menu-btn");
 await pm.click("#solo-marathon-menu-btn");
 await pm.waitForSelector('[data-screen="solo-marathon-setup"].active', { timeout: 5000 });

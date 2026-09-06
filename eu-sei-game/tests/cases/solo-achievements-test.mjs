@@ -7,7 +7,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 
 console.log("1) Conta nova: ecrã de conquistas abre e mostra tudo bloqueado...");
 await page.evaluate(() => localStorage.clear());

@@ -117,7 +117,7 @@ export const LANDMARK_TEAM_POINTS = 8;
 export const LANDMARK_TEAM_SPEED_BONUS_MAX = 6;
 export const LANDMARK_TEAM_RESULT_DISPLAY_MS = 5000;
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf"];
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf", "mapa"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
 //
@@ -564,6 +564,8 @@ export async function startNextBonusGame(code, room) {
     await startLandmarkTeam(code, nextRoom);
   } else if (key === "golf") {
     await startGolfTeam(code, nextRoom);
+  } else if (key === "mapa") {
+    await startMapaTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -591,6 +593,8 @@ export async function startQuickBonusGame(code, room, key) {
     await startLandmarkTeam(code, nextRoom);
   } else if (key === "golf") {
     await startGolfTeam(code, nextRoom);
+  } else if (key === "mapa") {
+    await startMapaTeam(code, nextRoom);
   } else {
     await startHangman(code, nextRoom);
   }
@@ -3016,5 +3020,184 @@ export async function resolveGolfRound(code, room) {
 }
 
 export async function finishGolfRound(code, room) {
+  await startNextBonusGame(code, room);
+}
+
+// --- O MAPA-MÚNDI PARTILHADO ---
+//
+// O mesmo mapa do modo sozinho, mas com toda a gente a conquistar ao mesmo
+// tempo. Cada país só pode ser de um, e quem chega primeiro fica com ele.
+//
+// O que está aqui é a REGRA, e é de propósito que não sabe nada de ecrãs: as
+// contas do roubo, dos pontos e da classificação testam-se sem browser
+// nenhum, e o mapa-ecra.js só chama e desenha.
+//
+// A escrita segue o modelo do resto da sala — cada um escreve o seu — com uma
+// diferença: um país conquistado NUNCA é reescrito por outro jogador. Quem
+// tenta escrever por cima perde a escrita, e o mapa fica como estava.
+
+// Errar em cima de um país deixa-o em causa por uns segundos: quem o nomear
+// nessa janela leva o dobro. É o que faz valer a pena estar atento ao que os
+// outros estão a errar, em vez de cada um jogar sozinho ao lado dos outros.
+// Os nomes dos países são a chave no Firebase. Hoje nenhum dos 177 tem um
+// caractere proibido (. $ # [ ] /) e há um teste que o confirma — mas os
+// dados são gerados, e o dia em que entrar um "R.D. Congo" não pode ser o dia
+// em que a sala deixa de guardar conquistas em silêncio.
+export function chaveDePais(nome) {
+  return String(nome).replace(/[.$#[\]/]/g, "_");
+}
+
+// De quanto em quanto tempo é que a Dona Manga rouba um país. Noventa
+// segundos: pouco de mais e o mapa nunca fica feito, muito de mais e ninguém
+// dá por ela.
+export const MAPA_MANGA_CADA_MS = 90000;
+export const MAPA_ROUBO_MS = 8000;
+export const MAPA_ROUBO_FATOR = 2;
+
+export function mapaEstadoInicial(modo = "mundo", dificuldade = "livre") {
+  return { modo, dificuldade, donos: {}, pistas: [], abertos: {}, marcadores: {}, comecouEm: Date.now() };
+}
+
+export function mapaDono(room, nomePais) {
+  return room?.mapa?.donos?.[chaveDePais(nomePais)] || null;
+}
+
+// Está em causa? Só se alguém errou nele há pouco E ainda não tem dono.
+export function mapaEmCausa(room, nomePais, agora = Date.now()) {
+  const aberto = room?.mapa?.abertos?.[chaveDePais(nomePais)];
+  if (!aberto || mapaDono(room, nomePais)) return false;
+  return agora < (aberto.ate || 0);
+}
+
+// Quem pode ficar com o país. Sem dono, qualquer um; com dono, ninguém — nem
+// o próprio, que já o tem.
+export function mapaPodeConquistar(room, nomePais) {
+  return !mapaDono(room, nomePais);
+}
+
+// Quanto vale AQUI, na sala: os pontos que o motor calculou, a dobrar se o
+// país estava em causa por alguém ter falhado nele. Quem falhou não leva o
+// dobro do seu próprio erro.
+export function mapaPontosNaSala(room, nomePais, uid, pontosBase, agora = Date.now()) {
+  const aberto = room?.mapa?.abertos?.[chaveDePais(nomePais)];
+  const roubo = mapaEmCausa(room, nomePais, agora) && aberto.porCausaDe !== uid;
+  return { pontos: roubo ? pontosBase * MAPA_ROUBO_FATOR : pontosBase, roubo };
+}
+
+// A classificação da sala: quem tem mais países, com os pontos a desempatar
+// ao contrário do que se espera — quem sabe mais países ganha a quem fez mais
+// pontos com poucos, porque o jogo é sobre saber o mapa.
+export function mapaClassificacao(room) {
+  const marcadores = room?.mapa?.marcadores || {};
+  const contagem = {};
+  Object.values(room?.mapa?.donos || {}).forEach((uid) => {
+    contagem[uid] = (contagem[uid] || 0) + 1;
+  });
+  const uids = new Set([...Object.keys(marcadores), ...Object.keys(contagem)]);
+  return [...uids]
+    .map((uid) => ({
+      uid,
+      nome: room?.players?.[uid]?.name || "?",
+      paises: contagem[uid] || 0,
+      pontos: marcadores[uid]?.pontos || 0,
+      erros: marcadores[uid]?.erros || 0,
+      melhorCadeia: marcadores[uid]?.melhorCadeia || 0,
+    }))
+    .sort((a, b) => b.paises - a.paises || b.pontos - a.pontos || a.erros - b.erros);
+}
+
+export async function startMapaTeam(code, room, modo = "mundo", dificuldade = "livre") {
+  await update(roomRef(code), {
+    state: "mapa",
+    mapa: mapaEstadoInicial(modo, dificuldade),
+    stateChangedAt: serverNow(),
+  });
+}
+
+// Conquistar. Vai por transação porque é o ÚNICO sítio do jogo onde dois
+// jogadores podem escrever a mesma coisa ao mesmo tempo e um tem de perder:
+// dois a escrever "Brasil" no mesmo segundo não podem ficar os dois com ele.
+export async function mapaConquistar(code, uid, nomePais, pontosBase, agora = Date.now()) {
+  // A sala LÊ-SE ANTES de se escrever o dono. Depois da transação o país já
+  // tem dono — o deste jogador — e "está em causa?" respondia sempre que não,
+  // que é o mesmo que dizer que o roubo nunca valia o dobro. O que interessa é
+  // como estava o país no momento em que a resposta foi dada.
+  const antes = await get(roomRef(code));
+  const room = antes.exists() ? antes.val() : null;
+  const { pontos, roubo } = mapaPontosNaSala(room, nomePais, uid, pontosBase, agora);
+  const donoRef = ref(db, `rooms/${code}/mapa/donos/${chaveDePais(nomePais)}`);
+  const res = await runTransaction(donoRef, (atual) => (atual ? undefined : uid));
+  if (!res.committed || res.snapshot.val() !== uid) return { ganhou: false, pontos: 0, roubo: false };
+  const marcador = room?.mapa?.marcadores?.[uid] || {};
+  const cadeia = (marcador.cadeia || 0) + 1;
+  await update(roomRef(code), {
+    [`mapa/abertos/${chaveDePais(nomePais)}`]: null,
+    [`mapa/marcadores/${uid}/pontos`]: (marcador.pontos || 0) + pontos,
+    [`mapa/marcadores/${uid}/certos`]: (marcador.certos || 0) + 1,
+    [`mapa/marcadores/${uid}/cadeia`]: cadeia,
+    [`mapa/marcadores/${uid}/melhorCadeia`]: Math.max(marcador.melhorCadeia || 0, cadeia),
+    [`players/${uid}/score`]: (room?.players?.[uid]?.score || 0) + pontos,
+  });
+  return { ganhou: true, pontos, roubo };
+}
+
+// Errar. Além de partir a sequência de quem errou, põe o país em causa — e é
+// aqui que a sala fica interessante, porque o erro de um é a oportunidade de
+// outro.
+export async function mapaErrar(code, uid, nomePais, agora = Date.now()) {
+  const snap = await get(roomRef(code));
+  const room = snap.exists() ? snap.val() : null;
+  const marcador = room?.mapa?.marcadores?.[uid] || {};
+  const updates = {
+    [`mapa/marcadores/${uid}/erros`]: (marcador.erros || 0) + 1,
+    [`mapa/marcadores/${uid}/cadeia`]: 0,
+  };
+  if (nomePais && !mapaDono(room, nomePais)) {
+    updates[`mapa/abertos/${chaveDePais(nomePais)}`] = { ate: agora + MAPA_ROUBO_MS, porCausaDe: uid };
+  }
+  await update(roomRef(code), updates);
+}
+
+// A pista aparece no mapa DE TODA A GENTE. Uma ajuda que só um vê não é uma
+// ajuda numa sala: é uma vantagem, e quem pediu ajuda não devia ficar à
+// frente por ter pedido ajuda.
+export async function mapaRevelarPista(code, nomePais) {
+  const snap = await get(ref(db, `rooms/${code}/mapa/pistas`));
+  const pistas = snap.exists() ? snap.val() || [] : [];
+  if (pistas.includes(nomePais)) return pistas;
+  const novas = [...pistas, nomePais];
+  await set(ref(db, `rooms/${code}/mapa/pistas`), novas);
+  return novas;
+}
+
+// A Dona Manga rouba um país. Escolhe entre os que TÊM dono — roubar um país
+// que ninguém conquistou não tirava nada a ninguém — e devolve-o ao mapa,
+// para quem o quiser outra vez.
+export function mapaEscolhaDaManga(room, aleatorio = Math.random) {
+  const comDono = Object.keys(room?.mapa?.donos || {});
+  if (comDono.length < 3) return null; // sem mapa feito não há graça em roubar
+  return comDono[Math.floor(aleatorio() * comDono.length)];
+}
+
+export async function mapaMangaRouba(code, room, aleatorio = Math.random) {
+  const alvo = mapaEscolhaDaManga(room, aleatorio);
+  if (!alvo) return null;
+  const dono = mapaDono(room, alvo);
+  const marcador = room?.mapa?.marcadores?.[dono] || {};
+  await update(roomRef(code), {
+    [`mapa/donos/${alvo}`]: null,
+    [`mapa/manga`]: { pais: alvo, de: dono, quando: serverNow() },
+    [`mapa/marcadores/${dono}/cadeia`]: 0,
+    // Os pontos ficam: o país foi conquistado a sério, e tirar pontos por uma
+    // travessura da gata era castigar quem sabia a resposta.
+    [`mapa/marcadores/${dono}/roubados`]: (marcador.roubados || 0) + 1,
+  });
+  return alvo;
+}
+
+// Acabar a partida do mapa e seguir para o que vem a seguir na fila de bónus.
+// Só quem manda é que acaba: o mapa não tem cronómetro, e sem isto bastava
+// alguém carregar em "voltar" para tirar o jogo debaixo dos pés dos outros.
+export async function finishMapaRound(code, room) {
   await startNextBonusGame(code, room);
 }

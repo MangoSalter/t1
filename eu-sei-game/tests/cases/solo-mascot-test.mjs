@@ -6,7 +6,7 @@ const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: "networkidle" });
 
@@ -42,7 +42,7 @@ await page.waitForTimeout(300);
 await page.click("#game-hud-exit-btn").catch(() => {});
 await page.waitForTimeout(300);
 let onMenu = await page.evaluate(() => document.querySelector(".screen.active")?.dataset.screen);
-if (onMenu !== "solo-menu") { await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" }); await page.click("#solo-menu-btn"); }
+if (onMenu !== "solo-menu") { await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" }); await page.click("#solo-menu-btn"); }
 await page.click("#solo-play-memory-btn");
 await page.waitForSelector('[data-screen="solo-memory-setup"].active', { timeout: 5000 });
 await page.click("#memory-setup-start-btn");

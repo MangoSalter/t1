@@ -6,7 +6,7 @@ const errors = [];
 page.on("pageerror", (err) => errors.push(err.message));
 page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 
 console.log("1) Abrir Mapa-Múndi avulso...");
 await page.click("#solo-menu-btn");

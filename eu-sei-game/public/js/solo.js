@@ -9,6 +9,7 @@ import {
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
   ACHIEVEMENTS, pickMascotIntro, pickChaosEvent, gameHowTo,
 } from "./data.js";
+import { estaNaOficina, esconderAOficina } from "./oficina.js";
 import {
   PRESENTATION_MODES, presentationMode, setPresentationMode,
   voiceEnabled, setVoiceEnabled, voiceSupported, say, stopSpeaking,
@@ -235,7 +236,7 @@ function startHangmanSingle() {
 // "Descartando Juntos" fica de fora da maratona de propósito — é um jogo
 // mais longo e estratégico, pensado para se jogar por inteiro a partir do
 // menu principal, não como uma paragem rápida entre outros mini-jogos.
-const MARATHON_GAMES = {
+const MARATHON_GAMES_TODOS = {
   reflex: startReflexMinigame,
   word: startWordFlashMinigame,
   bug: startBugSmashMinigame,
@@ -248,6 +249,13 @@ const MARATHON_GAMES = {
   car: startCarGame,
   landmark: startLandmarkMinigame,
 };
+
+// A maratona só passa pelos jogos que estão no site. Os que estão na oficina
+// continuam a funcionar e a ser testados, mas ninguém tropeça neles a meio de
+// uma maratona a pensar que aquilo é o que a app tem para dar.
+const MARATHON_GAMES = Object.fromEntries(
+  Object.entries(MARATHON_GAMES_TODOS).filter(([chave]) => !estaNaOficina(chave)),
+);
 
 // --- Kota Corre!: labirinto ao estilo Pac-Man com tema da história de
 // Angola — és a bandeira de Angola a fugir das forças estrangeiras da
@@ -1553,10 +1561,15 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
 // --- Mini-jogos bónus entre rondas: escolhido ao acaso a cada ronda, para
 // dar variedade em vez de repetir sempre o mesmo. ---
 
-const MINIGAMES = [
-  startReflexMinigame, startWordFlashMinigame, startBugSmashMinigame,
-  startMonkeyRescueMinigame, startMemoryMinigame,
+const MINIGAMES_TODOS = [
+  ["reflex", startReflexMinigame], ["word", startWordFlashMinigame], ["bug", startBugSmashMinigame],
+  ["monkey", startMonkeyRescueMinigame], ["memory", startMemoryMinigame],
 ];
+// Tira do ecrã os jogos que estão na oficina. Corre uma vez, aqui, porque
+// este é o módulo que o menu de jogar sozinho carrega.
+esconderAOficina();
+
+const MINIGAMES = MINIGAMES_TODOS.filter(([chave]) => !estaNaOficina(chave)).map(([, f]) => f);
 
 function startMinigame() {
   const chosen = MINIGAMES[Math.floor(Math.random() * MINIGAMES.length)];

@@ -16,6 +16,7 @@ coluna da direita é uma recomendação, não um veredito.
 | **Eu sei clássico** (letra + categorias + votação) | É o jogo que dá o nome à app; tem testes de fluxo e da votação | **Fica.** Sem ele a app perde a identidade |
 | **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão, sem palpites escritos | **Corta.** O modo novo do quadro faz o mesmo e melhor: palpites escritos, julgados sozinhos, cores, equipas e histórico. Ter os dois é confundir |
 | **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substitui** pelo jogo do mapa novo (plano em baixo) |
+| **Conquistar o Mapa** (o mapa novo, em sala) | Os 177 países como territórios a sério, cada um do primeiro que o souber; errar deixa o país em causa e vale a dobrar a quem o souber a seguir; as bandeiras que o Brasa revela aparecem no mapa de toda a gente; três línguas ao mesmo tempo na mesma sala | **Fica.** É o segundo pilar, a par do quadro |
 | **Estrada Maluca** (corrida) | Defeito diagnosticado e por corrigir: quem se despista duas vezes reescreve o tempo depois de as classificações estarem feitas; o teste ainda assume o fluxo antigo | **Corrigir antes de expor** — ou cortar |
 | **Fuga da Infeção** (apanhada) | O teste falha de forma intermitente no passo dos power-ups, cerca de metade das vezes; nunca foi investigado a fundo | **Corrigir antes de expor** — ou cortar |
 | **Batalha no labirinto** | Tem testes (lógica e ecrã), mas nunca passou por uma revisão como a do quadro | **Rever antes de expor** |
@@ -127,3 +128,22 @@ fase 3 há duas decisões que são tuas:
 2. **Os pontos**: cada país vale o mesmo, ou os difíceis valem mais? (Dá para
    medir a dificuldade pelo tamanho do território, que é um número que já
    tenho.)
+
+## O corte, feito (decisão do dono, setembro)
+
+Estes oito saíram do site e foram para a **oficina** — não foram apagados: o
+código e os testes ficam, e voltam quando estiverem bons.
+
+Olho de Lince · Mata o Inseto · Cada Macaco no Seu Galho · Mapa-Múndi antigo
+(solo e sala) · Kota Corre! · Descartando Juntos · Estrada Maluca (solo e
+sala) · Onde Fica Isto? (solo e sala)
+
+Como funciona: `public/js/oficina.js` tem a lista; os botões marcados com
+`data-oficina` no HTML ficam escondidos, as caixas da maratona ficam
+desmarcadas, e os sorteios de mini-jogos saltam-nos. Quem os quiser ver abre a
+app com **`?oficina=1`** — é assim que os testes lhes continuam a chegar, para
+não apodrecerem à espera.
+
+**Fica no site:** Quadro branco (sala e solo), Eu sei clássico, Desenha e
+Adivinha, Fuga da Infeção, Labirinto: Batalha, Mini-Golfe, Conquistar o Mapa,
+Forca solo, Palavra Relâmpago, Memória.

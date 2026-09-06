@@ -46,5 +46,13 @@ extend `tests/cases/test-stub-fidelity.mjs`, and prefer importing the real
 module in the stub over mirroring it.
 
 ## Tests
-`node tests/run.mjs [filter]`. Ports 8936/8937 must be free. Browser cases set
-`euSei_lingua=pt` before asserting on text.
+`node tests/run.mjs [filter]` — runs 4 cases in parallel (`--jobs N` to change;
+`--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
+own copy of the cases, because the stub shares state through localStorage,
+which is per-origin: two cases on one port would silently see each other's
+rooms. The full suite takes ~11 minutes at 4 jobs, ~25 serially.
+
+Browser cases set `euSei_lingua=pt` before asserting on text, and open
+`index.html?oficina=1` when they need a game that is hidden from the public
+site (see `public/js/oficina.js`). `oficina-test.mjs` is the one case that
+opens the plain URL — without it, a broken hide would pass the whole suite.
