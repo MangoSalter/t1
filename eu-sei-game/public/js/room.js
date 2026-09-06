@@ -1304,15 +1304,34 @@ export function matchRanking(room) {
     .sort((a, b) => b.pontos - a.pontos);
 }
 
+// Tudo o que é DA PALAVRA, e não da sala.
+//
+// Esta lista estava copiada em cinco sítios, com cinco versões ligeiramente
+// diferentes — e a diferença não era intenção, era esquecimento. As folhas
+// pessoais faltavam em dois, os erros de cada um e os castigos faltavam em
+// todos menos um. Castigos que não se apagam acumulam-se de palavra para
+// palavra: à terceira, metade da sala está de castigo por erros de rondas que
+// já ninguém se lembra.
+//
+// O que NÃO está aqui é de propósito: a ordem da vez (ganha-se na ronda
+// anterior), as equipas, as cores, quem tem a caneta e quem já desenhou são da
+// sala e sobrevivem à palavra.
+function puzzleResetPatch() {
+  return {
+    mask: null, hint: null, misses: 0, missesBy: null, solved: false,
+    wrong: null, wrongWords: null, guesses: null, wordGuesses: null,
+    turnUid: null, masks: null, winnerUid: null, skipNext: null,
+  };
+}
+
 // Recomeçar a partida: zera o que é da partida (palavras feitas, pontos) e
 // deixa em paz o que é da sala (equipas, cores, quem tem a caneta).
 export async function startNewMatch(code, room, uid) {
   if (!canSetBoardMode(room, uid)) return false;
   await update(ref(db, `rooms/${code}/hangman`), {
-    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null, history: null,
-    mask: null, hint: null, misses: 0, missesBy: null, solved: false, winnerUid: null,
-    wrong: null, wrongWords: null, guesses: null, wordGuesses: null,
-    masks: null, correctCount: null, skipNext: null,
+    ...puzzleResetPatch(),
+    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null,
+    history: null, correctCount: null,
   });
   return true;
 }
@@ -1394,10 +1413,26 @@ export function currentGuesser(room) {
   return fila.includes(turno) ? turno : fila[0];
 }
 
+// De castigo AGORA. Em modo de turnos a penalização já se via na fila (o
+// advanceTurn salta quem está de castigo), mas em modo livre não há vez para
+// perder: sem isto, ligar "penalização a cada X erros" com "arrisca quem
+// quiser" dava uma penalização que não penalizava nada. Em modo livre, ficar
+// de castigo é ficar de fora até alguém arriscar.
+//
+// Se estiverem TODOS de castigo, ninguém fica: uma penalização que tranca o
+// jogo deixa de ser uma penalização e passa a ser o fim do jogo.
+export function skippedNow(room, uid) {
+  if (!room?.hangman?.skipNext?.[uid]) return false;
+  const fila = hangmanGuessers(room);
+  const todosDeCastigo = fila.length > 0 && fila.every((u) => room.hangman.skipNext?.[u]);
+  return !todosDeCastigo;
+}
+
 export function canGuessNow(room, uid) {
   if (!room?.hangman?.mask || room.hangman.solved) return false;
   if (!hangmanGuessers(room).includes(uid)) return false;
   if (room.hangman.guesses?.[uid]) return false;
+  if (skippedNow(room, uid)) return false;
   return freeGuessing(room) || currentGuesser(room) === uid;
 }
 
@@ -1481,6 +1516,15 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     patch[`wrong/${letter}`] = { uid: guesserUid, at: serverNow() };
     if (!jaEsteve) Object.assign(patch, missPatch(room, guesserUid, word));
   }
+  // Em modo livre, quem estava de castigo fica livre assim que OUTRA pessoa
+  // arrisca — é isso que faz "perde a vez seguinte" significar alguma coisa
+  // onde não há vez a perder. Quem acabou de errar e levou castigo nesta mesma
+  // jogada não é libertado: foi este lance que lho deu.
+  if (freeGuessing(room)) {
+    Object.keys(room.hangman?.skipNext || {}).forEach((u) => {
+      if (u !== guesserUid) patch[`skipNext/${u}`] = null;
+    });
+  }
   await update(ref(db, `rooms/${code}/hangman`), patch);
   return acertou;
 }
@@ -1497,6 +1541,7 @@ export async function setHangmanPuzzle(code, room, uid, mask, hint) {
   if (room?.hangman?.leaderId !== uid) return;
   const fila = hangmanGuessers(room);
   await update(ref(db, `rooms/${code}/hangman`), {
+    ...puzzleResetPatch(),
     [`drawnBy/${uid}`]: true,
     // A contagem é POR RONDA: zera-se com a palavra nova. A ordem, essa, fica
     // — foi ganha na ronda anterior e é para valer nesta.
@@ -1511,19 +1556,6 @@ export async function setHangmanPuzzle(code, room, uid, mask, hint) {
     // sala tal e qual, sem máscara nenhuma.
     hint: (hint || "").trim() || null,
     mask: mask || null,
-    misses: 0,
-    solved: false,
-    wrong: null,
-    wrongWords: null,
-    guesses: null,
-    wordGuesses: null,
-    // As folhas pessoais são da palavra que acabou, não da que começa. Sem as
-    // apagar aqui, quem tinha acertado letras na anterior continuava a ver a
-    // palavra ANTERIOR na sua folha — e isto não é teórico: acontece sempre
-    // que se escreve uma palavra sem passar pelo "limpar", que é exatamente o
-    // caminho de quem apanha a caneta a meio e tem de a escrever outra vez.
-    masks: null,
-    winnerUid: null,
   });
 }
 
@@ -1568,11 +1600,7 @@ export function autoPenOn(room) {
 
 export async function clearHangmanPuzzle(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
-  const patch = {
-    mask: null, hint: null, misses: 0, solved: false,
-    wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
-    masks: null, winnerUid: null,
-  };
+  const patch = puzzleResetPatch();
   if (autoPenOn(room)) {
     const seguinte = nextPenByRotation(room);
     if (seguinte && seguinte !== uid) {
@@ -1637,13 +1665,7 @@ export async function setBoardMode(code, room, uid, modeKey) {
   if (!BOARD_MODES[modeKey] || !room?.hangman) return false;
   if (!canSetBoardMode(room, uid)) return false;
   if (room.hangman.mode === modeKey) return false;
-  const patch = {
-    mode: modeKey,
-    modeVotes: null,
-    mask: null, hint: null, misses: 0, solved: false,
-    wrong: null, wrongWords: null, guesses: null, wordGuesses: null, turnUid: null,
-    masks: null, winnerUid: null,
-  };
+  const patch = { ...puzzleResetPatch(), mode: modeKey, modeVotes: null };
   if (modeKey === "forca") {
     // Entrar na Forca abre a votação da caneta: enquanto ninguém for
     // escolhido, a folha fica sem dono — é isso que faz a votação acontecer
@@ -1762,18 +1784,12 @@ export async function applyBoardVotes(code, room) {
   // (ver setBoardMode).
   const penWinner = voteWinner(hangman.penVotes, connected);
   if (penWinner && penWinner !== hangman.leaderId) {
+    // A caneta mudou de mão a meio: a palavra que estava em jogo só existia no
+    // browser de quem a escreveu, por isso vai-se embora com ela.
     await update(ref(db, `rooms/${code}/hangman`), {
+      ...puzzleResetPatch(),
       leaderId: penWinner,
       penVotes: null,
-        mask: null,
-      hint: null,
-      misses: 0,
-      solved: false,
-      wrong: null,
-      wrongWords: null,
-      guesses: null,
-      wordGuesses: null,
-      turnUid: null,
     });
   }
 }

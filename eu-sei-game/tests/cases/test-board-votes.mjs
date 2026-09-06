@@ -599,3 +599,50 @@ for (const [comoE, settings] of [["à vista", { revealGuesses: 1 }], ["anónimas
   check2(`${comoE}: e o histórico guardou a palavra`, entrada?.word, "banana");
   check2(`${comoE}: com o dono certo, não o anterior`, entrada?.winnerUid, "ze");
 }
+
+console.log("37) A penalização a cada X erros também penaliza no modo livre...");
+// Em modo de turnos, ficar de castigo era perder a vez — o advanceTurn salta
+// quem está de castigo. Em modo livre não há vez para perder, e a penalização
+// não fazia nada: as duas definições cancelavam-se em silêncio, como as
+// equipas e as tentativas anónimas antes delas.
+const { skippedNow } = await import("./js/room.js");
+const salaCastigo = (settings, skipNext) => ({
+  players: { cap: { connected: true }, ze: { connected: true }, ana: { connected: true } },
+  hangman: {
+    mode: "forca", leaderId: "cap", mask: "_a_a_a",
+    turnOrder: ["ze", "ana"], skipNext, settings,
+  },
+});
+const livre = { guessMode: "livre", missMode: "individuais", penaltyEvery: 2 };
+const turnos = { guessMode: "turnos", missMode: "individuais", penaltyEvery: 2 };
+check2("livre: quem está de castigo não arrisca",
+  String(canGuessNow(salaCastigo(livre, { ze: true }), "ze")), "false");
+check2("livre: quem não está, arrisca",
+  String(canGuessNow(salaCastigo(livre, { ze: true }), "ana")), "true");
+check2("turnos: continua a valer",
+  String(canGuessNow(salaCastigo(turnos, { ze: true }), "ze")), "false");
+// Se estiverem TODOS de castigo, ninguém fica: uma penalização que tranca o
+// jogo deixa de ser penalização e passa a ser o fim do jogo.
+check2("todos de castigo: o jogo não tranca",
+  String(canGuessNow(salaCastigo(livre, { ze: true, ana: true }), "ze")), "true");
+check2("e o skippedNow diz o mesmo",
+  String(skippedNow(salaCastigo(livre, { ze: true, ana: true }), "ze")), "false");
+
+console.log("38) Uma palavra nova apaga TAMBÉM os erros de cada um e os castigos...");
+// Os erros da sala zeravam-se com a palavra nova; os de cada um e os castigos
+// não. Ao fim de três palavras, metade da sala estava de castigo por erros de
+// rondas de que já ninguém se lembrava.
+const alvoP = "rooms/PENA/hangman";
+await updateDb(refDb(dbTeste, alvoP), {
+  leaderId: "cap", mask: "______", misses: 2,
+  missesBy: { ze: 4 }, skipNext: { ze: true }, masks: { ze: "b_____" },
+});
+await guardas.setHangmanPuzzle("PENA", {
+  hangman: { leaderId: "cap", mask: "______" },
+  players: { cap: { connected: true }, ze: { connected: true } },
+}, "cap", "_______", null);
+const limpo = (await getDb(refDb(dbTeste, alvoP))).val();
+check2("erros da sala a zero", limpo.misses, 0);
+check2("erros de cada um apagados", String(limpo.missesBy === undefined || limpo.missesBy === null), "true");
+check2("castigos apagados", String(limpo.skipNext === undefined || limpo.skipNext === null), "true");
+check2("folhas pessoais apagadas", String(limpo.masks === undefined || limpo.masks === null), "true");
