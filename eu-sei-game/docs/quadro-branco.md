@@ -97,19 +97,19 @@ placar geral sem se perceber de onde vieram.
 Se preferires (a) não contar ou (c) só um bónus ao vencedor, diz — é uma
 função só.
 
-### 2. Quando é que a Brasa se oferece para ajudar?
+### 2. A ajuda do Brasa — FEITA, pela opção (a)
 
-O custo já está decidido (grátis a solo; na sala, quem cria escolhe entre não
-haver ajuda, haver com consequência, ou ser à borla). Falta o momento.
+Só a pedido: há um botão "Pedir ajuda ao Brasa" para quem está a adivinhar. Ele
+não se oferece sozinho.
 
-- **(a) Só a pedido.** Há um botão, carrega-se nele.
-- **(b) A pedido, e ele também se oferece ao fim de alguns erros** — pergunta
-  "queres uma ajuda?" e a pessoa aceita ou recusa.
-- **(c) Ele ajuda sozinho**, sem perguntar, quando vê a coisa mal parada.
+Quem manda no quadro escolhe o nível nas definições: **não há ajuda**, **custa**
+(por omissão) ou **à borla**. Quando custa, pedir vale um erro; se não houver
+erro para gastar — porque se joga sem teto, ou porque o teto já está à vista —
+o preço passa a ser ficar sem arriscar a palavra inteira até à palavra
+seguinte. Continua-se a arriscar letras: é uma desvantagem, não uma expulsão.
 
-*Recomendo (b)*: o custo continua a ser escolhido por quem o paga, e um
-ajudante que se chega à frente mas que se pode mandar embora tem mais graça do
-que um botão.
+A letra que ele sopra aparece só a quem pediu. Se aparecesse no balão dos
+outros, a ajuda que uma pessoa paga ficava de graça para toda a gente.
 
 ### 3. Modos novos, além de desenho livre e Forca
 

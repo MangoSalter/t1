@@ -18,6 +18,7 @@ import {
   hangmanGuessers, individualMisses, joinTeam, joinWords, letterAlreadyTried, maskWord,
   matchIsOver, matchRanking, matchWordsTotal, maxMissesOf, missesOfPlayer, modeAllowsTool,
   payBoardMatchScore, boardMatchPayout, boardMatchPaid,
+  canAskHelp, askBrasaHelp, serveBrasaHelp, helpCosts, blockedFromWordGuess,
   passGuessTurn, passHangmanPen, passHangmanPenRandom, pickHangmanColor, playerColor, playerMask,
   pointsObjectToArray, pushHangmanDoodlePoints, renameTeam, resolveGuess, resolveWordGuess, revealLetter,
   sanitizeBoardPoints, setBoardMode, setBoardSetting, setHangmanPuzzle, setPlayMode, setTeamCount,
@@ -59,6 +60,7 @@ const hangmanEls = {
   modeBtnViewer: document.getElementById("hangman-mode-btn-viewer"),
   modeHint: document.getElementById("hangman-mode-hint"),
   wordGuessForm: document.getElementById("hangman-wordguess-form"),
+  helpBtn: document.getElementById("hangman-help-btn"),
   wordGuessInput: document.getElementById("hangman-wordguess-input"),
   wrongWords: document.getElementById("hangman-wrong-words"),
   quip: document.getElementById("hangman-quip"),
@@ -1621,14 +1623,30 @@ function renderWrongLetters(room) {
   const caos = room?.hangman?.chaos;
   const caosFala = caos && BOARD_CHAOS.find((e) => e.id === caos.id);
   const caosMaisNovo = !!caosFala && (!quip || (caos.at || 0) >= (quip.at || 0));
-  const fala = caosMaisNovo ? caosFala : (quip && BOARD_QUIPS[quip.i]);
-  const quando = caosMaisNovo ? (caos.at || 0) : (quip?.at || 0);
+  let fala = caosMaisNovo ? caosFala : (quip && BOARD_QUIPS[quip.i]);
+  let quando = caosMaisNovo ? (caos.at || 0) : (quip?.at || 0);
+
+  // A ajuda do Brasa fala só a QUEM a pediu, e é a mais recente de todas
+  // quando acabou de acontecer: a letra que ele soprou não pode aparecer no
+  // balão dos outros, senão a ajuda que se paga passa a ser de todos.
+  const ajuda = room?.hangman?.help;
+  if (ajuda && ajuda.uid === state.uid && (ajuda.at || 0) >= quando) {
+    fala = {
+      who: "Brasa",
+      text: ajuda.custou
+        ? `Toma o "${ajuda.letra}". Não contes a ninguém — e paguei-a com um dos teus erros, desculpa.`
+        : `Toma o "${ajuda.letra}". Ela está a dormir, aproveita.`,
+    };
+    quando = ajuda.at || 0;
+  }
   const fresca = fala && serverNow() - quando < 7000;
   hangmanEls.quip.classList.toggle("hidden", !fresca);
   if (fresca) {
     hangmanEls.quipWho.textContent = `${fala.who}:`;
     hangmanEls.quipText.textContent = fala.text;
-    hangmanEls.quip.dataset.quipIndex = caosMaisNovo ? `caos:${caos.id}` : String(quip.i);
+    hangmanEls.quip.dataset.quipIndex = fala.who === "Brasa" && room?.hangman?.help?.uid === state.uid
+      ? `ajuda:${room.hangman.help.letra}`
+      : (caosMaisNovo ? `caos:${caos.id}` : String(quip?.i));
     // Sem isto, o balão ficava para sempre depois do último desenho de ecrã:
     // nada mais mexe na sala, logo nada mais o mandava embora.
     if (hangmanQuipTimer) clearTimeout(hangmanQuipTimer);
@@ -1723,6 +1741,20 @@ async function hangmanJudgePendingGuesses(room) {
   }
 }
 
+// Os pedidos de ajuda ao Brasa, pelo mesmo caminho: só quem tem a caneta
+// conhece a palavra, por isso só ele pode revelar uma letra.
+async function hangmanServeHelpAsks(room) {
+  if (hangmanJudging || !hangmanSecretWord) return;
+  const pendentes = Object.entries(room.hangman?.helpAsks || {}).filter(([, a]) => a && a.at);
+  if (pendentes.length === 0) return;
+  hangmanJudging = true;
+  try {
+    await serveBrasaHelp(state.code, room, state.uid, pendentes[0][0], hangmanSecretWord);
+  } finally {
+    hangmanJudging = false;
+  }
+}
+
 // E as tentativas de palavra inteira, pelo mesmo caminho e pelo mesmo motivo:
 // só o browser de quem tem a caneta conhece a palavra.
 async function hangmanJudgeWordGuesses(room) {
@@ -1740,6 +1772,18 @@ async function hangmanJudgeWordGuesses(room) {
 
 // Arriscar a palavra inteira. Substituiu o "pedir a palavra": levantar o braço
 // para falar não é jogo nenhum quando a app já sabe julgar a resposta.
+hangmanEls.helpBtn.addEventListener("click", async () => {
+  if (!state.room || !canAskHelp(state.room, state.uid)) return;
+  // O pedido fica na sala; quem serve é o cliente de quem tem a caneta, o
+  // único que conhece a palavra. Mesmo caminho das tentativas, mesma razão.
+  hangmanEls.helpBtn.disabled = true;
+  try {
+    await askBrasaHelp(state.code, state.room, state.uid);
+  } finally {
+    hangmanEls.helpBtn.disabled = false;
+  }
+});
+
 hangmanEls.wordGuessForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const tentativa = hangmanEls.wordGuessInput.value.trim();
@@ -2062,8 +2106,27 @@ export function renderHangman(room) {
   // por adivinhar. Ao contrário das letras, não espera pela vez: dizer a
   // palavra é uma aposta, e ninguém deve ter de esperar para a fazer.
   const possoArriscarPalavra = naForca && !!mask && !hangman.solved && !amLeader
-    && hangmanGuessers(room).includes(state.uid) && !hangman.wordGuesses?.[state.uid];
+    && hangmanGuessers(room).includes(state.uid) && !hangman.wordGuesses?.[state.uid]
+    // Quem pediu ajuda e não tinha erros para gastar paga assim: fica sem
+    // arriscar a palavra inteira até à palavra seguinte.
+    && !blockedFromWordGuess(room, state.uid);
   hangmanEls.wordGuessForm.classList.toggle("hidden", !possoArriscarPalavra);
+
+  // A AJUDA DO BRASA é só a pedido: há um botão, carrega-se nele. Ele não se
+  // oferece sozinho — foi essa a escolha.
+  const possoPedirAjuda = naForca && canAskHelp(room, state.uid);
+  hangmanEls.helpBtn.classList.toggle("hidden", !possoPedirAjuda);
+  if (possoPedirAjuda) {
+    hangmanEls.helpBtn.textContent = helpCosts(room)
+      ? "🐈‍⬛ Pedir ajuda ao Brasa (custa)"
+      : "🐈‍⬛ Pedir ajuda ao Brasa";
+    hangmanEls.helpBtn.title = helpCosts(room)
+      ? "Custa um erro. Sem erros para gastar, ficas sem arriscar a palavra inteira até à próxima."
+      : "Ele revela-te uma letra, à borla.";
+  }
+  if (blockedFromWordGuess(room, state.uid) && naForca && !!mask) {
+    hangmanEls.turnLabel.textContent = "Pediste ajuda: ficas sem arriscar a palavra inteira até à próxima.";
+  }
 
   // As votações abertas acompanham o estado: se a caneta já foi decidida
   // enquanto o menu estava aberto, a lista mostrada já não quer dizer nada.
@@ -2114,6 +2177,7 @@ export function renderHangman(room) {
   if (amLeader && naForca) {
     queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
     queueMicrotask(() => hangmanJudgeWordGuesses(state.room));
+    queueMicrotask(() => hangmanServeHelpAsks(state.room));
     // A Dona Manga entra a cada N erros da ronda: aparece quando o jogo está
     // a correr mal, que é quando faz falta, em vez de aparecer ao acaso e
     // atrapalhar quem estava a ir bem. Corre no cliente de quem tem a caneta,

@@ -165,6 +165,45 @@ await arriscar(david, "b");
 await david.waitForFunction((c) => (window.__testDb.get(`rooms/${c}`).hangman.mask || "").includes("b"), code, { timeout: 10000 });
 console.log("   e a tentativa dele foi julgada como as dos outros");
 
+console.log("8) A ajuda do Brasa: só a pedido, e paga-se...");
+// Só a pedido: há um botão e carrega-se nele. Ele não se oferece sozinho — foi
+// essa a escolha. Quem serve o pedido é o cliente de quem tem a caneta, porque
+// é o único que conhece a palavra.
+const botaoAjuda = (pagina) => pagina.evaluate(() =>
+  !document.getElementById("hangman-help-btn").classList.contains("hidden"));
+console.log(`   botão — Beto (adivinha): ${await botaoAjuda(beto)}, Ana (tem a caneta): ${await botaoAjuda(ana)}`);
+if (!(await botaoAjuda(beto))) fail("quem adivinha devia poder pedir ajuda");
+if (await botaoAjuda(ana)) fail("quem tem a caneta sabe a palavra: não precisa de ajuda");
+
+const antesDaAjuda = await hangmanDe(ana);
+await beto.click("#hangman-help-btn");
+await beto.waitForFunction((c) => {
+  const h = window.__testDb.get(`rooms/${c}`).hangman;
+  return !!h.help && !h.helpAsks;
+}, code, { timeout: 10000 });
+const depoisDaAjuda = await hangmanDe(ana);
+console.log(`   forma: "${antesDaAjuda.mask}" -> "${depoisDaAjuda.mask}"`);
+console.log(`   erros do Beto: ${antesDaAjuda.missesBy?.[betoId] || 0} -> ${depoisDaAjuda.missesBy?.[betoId] || 0}`);
+if (depoisDaAjuda.mask === antesDaAjuda.mask) fail("a ajuda devia abrir uma letra");
+if ((depoisDaAjuda.missesBy?.[betoId] || 0) <= (antesDaAjuda.missesBy?.[betoId] || 0)) {
+  fail("com a ajuda a custar, pedir devia custar um erro");
+}
+
+console.log("9) E o Brasa fala só a quem pediu — a letra não é de todos...");
+// A ajuda paga-se; se a letra aparecesse no balão dos outros, passava a ser
+// de graça para toda a gente menos para quem a pagou.
+const balao = (pagina) => pagina.evaluate(() => {
+  const el = document.getElementById("hangman-quip");
+  return el.classList.contains("hidden") ? "" : (document.getElementById("hangman-quip-text").textContent || "");
+});
+await beto.waitForFunction(() => !document.getElementById("hangman-quip").classList.contains("hidden"), { timeout: 8000 });
+const doBeto = await balao(beto);
+const daCarla = await balao(carla);
+console.log(`   Beto lê: "${doBeto.slice(0, 40)}..."`);
+console.log(`   Carla lê: "${daCarla ? daCarla.slice(0, 40) : "(nada)"}"`);
+if (!doBeto) fail("quem pediu devia ver o que o Brasa lhe soprou");
+if (daCarla && daCarla === doBeto) fail("a letra soprada não pode aparecer no balão dos outros");
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

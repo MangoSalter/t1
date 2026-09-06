@@ -108,11 +108,29 @@ function deepMergeInto(node, segments, value) {
     cur = cur[seg];
   }
   const last = segments[segments.length - 1];
-  // Na Firebase, escrever null APAGA a chave. O stub deixava-a lá a valer
+  // Na Firebase, escrever null APAGA a chave. O stub deixava-a la a valer
   // null, e um Object.entries passava a devolver entradas vazias que no jogo
   // real nunca existiriam — o duble tem de mentir o menos possivel.
-  if (value === null || value === undefined) delete cur[last];
-  else cur[last] = value;
+  if (value === null || value === undefined) {
+    delete cur[last];
+    // E na Firebase um no que fica sem filhos DEIXA DE EXISTIR: nao ha nos
+    // vazios. Sem isto, apagar a ultima tentativa deixava um {} onde o jogo a
+    // serio nao tem nada, e um teste que perguntasse "ainda ha pedidos?" pela
+    // existencia do no respondia sim quando a resposta e nao.
+    podarVazios(node, segments.slice(0, -1));
+  } else cur[last] = value;
+}
+
+// Sobe a arvore a apagar os nos que ficaram sem filhos.
+function podarVazios(raiz, segmentos) {
+  for (let corte = segmentos.length; corte > 0; corte -= 1) {
+    let pai = raiz;
+    for (let i = 0; i < corte - 1; i += 1) pai = pai?.[segmentos[i]];
+    const chave = segmentos[corte - 1];
+    const no = pai?.[chave];
+    if (!no || typeof no !== "object" || Array.isArray(no) || Object.keys(no).length > 0) return;
+    delete pai[chave];
+  }
 }
 
 function applyUpdate(baseSegments, partial) {

@@ -835,6 +835,19 @@ export const BOARD_SETTINGS_SPEC = {
       default: 1,
     },
     {
+      key: "help",
+      label: "Ajuda do Brasa",
+      options: [
+        { value: "custa", label: "Sim, mas custa" },
+        { value: "gratis", label: "Sim, à borla" },
+        { value: "nao", label: "Não há ajuda" },
+      ],
+      // "Custa" por omissão: uma ajuda de graça tira o sentido de arriscar, e
+      // nenhuma ajuda deixa quem está encravado sem nada para fazer a não ser
+      // ver os outros jogar. O meio-termo é o que faz a ajuda ser uma decisão.
+      default: "custa",
+    },
+    {
       key: "showHintAlways",
       label: "Pista",
       options: [
@@ -1379,6 +1392,9 @@ function puzzleResetPatch() {
     mask: null, hint: null, misses: 0, missesBy: null, solved: false,
     wrong: null, wrongWords: null, guesses: null, wordGuesses: null,
     turnUid: null, masks: null, winnerUid: null, skipNext: null,
+    // A ajuda também é da palavra: um pedido por servir e um castigo de não
+    // arriscar a palavra inteira não podem atravessar para a palavra seguinte.
+    helpAsks: null, noWordGuess: null, help: null,
   };
 }
 
@@ -1434,6 +1450,84 @@ function advanceTurn(room, afterUid, patch) {
 // esconde de quem foram. Esconder as letras também faria toda a gente repetir
 // as mesmas e o jogo passava a ser só frustração; o que se quer esconder é
 // quem falhou, não o que já foi tentado.
+// A AJUDA DO BRASA.
+//
+// Quem está a adivinhar pede; quem tem a caneta é que serve, porque é o único
+// que conhece a palavra — o mesmo caminho das tentativas, e pela mesma razão.
+//
+// O custo foi decidido assim: pedir custa um erro. Se não houver erros para
+// gastar — porque o teto já foi atingido, ou porque se está a jogar sem teto e
+// aí um erro a mais não custa nada — em vez disso fica-se sem poder arriscar a
+// PALAVRA INTEIRA até à palavra seguinte. É uma desvantagem a sério sem ser
+// uma expulsão: continua-se a arriscar letras.
+export function helpLevel(room) {
+  return boardSetting(room, "forca", "help");
+}
+
+export function helpCosts(room) {
+  return helpLevel(room) === "custa";
+}
+
+export function canAskHelp(room, uid) {
+  if (helpLevel(room) === "nao") return false;
+  if (!room?.hangman?.mask || room.hangman.solved) return false;
+  // Quem tem a caneta sabe a palavra: não há ajuda que lhe faça falta.
+  if (room.hangman.leaderId === uid) return false;
+  if (!hangmanGuessers(room).includes(uid)) return false;
+  if (room.hangman.helpAsks?.[uid]) return false;
+  return true;
+}
+
+export async function askBrasaHelp(code, room, uid) {
+  if (!canAskHelp(room, uid)) return false;
+  await set(ref(db, `rooms/${code}/hangman/helpAsks/${uid}`), { at: serverNow() });
+  return true;
+}
+
+// Quem está proibido de arriscar a palavra inteira até à próxima palavra.
+export function blockedFromWordGuess(room, uid) {
+  return !!room?.hangman?.noWordGuess?.[uid];
+}
+
+// Serve o pedido: revela uma letra a quem pediu e cobra o preço.
+// Corre só no cliente de quem tem a caneta, que passa a palavra como
+// argumento — ela nunca entra na base de dados.
+export async function serveBrasaHelp(code, room, uid, pedinteUid, word) {
+  if (room?.hangman?.leaderId !== uid) return null;
+  if (helpLevel(room) === "nao") return null;
+  const patch = { [`helpAsks/${pedinteUid}`]: null };
+  const base = guessesAreAnonymous(room) ? playerMask(room, pedinteUid) : (room.hangman.mask || "");
+  const letra = chaosLetterToReveal(word, base);
+  if (!letra) return null;
+
+  const revelada = revealLetter(word, base, letra);
+  if (guessesAreAnonymous(room)) {
+    patch[`masks/${maskKey(room, pedinteUid)}`] = revelada;
+    // A partilhada continua a somar, para quem tem a caneta ver o andamento.
+    patch.mask = revealLetter(word, room.hangman.mask || "", letra);
+  } else {
+    patch.mask = revelada;
+  }
+
+  if (helpCosts(room)) {
+    const teto = maxMissesOf(room);
+    const meus = individualMisses(room)
+      ? (room.hangman.missesBy?.[pedinteUid] || 0)
+      : (room.hangman.misses || 0);
+    // Só há erro para gastar se houver teto E ainda houver folga nele.
+    const daParaGastar = teto > 0 && meus + 1 < teto;
+    if (daParaGastar) {
+      if (individualMisses(room)) patch[`missesBy/${pedinteUid}`] = meus + 1;
+      patch.misses = (room.hangman.misses || 0) + 1;
+    } else {
+      patch[`noWordGuess/${pedinteUid}`] = true;
+    }
+  }
+  patch.help = { uid: pedinteUid, letra, at: serverNow(), custou: helpCosts(room) };
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return letra;
+}
+
 export function guessesAreAnonymous(room) {
   return boardSetting(room, "forca", "revealGuesses") === 0;
 }

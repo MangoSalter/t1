@@ -724,3 +724,65 @@ const aMeio = { ...salaPaga(), hangman: { mode: "forca", matchOver: false, match
 await updateDb(refDb(dbTeste, "rooms/MEIO"), JSON.parse(JSON.stringify(aMeio)));
 await payBoardMatchScore("MEIO", aMeio, "ana");
 check2("partida a meio não paga nada", (await getDb(refDb(dbTeste, "rooms/MEIO"))).val().players.ana.score, 10);
+
+console.log("42) A ajuda do Brasa: quem pode pedir, e o que custa...");
+// O custo foi decidido assim: pedir custa um erro; se não houver erro para
+// gastar (sem teto, ou com o teto já à vista), em vez disso fica-se sem
+// arriscar a PALAVRA INTEIRA até à palavra seguinte. É uma desvantagem a sério
+// sem ser uma expulsão — continua-se a arriscar letras.
+const { canAskHelp, serveBrasaHelp, helpCosts, blockedFromWordGuess, helpLevel } = await import("./js/room.js");
+const salaAjuda = (settings, extra) => ({
+  hostId: "cap",
+  players: { cap: { connected: true }, ze: { connected: true }, ana: { connected: true } },
+  hangman: {
+    mode: "forca", leaderId: "cap", mask: "_a_a_a", misses: 0,
+    turnOrder: ["ze", "ana"], settings, ...extra,
+  },
+});
+check2("por omissão a ajuda custa", helpLevel(salaAjuda({})), "custa");
+check2("quem adivinha pode pedir", String(canAskHelp(salaAjuda({}), "ze")), "true");
+check2("quem tem a caneta não pede", String(canAskHelp(salaAjuda({}), "cap")), "false");
+check2("com a ajuda desligada, ninguém pede",
+  String(canAskHelp(salaAjuda({ help: "nao" }), "ze")), "false");
+check2("já pedi, não peço outra vez",
+  String(canAskHelp(salaAjuda({}, { helpAsks: { ze: { at: 1 } } }), "ze")), "false");
+check2("sem palavra em jogo não há ajuda",
+  String(canAskHelp({ ...salaAjuda({}), hangman: { mode: "forca", leaderId: "cap", settings: {} } }, "ze")), "false");
+
+// Com teto e folga: custa um erro.
+const comFolga = salaAjuda({ help: "custa", maxMisses: 6 }, { helpAsks: { ze: { at: 1 } } });
+await updateDb(refDb(dbTeste, "rooms/AJU1/hangman"), JSON.parse(JSON.stringify(comFolga.hangman)));
+const letra1 = await serveBrasaHelp("AJU1", comFolga, "cap", "ze", "banana");
+const dep1 = (await getDb(refDb(dbTeste, "rooms/AJU1/hangman"))).val();
+check2("revelou uma letra", String(!!letra1), "true");
+check2("a forma abriu", String(dep1.mask !== "_a_a_a"), "true");
+check2("custou um erro", dep1.misses, 1);
+check2("e não bloqueou a palavra inteira", String(dep1.noWordGuess === undefined || dep1.noWordGuess === null), "true");
+check2("o pedido foi servido", String(dep1.helpAsks?.ze === undefined || dep1.helpAsks?.ze === null), "true");
+
+// Sem teto (erros à vontade): um erro a mais não custa nada, por isso o preço
+// é ficar sem arriscar a palavra inteira.
+const semTeto = salaAjuda({ help: "custa", maxMisses: 0 }, { helpAsks: { ze: { at: 1 } } });
+await updateDb(refDb(dbTeste, "rooms/AJU2/hangman"), JSON.parse(JSON.stringify(semTeto.hangman)));
+await serveBrasaHelp("AJU2", semTeto, "cap", "ze", "banana");
+const dep2 = (await getDb(refDb(dbTeste, "rooms/AJU2/hangman"))).val();
+check2("sem teto, o preço é outro", String(!!dep2.noWordGuess?.ze), "true");
+check2("e o bloqueio vê-se", String(blockedFromWordGuess({ hangman: dep2 }, "ze")), "true");
+check2("quem não pediu não fica bloqueado", String(blockedFromWordGuess({ hangman: dep2 }, "ana")), "false");
+
+// À borla: revela e não cobra nada.
+const gratis = salaAjuda({ help: "gratis", maxMisses: 6 }, { helpAsks: { ze: { at: 1 } } });
+await updateDb(refDb(dbTeste, "rooms/AJU3/hangman"), JSON.parse(JSON.stringify(gratis.hangman)));
+await serveBrasaHelp("AJU3", gratis, "cap", "ze", "banana");
+const dep3 = (await getDb(refDb(dbTeste, "rooms/AJU3/hangman"))).val();
+check2("à borla não custa erros", dep3.misses, 0);
+check2("nem bloqueia nada", String(dep3.noWordGuess === undefined || dep3.noWordGuess === null), "true");
+check2("mas revela na mesma", String(dep3.mask !== "_a_a_a"), "true");
+check2("helpCosts diz o que é", `${helpCosts(salaAjuda({ help: "custa" }))}/${helpCosts(salaAjuda({ help: "gratis" }))}`, "true/false");
+
+// Quem não tem a caneta não serve pedidos: quem serve é quem sabe a palavra.
+const tentaServir = salaAjuda({ help: "gratis" }, { helpAsks: { ze: { at: 1 } } });
+await updateDb(refDb(dbTeste, "rooms/AJU4/hangman"), JSON.parse(JSON.stringify(tentaServir.hangman)));
+await serveBrasaHelp("AJU4", tentaServir, "ana", "ze", "banana");
+const dep4 = (await getDb(refDb(dbTeste, "rooms/AJU4/hangman"))).val();
+check2("quem não tem a caneta não serve", dep4.mask, "_a_a_a");
