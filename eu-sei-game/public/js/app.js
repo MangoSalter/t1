@@ -20,6 +20,7 @@ import {
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
   spawnTagPowerup, resolveTagRound, finishTagRound, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
+  TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, tagClampToWalls, tagTravadoPor,
   TAG_POWERUP_MAX_ACTIVE, TAG_POWERUP_SPAWN_INTERVAL_MS, TAG_RESULT_DISPLAY_MS, updateBattlePosition, claimBattleWeapon,
   claimBattleHit, spawnBattleWeapon, resolveBattleRound, finishBattleRound, battleClampToWalls,
   BATTLE_WALLS, BATTLE_PLAYER_RADIUS, BATTLE_WEAPON_RADIUS, BATTLE_WEAPON_MAX_ACTIVE, BATTLE_WEAPON_SPAWN_INTERVAL_MS,
@@ -1230,8 +1231,19 @@ function tagEnter(room) {
   tagEls.arena.innerHTML = "";
   tagState.worldEl = document.createElement("div");
   tagState.worldEl.className = "tag-world";
-  tagState.worldEl.style.width = `${room.tag?.arenaW || 1400}px`;
-  tagState.worldEl.style.height = `${room.tag?.arenaH || 900}px`;
+  tagState.worldEl.style.width = `${room.tag?.arenaW || TAG_ARENA_W}px`;
+  tagState.worldEl.style.height = `${room.tag?.arenaH || TAG_ARENA_H}px`;
+  // As paredes da arena. São uma constante partilhada (como as do Labirinto),
+  // não viajam na sala: desenham-se uma vez ao entrar e ficam.
+  TAG_WALLS.forEach((w) => {
+    const el = document.createElement("div");
+    el.className = "tag-wall";
+    el.style.left = `${w.x}px`;
+    el.style.top = `${w.y}px`;
+    el.style.width = `${w.w}px`;
+    el.style.height = `${w.h}px`;
+    tagState.worldEl.appendChild(el);
+  });
   tagEls.arena.appendChild(tagState.worldEl);
 
   tagState.keydownHandler = (e) => tagHandleKey(e, true);
@@ -1268,6 +1280,10 @@ function tagPlayerEl(uid, name) {
   return el;
 }
 
+// Cada apanhado com a sua cara: a correr não há tempo para ler nada, e um
+// símbolo que não se distingue à primeira é o mesmo que não haver símbolo.
+const TAG_ICONES = { shield: "🛡", speed: "⚡", teleporte: "🌀", lentidao: "🐌" };
+
 function tagRenderPowerups(powerups) {
   const seen = new Set();
   Object.entries(powerups || {}).forEach(([id, p]) => {
@@ -1276,7 +1292,7 @@ function tagRenderPowerups(powerups) {
     if (!el) {
       el = document.createElement("div");
       el.className = `tag-powerup tag-powerup-${p.type}`;
-      el.textContent = p.type === "shield" ? "🛡" : "⚡";
+      el.textContent = TAG_ICONES[p.type] || "⚡";
       tagState.worldEl.appendChild(el);
       tagState.powerupEls[id] = el;
     }
@@ -1316,17 +1332,37 @@ function tagTick(now) {
     tagState.vy *= dragFactor;
 
     const speedBoosted = (tag.effects?.[state.uid]?.speedUntil || 0) > serverNow();
-    const maxSpeed = TAG_MAX_SPEED * (speedBoosted ? TAG_SPEED_BOOST_MULT : 1);
+    // A lentidão trava toda a gente menos quem a apanhou.
+    const travado = tagTravadoPor(tag, state.uid, serverNow());
+    const maxSpeed = TAG_MAX_SPEED
+      * (speedBoosted ? TAG_SPEED_BOOST_MULT : 1)
+      * (travado ? 0.45 : 1);
     const speed = Math.hypot(tagState.vx, tagState.vy);
     if (speed > maxSpeed) {
       tagState.vx = (tagState.vx / speed) * maxSpeed;
       tagState.vy = (tagState.vy / speed) * maxSpeed;
     }
 
-    const arenaW = tag.arenaW || 1400;
-    const arenaH = tag.arenaH || 900;
-    tagState.x = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaW - TAG_PLAYER_RADIUS, tagState.x + tagState.vx * dt));
-    tagState.y = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaH - TAG_PLAYER_RADIUS, tagState.y + tagState.vy * dt));
+    const arenaW = tag.arenaW || TAG_ARENA_W;
+    const arenaH = tag.arenaH || TAG_ARENA_H;
+    const px = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaW - TAG_PLAYER_RADIUS, tagState.x + tagState.vx * dt));
+    const py = Math.max(TAG_PLAYER_RADIUS, Math.min(arenaH - TAG_PLAYER_RADIUS, tagState.y + tagState.vy * dt));
+    // As paredes empurram, como no Labirinto — é a mesma função, para as duas
+    // arenas não divergirem à primeira correção.
+    const livre = tagClampToWalls(px, py, TAG_PLAYER_RADIUS);
+    tagState.x = livre.x;
+    tagState.y = livre.y;
+    // O teletransporte muda a posição na SALA; o ecrã de quem saltou tem de
+    // ir buscá-la, senão continuava a andar de onde estava e o salto não se
+    // via a quem o apanhou.
+    const minha = tag.positions?.[state.uid];
+    if (minha?.saltouEm && minha.saltouEm !== tagState.ultimoSalto) {
+      tagState.ultimoSalto = minha.saltouEm;
+      tagState.x = minha.x;
+      tagState.y = minha.y;
+      tagState.vx = 0;
+      tagState.vy = 0;
+    }
 
     if (now - tagState.lastBroadcastAt > TAG_BROADCAST_INTERVAL_MS) {
       tagState.lastBroadcastAt = now;
@@ -1385,13 +1421,19 @@ function tagTick(now) {
   });
   tagRenderPowerups(tag.powerups);
 
+  // A ARENA INTEIRA NO ECRÃ. Antes a câmara seguia o jogador e via-se um
+  // terço do mapa: não se sabia de onde vinha a infeção nem para onde fugir, e
+  // a perseguição era às cegas. Agora encolhe-se o mundo até caber, e toda a
+  // gente vê toda a gente — que é o que faz uma apanhada valer a pena.
   const viewportW = tagEls.arena.clientWidth;
   const viewportH = tagEls.arena.clientHeight;
-  const arenaW = tag.arenaW || 1400;
-  const arenaH = tag.arenaH || 900;
-  const camX = Math.max(0, Math.min(tagState.x - viewportW / 2, arenaW - viewportW));
-  const camY = Math.max(0, Math.min(tagState.y - viewportH / 2, arenaH - viewportH));
-  tagState.worldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
+  const arenaW = tag.arenaW || TAG_ARENA_W;
+  const arenaH = tag.arenaH || TAG_ARENA_H;
+  const escala = Math.min(viewportW / arenaW, viewportH / arenaH) || 1;
+  const sobraX = (viewportW - arenaW * escala) / 2;
+  const sobraY = (viewportH - arenaH * escala) / 2;
+  tagState.worldEl.style.transformOrigin = "0 0";
+  tagState.worldEl.style.transform = `translate(${sobraX}px, ${sobraY}px) scale(${escala})`;
 
   tagState.rafId = requestAnimationFrame(tagTick);
 }

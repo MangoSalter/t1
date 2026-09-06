@@ -27,8 +27,18 @@ export const MAP_TRIVIA_RESULT_DISPLAY_MS = 9000;
 // a deteção de contacto e a apanha de power-ups são feitas localmente por
 // cada cliente e escritas de volta — não há "física" corrida no servidor,
 // tal como o resto deste jogo (ver nota de confiança acima da Forca). ---
-export const TAG_ARENA_W = 1400;
-export const TAG_ARENA_H = 900;
+// A ARENA ENCOLHEU, e é de propósito. Era 1400x900 com a câmara a seguir o
+// jogador: via-se um terço do mapa, não se sabia de onde vinha a infeção, e o
+// jogo era uma perseguição às cegas. "Vê-se muito pouco enquanto se anda pelo
+// mapa" foi como o dono o descreveu a jogar.
+//
+// Agora a arena cabe INTEIRA no ecrã de toda a gente (o ecrã ajusta a escala)
+// e é mais pequena, para os jogadores continuarem grandes o suficiente para
+// se distinguirem. O que dá a dificuldade deixaram de ser as paredes do
+// enquadramento e passaram a ser as paredes a sério: há por onde fugir, por
+// onde cortar caminho, e cantos onde ficar encurralado.
+export const TAG_ARENA_W = 1200;
+export const TAG_ARENA_H = 760;
 export const TAG_PLAYER_RADIUS = 16;
 export const TAG_ROUND_MS = 60000;
 export const TAG_SURVIVOR_BONUS = 25;
@@ -38,8 +48,32 @@ export const TAG_POWERUP_MAX_ACTIVE = 3;
 export const TAG_POWERUP_SPAWN_INTERVAL_MS = 6000;
 export const TAG_SHIELD_MS = 4000;
 export const TAG_SPEED_MS = 4000;
-export const TAG_POWERUP_TYPES = ["shield", "speed"];
+export const TAG_TELEPORT_MARGEM = 0.12;
+export const TAG_LENTIDAO_MS = 3500;
+// Quatro apanhados, e cada um serve os dois lados — o que é o que os torna
+// interessantes numa perseguição. O escudo e a velocidade ajudam a fugir; o
+// teletransporte tanto tira de um beco como põe à frente de quem foge; e a
+// lentidão trava toda a gente MENOS quem a apanhou, por isso vale a quem
+// corre e a quem persegue.
+export const TAG_POWERUP_TYPES = ["shield", "speed", "teleporte", "lentidao"];
 export const TAG_RESULT_DISPLAY_MS = 6000;
+
+// As paredes da arena da infeção. Desenhadas para NÃO fecharem becos sem
+// saída completos: cada bolsa tem duas bocas, senão quem lá entra está
+// apanhado sem hipótese e a perseguição deixa de ter graça.
+export const TAG_WALLS = [
+  { x: 200, y: 120, w: 24, h: 220 },
+  { x: 200, y: 460, w: 24, h: 200 },
+  { x: 420, y: 0, w: 24, h: 200 },
+  { x: 420, y: 380, w: 24, h: 240 },
+  { x: 620, y: 180, w: 240, h: 24 },
+  { x: 620, y: 560, w: 240, h: 24 },
+  { x: 840, y: 120, w: 24, h: 220 },
+  { x: 840, y: 460, w: 24, h: 200 },
+  { x: 1000, y: 300, w: 180, h: 24 },
+  { x: 120, y: 300, w: 160, h: 24 },
+  { x: 540, y: 340, w: 120, h: 24 },
+];
 
 // --- Labirinto: Batalha em equipa (bónus de fim de partida) — mesma
 // arquitetura de tempo real da Fuga da Infeção (cada cliente controla e
@@ -2387,7 +2421,13 @@ export async function startTagTeam(code, room) {
   const positions = {};
   playerIds.forEach((uid, i) => {
     const spot = TAG_SPAWN_POINTS[i % TAG_SPAWN_POINTS.length];
-    positions[uid] = { x: Math.round(spot.x * TAG_ARENA_W), y: Math.round(spot.y * TAG_ARENA_H), updatedAt: serverNow() };
+    // Fora das paredes: com a arena a ter paredes, um ponto de partida podia
+    // cair dentro de uma e o jogador começava entalado.
+    const livre = clampToWalls(
+      Math.round(spot.x * TAG_ARENA_W), Math.round(spot.y * TAG_ARENA_H),
+      TAG_PLAYER_RADIUS, TAG_WALLS,
+    );
+    positions[uid] = { x: livre.x, y: livre.y, updatedAt: serverNow() };
   });
   await update(roomRef(code), {
     state: "tag",
@@ -2420,12 +2460,27 @@ export async function claimTagInfection(code, targetUid) {
   });
 }
 
+// Um sítio livre para largar um apanhado. Agora que há paredes, o sorteio às
+// cegas punha-os DENTRO delas de vez em quando — visíveis mas impossíveis de
+// apanhar, o que faz o jogo parecer avariado. Tenta-se um punhado de vezes e,
+// não havendo sorte, empurra-se para fora da parede mais próxima.
+export function livreNaArenaDaInfecao(aleatorio = Math.random) {
+  const margem = 0.12;
+  const sorteia = () => ({
+    x: Math.round((margem + aleatorio() * (1 - margem * 2)) * TAG_ARENA_W),
+    y: Math.round((margem + aleatorio() * (1 - margem * 2)) * TAG_ARENA_H),
+  });
+  for (let i = 0; i < 24; i += 1) {
+    const p = sorteia();
+    const fora = clampToWalls(p.x, p.y, TAG_POWERUP_RADIUS, TAG_WALLS);
+    if (fora.x === p.x && fora.y === p.y) return p;
+  }
+  const ultimo = sorteia();
+  return clampToWalls(ultimo.x, ultimo.y, TAG_POWERUP_RADIUS, TAG_WALLS);
+}
+
 function randomTagPowerupSpot() {
-  const margin = 0.12;
-  return {
-    x: Math.round((margin + Math.random() * (1 - margin * 2)) * TAG_ARENA_W),
-    y: Math.round((margin + Math.random() * (1 - margin * 2)) * TAG_ARENA_H),
-  };
+  return livreNaArenaDaInfecao();
 }
 
 export async function spawnTagPowerup(code, room) {
@@ -2450,10 +2505,37 @@ export async function claimTagPowerup(code, uid, powerupId, type) {
     return null;
   });
   if (!result.committed || result.snapshot.val() !== null) return false;
+  const agora = serverNow();
+  if (type === "teleporte") {
+    // Salta para outro sítio da arena. Tira de um beco a quem foge e põe do
+    // outro lado do mapa a quem persegue — é o único apanhado que muda a
+    // posição em vez de mudar a velocidade, e por isso o mais surpreendente.
+    const destino = livreNaArenaDaInfecao();
+    await update(ref(db, `rooms/${code}/tag/positions/${uid}`), {
+      x: destino.x, y: destino.y, updatedAt: agora, saltouEm: agora,
+    });
+    return true;
+  }
+  if (type === "lentidao") {
+    // Trava toda a gente MENOS quem o apanhou. Vale aos dois lados: a quem
+    // foge dá distância, a quem persegue dá alcance.
+    await update(ref(db, `rooms/${code}/tag`), {
+      lentidao: { ate: agora + TAG_LENTIDAO_MS, de: uid },
+    });
+    return true;
+  }
   const effectField = type === "speed" ? "speedUntil" : "shieldUntil";
   const duration = type === "speed" ? TAG_SPEED_MS : TAG_SHIELD_MS;
-  await update(ref(db, `rooms/${code}/tag/effects/${uid}`), { [effectField]: serverNow() + duration });
+  await update(ref(db, `rooms/${code}/tag/effects/${uid}`), { [effectField]: agora + duration });
   return true;
+}
+
+// Estou travado pela lentidão de outro? Pura, para o ecrã não ter de repetir
+// a conta e para se poder testar sem browser.
+export function tagTravadoPor(tag, uid, agora = Date.now()) {
+  const l = tag?.lentidao;
+  if (!l || !l.ate || agora >= l.ate) return false;
+  return l.de !== uid;
 }
 
 // Função pura — fácil de testar sem Firebase. Pontos = segundos
@@ -2503,10 +2585,13 @@ export async function finishTagRound(code, room) {
 // de qualquer parede em que esteja metido, ao longo do eixo com menor
 // sobreposição. Usada tanto para validar pontos de surgimento de armas como
 // para resolver colisões de movimento no cliente (ver app.js).
-export function battleClampToWalls(x, y, radius) {
+// Empurra um ponto para fora das paredes. Serve os dois jogos de arena — o
+// Labirinto e a Fuga da Infeção — porque a regra é a mesma e duplicá-la era
+// arranjar maneira de as duas divergirem à primeira correção.
+export function clampToWalls(x, y, radius, walls) {
   let px = x;
   let py = y;
-  for (const wall of BATTLE_WALLS) {
+  for (const wall of walls) {
     const left = wall.x - radius;
     const right = wall.x + wall.w + radius;
     const top = wall.y - radius;
@@ -2525,6 +2610,15 @@ export function battleClampToWalls(x, y, radius) {
   }
   return { x: px, y: py };
 }
+
+export function battleClampToWalls(x, y, radius) {
+  return clampToWalls(x, y, radius, BATTLE_WALLS);
+}
+
+export function tagClampToWalls(x, y, radius) {
+  return clampToWalls(x, y, radius, TAG_WALLS);
+}
+
 
 const BATTLE_SPAWN_POINTS = [
   { x: 0.071, y: 0.111 }, { x: 0.929, y: 0.111 }, { x: 0.071, y: 0.889 }, { x: 0.929, y: 0.889 },

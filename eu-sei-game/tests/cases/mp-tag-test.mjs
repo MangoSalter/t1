@@ -112,6 +112,37 @@ const anaShielded = (room.tag.effects?.[hostId]?.shieldUntil || 0) > Date.now();
 console.log(`   Ana tem escudo ativo: ${anaShielded} (esperado true)`);
 if (!anaShielded) { console.log("   FALHOU: efeito de escudo não foi aplicado"); process.exitCode = 1; }
 
+console.log("5b) A ARENA INTEIRA cabe no ecrã, e as paredes estão lá...");
+// A queixa do playtest era esta: "vê-se muito pouco enquanto se anda pelo
+// mapa". A câmara seguia o jogador e mostrava um terço da arena. Agora o
+// mundo encolhe até caber, e o que se verifica é isso mesmo — o retângulo
+// desenhado do mundo tem de caber dentro do retângulo da arena no ecrã.
+const enquadramento = await page.evaluate(() => {
+  const arena = document.getElementById("tag-arena");
+  const mundo = arena.querySelector(".tag-world");
+  const a = arena.getBoundingClientRect();
+  const m = mundo.getBoundingClientRect();
+  return {
+    arena: { w: Math.round(a.width), h: Math.round(a.height) },
+    mundo: { w: Math.round(m.width), h: Math.round(m.height) },
+    forasX: Math.round(m.left - a.left), forasY: Math.round(m.top - a.top),
+    paredes: arena.querySelectorAll(".tag-wall").length,
+  };
+});
+console.log(`   arena ${enquadramento.arena.w}x${enquadramento.arena.h}, mundo desenhado ${enquadramento.mundo.w}x${enquadramento.mundo.h}, paredes: ${enquadramento.paredes}`);
+if (enquadramento.mundo.w > enquadramento.arena.w + 2 || enquadramento.mundo.h > enquadramento.arena.h + 2) {
+  console.log("   FALHOU: o mundo não cabe no ecrã — voltou a ver-se só um bocado do mapa");
+  process.exitCode = 1;
+}
+if (enquadramento.forasX < -2 || enquadramento.forasY < -2) {
+  console.log("   FALHOU: o mundo está a sair para fora da arena");
+  process.exitCode = 1;
+}
+if (enquadramento.paredes < 8) {
+  console.log(`   FALHOU: as paredes deviam estar desenhadas (só ${enquadramento.paredes})`);
+  process.exitCode = 1;
+}
+
 console.log("6) Forçar fim da ronda (endAt no passado) e confirmar resolução + pontos...");
 // Quem sobreviveu sai do infectedAt, não do infected: a ronda nova do passo 5
 // começou limpa, por isso diz-se aqui, explicitamente, quem é que foi apanhado
