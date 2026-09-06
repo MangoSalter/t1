@@ -102,12 +102,23 @@ if (shopVisible) {
   }
   console.log("7) Continuar para o próximo blind...");
   await page.click("#card-shop-continue-btn");
-  await page.waitForTimeout(200);
+  // Esperar pela MAO e nao por um relogio: estavam aqui 200 ms fixos.
+  //
+  // E esperar por SETE OU MAIS, nao por sete exatos. Um dos coringas da loja
+  // da "+2 cartas na mao em cada blind", o passo anterior compra um coringa a
+  // sorte, e quando calhava esse a mao vinha com nove — o teste falhava uma
+  // vez em cada tres a acusar um jogo que estava a fazer exatamente o que
+  // prometia. Sete e o minimo; mais do que isso e um coringa a funcionar.
+  await page.waitForFunction(
+    () => document.querySelectorAll(".card-hand-area .playing-card").length >= 7,
+    { timeout: 5000 },
+  ).catch(() => {});
   const blindInfo = await page.locator("#card-blind-info").textContent();
   console.log(`   ${blindInfo} (esperado Blind 2/5)`);
   if (!blindInfo.includes("Blind 2/5")) { console.log("   FALHOU"); process.exitCode = 1; }
   const handAfterShop = await handCount();
-  if (handAfterShop !== 7) { console.log("   FALHOU: mão devia ter 7 cartas no novo blind"); process.exitCode = 1; }
+  console.log(`   mão no blind novo: ${handAfterShop} (7, ou mais se o coringa comprado der cartas)`);
+  if (handAfterShop < 7) { console.log("   FALHOU: mão devia ter pelo menos 7 cartas no novo blind"); process.exitCode = 1; }
 } else if (resultVisible) {
   console.log("6) Perdeu o 1º blind antes de tempo (mão azarada) — ainda válido, testa o ecrã de fim.");
 } else {
