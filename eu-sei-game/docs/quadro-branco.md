@@ -83,14 +83,60 @@ Cheio, avisa; carrega-se em Limpar e continua-se.
 
 ## O que ainda não está decidido
 
-Coisas que estão em aberto à espera de uma escolha de gosto, não de código:
+Quatro escolhas de gosto que não são minhas para fazer. Estão aqui com opções
+concretas e uma recomendação em cada, para se responderem numa linha.
 
-- O quadro não dá pontos nenhuns ao placar geral da sala. Adivinhar na Forca
-  devia valer pontos?
-- A Brasa ajuda a quem pedir, e o custo já está decidido (grátis a solo; na
-  sala, quem cria escolhe entre não haver ajuda, haver com consequência, ou
-  ser à borla). Falta decidir QUANDO ele se oferece: só a pedido,
-  automaticamente ao fim de N erros, ou por iniciativa dele.
-- Modos novos além de livre e Forca.
-- Sons, com que frequência a Dona Manga interfere, e o equilíbrio de pontos
-  entre os mini-jogos.
+### 1. O quadro dá pontos à sala?
+
+Hoje não dá nenhuns: joga-se, ganha-se a partida do quadro, e o placar geral da
+sala fica na mesma.
+
+- **(a) Continuar assim.** O quadro é uma pausa entre rondas, não conta.
+- **(b) Contar, com os números que já existem.** Cada letra certa vale 1 e a
+  palavra inteira vale 3 — é exatamente o que o `matchScore` já conta dentro do
+  quadro; faltava só somá-lo ao placar da sala no fim da partida.
+- **(c) Só um bónus ao vencedor** da partida do quadro, como no "Desenha e
+  Adivinha" (que dá 15 a quem acerta e 8 a quem desenhou).
+
+*Recomendo (b)*: as contas já estão feitas e testadas, é ligá-las. E dá ao
+quadro a mesma dignidade dos outros mini-jogos, em vez de o deixar a valer zero.
+
+### 2. Quando é que a Brasa se oferece para ajudar?
+
+O custo já está decidido (grátis a solo; na sala, quem cria escolhe entre não
+haver ajuda, haver com consequência, ou ser à borla). Falta o momento.
+
+- **(a) Só a pedido.** Há um botão, carrega-se nele.
+- **(b) A pedido, e ele também se oferece ao fim de alguns erros** — pergunta
+  "queres uma ajuda?" e a pessoa aceita ou recusa.
+- **(c) Ele ajuda sozinho**, sem perguntar, quando vê a coisa mal parada.
+
+*Recomendo (b)*: o custo continua a ser escolhido por quem o paga, e um
+ajudante que se chega à frente mas que se pode mandar embora tem mais graça do
+que um botão.
+
+### 3. Modos novos, além de desenho livre e Forca
+
+Com o quadro em módulo próprio, um modo novo é barato. Três ideias, da mais
+fácil para a mais trabalhosa:
+
+- **Desenha e adivinha, dentro do quadro.** Um desenha uma palavra, os outros
+  escrevem o palpite na caixa que já existe. Reaproveita quase tudo o que a
+  Forca já tem: a caneta, as cores, a vez, o histórico.
+- **Cadáver esquisito.** Cada um acrescenta um bocado do desenho sem ver o que
+  os outros fizeram, e no fim revela-se a folha inteira.
+- **Ditado maluco.** A Dona Manga dita uma frase e cada um escreve o que
+  percebeu; compara-se no fim.
+
+*Recomendo o primeiro*, por ser o que reaproveita mais e o que já se sabe que
+funciona.
+
+### 4. Som, caos e equilíbrio
+
+- **Caos:** a Dona Manga entra a cada 3 erros da ronda (`BOARD_CHAOS_EVERY`), e
+  vem desligada por omissão. Mais? Menos? Ligada de origem?
+- **Som:** o quadro não tem nenhum. Vale a pena um risco de giz ao desenhar e
+  um som para a letra certa e outro para a errada?
+- **Equilíbrio:** se a resposta à pergunta 1 for (b) ou (c), os pontos do
+  quadro passam a competir com os dos outros mini-jogos, e aí sim é preciso
+  olhar para todos ao mesmo tempo.
