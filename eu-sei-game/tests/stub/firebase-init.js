@@ -1,3 +1,4 @@
+import { identidadeDestaAba } from "./identity.js";
 // STUB da Realtime Database para os testes headless.
 //
 // Simula o suficiente (caminhos aninhados, listeners em cascata para o pai,
@@ -250,25 +251,19 @@ export function serverNow() {
   return Date.now();
 }
 
-// O login anonimo da Firebase guarda a sessao: recarregar a pagina devolve o
-// MESMO uid. O stub inventava um novo a cada chamada, e assim nenhum teste
-// conseguia chegar ao caso "recarreguei e continuo a ser a mesma pessoa" — que
-// e o que mais acontece num telemovel.
+// A IDENTIDADE E A MESMA DO JOGO, nao uma copia.
 //
-// Fica em sessionStorage e nao em localStorage de proposito: sessionStorage e
-// por SEPARADOR e sobrevive ao recarregamento, que e exatamente o que se quer
-// aqui. Em localStorage, os dois separadores que os testes multijogador usam
-// como dois jogadores passavam a ser a mesma pessoa.
-const UID_KEY = "euSei_stubUid";
+// Este stub ja teve o seu proprio getUid, e foi por isso que o defeito
+// original passou despercebido a todos os testes multi-cliente: o stub dava a
+// cada separador uma identidade propria, o jogo a serio dava a mesma conta a
+// todos os separadores do mesmo browser, e nenhum teste podia ver a
+// diferenca. Agora os dois chamam o mesmo identity.js — se essa decisao
+// mudar, muda para os dois ao mesmo tempo.
+//
+// O que continua a ser fingido e so a CONTA: nao ha Firebase nenhum aqui, por
+// isso inventa-se um identificador de conta por pagina.
+const contaFingida = "test-uid-" + Math.random().toString(36).slice(2, 8);
 
 export async function getUid() {
-  try {
-    const guardado = sessionStorage.getItem(UID_KEY);
-    if (guardado) return guardado;
-    const novo = "test-uid-" + Math.random().toString(36).slice(2, 8);
-    sessionStorage.setItem(UID_KEY, novo);
-    return novo;
-  } catch {
-    return "test-uid-" + Math.random().toString(36).slice(2, 8);
-  }
+  return identidadeDestaAba(contaFingida);
 }

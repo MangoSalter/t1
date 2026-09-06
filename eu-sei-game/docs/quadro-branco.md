@@ -12,9 +12,12 @@ pessoa escrevia por cima da primeira. Agora cada separador é uma pessoa. Podem
 todos jogar no mesmo computador, cada um com o seu separador — ou cada um no
 seu telemóvel, tanto faz.
 
-O que ainda não funciona: fechar o separador e voltar a abri-lo entra como
-jogador NOVO, e o antigo fica na lista como desligado. Recarregar a página (F5)
-está bem, isso mantém a identidade. Só não fechem a janela a meio.
+Fechar o separador sem querer também está resolvido: ao voltar a abrir a
+página, o separador novo pergunta aos outros se alguém está a usar a
+identidade anterior e, se ninguém estiver, fica com ela — volta-se como a mesma
+pessoa. Recarregar (F5) mantém sempre. Só se entra como gente nova quando a
+identidade antiga ainda está aberta noutro separador, que é precisamente o que
+se quer.
 
 **Quem chega atrasado entra.** O quadro é a única atividade em que uma sala a
 meio aceita gente nova: escolhe a cor e começa a arriscar. Nos outros jogos a
