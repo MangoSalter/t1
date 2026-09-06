@@ -37,9 +37,14 @@ const PORTAS_BASE = [8936, 8937];
 
 const args = process.argv.slice(2);
 let jobs = 4;
+// Por omissão só se vê o que falhou — a suite inteira despejada é ilegível e
+// cara. Com --ver mostra-se tudo, que é o que se quer quando se acabou de
+// escrever um caso e se precisa de ver se ele testou mesmo alguma coisa.
+let verboso = false;
 const filters = [];
 for (let i = 0; i < args.length; i += 1) {
   if (args[i] === "--jobs") { jobs = Math.max(1, Number(args[i + 1]) || 1); i += 1; }
+  else if (args[i] === "--ver") verboso = true;
   else filters.push(args[i]);
 }
 
@@ -139,7 +144,7 @@ try {
     p.on("close", (c) => {
       clearTimeout(kill);
       if (c !== 0) console.log(`${file.padEnd(34)} FALHOU\n${out.split("\n").slice(-40).join("\n")}`);
-      else console.log(`${file.padEnd(34)} ok`);
+      else console.log(verboso ? `${file.padEnd(34)} ok\n${out}` : `${file.padEnd(34)} ok`);
       if (c !== 0) failed.push(file);
       resolve();
     });

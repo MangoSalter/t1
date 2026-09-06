@@ -525,7 +525,9 @@ export function resumo(agora = Date.now()) {
   let somaMs = 0;
   let comPista = 0;
   marcador.jogadas.forEach((j) => {
-    porContinente[j.cont] = (porContinente[j.cont] || 0) + 1;
+    // Os oceanos não são de continente nenhum. Sem esta guarda, o retrato de
+    // uma partida no modo dos oceanos dizia "és mais forte em undefined".
+    if (j.cont) porContinente[j.cont] = (porContinente[j.cont] || 0) + 1;
     somaMs += j.ms;
     if (j.compista) comPista++;
     if (!maisRapido || j.ms < maisRapido.ms) maisRapido = j;

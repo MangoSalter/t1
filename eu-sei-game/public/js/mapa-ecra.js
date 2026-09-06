@@ -30,6 +30,11 @@ const els = {
   ajudaBtn: document.getElementById("mapa-ajuda-btn"),
   hipotesesBtn: document.getElementById("mapa-hipoteses-btn"),
   hipoteses: document.getElementById("mapa-hipoteses"),
+  fim: document.getElementById("mapa-fim"),
+  fimNumeros: document.getElementById("mapa-fim-numeros"),
+  fimContinentes: document.getElementById("mapa-fim-continentes"),
+  fimFecharBtn: document.getElementById("mapa-fim-fechar-btn"),
+  fimOutraBtn: document.getElementById("mapa-fim-outra-btn"),
   openBtns: document.querySelectorAll("[data-open-mapa]"),
 };
 
@@ -77,6 +82,8 @@ export function ligarASala(adaptador) {
   // trabalho dos outros no ecrã de um só — o mapa passaria a estar diferente
   // em cada sítio. O botão sai.
   els.recomecarBtn?.classList.toggle("hidden", !!jogo.sala);
+  // Pelo mesmo motivo: "outra vez" limparia o mapa a toda a gente.
+  els.fimOutraBtn?.classList.toggle("hidden", !!jogo.sala);
   els.modo?.toggleAttribute("disabled", !!jogo.sala);
 }
 
@@ -182,8 +189,64 @@ export function dizerNoMapa(texto) {
 // O que se diz depois de acertar. No fim, o retrato da partida — é o momento
 // em que apetece saber quanto se fez, e não só que acabou. A meio, uma
 // sequência a sério (3 ou mais) é notícia; abaixo disso, o de sempre.
+// O RETRATO DA PARTIDA, em painel. Estava numa linha de estado com nove
+// números separados por pontos — cabia, mas ninguém o lia, e era pena: os
+// números são a única coisa que uma pessoa quer contar a outra depois de
+// acabar um mapa. Aqui cada um tem o seu lugar e o seu rótulo.
+function mostrarFim() {
+  if (!els.fim) return;
+  const r = resumo();
+  const linhas = [
+    [r.certos, t("mapaFimPaises")],
+    [t("mapaFimSegundos", r.segundos), t("mapaFimTempo")],
+    [r.pontos, t("mapaFimPontos")],
+    [r.porMinuto, t("mapaFimRitmo")],
+    [r.melhorCadeia, t("mapaFimCadeia")],
+    r.precisao === null ? null : [`${r.precisao}%`, t("mapaFimPrecisao")],
+    r.tempoMedio === null ? null : [t("mapaFimSegundos", r.tempoMedio), t("mapaFimMedia")],
+    r.maisRapido ? [r.maisRapido.nome, `${t("mapaFimRapido")} (${t("mapaFimSegundos", r.maisRapido.segundos)})`] : null,
+    r.favorito ? [r.favorito.cont, t("mapaFimForte")] : null,
+    [`${r.semPista}/${r.certos}`, t("mapaFimDeCabeca")],
+  ].filter(Boolean);
+  els.fimNumeros.innerHTML = "";
+  linhas.forEach(([valor, rotulo]) => {
+    const li = document.createElement("li");
+    const b = document.createElement("b");
+    b.textContent = String(valor);
+    const s2 = document.createElement("span");
+    s2.textContent = rotulo;
+    li.append(b, s2);
+    els.fimNumeros.appendChild(li);
+  });
+  // A cobertura por continente, em barras. Diz mais do que um total: 8 de 54
+  // em África e 40 de 45 na Europa é o retrato de quem sabe a Europa.
+  els.fimContinentes.innerHTML = "";
+  Object.entries(r.cobertura)
+    .sort((a, b) => (b[1].feitos / b[1].total) - (a[1].feitos / a[1].total))
+    .forEach(([cont, n]) => {
+      const div = document.createElement("div");
+      div.className = "mapa-fim-cont";
+      const nome = document.createElement("span");
+      nome.textContent = cont;
+      const conta = document.createElement("span");
+      conta.textContent = `${n.feitos}/${n.total}`;
+      const barra = document.createElement("div");
+      barra.className = "mapa-fim-barra";
+      const dentro = document.createElement("i");
+      dentro.style.width = `${Math.round((n.feitos / Math.max(1, n.total)) * 100)}%`;
+      barra.appendChild(dentro);
+      div.append(nome, conta, barra);
+      els.fimContinentes.appendChild(div);
+    });
+  els.fim.classList.remove("hidden");
+}
+
+function esconderFim() {
+  els.fim?.classList.add("hidden");
+}
+
 function mensagemDeAcerto(pais) {
-  if (estaCompleto()) return `${t("mapaAcabou")} ${t("mapaRetrato", resumo())}`;
+  if (estaCompleto()) { mostrarFim(); return t("mapaAcabou"); }
   const ultima = marcador.jogadas[marcador.jogadas.length - 1];
   if (marcador.cadeia >= 3 && ultima) {
     return t("mapaCadeia", marcador.cadeia, ultima.pontos);
@@ -257,6 +320,7 @@ function trocarModo(chave) {
   // Trocar de modo é começar outra partida: o ritmo e a sequência da Europa
   // não podem ser levados para a África.
   reiniciarMarcador();
+  esconderFim();
   jogo.hipotesesLivreEm = 0;
   esconderHipoteses();
   if (els.hipotesesBtn) delete els.hipotesesBtn.dataset.destravado;
@@ -406,12 +470,22 @@ if (haEcra()) {
     mostrarHipoteses(mapa.selecionado);
   });
 
+  els.fimFecharBtn?.addEventListener("click", () => {
+    esconderFim();
+    focar();
+  });
+  els.fimOutraBtn?.addEventListener("click", () => {
+    esconderFim();
+    els.recomecarBtn?.click();
+  });
+
   els.recomecarBtn.addEventListener("click", () => {
     mapa.donos = {};
     mapa.pistas = [];
     mapa.selecionado = null;
     jogo.jaSugeridos = [];
     reiniciarMarcador();
+    esconderFim();
     redesenhar();
     dizer(t("mapaLimpo"));
     armarAjuda();

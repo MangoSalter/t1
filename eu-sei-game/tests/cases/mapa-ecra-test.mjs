@@ -346,6 +346,71 @@ const paisesAindaLa = await page.evaluate(async () => (await import("./js/mapa.j
 if (paisesAindaLa !== 177) fail("mudar de língua não pode perder o mapa");
 await page.evaluate(async () => (await import("./js/i18n.js")).definirLingua("pt"));
 
+console.log("N) Acabar um mapa mostra o RETRATO da partida, com números que se leem...");
+// Faz-se no modo dos oceanos porque são cinco: é o único modo que um teste
+// pode acabar de verdade, e acabar de verdade é a única maneira de provar que
+// o painel de fim aparece quando deve e diz o que deve.
+await page.selectOption("#mapa-modo", "oceanos");
+await page.waitForTimeout(300);
+const oceanos = ["pacifico", "atlantico", "indico", "antartico", "artico"];
+for (const nome of oceanos) {
+  await page.fill("#mapa-input", nome);
+  await page.click("#mapa-form button[type=submit]");
+  await page.waitForTimeout(120);
+}
+const oceanosFeitos = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.donos).length;
+});
+console.log(`   oceanos conquistados: ${oceanosFeitos} de 5`);
+if (oceanosFeitos !== 5) fail(`os cinco oceanos deviam ter sido conquistados (foram ${oceanosFeitos})`);
+
+await page.waitForSelector("#mapa-fim:not(.hidden)", { timeout: 5000 });
+const retrato = await page.evaluate(() =>
+  [...document.querySelectorAll("#mapa-fim-numeros li")].map((li) => ({
+    valor: li.querySelector("b").textContent,
+    rotulo: li.querySelector("span").textContent,
+  })));
+console.log(`   o painel mostra ${retrato.length} números: ${retrato.map((r) => `${r.valor} ${r.rotulo}`).join(" · ")}`);
+if (retrato.length < 6) fail(`o retrato devia ter pelo menos seis números (tem ${retrato.length})`);
+const paises = retrato.find((r) => /países|countries/i.test(r.rotulo));
+if (!paises || paises.valor !== "5") fail("o retrato devia dizer que foram cinco");
+// Nenhum número pode sair vazio, indefinido ou NaN — é o tipo de coisa que
+// passa despercebida num painel bonito e faz o jogo parecer partido.
+const vazios = retrato.filter((r) => !r.valor || /undefined|NaN|null/.test(r.valor));
+if (vazios.length) fail(`números por preencher no retrato: ${JSON.stringify(vazios)}`);
+
+console.log("N+1) 'Ver o mapa' fecha o painel e deixa olhar para o que se fez...");
+await page.click("#mapa-fim-fechar-btn");
+// Esperar por um seletor espera que ele fique VISÍVEL, e um painel escondido
+// nunca fica — o teste ficava três segundos à espera do impossível.
+await page.waitForFunction(() => document.getElementById("mapa-fim").classList.contains("hidden"), { timeout: 3000 });
+const aindaConquistados = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.donos).length;
+});
+console.log(`   painel fechado, oceanos ainda pintados: ${aindaConquistados}`);
+if (aindaConquistados !== 5) fail("fechar o painel não pode desfazer a partida");
+
+console.log("N+2) 'Outra vez' limpa e o painel não volta sozinho...");
+await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  m.mapa.donos = { "Oceano Pacífico": "#b24b38" };
+});
+await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  m.mapa.donos = {};
+});
+await page.click("#mapa-recomecar-btn");
+const painelDepois = await page.evaluate(() => document.getElementById("mapa-fim").classList.contains("hidden"));
+const limpo = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.donos).length;
+});
+console.log(`   depois de recomeçar: ${limpo} conquistados, painel escondido: ${painelDepois}`);
+if (limpo !== 0) fail("recomeçar devia limpar o mapa");
+if (!painelDepois) fail("o painel de fim não devia ficar aberto depois de recomeçar");
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

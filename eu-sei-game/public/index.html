@@ -595,6 +595,18 @@
       <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses"></div>
       <!-- Só aparece em sala: sozinho não há classificação nenhuma para dar. -->
       <ol id="mapa-sala-tabela" class="mapa-sala-tabela hidden" aria-label="Classificação"></ol>
+      <!-- O retrato da partida. Vinha numa linha de estado com nove números
+           separados por pontos, que ninguém lia. Aqui é um painel, aparece
+           quando o mapa fica completo, e fecha-se para se ver o que se fez. -->
+      <div id="mapa-fim" class="mapa-fim hidden" role="dialog" aria-modal="false" aria-labelledby="mapa-fim-titulo">
+        <h3 id="mapa-fim-titulo" data-i18n="mapaFimTitulo">Mapa completo!</h3>
+        <ul id="mapa-fim-numeros" class="mapa-fim-numeros"></ul>
+        <div id="mapa-fim-continentes" class="mapa-fim-continentes"></div>
+        <div class="mapa-fim-botoes">
+          <button type="button" id="mapa-fim-fechar-btn" class="ghost" data-i18n="mapaFimVer">Ver o mapa</button>
+          <button type="button" id="mapa-fim-outra-btn" class="primary" data-i18n="mapaFimOutra">Outra vez</button>
+        </div>
+      </div>
     </div>
   </section>
   <section data-screen="board" class="screen board-screen">

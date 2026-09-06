@@ -425,6 +425,20 @@ check("separa os feitos com pista dos feitos de cabeça", `${r.comPista}/${r.sem
 check("a cobertura da Europa conta o total do continente",
   r.cobertura[italia.cont].feitos, 3);
 
+console.log("22b) Uma partida só de oceanos não inventa um continente...");
+// Os oceanos não têm continente. O retrato dizia "és mais forte em undefined"
+// — apanhado no ecrã, com o painel de fim já feito, e é o tipo de coisa que
+// faz o jogo parecer partido justamente quando se acabou de o ganhar.
+m.mapa.donos = {};
+m.mapa.pistas = [];
+m.reiniciarMarcador();
+const pacifico = m.OCEANOS[0];
+m.conquistar(pacifico, "#b24b38", t0);
+m.conquistar(m.OCEANOS[1], "#b24b38", t0 + 5000);
+const soMar = m.resumo(t0 + 60_000);
+check("conta os oceanos", soMar.certos, 2);
+check("e não inventa um continente favorito", String(soMar.favorito), "null");
+
 console.log("23) Recomeçar limpa o marcador...");
 m.reiniciarMarcador();
 const vazio = m.resumo(t0 + 60_000);

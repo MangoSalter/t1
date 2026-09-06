@@ -37,6 +37,7 @@ await ana.waitForFunction(() => !document.getElementById("create-room-btn").disa
 await ana.click("#create-room-btn");
 await ana.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
 const code = (await ana.locator("#lobby-code").textContent()).trim();
+const anaUid = await ana.evaluate((c) => window.__testDb.get(`rooms/${c}`).hostId, code);
 await beto.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
 await emPortugues(beto);
 await beto.fill("#name-input", "Beto");
@@ -148,7 +149,80 @@ console.log(`   e o mapa disse-lhe: "${disse}"`);
 if (!/roub/i.test(disse)) fail("a Ana devia saber que roubou o país a quem falhou");
 semErros("depois de roubar");
 
-console.log("6) Nenhum erro de JavaScript em todo o percurso...");
+console.log("6) A ajuda do Brasa aparece no mapa DE TODA A GENTE, não só de quem a pediu...");
+// Uma ajuda que só um vê não é uma ajuda numa sala: é uma vantagem, e quem
+// pediu ajuda não devia ficar à frente por ter pedido ajuda.
+const pistasDe = (p) => p.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return [...(m.mapa.pistas || [])];
+});
+console.log(`   pistas antes: Ana ${JSON.stringify(await pistasDe(ana))}, Beto ${JSON.stringify(await pistasDe(beto))}`);
+await beto.click("#mapa-ajuda-btn");
+await ana.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return (m.mapa.pistas || []).length > 0;
+}, { timeout: 10000 });
+const pistasAna = await pistasDe(ana);
+const pistasBeto = await pistasDe(beto);
+console.log(`   o Beto pediu ajuda e a Ana passou a ver: ${JSON.stringify(pistasAna)}`);
+if (pistasAna.length === 0) fail("a bandeira revelada devia aparecer também no mapa da Ana");
+if (JSON.stringify(pistasAna) !== JSON.stringify(pistasBeto)) {
+  fail(`os dois mapas deviam mostrar as mesmas pistas (Ana ${JSON.stringify(pistasAna)}, Beto ${JSON.stringify(pistasBeto)})`);
+}
+semErros("depois da ajuda");
+
+console.log("7) A Dona Manga rouba um país a quem o tinha, e os dois ecrãs dão por isso...");
+// O anfitrião é que a solta, ao fim de MAPA_MANGA_CADA_MS. Em vez de esperar
+// noventa segundos, envelhece-se o relógio da partida.
+const antesDaManga = await donos(ana);
+console.log(`   países conquistados antes: ${JSON.stringify(Object.keys(antesDaManga))}`);
+// A gata só rouba com três países no mapa — é preciso mais um.
+await escrever(ana, "peru");
+await ana.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.donos).length >= 3;
+}, { timeout: 10000 });
+await ana.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/mapa`, { comecouEm: Date.now() - 600000 });
+}, code);
+await ana.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).mapa?.manga, code, { timeout: 20000 });
+const travessura = await ana.evaluate((c) => window.__testDb.get(`rooms/${c}`).mapa.manga, code);
+console.log(`   a Dona Manga levou: ${travessura.pais} (era de ${travessura.de === anaUid ? "Ana" : travessura.de})`);
+if (!travessura.pais) fail("a gata devia ter escolhido um país");
+// E o país volta mesmo a estar por conquistar, nos dois ecrãs.
+for (const [nome, p] of [["Ana", ana], ["Beto", beto]]) {
+  await p.waitForFunction(async (alvo) => {
+    const m = await import("./js/mapa.js");
+    return !m.mapa.donos[alvo];
+  }, travessura.pais, { timeout: 10000 }).catch(() => fail(`${nome} devia ver ${travessura.pais} outra vez por conquistar`));
+}
+const anuncio = (await ana.locator("#mapa-status").textContent()).trim();
+console.log(`   e o mapa disse: "${anuncio}"`);
+if (!/manga/i.test(anuncio)) fail("o mapa devia contar que foi a Dona Manga");
+semErros("depois da travessura");
+
+console.log("8) Acabar a partida paga um pódio ao placar da sala, não os pontos todos do mapa...");
+const marcadorDaAna = await ana.evaluate((c) => window.__testDb.get(`rooms/${c}`).mapa.marcadores, code);
+const pontosNoMapa = marcadorDaAna[anaUid]?.pontos || 0;
+const scoreAntes = await ana.evaluate((c) => window.__testDb.get(`rooms/${c}`).players[window.__testDb.get(`rooms/${c}`).hostId].score || 0, code);
+console.log(`   a Ana tem ${pontosNoMapa} pontos no mapa e ${scoreAntes} no placar da sala`);
+if (scoreAntes !== 0) fail("durante o jogo o mapa não devia estar a somar ao placar da sala");
+// O anfitrião acaba a partida pelo botão de voltar.
+await ana.click("#mapa-exit-btn");
+await ana.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).mapa?.pago === true, code, { timeout: 15000 });
+const pago = await ana.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  return { pagamento: r.mapa.pagamento, scores: Object.fromEntries(Object.entries(r.players).map(([u, p]) => [p.name, p.score || 0])) };
+}, code);
+console.log(`   pagamento: ${JSON.stringify(pago.pagamento)} · placar: ${JSON.stringify(pago.scores)}`);
+if (!(pago.scores.Ana > 0)) fail("a Ana devia ter levado alguma coisa por ter conquistado mais");
+if (pago.scores.Ana > 40) fail(`o mapa não pode pagar ${pago.scores.Ana} à sala — os outros bónus pagam 25`);
+if (pontosNoMapa > 40 && pago.scores.Ana >= pontosNoMapa) {
+  fail("o placar da sala não pode levar os pontos todos do marcador do mapa");
+}
+semErros("depois de pagar");
+
+console.log("9) Nenhum erro de JavaScript em todo o percurso...");
 semErros("no fim");
 console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: ok");
 await browser.close();
