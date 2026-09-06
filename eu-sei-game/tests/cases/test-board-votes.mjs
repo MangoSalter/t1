@@ -470,3 +470,28 @@ check2("o adversário não ganhou", String(playerSolved(equipaGanhou, "d")), "fa
 // partilhada, com ou sem equipas.
 const aVista = salaEq({ settings: { revealGuesses: 1 }, masks: { "equipa:t1": "banana" } });
 check2("à vista, equipas veem a mesma de sempre", playerMask(aVista, "d"), "_a_a_a");
+
+console.log("34) Palavra nova apaga as folhas pessoais da palavra anterior...");
+// Quem apanha a caneta a meio de uma ronda não sabe a palavra (ela nunca
+// entra na sala), e é-lhe pedido que a escreva outra vez. Esse caminho não
+// passa pelo "limpar", e era aí que estava o buraco: as folhas pessoais da
+// palavra ANTERIOR sobreviviam, e quem tinha acertado letras continuava a ver
+// a palavra antiga na sua.
+const { setHangmanPuzzle } = await import("./js/room.js");
+const { ref: refDb, db: dbTeste, get: getDb, update: updateDb } = await import("./js/firebase-init.js");
+await updateDb(refDb(dbTeste, "rooms/TESTE/hangman"), {
+  leaderId: "a", mask: "______", masks: { a: "ba____" }, winnerUid: "a",
+  misses: 3, wrong: { x: { by: "b" } }, solved: true,
+});
+await setHangmanPuzzle("TESTE", {
+  hangman: { leaderId: "a", mask: "______", masks: { a: "ba____" } },
+  players: { a: { connected: true }, b: { connected: true } },
+}, "a", "_______", "fruta");
+const depois = (await getDb(refDb(dbTeste, "rooms/TESTE/hangman"))).val() || {};
+check2("a palavra nova ficou", depois.mask, "_______");
+check2("a pista nova ficou", depois.hint, "fruta");
+check2("folhas pessoais apagadas", String(depois.masks === undefined || depois.masks === null), "true");
+check2("vencedor da anterior apagado", String(depois.winnerUid === undefined || depois.winnerUid === null), "true");
+check2("erros zerados", depois.misses, 0);
+check2("letras erradas apagadas", String(depois.wrong === undefined || depois.wrong === null), "true");
+check2("já não está resolvida", String(depois.solved), "false");

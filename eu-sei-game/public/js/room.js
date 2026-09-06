@@ -1494,6 +1494,11 @@ export async function setHangmanPuzzle(code, room, uid, mask, hint) {
     // A contagem é POR RONDA: zera-se com a palavra nova. A ordem, essa, fica
     // — foi ganha na ronda anterior e é para valer nesta.
     correctCount: null,
+    // Quem começa é o primeiro da fila. Estava aqui e voltava a ser escrito
+    // como null mais abaixo, na mesma chamada: a segunda escrita ganhava e
+    // esta linha não fazia nada. Dava no mesmo por acaso (o currentGuesser
+    // recua para o primeiro da fila quando não há vez marcada), mas o estado
+    // guardado dizia uma coisa e o ecrã mostrava outra.
     turnUid: fila[0] || null,
     // A pista é o contrário da palavra: é para ser vista por todos. Vai para a
     // sala tal e qual, sem máscara nenhuma.
@@ -1505,7 +1510,13 @@ export async function setHangmanPuzzle(code, room, uid, mask, hint) {
     wrongWords: null,
     guesses: null,
     wordGuesses: null,
-    turnUid: null,
+    // As folhas pessoais são da palavra que acabou, não da que começa. Sem as
+    // apagar aqui, quem tinha acertado letras na anterior continuava a ver a
+    // palavra ANTERIOR na sua folha — e isto não é teórico: acontece sempre
+    // que se escreve uma palavra sem passar pelo "limpar", que é exatamente o
+    // caminho de quem apanha a caneta a meio e tem de a escrever outra vez.
+    masks: null,
+    winnerUid: null,
   });
 }
 
