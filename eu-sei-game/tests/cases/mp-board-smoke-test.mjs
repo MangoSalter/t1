@@ -122,5 +122,55 @@ console.log(`   ecrã activo no fim: ${ecraAtivo}`);
 if (ecraAtivo !== "hangman") fail(`o quadro devia continuar aberto (está em "${ecraAtivo}")`);
 semErros("no fim");
 
+console.log("8) E no telemóvel a folha continua a ser o jogo, não a barra...");
+// Medido num iPhone 13 antes desta regra existir: a barra ocupava 307px de
+// 664 — 46% do ecrã só para botões, com a folha reduzida a 345px. Num quadro,
+// a folha É o jogo; a barra é só o meio para lá chegar.
+const { devices } = await import("playwright");
+const mob = await browser.newContext({ ...devices["iPhone 13"] });
+const mpage = await mob.newPage();
+const errosMob = [];
+mpage.on("pageerror", (e) => errosMob.push(e.message));
+await mpage.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await mpage.fill("#name-input", "Carla");
+await mpage.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await mpage.click("#create-room-btn");
+await mpage.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+await mpage.click('[data-mp-game="hangman"]');
+await mpage.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
+const medidas = await mpage.evaluate(() => {
+  const visivel = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && !!el.offsetParent;
+  };
+  const barra = document.querySelector(".hangman-toolbar").getBoundingClientRect();
+  const tela = document.getElementById("hangman-doodle-canvas").getBoundingClientRect();
+  const pequenos = [];
+  document.querySelectorAll(".screen.active button, .screen.active select, .screen.active label").forEach((el) => {
+    if (!visivel(el)) return;
+    const r = el.getBoundingClientRect();
+    if (r.height < 40 || r.width < 40) {
+      pequenos.push(`${el.id || el.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+    }
+  });
+  return {
+    parteDaBarra: barra.height / window.innerHeight,
+    tela: Math.round(tela.height),
+    pequenos,
+    // A página nunca pode deslizar na horizontal: dentro de uma fila, sim; a
+    // página inteira, não.
+    deslizaAPagina: document.documentElement.scrollWidth > window.innerWidth + 1,
+  };
+});
+console.log(`   barra: ${Math.round(medidas.parteDaBarra * 100)}% do ecrã, folha: ${medidas.tela}px`);
+console.log(`   alvos abaixo de 40px: ${medidas.pequenos.length ? medidas.pequenos.join(" | ") : "nenhum"}`);
+if (medidas.parteDaBarra > 0.33) {
+  fail(`a barra ocupa ${Math.round(medidas.parteDaBarra * 100)}% do ecrã — a folha é que devia mandar`);
+}
+if (medidas.pequenos.length > 0) fail(`alvos pequenos demais para o dedo: ${medidas.pequenos.join(", ")}`);
+if (medidas.deslizaAPagina) fail("a página desliza na horizontal");
+if (errosMob.length > 0) fail(`erro de JavaScript no telemóvel: ${errosMob[0]}`);
+await mob.close();
+
 await browser.close();
 console.log(process.exitCode ? "=> mp-board-smoke FALHOU" : "=> mp-board-smoke ok");

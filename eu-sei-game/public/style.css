@@ -869,6 +869,9 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 #hangman-mode-hint { margin-left: auto; text-align: right; }
 
 .hangman-toolbar { row-gap: 6px; }
+/* No computador, 36px chega e poupa espaço numa barra cheia. No telemóvel
+   não: 36px é abaixo do alvo de dedo usado em todo o resto da app, e é aí que
+   se falha o toque. Ver a regra no bloco do telemóvel, mais abaixo. */
 .hangman-toolbar .board-color, .hangman-toolbar .board-width { width: 36px; height: 36px; }
 .hangman-toolbar .board-tool { min-height: 40px; }
 
@@ -1080,3 +1083,39 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 .hangman-history-meta { display: block; font-size: 0.85rem; opacity: 0.8; }
 /* O histórico abre POR CIMA do fim de partida: é de lá que se chega a ele. */
 #hangman-history-overlay { z-index: 34; }
+
+/* ---------- O QUADRO DE SALA NO TELEMÓVEL ----------
+   Medido num iPhone 13: a barra ocupava 307px de 664 — 46% do ecrã só para
+   botões, com a folha reduzida a 345px. Num quadro, a folha é o jogo; a barra
+   é o meio para lá chegar.
+
+   O que muda: o título sai (o ecrã já se sabe qual é), as filas deixam de
+   dobrar e passam a deslizar na horizontal, os botões da zona do quadro ficam
+   só com o ícone, e as cores voltam aos 44px de dedo. */
+@media (max-width: 720px) {
+  .hangman-toolbar { gap: 4px 5px; padding: 4px 6px; }
+  .hangman-title { display: none; }
+  #hangman-status { display: none; }
+  .hangman-pen-zone { flex: 1 1 100%; min-width: 0; gap: 4px; }
+  .hangman-color-row, .hangman-width-row, .hangman-board-zone {
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+    min-width: 0; padding-bottom: 2px; scrollbar-width: thin;
+  }
+  .hangman-board-zone { flex: 1 1 100%; }
+  .hangman-color-row .board-color, .hangman-width-row .board-width { flex: 0 0 auto; }
+  .hangman-toolbar .board-color, .hangman-toolbar .board-width { width: 44px; height: 44px; }
+  /* Só o ícone: o nome inteiro de sete botões não cabe em 390px, e cortá-los a
+     meio é pior do que mostrar só o símbolo. */
+  .hangman-board-zone button.ghost, .hangman-board-zone button.primary {
+    flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 4px 8px;
+    white-space: nowrap;
+  }
+  /* Só o ícone nos botões secundários: o nome inteiro de sete botões não cabe
+     em 390px, e cortá-los a meio é pior do que mostrar só o símbolo. O
+     "Continuar" fica com o texto — é o que fecha a ronda, e um botão que
+     acaba uma coisa não se explica por um ícone. */
+  .hangman-board-zone button.ghost { font-size: 0; }
+  .hangman-board-zone button.ghost::first-letter { font-size: 1.1rem; }
+  #hangman-continue-btn { font-size: 0.95rem; }
+  .hangman-fill-toggle { flex: 0 0 auto; min-height: 44px; }
+}
