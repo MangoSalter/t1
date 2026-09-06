@@ -5,8 +5,8 @@
 // um país que outro acabou de falhar.
 import {
   chaveDePais, mapaEstadoInicial, mapaDono, mapaEmCausa, mapaPodeConquistar,
-  mapaPontosNaSala, mapaClassificacao, mapaEscolhaDaManga,
-  MAPA_ROUBO_MS, MAPA_ROUBO_FATOR,
+  mapaPontosNaSala, mapaClassificacao, mapaEscolhaDaManga, computeMapaPayout,
+  MAPA_ROUBO_MS, MAPA_ROUBO_FATOR, MAPA_PODIO, MAPA_PODIO_MIN,
 } from "./js/room.js";
 
 let falhas = 0;
@@ -82,7 +82,42 @@ check("com países que cheguem, rouba um deles",
 check("e o sorteio chega ao último da lista",
   mapaEscolhaDaManga(disputa, () => 0.99), "Japão");
 
-console.log("7) Uma sala acabada de começar não tem nada guardado...");
+console.log("7) O placar da sala leva um pódio, não os pontos todos do mapa...");
+// Conquistar o mapa inteiro dava centenas de pontos ao placar quando os outros
+// bónus dão vinte e poucos — um jogo decidia a partida sozinho. O marcador
+// rico fica cá dentro; para fora vai um pódio da grandeza dos outros.
+const pagamento = computeMapaPayout(disputa);
+console.log(`   pagamento: ${JSON.stringify(pagamento)}`);
+check("quem tem mais países leva o primeiro lugar", pagamento.ana, MAPA_PODIO[0]);
+check("o segundo leva o segundo lugar", pagamento.beto, MAPA_PODIO[1]);
+check("300 pontos no marcador não viram 300 no placar", pagamento.beto < 50, true);
+
+// Quem esteve na sala e não conquistou nada não leva o mínimo: o mínimo é de
+// quem jogou.
+const comEspetador = sala(
+  { donos: { Brasil: "ana" }, marcadores: { ana: { pontos: 10 }, zeca: { pontos: 0, erros: 4 } } },
+  { ana: { name: "Ana" }, zeca: { name: "Zeca" } },
+);
+const pag2 = computeMapaPayout(comEspetador);
+console.log(`   com um jogador a zero: ${JSON.stringify(pag2)}`);
+check("quem conquistou leva", pag2.ana, MAPA_PODIO[0]);
+check("quem não conquistou nada não leva nada", String(pag2.zeca), "undefined");
+
+// Numa sala grande, do quinto para baixo é o mínimo — e é sempre menos do que
+// o quarto lugar, senão valia a pena chegar em último.
+const muitos = sala(
+  {
+    donos: { A: "a", B: "b", C: "c", D: "d", E: "e", F: "f" },
+    marcadores: {},
+  },
+  Object.fromEntries("abcdef".split("").map((u) => [u, { name: u }])),
+);
+const pag3 = computeMapaPayout(muitos);
+check("seis jogadores, seis pagamentos", Object.keys(pag3).length, 6);
+check("do quinto para baixo é o mínimo", pag3[mapaClassificacao(muitos)[4].uid], MAPA_PODIO_MIN);
+check("e o mínimo é menos do que o último lugar do pódio", MAPA_PODIO_MIN < MAPA_PODIO[3], true);
+
+console.log("8) Uma sala acabada de começar não tem nada guardado...");
 const nova = mapaEstadoInicial("europa", "apontado");
 check("guarda o modo escolhido", nova.modo, "europa");
 check("e a dificuldade", nova.dificuldade, "apontado");

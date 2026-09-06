@@ -117,6 +117,20 @@ export const LANDMARK_TEAM_POINTS = 8;
 export const LANDMARK_TEAM_SPEED_BONUS_MAX = 6;
 export const LANDMARK_TEAM_RESULT_DISPLAY_MS = 5000;
 
+// A ESCALA DOS PONTOS. Os jogos bónus são o extra da partida, não a partida:
+// nenhum pode valer tanto que decida sozinho quem ganhou. A regra é simples —
+// um bónus vale, ao melhor jogador, entre 15 e 40 pontos.
+//
+//   Fuga da Infeção   1/s + 25 de sobrevivente   ~30-55 numa ronda de 30s
+//   Labirinto         15/morte + 20 + 1/s
+//   Mini-Golfe        25 / 16 / 10 / 6, mínimo 3
+//   Conquistar o Mapa 25 / 16 / 10 / 6, mínimo 3  (pódio, ver computeMapaPayout)
+//   Desenha e Adivinha 15 a quem acerta, 8 a quem desenhou
+//   Quadro branco     1 por letra, 3 por palavra
+//
+// O mapa foi o que obrigou a escrever isto: pagava os pontos do seu próprio
+// marcador ao placar da sala, e conquistar quarenta países dava seiscentos
+// pontos contra os trinta da apanhada. O test-equilibrio.mjs guarda a regra.
 export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf", "mapa"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
@@ -3136,7 +3150,6 @@ export async function mapaConquistar(code, uid, nomePais, pontosBase, agora = Da
     [`mapa/marcadores/${uid}/certos`]: (marcador.certos || 0) + 1,
     [`mapa/marcadores/${uid}/cadeia`]: cadeia,
     [`mapa/marcadores/${uid}/melhorCadeia`]: Math.max(marcador.melhorCadeia || 0, cadeia),
-    [`players/${uid}/score`]: (room?.players?.[uid]?.score || 0) + pontos,
   });
   return { ganhou: true, pontos, roubo };
 }
@@ -3198,6 +3211,36 @@ export async function mapaMangaRouba(code, room, aleatorio = Math.random) {
 // Acabar a partida do mapa e seguir para o que vem a seguir na fila de bónus.
 // Só quem manda é que acaba: o mapa não tem cronómetro, e sem isto bastava
 // alguém carregar em "voltar" para tirar o jogo debaixo dos pés dos outros.
+// O PLACAR DA SALA NÃO É O MARCADOR DO MAPA. Conquistar 40 países dava 600
+// pontos, quando a Fuga da Infeção inteira dá 30 e o Mini-Golfe 25: um jogo
+// decidia a partida sozinho e os outros passavam a não contar. O mapa fica com
+// a sua economia por dentro — os pontos por seguidos, por continente, pelos
+// roubos, que é o que dá gosto a jogá-lo — e paga ao placar da sala um pódio
+// da mesma grandeza dos outros bónus.
+export const MAPA_PODIO = [25, 16, 10, 6];
+export const MAPA_PODIO_MIN = 3;
+
+// Função pura: quanto é que a partida do mapa vale a cada um no placar.
+export function computeMapaPayout(room) {
+  const tabela = mapaClassificacao(room);
+  const pagamento = {};
+  tabela.forEach((linha, i) => {
+    // Quem não conquistou nada não leva nada — nem o mínimo. O mínimo é para
+    // quem jogou, não para quem esteve na sala.
+    if (linha.paises === 0) return;
+    pagamento[linha.uid] = MAPA_PODIO[i] ?? MAPA_PODIO_MIN;
+  });
+  return pagamento;
+}
+
 export async function finishMapaRound(code, room) {
+  if (!room?.mapa?.pago) {
+    const pagamento = computeMapaPayout(room);
+    const updates = { "mapa/pago": true, "mapa/pagamento": pagamento };
+    Object.entries(pagamento).forEach(([uid, n]) => {
+      updates[`players/${uid}/score`] = (room.players?.[uid]?.score || 0) + n;
+    });
+    await update(roomRef(code), updates);
+  }
   await startNextBonusGame(code, room);
 }

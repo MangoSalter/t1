@@ -147,3 +147,28 @@ não apodrecerem à espera.
 **Fica no site:** Quadro branco (sala e solo), Eu sei clássico, Desenha e
 Adivinha, Fuga da Infeção, Labirinto: Batalha, Mini-Golfe, Conquistar o Mapa,
 Forca solo, Palavra Relâmpago, Memória.
+
+## A escala dos pontos
+
+Os jogos bónus são o extra da partida, não a partida. A regra: um bónus vale,
+ao melhor jogador de uma ronda, **entre 15 e 40 pontos**.
+
+| Jogo | O que paga |
+|---|---|
+| Fuga da Infeção | 1/segundo + 25 de sobrevivente (~30–55 numa ronda de 30s) |
+| Labirinto: Batalha | 15 por morte + 20 de sobrevivente + 1/segundo |
+| Mini-Golfe | 25 / 16 / 10 / 6, mínimo 3 |
+| Conquistar o Mapa | 25 / 16 / 10 / 6, mínimo 3 |
+| Desenha e Adivinha | 15 a quem acerta, 8 a quem desenhou |
+| Quadro branco | 1 por letra, 3 por palavra |
+
+O mapa foi o que obrigou a escrever isto. Pagava ao placar da sala os pontos
+do seu próprio marcador: conquistar quarenta países dava **seiscentos** pontos
+quando a apanhada inteira dá trinta. Um jogo decidia a partida sozinho e os
+outros deixavam de contar. Agora o marcador rico fica dentro do mapa — os
+seguidos, os continentes, os roubos, que é o que dá gosto a jogá-lo — e para
+fora vai um pódio da mesma grandeza dos outros.
+
+`tests/cases/test-equilibrio.mjs` guarda a regra: um jogo novo que pague fora
+da banda falha o teste, para a conversa sobre quanto vale acontecer antes de ir
+para o site.
