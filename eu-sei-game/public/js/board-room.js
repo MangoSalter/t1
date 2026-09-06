@@ -758,10 +758,16 @@ function hangmanOpenSettings() {
   }
   spec.forEach((def) => {
     const atual = boardSetting(room, modo, def.key);
+    // Definições que não fazem nada com as outras escolhas ficam apagadas e
+    // dizem porquê. Antes ficavam iguais às outras e deixavam-se escolher sem
+    // efeito nenhum — que é a maneira mais silenciosa de mentir a quem está a
+    // configurar o jogo.
+    const semEfeito = def.naoSeAplica ? def.naoSeAplica(room) : null;
     const bloco = document.createElement("div");
+    if (semEfeito) bloco.className = "hangman-setting-off";
     const label = document.createElement("span");
     label.className = "hangman-setting-label";
-    label.textContent = def.label;
+    label.textContent = semEfeito ? `${def.label} — ${semEfeito}` : def.label;
     bloco.appendChild(label);
     const linha = document.createElement("div");
     linha.className = "hangman-setting-options";
@@ -771,6 +777,7 @@ function hangmanOpenSettings() {
       btn.dataset.setting = def.key;
       btn.dataset.settingValue = String(op.value);
       btn.textContent = op.label;
+      btn.disabled = !!semEfeito;
       btn.setAttribute("aria-pressed", String(op.value === atual));
       btn.addEventListener("click", async () => {
         await setBoardSetting(state.code, state.room, state.uid, def.key, op.value);

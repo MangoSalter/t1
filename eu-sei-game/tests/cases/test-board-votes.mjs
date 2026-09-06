@@ -646,3 +646,39 @@ check2("erros da sala a zero", limpo.misses, 0);
 check2("erros de cada um apagados", String(limpo.missesBy === undefined || limpo.missesBy === null), "true");
 check2("castigos apagados", String(limpo.skipNext === undefined || limpo.skipNext === null), "true");
 check2("folhas pessoais apagadas", String(limpo.masks === undefined || limpo.masks === null), "true");
+
+console.log("39) Erros de cada um não desligam a Dona Manga...");
+// O caos dispara a cada N erros da RONDA, e olha para hangman.misses. Com
+// erros de cada um, esse contador ficava em zero para sempre: ligar "erros de
+// cada um" desligava o caos sem o dizer a ninguém. O total da ronda passa a
+// contar nos dois modos — não serve para enforcar (com erros de cada um não há
+// enforcado), serve para a gata saber quando entrar.
+const alvoC = "rooms/CAOS/hangman";
+const salaCaos = {
+  players: { cap: { connected: true }, ze: { connected: true } },
+  hangman: {
+    mode: "forca", leaderId: "cap", mask: "_a_a_a", misses: 0, turnOrder: ["ze"],
+    settings: { missMode: "individuais", maxMisses: 6, penaltyEvery: 0 },
+  },
+};
+await updateDb(refDb(dbTeste, alvoC), JSON.parse(JSON.stringify(salaCaos.hangman)));
+await guardas.resolveGuess("CAOS", salaCaos, "cap", "ze", "z", "banana");
+const comErro = (await getDb(refDb(dbTeste, alvoC))).val();
+check2("o erro de cada um foi contado", comErro.missesBy?.ze, 1);
+check2("e o total da ronda também", comErro.misses, 1);
+
+console.log("40) Definições que não fazem nada dizem-no...");
+// Três vezes nesta sessão duas definições cancelaram-se em silêncio. O painel
+// passa a marcar as que não têm efeito com as outras escolhas.
+const specForca = BOARD_SETTINGS_SPEC.forca;
+const acha = (k) => specForca.find((d) => d.key === k);
+const comIndividuais = { hangman: { mode: "forca", settings: { missMode: "individuais" } } };
+const comPartilhados = { hangman: { mode: "forca", settings: { missMode: "partilhados" } } };
+check2("teto de erros: sem efeito com erros de cada um",
+  String(!!acha("maxMisses").naoSeAplica(comIndividuais)), "true");
+check2("teto de erros: vale com erros da sala",
+  String(acha("maxMisses").naoSeAplica(comPartilhados)), "null");
+check2("penalização: sem efeito com erros da sala",
+  String(!!acha("penaltyEvery").naoSeAplica(comPartilhados)), "true");
+check2("penalização: vale com erros de cada um",
+  String(acha("penaltyEvery").naoSeAplica(comIndividuais)), "null");

@@ -964,6 +964,15 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 #hangman-hint-input { flex: 0 1 200px; }
 .hangman-settings-list { display: flex; flex-direction: column; gap: 14px; margin: 14px 0; text-align: left; }
 .hangman-setting-label { font-weight: 700; display: block; margin-bottom: 6px; }
+/* Uma definição que não faz nada com as outras escolhas: apagada, mas legível
+   (o texto ao lado explica porquê, e não se lê o que não se vê). */
+/* Só os botões desmaiam. O rótulo fica legível de propósito: é ele que diz
+   POR QUE RAZÃO a definição não faz nada, e apagar a explicação junto com o
+   que ela explica não ajudava ninguém. (Controlos desativados estão fora da
+   regra de contraste da WCAG; um texto a explicar não está.) */
+.hangman-setting-off .hangman-setting-options { opacity: 0.5; }
+.hangman-setting-off .hangman-setting-label { font-weight: 600; font-style: italic; }
+.hangman-setting-off button { cursor: not-allowed; }
 .hangman-setting-options { display: flex; flex-wrap: wrap; gap: 6px; }
 .hangman-setting-options button {
   width: auto; margin: 0; min-height: 44px; padding: 4px 12px; font-size: 0.95rem;

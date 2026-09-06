@@ -740,6 +740,10 @@ export const BOARD_SETTINGS_SPEC = {
         { value: 0, label: "Sem limite" },
       ],
       default: 6,
+      // Com erros de cada um não há teto que enforque ninguém (ver o
+      // missPatch): este número deixa de querer dizer o que diz, e um número
+      // que não quer dizer nada num painel de definições é uma promessa falsa.
+      naoSeAplica: (room) => (individualMisses(room) ? "sem efeito com erros de cada um" : null),
     },
     {
       key: "guessMode",
@@ -777,7 +781,7 @@ export const BOARD_SETTINGS_SPEC = {
     },
     {
       key: "penaltyEvery",
-      label: "Penalização por erros (só com erros de cada um)",
+      label: "Penalização por erros",
       options: [
         { value: 0, label: "Sem penalização" },
         { value: 2, label: "A cada 2 erros, perde a vez seguinte" },
@@ -785,6 +789,7 @@ export const BOARD_SETTINGS_SPEC = {
         { value: 5, label: "A cada 5 erros, perde a vez seguinte" },
       ],
       default: 0,
+      naoSeAplica: (room) => (individualMisses(room) ? null : "sem efeito com erros da sala"),
     },
     {
       key: "autoPen",
@@ -1125,6 +1130,11 @@ function missPatch(room, guesserUid, word) {
   if (individualMisses(room)) {
     const aCada = boardSetting(room, "forca", "penaltyEvery") || 0;
     if (aCada > 0 && meus % aCada === 0) patch[`skipNext/${guesserUid}`] = true;
+    // O total da ronda conta na mesma. Não serve para enforcar ninguém — com
+    // erros de cada um não há enforcado — mas é por ele que a Dona Manga sabe
+    // quando entrar. Sem isto, ligar "erros de cada um" desligava o caos sem
+    // o dizer a ninguém: o contador que ele vigia ficava em zero para sempre.
+    patch.misses = (room.hangman?.misses || 0) + 1;
     return patch;
   }
 
