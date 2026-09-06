@@ -174,6 +174,23 @@ check2("a seguir vem quem ainda não desenhou", nextPenByRotation(salaVolta("a",
 check2("e depois o outro", nextPenByRotation(salaVolta("b", { a: true, b: true })), "c");
 // Quando todos já desenharam, a volta recomeça em vez de não haver seguinte.
 check2("dado a volta, recomeça", nextPenByRotation(salaVolta("c", { a: true, b: true, c: true })), "a");
+// QUEM ACERTOU VAI À FRENTE, mas só entre os que ainda não desenharam. É o
+// meio-termo entre duas coisas que se querem as duas: o mérito (quem acertou
+// merece a vez seguinte) e a justiça (toda a gente desenha). Dar a caneta
+// sempre a quem acerta deixava os outros a ver o jogo.
+const comVencedor = (leader, drawnBy, winnerUid) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true } },
+  hangman: { mode: "forca", leaderId: leader, drawnBy, winnerUid },
+});
+check2("quem acertou passa à frente na fila", nextPenByRotation(comVencedor("a", { a: true }, "c")), "c");
+// ...mas não fura a vez de quem ainda não desenhou: se já desenhou, espera.
+check2("quem já desenhou não fura a vez", nextPenByRotation(comVencedor("a", { a: true, c: true }, "c")), "b");
+// E sem vencedor nenhum a volta é a de sempre.
+check2("sem vencedor, a volta é a normal", nextPenByRotation(comVencedor("a", { a: true }, null)), "b");
+// Quem tem a caneta não pode ganhar a sua própria palavra, mas se por algum
+// caminho lá chegasse, a volta não podia devolver-lha.
+check2("nem que o vencedor fosse quem tem a caneta", nextPenByRotation(comVencedor("a", {}, "a")), "b");
+
 // E nunca devolve quem já tem a caneta: "passar" que a deixa na mesma mão não
 // passa nada.
 const soDois = {

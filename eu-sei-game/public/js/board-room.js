@@ -25,6 +25,7 @@ import {
   sanitizeBoardPoints, setBoardMode, setBoardSetting, setHangmanPuzzle, setPlayMode, setTeamCount,
   splitWordsInput, startNewMatch, submitLetterGuess, submitWordGuess, takenHangmanColors, tallyVotes,
   teamList, teamOfPlayer, teamsLocked, teamsOn, undoLastHangmanStroke, updateHangmanMask,
+  solveHangmanWithWinner,
   votePenHolder, votesNeeded, wordHistory, wordsDone, wordsOfMask, wrongLetters,
   wrongWordList,
 } from "./room.js";
@@ -130,6 +131,10 @@ const hangmanEls = {
   guessInput: document.getElementById("hangman-guess-input"),
   turnLabel: document.getElementById("hangman-turn-label"),
   colorOverlay: document.getElementById("hangman-color-overlay"),
+  winnerOverlay: document.getElementById("hangman-winner-overlay"),
+  winnerChoices: document.getElementById("hangman-winner-choices"),
+  winnerNoneBtn: document.getElementById("hangman-winner-none-btn"),
+  winnerCancelBtn: document.getElementById("hangman-winner-cancel-btn"),
   colorChoices: document.getElementById("hangman-color-choices"),
   colorWaiting: document.getElementById("hangman-color-waiting"),
   canvasWrap: document.querySelector(".hangman-canvas-wrap"),
@@ -1539,10 +1544,49 @@ hangmanEls.revealBtn.addEventListener("click", async () => {
   hangmanEls.letterInput.value = "";
   const mask = state.room?.hangman?.mask;
   if (!mask) return;
-  // Sem letra escrita, "Acertaram" revela a palavra toda: é o fim de jogo
-  // normal quando o grupo diz a palavra de uma vez.
-  const nova = letra ? revealLetter(hangmanSecretWord, mask, letra) : hangmanSecretWord;
-  await updateHangmanMask(state.code, state.room, state.uid, nova);
+  if (letra) {
+    // Com uma letra escrita, revela-se só essa: a ronda continua.
+    await updateHangmanMask(state.code, state.room, state.uid, revealLetter(hangmanSecretWord, mask, letra));
+    return;
+  }
+  // Sem letra, "Acertaram" acaba a palavra — e aí é preciso saber DE QUEM foi.
+  // Os palpites são em voz alta, por isso a app não tem como adivinhar: só
+  // quem tem a caneta ouviu. Antes acabava sem vencedor e ninguém levava nada.
+  abrirEscolhaDoVencedor();
+});
+
+// --- Quem acertou ---
+
+function abrirEscolhaDoVencedor() {
+  const room = state.room;
+  if (!room?.hangman) return;
+  const outros = connectedPlayerIds(room).filter((uid) => uid !== state.uid);
+  hangmanEls.winnerChoices.innerHTML = "";
+  outros.forEach((uid) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost hangman-winner-choice";
+    b.dataset.vencedor = uid;
+    b.textContent = room.players?.[uid]?.name || "?";
+    b.addEventListener("click", () => fecharComVencedor(uid));
+    hangmanEls.winnerChoices.appendChild(b);
+  });
+  // Numa sala de um só, não há a quem dar a palavra: revela-se e pronto.
+  if (outros.length === 0) {
+    fecharComVencedor(null);
+    return;
+  }
+  hangmanEls.winnerOverlay.classList.remove("hidden");
+}
+
+async function fecharComVencedor(vencedorUid) {
+  hangmanEls.winnerOverlay.classList.add("hidden");
+  await solveHangmanWithWinner(state.code, state.room, state.uid, hangmanSecretWord, vencedorUid);
+}
+
+hangmanEls.winnerNoneBtn?.addEventListener("click", () => fecharComVencedor(null));
+hangmanEls.winnerCancelBtn?.addEventListener("click", () => {
+  hangmanEls.winnerOverlay.classList.add("hidden");
 });
 
 hangmanEls.missBtn.addEventListener("click", () => addHangmanMiss(state.code, state.room, state.uid));

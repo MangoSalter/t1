@@ -348,13 +348,22 @@ const misses = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hang
 console.log(`   erros depois de mais 8 cliques: ${misses} (o máximo é 6)`);
 if (misses !== 6) fail(`os erros deviam parar em 6, estão em ${misses}`);
 
-console.log("14) Acertar a palavra toda marca-a como resolvida...");
+console.log("14) Acertar a palavra toda marca-a como resolvida — e pergunta de quem foi...");
+// "Acertaram" sem letra acaba a palavra, e desde o playtest passa a perguntar
+// QUEM acertou: na Forca os palpites são em voz alta, e sem esta pergunta a
+// ronda acabava sem vencedor e ninguém levava nada. Aqui escolhe-se a Ana.
 await guest.fill("#hangman-letter-input", "");
 await guest.click("#hangman-reveal-btn");
+await guest.waitForSelector("#hangman-winner-overlay:not(.hidden)", { timeout: 5000 });
+await guest.evaluate(() => document.querySelector("#hangman-winner-choices button").click());
 await host.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman.solved === true, code, { timeout: 8000 });
 const textoFinal = await host.locator("#hangman-misses").textContent();
-console.log(`   a Ana lê: "${textoFinal.trim()}"`);
-if (!textoFinal.includes("Acertaram")) fail("o fim de jogo devia aparecer a toda a gente");
+const textoNoOutro = await guest.locator("#hangman-misses").textContent();
+console.log(`   a Ana (que acertou) lê: "${textoFinal.trim()}" · o outro lê: "${textoNoOutro.trim()}"`);
+// O fim de ronda aparece aos dois, e desde que há vencedor diz de quem foi —
+// antes dizia "Acertaram" sem dizer a quem, e o histórico ficava sem dono.
+if (!/Ganhaste|🎉/.test(textoFinal)) fail("quem acertou devia saber que foi ele");
+if (!textoNoOutro.trim()) fail("o fim de jogo devia aparecer a toda a gente");
 
 console.log("15) 'Outra palavra' limpa tudo e volta à caixa de escrever...");
 await guest.click("#hangman-newword-btn");

@@ -1018,6 +1018,21 @@
     </div>
   </div>
 
+  <!-- QUEM ACERTOU? Na Forca os palpites são em voz alta: só quem tem a
+       caneta ouviu, por isso é ela que diz. Sem isto a ronda acabava sem
+       vencedor e ninguém levava nada. -->
+  <div id="hangman-winner-overlay" class="pause-overlay hidden">
+    <div class="card center">
+      <h2>Quem acertou?</h2>
+      <p class="hint small">Leva os pontos da palavra. Se ninguém acertou, revela-se na mesma.</p>
+      <div id="hangman-winner-choices" class="hangman-color-choices"></div>
+      <div class="options-actions">
+        <button type="button" id="hangman-winner-none-btn" class="ghost">Ninguém acertou</button>
+        <button type="button" id="hangman-winner-cancel-btn" class="ghost">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Histórico das palavras da sessão. -->
   <div id="hangman-history-overlay" class="pause-overlay hidden">
     <div class="card center">

@@ -111,6 +111,10 @@ console.log("   e quem tem a caneta continua a desenhar");
 
 console.log("6) DEPOIS DE ACERTAREM, a folha volta a ser de todos...");
 await host.click("#hangman-reveal-btn");
+// Acabar a palavra passou a perguntar quem acertou (ver mp-forca-vencedor).
+// Aqui o que interessa é o depois, por isso diz-se que ninguém acertou.
+await host.waitForSelector("#hangman-winner-overlay:not(.hidden)", { timeout: 5000 });
+await host.click("#hangman-winner-none-btn");
 await guest.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.solved === true, code, { timeout: 8000 });
 await guest.waitForTimeout(500);
 const antes5 = await pontos();

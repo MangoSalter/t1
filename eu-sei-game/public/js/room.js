@@ -1829,6 +1829,35 @@ export async function updateHangmanMask(code, room, uid, mask) {
   });
 }
 
+// Quanto vale acertar a palavra inteira. É o mesmo número do modo em que os
+// palpites são escritos — quem diz a palavra em voz alta não pode valer menos
+// do que quem a escreve.
+export const PONTOS_PELA_PALAVRA = 3;
+
+// DIZER QUEM ACERTOU. Na Forca os palpites são em voz alta, por isso a app
+// não pode saber quem foi: só quem tem a caneta é que ouviu. Faltava dizê-lo,
+// e a falta era grande — a ronda acabava sem vencedor, ninguém levava pontos,
+// o histórico ficava sem dono e a caneta não tinha a quem passar. Carregava-se
+// em "Acertaram" e não acontecia nada a ninguém.
+//
+// `vencedorUid` a null é uma resposta legítima: o grupo desistiu e a palavra
+// revela-se sem ser de ninguém.
+export async function solveHangmanWithWinner(code, room, uid, palavra, vencedorUid) {
+  if (room?.hangman?.leaderId !== uid) return false;
+  // A caneta não se dá pontos a si própria: quem sabe a palavra não a adivinha.
+  if (vencedorUid && (vencedorUid === uid || !room.players?.[vencedorUid])) return false;
+  const patch = { mask: palavra, solved: true, winnerUid: vencedorUid || null };
+  if (vencedorUid) {
+    patch[`matchScore/${vencedorUid}`] = (room.hangman.matchScore?.[vencedorUid] || 0) + PONTOS_PELA_PALAVRA;
+    const equipa = teamOfPlayer(room, vencedorUid);
+    if (equipa) {
+      patch[`teamScore/${equipa}`] = (room.hangman.teamScore?.[equipa] || 0) + PONTOS_PELA_PALAVRA;
+    }
+  }
+  await update(ref(db, `rooms/${code}/hangman`), patch);
+  return true;
+}
+
 export async function addHangmanMiss(code, room, uid) {
   if (room?.hangman?.leaderId !== uid) return;
   const teto = maxMissesOf(room);
@@ -1853,6 +1882,14 @@ export function nextPenByRotation(room) {
   // que a deixa na mesma mão não passa nada.
   const semOAtual = candidatos.filter((uid) => uid !== room?.hangman?.leaderId);
   const fila = semOAtual.length > 0 ? semOAtual : candidatos;
+  // QUEM ACERTOU VAI À FRENTE, mas só entre os que ainda não desenharam: o
+  // mérito decide a ordem, a justiça decide o conjunto. Passar a caneta
+  // sempre a quem acerta deixava os outros a ver, e é justamente o contrário
+  // do que uma volta serve para fazer.
+  const vencedor = room?.hangman?.winnerUid;
+  if (vencedor && fila.includes(vencedor)) {
+    return vencedor;
+  }
   return fila[0];
 }
 

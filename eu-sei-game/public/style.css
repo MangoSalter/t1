@@ -1267,3 +1267,7 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .paleta-linha { grid-template-columns: repeat(8, 1fr); gap: 3px; }
   .paleta-cor { border-radius: 4px; }
 }
+
+/* A escolha de quem acertou: nomes grandes o suficiente para se carregar
+   depressa, que é quando se usa — no meio do barulho de alguém a acertar. */
+.hangman-winner-choice { min-height: 44px; padding: 8px 14px; font-size: 1rem; }
