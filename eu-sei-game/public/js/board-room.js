@@ -19,6 +19,7 @@ import {
   matchIsOver, matchRanking, matchWordsTotal, maxMissesOf, missesOfPlayer, modeAllowsTool,
   payBoardMatchScore, boardMatchPayout, boardMatchPaid,
   canAskHelp, askBrasaHelp, serveBrasaHelp, helpCosts, blockedFromWordGuess,
+  isWordMode,
   passGuessTurn, passHangmanPen, passHangmanPenRandom, pickHangmanColor, playerColor, playerMask,
   pointsObjectToArray, pushHangmanDoodlePoints, renameTeam, resolveGuess, resolveWordGuess, revealLetter,
   sanitizeBoardPoints, setBoardMode, setBoardSetting, setHangmanPuzzle, setPlayMode, setTeamCount,
@@ -1025,6 +1026,8 @@ const narrado = {
 
 function narrarQuadro(room, souLider) {
   const h = room.hangman;
+  // A narração conta letras e espaços: no Desenha e Adivinha não teria o que
+  // dizer, e dizer o tamanho da palavra seria dar meia resposta.
   if (!h || h.mode !== "forca") return;
   const nome = (uid) => room.players?.[uid]?.name || "alguém";
 
@@ -1823,20 +1826,27 @@ export function renderHangman(room) {
   const semCaneta = !hangman.leaderId || !room.players?.[hangman.leaderId]?.connected;
   // A escolha da cor vem PRIMEIRO. As duas votações ao mesmo tempo davam dois
   // ecrãs sobrepostos, e o de baixo ficava inalcançável.
-  const aVotarCaneta = mode === "forca" && semCaneta && !!hangman.colors?.[state.uid];
+  const comPalavraAqui = isWordMode(mode);
+  const aVotarCaneta = comPalavraAqui && semCaneta && !!hangman.colors?.[state.uid];
 
   if (aVotarCaneta) {
     hangmanEls.status.textContent = "Votem em quem fica com a caneta.";
   } else if (amLeader) {
-    hangmanEls.status.textContent = mode === "forca"
-      ? "Tens a caneta — desenha a forca e os espaços da palavra. Os outros pedem a palavra para arriscar."
-      : "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa.";
-  } else if (mode !== "forca") {
+    if (mode === "forca") {
+      hangmanEls.status.textContent = "Tens a caneta — desenha a forca e os espaços da palavra. Os outros pedem a palavra para arriscar.";
+    } else if (mode === "adivinha") {
+      hangmanEls.status.textContent = "Tens a caneta — desenha a palavra. Nada de letras nem números: só o desenho.";
+    } else {
+      hangmanEls.status.textContent = "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa.";
+    }
+  } else if (!comPalavraAqui) {
     hangmanEls.status.textContent = "A folha é de todos — escreve à vontade. Combinem as regras em voz alta.";
   } else if (possoEscrever) {
     hangmanEls.status.textContent = hangman.solved
       ? "Acertaram! Enquanto se escolhe a próxima palavra, a folha é de todos."
       : "Enquanto não há palavra, a folha é de todos.";
+  } else if (mode === "adivinha") {
+    hangmanEls.status.textContent = `${leaderName || "Ninguém"} está a desenhar. Escreve o palpite quando reconheceres.`;
   } else {
     hangmanEls.status.textContent = `${leaderName || "Ninguém"} tem a caneta. Arrisca uma letra quando for a tua vez.`;
   }
@@ -1887,7 +1897,14 @@ export function renderHangman(room) {
   // fazem: entrar numa equipa tem de aparecer aos outros sem fechar e abrir.
   if (!hangmanEls.teamsOverlay.classList.contains("hidden")) hangmanOpenTeams();
 
-  // --- Modo Forca: a palavra e os espaços ---
+  // --- Modos com palavra: a Forca e o Desenha e Adivinha ---
+  //
+  // Os dois partilham quase tudo: a palavra que só existe no browser de quem
+  // tem a caneta, as cores, as equipas, o histórico, o fim da partida. O que
+  // os separa é COMO se arrisca — letra a letra, ou a palavra de uma vez — e é
+  // por isso que há duas bandeiras e não uma. Onde a diferença importa, usa-se
+  // naForca; onde não importa, comPalavra.
+  const comPalavra = isWordMode(mode);
   const naForca = mode === "forca";
 
   // O histórico só aparece quando há alguma coisa nele: um botão que abre uma
@@ -1903,7 +1920,7 @@ export function renderHangman(room) {
   hangmanEls.exportBtn.classList.toggle("hidden", !(temDesenho && canSetBoardMode(room, state.uid)));
   hangmanEls.importBtn.classList.toggle("hidden", !canSetBoardMode(room, state.uid));
 
-  const temHistorico = naForca && wordHistory(room).length > 0;
+  const temHistorico = comPalavra && wordHistory(room).length > 0;
   hangmanEls.historyBtn.classList.toggle("hidden", !(temHistorico && amLeader));
   hangmanEls.historyBtnViewer.classList.toggle("hidden", !(temHistorico && !amLeader));
   if (!hangmanEls.historyOverlay.classList.contains("hidden")) {
@@ -1914,33 +1931,33 @@ export function renderHangman(room) {
   // Se a palavra se perdeu (um F5 de quem tem a caneta), tenta recuperá-la do
   // browser antes de qualquer outra coisa — senão o resto do ecrã desenha-se
   // com o jogo já morto sem ninguém saber.
-  if (naForca && amLeader && mask && !hangmanSecretWord) {
+  if (comPalavra && amLeader && mask && !hangmanSecretWord) {
     hangmanSecretWord = recoverSecretWord(state.code, mask);
   }
-  const perdiAPalavra = naForca && amLeader && !!mask && !hangmanSecretWord;
-  const temPalavra = naForca && !!mask;
+  const perdiAPalavra = comPalavra && amLeader && !!mask && !hangmanSecretWord;
+  const temPalavra = comPalavra && !!mask;
   hangmanEls.wordZone.classList.toggle("hidden", !temPalavra);
   // Sem a palavra não se pode arbitrar: mostra-se a caixa de escrever outra vez
   // em vez das ferramentas de arbitrar, que não fariam nada.
-  hangmanEls.wordForm.classList.toggle("hidden", !(naForca && amLeader && (!mask || perdiAPalavra)));
-  hangmanEls.wordTools.classList.toggle("hidden", !(naForca && amLeader && !!mask && !perdiAPalavra));
+  hangmanEls.wordForm.classList.toggle("hidden", !(comPalavra && amLeader && (!mask || perdiAPalavra)));
+  hangmanEls.wordTools.classList.toggle("hidden", !(comPalavra && amLeader && !!mask && !perdiAPalavra));
   hangmanEls.wordInput.placeholder = perdiAPalavra
     ? "Escreve outra vez a palavra para continuares a arbitrar"
-    : "Palavra a adivinhar (só tu a vês)";
+    : (naForca ? "Palavra a adivinhar (só tu a vês)" : "O que vais desenhar (só tu o vês)");
 
   // Cor de cada um: pede-se ao entrar no modo, e só depois de todos terem
   // escolhido é que as letras erradas dizem alguma coisa.
   const jaTenhoCor = !!hangman.colors?.[state.uid];
-  const precisaDeCor = naForca && !jaTenhoCor;
+  const precisaDeCor = comPalavra && !jaTenhoCor;
   hangmanEls.colorOverlay.classList.toggle("hidden", !precisaDeCor);
-  if (naForca) hangmanRenderColorPicker(room);
+  if (comPalavra) hangmanRenderColorPicker(room);
   // Uma escolha obrigatória fecha os ecrãs opcionais. Sem isto, quem tivesse
   // as equipas ou as definições abertas ficava com a escolha de cor por
   // baixo — visível mas impossível de carregar.
   // O fim da partida manda em tudo o resto: é o único ecrã que não se fecha
   // por causa de outro.
-  hangmanRenderMatchOver(naForca ? room : { hangman: {}, players: {} });
-  if (matchIsOver(room) && naForca) {
+  hangmanRenderMatchOver(comPalavra ? room : { hangman: {}, players: {} });
+  if (matchIsOver(room) && comPalavra) {
     hangmanCloseTeams();
     hangmanCloseSettings();
     hangmanCloseModePicker();
@@ -1951,15 +1968,19 @@ export function renderHangman(room) {
     hangmanCloseModePicker();
   }
 
-  hangmanEls.slotsStrip.classList.toggle("hidden", !temPalavra);
-  hangmanEls.slotsStrip.classList.toggle("hangman-slots-interactive", temPalavra && amLeader);
-  renderWrongLetters(naForca ? room : { hangman: {} });
+  // Os espaços das letras são só da Forca: no Desenha e Adivinha, mostrar o
+  // tamanho da palavra era dar meia resposta antes de alguém olhar para o
+  // desenho.
+  const mostraEspacos = naForca && !!mask;
+  hangmanEls.slotsStrip.classList.toggle("hidden", !mostraEspacos);
+  hangmanEls.slotsStrip.classList.toggle("hangman-slots-interactive", mostraEspacos && amLeader);
+  renderWrongLetters(comPalavra ? room : { hangman: {} });
 
   // Em equipas mostram-se as EQUIPAS com o que já acertaram; a jogar cada um
   // por si mostram-se as pessoas, cada uma na sua cor. Mostrar as duas coisas
   // ao mesmo tempo enchia a faixa e não dizia mais nada.
   const daVez = naForca ? currentGuesser(room) : null;
-  if (naForca) {
+  if (comPalavra) {
     hangmanEls.players.innerHTML = "";
     if (teamsOn(room)) {
       hangmanEls.players.className = "hangman-players hangman-teams-strip";
@@ -2053,8 +2074,8 @@ export function renderHangman(room) {
   // não um resultado.
   const totalPalavras = matchWordsTotal(room);
   const feitas = wordsDone(room);
-  hangmanEls.matchProgress.classList.toggle("hidden", !(naForca && totalPalavras > 0));
-  if (naForca && totalPalavras > 0) {
+  hangmanEls.matchProgress.classList.toggle("hidden", !(comPalavra && totalPalavras > 0));
+  if (comPalavra && totalPalavras > 0) {
     hangmanEls.matchProgress.textContent = `Palavra ${Math.min(feitas + 1, totalPalavras)} de ${totalPalavras}`;
   }
 
@@ -2063,19 +2084,36 @@ export function renderHangman(room) {
     // tem a caneta vê a máscara partilhada, porque precisa de ver o andamento
     // da ronda para saber quando acabar.
     const minhaMascara = amLeader ? mask : playerMask(room, state.uid);
-    renderHangmanSlots(minhaMascara, amLeader);
+    renderHangmanSlots(naForca ? minhaMascara : "", amLeader);
     const misses = hangman.misses || 0;
     const teto = maxMissesOf(room);
     if (hangman.solved) {
       const vencedor = hangman.winnerUid ? room.players?.[hangman.winnerUid]?.name : null;
+      if (!naForca) {
+        // No Desenha e Adivinha não se "fecha a palavra": reconhece-se o
+        // desenho, ou não. E não há contagem de erros nenhuma para mostrar.
+        hangmanEls.missesLabel.textContent = vencedor
+          ? (hangman.winnerUid === state.uid ? "Adivinhaste! 🎉" : `${vencedor} adivinhou.`)
+          : "Adivinharam! 🎉";
+        hangmanEls.missesLabel.dataset.danger = "0";
+      }
       // "Montou primeiro" só faz sentido com folhas pessoais, em que cada um
       // monta a sua. Com a palavra à vista de todos, o que a pessoa fez foi
       // fechá-la — e dizer-lhe que a montou primeiro era dar-lhe crédito pelas
       // letras dos outros.
       const comoGanhou = guessesAreAnonymous(room) ? "montou a palavra primeiro" : "fechou a palavra";
-      hangmanEls.missesLabel.textContent = vencedor
-        ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} ${comoGanhou}.`)
-        : "Acertaram! 🎉";
+      if (naForca) {
+        hangmanEls.missesLabel.textContent = vencedor
+          ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} ${comoGanhou}.`)
+          : "Acertaram! 🎉";
+      }
+    } else if (!naForca) {
+      // Sem letras não há erros a contar: o que interessa dizer é de quem é a
+      // caneta e que se está à espera de palpites.
+      hangmanEls.missesLabel.textContent = amLeader
+        ? "Desenha — sem letras nem números!"
+        : "Escreve o teu palpite quando reconheceres.";
+      hangmanEls.missesLabel.dataset.danger = "0";
     } else if (individualMisses(room)) {
       // Com erros de cada um não há "enforcado": ninguém acaba a ronda dos
       // outros por ser distraído. O contador da sala passa a ser só um total.
@@ -2105,7 +2143,7 @@ export function renderHangman(room) {
   // Arriscar a palavra inteira é de quem NÃO tem a caneta, enquanto há palavra
   // por adivinhar. Ao contrário das letras, não espera pela vez: dizer a
   // palavra é uma aposta, e ninguém deve ter de esperar para a fazer.
-  const possoArriscarPalavra = naForca && !!mask && !hangman.solved && !amLeader
+  const possoArriscarPalavra = comPalavra && !!mask && !hangman.solved && !amLeader
     && hangmanGuessers(room).includes(state.uid) && !hangman.wordGuesses?.[state.uid]
     // Quem pediu ajuda e não tinha erros para gastar paga assim: fica sem
     // arriscar a palavra inteira até à palavra seguinte.
@@ -2174,7 +2212,7 @@ export function renderHangman(room) {
   if (host) queueMicrotask(() => applyBoardVotes(state.code, state.room));
   // E quem tem a caneta julga as tentativas pendentes, pelo mesmo motivo de
   // ordem: fora do desenho de ecrã, para a escrita não voltar a meio dele.
-  if (amLeader && naForca) {
+  if (amLeader && comPalavra) {
     queueMicrotask(() => hangmanJudgePendingGuesses(state.room));
     queueMicrotask(() => hangmanJudgeWordGuesses(state.room));
     queueMicrotask(() => hangmanServeHelpAsks(state.room));

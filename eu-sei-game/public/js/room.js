@@ -652,7 +652,30 @@ export const BOARD_MODES = {
     hint: "Um desenha a forca e a palavra escondida; os outros pedem a palavra para arriscar letras em voz alta.",
     tools: ["pen", "marker", "highlighter", "eraser", "line", "arrow", "rect", "ellipse"],
   },
+  // Desenhar em vez de soletrar. Por baixo é a mesma maquinaria da Forca — a
+  // palavra que só existe no browser de quem tem a caneta, a vez, as equipas,
+  // o histórico, o fim da partida — e o que muda é que não há espaços nem
+  // letras: ou se reconhece o desenho, ou não. Por isso é que este modo saiu
+  // barato: o que ele precisava já cá estava quase todo.
+  adivinha: {
+    label: "Desenha e adivinha",
+    hint: "Um desenha a palavra (sem escrever letras!); os outros escrevem o palpite. Quem acertar primeiro leva a ronda.",
+    tools: ["pen", "marker", "highlighter", "eraser", "line", "arrow", "rect", "ellipse"],
+  },
 };
+
+// Os modos em que há uma PALAVRA em jogo, que só o browser de quem tem a
+// caneta conhece. A Forca e o Desenha e Adivinha partilham quase tudo; o que
+// os separa é como se arrisca (letra a letra, ou a palavra de uma vez).
+export function isWordMode(modeKey) {
+  return modeKey === "forca" || modeKey === "adivinha";
+}
+
+// Onde se arrisca LETRAS. No Desenha e Adivinha não há letras nenhumas: dizer
+// "tem um a" sobre um desenho não quer dizer nada.
+export function lettersMode(room) {
+  return (room?.hangman?.mode || DEFAULT_BOARD_MODE) === "forca";
+}
 
 export function modeAllowsTool(modeKey, tool) {
   const mode = BOARD_MODES[modeKey] || BOARD_MODES.livre;
@@ -736,6 +759,11 @@ export const HANGMAN_MAX_MISSES = 6;
 // Definem-se ANTES de começar e ficam guardadas na sala: quem manda no quadro
 // escolhe uma vez e vale para todas as palavras seguintes, em vez de as ter de
 // reescolher a cada ronda.
+// No Desenha e Adivinha não há letras nem erros: ou se reconhece o desenho, ou
+// não. Tudo o que conta letras ou erros fica sem efeito, e o painel di-lo em
+// vez de deixar escolher para nada.
+const SEM_LETRAS = (room) => (lettersMode(room) ? null : "sem efeito no Desenha e Adivinha");
+
 export const BOARD_SETTINGS_SPEC = {
   forca: [
     {
@@ -753,7 +781,8 @@ export const BOARD_SETTINGS_SPEC = {
       // Com erros de cada um não há teto que enforque ninguém (ver o
       // missPatch): este número deixa de querer dizer o que diz, e um número
       // que não quer dizer nada num painel de definições é uma promessa falsa.
-      naoSeAplica: (room) => (individualMisses(room) ? "sem efeito com erros de cada um" : null),
+      naoSeAplica: (room) => SEM_LETRAS(room)
+        || (individualMisses(room) ? "sem efeito com erros de cada um" : null),
     },
     {
       key: "guessMode",
@@ -763,6 +792,7 @@ export const BOARD_SETTINGS_SPEC = {
         { value: "livre", label: "Qualquer um, quando quiser" },
       ],
       default: "turnos",
+      naoSeAplica: SEM_LETRAS,
     },
     {
       key: "matchWords",
@@ -788,6 +818,7 @@ export const BOARD_SETTINGS_SPEC = {
       // Por omissão fica o de sempre: é a forca clássica, e é o que já está
       // testado. Quem quiser o outro escolhe-o.
       default: "partilhados",
+      naoSeAplica: SEM_LETRAS,
     },
     {
       key: "penaltyEvery",
@@ -799,7 +830,8 @@ export const BOARD_SETTINGS_SPEC = {
         { value: 5, label: "A cada 5 erros, perde a vez seguinte" },
       ],
       default: 0,
-      naoSeAplica: (room) => (individualMisses(room) ? null : "sem efeito com erros da sala"),
+      naoSeAplica: (room) => SEM_LETRAS(room)
+        || (individualMisses(room) ? null : "sem efeito com erros da sala"),
     },
     {
       key: "autoPen",
@@ -833,6 +865,7 @@ export const BOARD_SETTINGS_SPEC = {
         { value: 0, label: "Anónimas: ninguém sabe de quem foi" },
       ],
       default: 1,
+      naoSeAplica: SEM_LETRAS,
     },
     {
       key: "help",
@@ -846,6 +879,7 @@ export const BOARD_SETTINGS_SPEC = {
       // nenhuma ajuda deixa quem está encravado sem nada para fazer a não ser
       // ver os outros jogar. O meio-termo é o que faz a ajuda ser uma decisão.
       default: "custa",
+      naoSeAplica: SEM_LETRAS,
     },
     {
       key: "showHintAlways",
@@ -859,6 +893,11 @@ export const BOARD_SETTINGS_SPEC = {
   ],
   livre: [],
 };
+
+// O Desenha e Adivinha usa as mesmas definições da Forca — é a mesma partida,
+// com outra maneira de arriscar. As que não lhe dizem respeito (letras, erros)
+// aparecem apagadas, como qualquer outra que não faça nada.
+BOARD_SETTINGS_SPEC.adivinha = BOARD_SETTINGS_SPEC.forca;
 
 export function boardSetting(room, modeKey, key) {
   const spec = (BOARD_SETTINGS_SPEC[modeKey] || []).find((d) => d.key === key);
@@ -1470,6 +1509,10 @@ export function helpCosts(room) {
 
 export function canAskHelp(room, uid) {
   if (helpLevel(room) === "nao") return false;
+  // Só onde há letras. No Desenha e Adivinha, revelar uma letra mudava a
+  // palavra escondida sem mudar nada no ecrã: uma ajuda que se paga e não se
+  // vê é pior do que não haver ajuda nenhuma.
+  if (!lettersMode(room)) return false;
   if (!room?.hangman?.mask || room.hangman.solved) return false;
   // Quem tem a caneta sabe a palavra: não há ajuda que lhe faça falta.
   if (room.hangman.leaderId === uid) return false;
@@ -1818,7 +1861,7 @@ export async function setBoardMode(code, room, uid, modeKey) {
   if (!canSetBoardMode(room, uid)) return false;
   if (room.hangman.mode === modeKey) return false;
   const patch = { ...puzzleResetPatch(), mode: modeKey, modeVotes: null };
-  if (modeKey === "forca") {
+  if (isWordMode(modeKey)) {
     // Entrar na Forca abre a votação da caneta: enquanto ninguém for
     // escolhido, a folha fica sem dono — é isso que faz a votação acontecer
     // em vez de ficar um botão à espera de ser carregado.
@@ -1962,7 +2005,9 @@ export function canDrawOnBoard(room, uid) {
   if (!hangman) return false;
   if (!connectedPlayerIds(room).includes(uid)) return false;
   const modo = BOARD_MODES[hangman.mode] ? hangman.mode : DEFAULT_BOARD_MODE;
-  if (modo !== "forca") return true;
+  // No Desenha e Adivinha vale a mesma regra: com desenho por adivinhar, só
+  // quem desenha lhe mexe — senão qualquer um escrevia a resposta na folha.
+  if (!isWordMode(modo)) return true;
   const emJogo = !!hangman.mask && !hangman.solved;
   if (!emJogo) return true;
   return hangman.leaderId === uid;
