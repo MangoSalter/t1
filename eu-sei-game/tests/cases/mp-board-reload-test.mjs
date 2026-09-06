@@ -89,7 +89,9 @@ console.log("5) Se a palavra guardada não servir, o quadro DIZ que se perdeu...
 // Apagar e recarregar em passos separados: chamar location.reload() de dentro
 // de um evaluate destrói o contexto a meio da chamada e a corrida seguinte
 // fica indefinida.
-await host.evaluate(() => localStorage.removeItem("euSei_hangmanSecret"));
+// sessionStorage e não localStorage: a palavra é guardada por SEPARADOR,
+// para o separador do lado (outra pessoa, no mesmo computador) não a herdar.
+await host.evaluate(() => sessionStorage.removeItem("euSei_hangmanSecret"));
 await host.reload({ waitUntil: "networkidle" });
 await host.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
 await host.waitForFunction(() => document.getElementById("hangman-status").textContent.includes("Perdi a palavra"), { timeout: 10000 });

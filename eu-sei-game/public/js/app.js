@@ -249,23 +249,29 @@ function showHomeError(msg) {
 // a deitar fora do jogo. No telemóvel isto não é um caso raro: os browsers
 // recarregam separadores em segundo plano sozinhos, e basta trocar de app e
 // voltar para se perder a sala a meio de uma partida.
+//
+// Por SEPARADOR, e não por browser, porque a identidade de jogador também o é
+// (ver getUid no firebase-init.js): com duas pessoas em dois separadores do
+// mesmo computador, uma sala guardada em comum mandava a segunda para a sala
+// da primeira. A memória da sala dura exatamente o que dura a identidade de
+// quem a tinha.
 const ROOM_KEY = "euSei_salaAtual";
 
 function lembrarSala(code, name) {
   try {
-    localStorage.setItem(ROOM_KEY, JSON.stringify({ code, name }));
+    sessionStorage.setItem(ROOM_KEY, JSON.stringify({ code, name }));
   } catch { /* sem armazenamento: só não sobrevive ao recarregamento */ }
 }
 
 function esquecerSala() {
   try {
-    localStorage.removeItem(ROOM_KEY);
+    sessionStorage.removeItem(ROOM_KEY);
   } catch { /* ver lembrarSala */ }
 }
 
 function salaLembrada() {
   try {
-    const g = JSON.parse(localStorage.getItem(ROOM_KEY) || "null");
+    const g = JSON.parse(sessionStorage.getItem(ROOM_KEY) || "null");
     return g && g.code ? g : null;
   } catch {
     return null;

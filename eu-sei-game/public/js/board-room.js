@@ -1366,11 +1366,15 @@ function contarLetras(mask) {
 //
 // Guardada no browser de quem a escreveu, e só lá: continua a nunca entrar na
 // base de dados, que é o ponto todo (ver maskWord em room.js).
+// Por SEPARADOR: a palavra é de quem tem a caneta, e num computador
+// partilhado o separador do lado é outra pessoa. Em localStorage, quem
+// apanhasse a caneta a seguir "recuperava" a palavra do vizinho e passava a
+// arbitrar uma palavra que nunca escreveu.
 const SECRET_WORD_KEY = "euSei_hangmanSecret";
 
 function saveSecretWord(code, word) {
   try {
-    localStorage.setItem(SECRET_WORD_KEY, JSON.stringify({ code, word }));
+    sessionStorage.setItem(SECRET_WORD_KEY, JSON.stringify({ code, word }));
   } catch {
     // Armazenamento bloqueado: o jogo funciona na mesma, só não aguenta um F5.
   }
@@ -1378,7 +1382,7 @@ function saveSecretWord(code, word) {
 
 function clearSecretWord() {
   try {
-    localStorage.removeItem(SECRET_WORD_KEY);
+    sessionStorage.removeItem(SECRET_WORD_KEY);
   } catch { /* ver saveSecretWord */ }
 }
 
@@ -1387,7 +1391,7 @@ function clearSecretWord() {
 // confiança, que é pior do que não dar nenhuma.
 function recoverSecretWord(code, mask) {
   try {
-    const guardado = JSON.parse(localStorage.getItem(SECRET_WORD_KEY) || "null");
+    const guardado = JSON.parse(sessionStorage.getItem(SECRET_WORD_KEY) || "null");
     if (!guardado || guardado.code !== code || !guardado.word) return "";
     if (maskWord(guardado.word) !== maskWord(mask)) return "";
     // E as letras já reveladas têm de bater certo com ela.

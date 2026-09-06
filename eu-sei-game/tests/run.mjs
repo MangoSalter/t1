@@ -83,7 +83,14 @@ try {
       //  - sem playwright (logica pura): a partir da copia temporaria, onde
       //    o firebase-init.js e o stub e portanto importavel pelo Node.
       const from = usesPlaywright.get(file) ? casesDir : path.join(root, "8937");
-      const p = spawn(process.execPath, [path.join(from, file)], { stdio: ["ignore", "pipe", "pipe"] });
+      // Os casos puros recebem o caminho do ficheiro VERDADEIRO e do stub:
+      // a copia onde correm ja tem o stub no lugar do original, e sem isto
+      // nao ha maneira de comparar um com o outro. E comparar e preciso —
+      // onde o stub difere do real, os testes que passam nao provam nada.
+      const p = spawn(process.execPath, [path.join(from, file)], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, EU_SEI_PUBLIC: publicDir, EU_SEI_STUB: stub },
+      });
       let out = "";
       p.stdout.on("data", (d) => { out += d; });
       p.stderr.on("data", (d) => { out += d; });
