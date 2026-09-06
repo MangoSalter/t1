@@ -15,6 +15,7 @@ import {
   MAPA_PODIO, MAPA_PODIO_MIN, GOLF_MP_FINISH_POINTS, GOLF_MP_FINISH_POINTS_MIN,
   TAG_SURVIVOR_BONUS, TAG_POINTS_PER_SECOND, BATTLE_KILL_POINTS,
   BATTLE_SURVIVOR_BONUS, DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS,
+  boardRoomPayout, BOARD_SALA_LINEAR_ATE, BOARD_SALA_TETO,
 } from "./js/room.js";
 
 let falhas = 0;
@@ -68,6 +69,42 @@ console.log("5) O mapa e o golfe pagam a mesma coisa — de propósito...");
 // consoante a ordem em que calhassem os jogos.
 check("os pódios são iguais", JSON.stringify(MAPA_PODIO), JSON.stringify(GOLF_MP_FINISH_POINTS));
 check("e os mínimos também", MAPA_PODIO_MIN, GOLF_MP_FINISH_POINTS_MIN);
+
+console.log("6) O quadro branco não corre atrás do placar por a partida ser longa...");
+// Lá dentro conta-se 1 por letra e 3 pela palavra, e isso não muda — é o
+// número que se vê a subir. O que se amortece é o que sai daí para o placar
+// da sala, senão uma partida de trinta palavras valia mais do que os outros
+// seis jogos somados.
+const exemplos = [
+  ["uma partida curta (5 palavras)", 12, 12],
+  ["uma partida normal, bom jogador", 25, 25],
+  ["uma partida longa", 40, 33],
+  ["uma partida muito longa", 60, 43],
+  ["uma maratona absurda", 120, BOARD_SALA_TETO],
+];
+exemplos.forEach(([nome, dentro, fora]) => {
+  console.log(`   ${nome}: ${dentro} no quadro -> ${boardRoomPayout(dentro)} na sala`);
+  check(nome, boardRoomPayout(dentro), fora);
+});
+check("nada abaixo do amortecedor é tocado", boardRoomPayout(BOARD_SALA_LINEAR_ATE), BOARD_SALA_LINEAR_ATE);
+check("zero é zero", boardRoomPayout(0), 0);
+check("não há pontos negativos", boardRoomPayout(-5), 0);
+
+console.log("7) E a ordem nunca se inverte: quem fez mais no quadro leva mais na sala...");
+// Um teto simples fazia 45 e 60 pagarem o mesmo — o que jogou melhor não
+// levava mais. O amortecedor existe para isso não acontecer.
+let inversoes = 0;
+let empatesCedo = 0;
+for (let n = 1; n <= 100; n += 1) {
+  const a = boardRoomPayout(n);
+  const b = boardRoomPayout(n + 1);
+  if (b < a) inversoes += 1;
+  if (b === a && n < 70) empatesCedo += 1;
+}
+console.log(`   inversões em 100 pontuações: ${inversoes}, empates antes dos 70: ${empatesCedo}`);
+check("nunca leva menos quem fez mais", inversoes, 0);
+check("e antes do teto os empates são raros", empatesCedo < 30, true);
+check("o teto do quadro cabe na mesma grandeza dos outros", BOARD_SALA_TETO <= 60, true);
 
 if (falhas > 0) { console.log(`=> equilíbrio FALHOU (${falhas})`); process.exit(1); }
 console.log("=> equilíbrio ok");

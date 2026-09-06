@@ -1384,7 +1384,7 @@ export async function payBoardMatchScore(code, room, uid) {
   const hangman = room?.hangman;
   if (!hangman?.matchOver || hangman.matchPaid) return false;
   if (room.hostId !== uid) return false;
-  const pontos = hangman.matchScore || {};
+  const pontos = boardMatchPayout(room);
   const updates = { "hangman/matchPaid": true };
   Object.entries(pontos).forEach(([jogador, n]) => {
     if (!n || !room.players?.[jogador]) return;
@@ -1394,9 +1394,39 @@ export async function payBoardMatchScore(code, room, uid) {
   return true;
 }
 
+// O QUADRO NÃO PODE CORRER ATRÁS DO PLACAR. Lá dentro conta-se 1 por letra e
+// 3 pela palavra inteira, e está bem assim: é o número que se vê a subir
+// enquanto se joga, e é o que faz sentido para quem está a jogar.
+//
+// Só que esse número cresce com o TAMANHO DA PARTIDA, que a sala escolhe. Uma
+// partida de cinco palavras dá uns vinte ao melhor jogador — em cheio na
+// banda dos outros bónus. Uma de quinze dá sessenta, e uma de trinta dá cento
+// e vinte: o mesmo defeito do mapa, mais devagar.
+//
+// Em vez de mexer nas letras (que são o jogo) ou de pôr um pódio (que apaga o
+// "fiz isto e vale isto" que o ecrã de fim mostra), amortece-se: até 25 vale
+// tudo, daí para cima vale metade, com o teto em 50.
+//
+//   12 -> 12    25 -> 25    40 -> 33    60 -> 43    120 -> 50
+//
+// A ordem nunca se inverte: quem fez mais leva mais, até ao teto. E numa
+// partida normal isto não muda absolutamente nada — que é o ponto.
+export const BOARD_SALA_LINEAR_ATE = 25;
+export const BOARD_SALA_TETO = 50;
+
+export function boardRoomPayout(pontos) {
+  const n = Math.max(0, Math.round(Number(pontos) || 0));
+  if (n <= BOARD_SALA_LINEAR_ATE) return n;
+  const extra = Math.round((n - BOARD_SALA_LINEAR_ATE) / 2);
+  return Math.min(BOARD_SALA_TETO, BOARD_SALA_LINEAR_ATE + extra);
+}
+
 // Quanto é que esta partida do quadro vale a cada um no placar da sala.
 export function boardMatchPayout(room) {
-  return { ...(room?.hangman?.matchScore || {}) };
+  const bruto = room?.hangman?.matchScore || {};
+  return Object.fromEntries(
+    Object.entries(bruto).map(([uid, n]) => [uid, boardRoomPayout(n)]),
+  );
 }
 
 export function boardMatchPaid(room) {

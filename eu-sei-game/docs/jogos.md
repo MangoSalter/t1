@@ -160,7 +160,7 @@ ao melhor jogador de uma ronda, **entre 15 e 40 pontos**.
 | Mini-Golfe | 25 / 16 / 10 / 6, mínimo 3 |
 | Conquistar o Mapa | 25 / 16 / 10 / 6, mínimo 3 |
 | Desenha e Adivinha | 15 a quem acerta, 8 a quem desenhou |
-| Quadro branco | 1 por letra, 3 por palavra |
+| Quadro branco | 1 por letra, 3 por palavra, amortecido acima de 25 (teto 50) |
 
 O mapa foi o que obrigou a escrever isto. Pagava ao placar da sala os pontos
 do seu próprio marcador: conquistar quarenta países dava **seiscentos** pontos
@@ -169,6 +169,18 @@ outros deixavam de contar. Agora o marcador rico fica dentro do mapa — os
 seguidos, os continentes, os roubos, que é o que dá gosto a jogá-lo — e para
 fora vai um pódio da mesma grandeza dos outros.
 
+O quadro tinha o mesmo defeito, mais devagar: o que se conta lá dentro cresce
+com o tamanho da partida, que a sala escolhe. Cinco palavras dão uns vinte ao
+melhor jogador; trinta palavras davam cento e vinte. As letras não se mexem —
+são o jogo, e o número que se vê a subir — mas o que sai daí para o placar da
+sala vale tudo até 25 e metade daí para cima, com teto em 50:
+
+    12 -> 12    25 -> 25    40 -> 33    60 -> 43    120 -> 50
+
+Escolheu-se amortecer em vez de pôr um teto simples porque um teto fazia 45 e
+60 pagarem o mesmo — quem jogou melhor não levava mais. Numa partida normal
+isto não muda nada, que é o ponto.
+
 `tests/cases/test-equilibrio.mjs` guarda a regra: um jogo novo que pague fora
 da banda falha o teste, para a conversa sobre quanto vale acontecer antes de ir
-para o site.
+para o site. Verifica também que a amortecedor do quadro nunca inverte a ordem.
