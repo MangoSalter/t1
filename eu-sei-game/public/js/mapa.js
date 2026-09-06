@@ -199,3 +199,4 @@ export function desenhar(ctx) {
     ctx.stroke();
   });
 }
+
