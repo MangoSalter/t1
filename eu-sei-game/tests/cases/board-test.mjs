@@ -332,6 +332,47 @@ if (!ordemOk) fail("os traços voltaram fora da ordem em que foram desenhados");
 await page.evaluate(() => { window.__boardTest.strokes = []; window.__boardTest.redo = []; });
 await drag([200, 200], [400, 300]);
 
+console.log("14d) O rato: botão direito desloca a folha, a roda dá zoom...");
+// Pedido depois de se desenhar a sério: a roda era para deslocar e só com Ctrl
+// dava zoom, e o botão direito desenhava igual ao esquerdo. Numa folha maior do
+// que o ecrã, a roda é o gesto que se faz sem pensar para ver melhor, e
+// deslocar faz-se com a mão que já está no rato.
+const camara = () => page.evaluate(() => ({
+  zoom: window.__boardTest.zoom,
+  panX: Math.round(window.__boardTest.panX),
+  panY: Math.round(window.__boardTest.panY),
+}));
+const caixaQuadro = await page.locator("#board-canvas").boundingBox();
+const antesDaRoda = await camara();
+await page.mouse.move(caixaQuadro.x + caixaQuadro.width / 2, caixaQuadro.y + caixaQuadro.height / 2);
+await page.mouse.wheel(0, -300);
+await page.waitForTimeout(150);
+const depoisDaRoda = await camara();
+console.log(`   roda para cima: zoom ${antesDaRoda.zoom.toFixed(2)} -> ${depoisDaRoda.zoom.toFixed(2)}`);
+if (!(depoisDaRoda.zoom > antesDaRoda.zoom)) fail("a roda para cima devia aproximar");
+await page.mouse.wheel(0, 300);
+await page.waitForTimeout(150);
+const voltou = await camara();
+console.log(`   roda para baixo: zoom ${voltou.zoom.toFixed(2)}`);
+if (!(voltou.zoom < depoisDaRoda.zoom)) fail("a roda para baixo devia afastar");
+
+// Botão direito arrastado: a folha mexe-se e NÃO fica traço nenhum.
+const tracosAntes = await page.evaluate(() => window.__boardTest.strokes.length);
+const antesDoArrasto = await camara();
+await page.mouse.move(caixaQuadro.x + 200, caixaQuadro.y + 200);
+await page.mouse.down({ button: "right" });
+await page.mouse.move(caixaQuadro.x + 320, caixaQuadro.y + 260);
+await page.mouse.move(caixaQuadro.x + 400, caixaQuadro.y + 300);
+await page.mouse.up({ button: "right" });
+await page.waitForTimeout(150);
+const depoisDoArrasto = await camara();
+const tracosDepois = await page.evaluate(() => window.__boardTest.strokes.length);
+console.log(`   arrasto com o direito: pan ${antesDoArrasto.panX},${antesDoArrasto.panY} -> ${depoisDoArrasto.panX},${depoisDoArrasto.panY}; traços ${tracosAntes} -> ${tracosDepois}`);
+if (depoisDoArrasto.panX === antesDoArrasto.panX && depoisDoArrasto.panY === antesDoArrasto.panY) {
+  fail("o botão direito devia deslocar a folha");
+}
+if (tracosDepois !== tracosAntes) fail("o botão direito não pode deixar traço");
+
 console.log("15) Há sempre caminho de volta: o botão e o 'voltar' do browser...");
 // A queixa foi mesmo esta: entrava-se no quadro e não se via como sair. O
 // botão é agora o primeiro da barra; e quem carrega no "voltar" do telemóvel

@@ -989,8 +989,12 @@ if (boardAvailable) {
     }
     if (board.pointers.size > 2) return;
 
-    // Botão do meio, espaço premido ou ferramenta "mão" deslocam a folha.
-    if (board.tool === "hand" || e.button === 1 || board.spaceHeld) {
+    // Deslocar a folha: botão DIREITO, botão do meio, espaço premido ou a
+    // ferramenta "mão". O direito é o que se pede com a mão que já está no
+    // rato — sem largar o desenho para ir buscar uma ferramenta —, e num
+    // quadro que é maior do que o ecrã isso faz mais falta do que um segundo
+    // botão que desenha igual ao primeiro.
+    if (board.tool === "hand" || e.button === 1 || e.button === 2 || board.spaceHeld) {
       beginPan(s.x, s.y);
       return;
     }
@@ -1040,20 +1044,27 @@ if (boardAvailable) {
   els.canvas.addEventListener("pointercancel", releasePointer);
   els.canvas.addEventListener("pointerleave", releasePointer);
 
-  // Roda do rato: Ctrl/⌘ afasta e aproxima (o gesto universal), sem tecla
-  // desloca a folha, como em qualquer tela grande.
+  // Roda do rato: AFASTA E APROXIMA, sempre. Antes deslocava a folha e só com
+  // Ctrl é que dava zoom — mas numa folha infinita a roda é o gesto que se faz
+  // sem pensar para ver mais ou ver melhor, e deslocar já se faz com o botão
+  // direito. Shift+roda continua a deslocar na horizontal, que é o único
+  // movimento que o arrasto não dá tão bem.
   els.canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     const s = screenFromEvent(e);
-    if (e.ctrlKey || e.metaKey) {
-      zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, s.x, s.y);
-    } else {
-      board.panX -= e.shiftKey ? e.deltaY : e.deltaX;
-      board.panY -= e.shiftKey ? 0 : e.deltaY;
+    if (e.shiftKey) {
+      board.panX -= e.deltaY || e.deltaX;
       redrawBoard();
       saveDrawingSoon();
+      return;
     }
+    zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, s.x, s.y);
   }, { passive: false });
+
+  // Sem isto, o menu do browser abria-se por cima do quadro assim que se
+  // carregasse no botão direito — e o botão direito passou a ser para
+  // deslocar a folha.
+  els.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   els.undoBtn?.addEventListener("click", undoStroke);
   els.redoBtn?.addEventListener("click", redoStroke);
