@@ -568,3 +568,34 @@ check2("o Zé não passa a caneta a si próprio",
 await guardas.passHangmanPen("GUARDA", salaGuarda, "anfitriao", "ze");
 check2("o anfitrião destranca a sala",
   (await getDb(refDb(dbTeste, CAMINHO))).val().leaderId, "ze");
+
+console.log("36) Quem fecha a palavra fica registado — à vista ou às escondidas...");
+// O "quem ganhou" só era guardado quando as tentativas eram anónimas. Como o
+// normal é estarem à vista, o fim da ronda dizia "Acertaram!" sem dizer a
+// quem, e no histórico da sessão nenhuma palavra tinha dono. Pior: mesmo no
+// modo anónimo, o histórico lia o vencedor ANTERIOR (nulo), porque quem
+// ganhava só era escrito na mesma atualização.
+// Com as tentativas anónimas a folha é de cada um, por isso a do Zé tem de
+// estar quase cheia também — senão ele não fecha nada e o teste só provava
+// que uma letra não chega.
+const salaFecho = (settings) => ({
+  hostId: "cap",
+  players: { cap: { connected: true }, ze: { connected: true } },
+  hangman: {
+    mode: "forca", leaderId: "cap", mask: "banan_", misses: 1,
+    masks: settings.revealGuesses === 0 ? { ze: "banan_" } : null,
+    hint: "fruta", turnOrder: ["ze"], settings, wordsDone: 0,
+  },
+});
+for (const [comoE, settings] of [["à vista", { revealGuesses: 1 }], ["anónimas", { revealGuesses: 0 }]]) {
+  const sala = salaFecho(settings);
+  const alvo = `rooms/FECHO${settings.revealGuesses}/hangman`;
+  await updateDb(refDb(dbTeste, alvo), JSON.parse(JSON.stringify(sala.hangman)));
+  await guardas.resolveGuess(`FECHO${settings.revealGuesses}`, sala, "cap", "ze", "a", "banana");
+  const fim = (await getDb(refDb(dbTeste, alvo))).val();
+  check2(`${comoE}: a palavra fechou`, String(fim.solved), "true");
+  check2(`${comoE}: quem a fechou ficou registado`, fim.winnerUid, "ze");
+  const entrada = fim.history?.h0001;
+  check2(`${comoE}: e o histórico guardou a palavra`, entrada?.word, "banana");
+  check2(`${comoE}: com o dono certo, não o anterior`, entrada?.winnerUid, "ze");
+}

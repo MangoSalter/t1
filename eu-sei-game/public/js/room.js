@@ -1139,7 +1139,7 @@ function missPatch(room, guesserUid, word) {
 // Uma ronda acabou: a palavra saiu, ou os erros esgotaram-se. É o único sítio
 // onde isso acontece, por isso é aqui que se conta a palavra e se vê se a
 // partida chegou ao fim.
-function roundEndPatch(room, contagens, word) {
+function roundEndPatch(room, contagens, word, vencedorUid) {
   const patch = {};
   const feitas = (room?.hangman?.wordsDone || 0) + 1;
   patch.wordsDone = feitas;
@@ -1153,7 +1153,10 @@ function roundEndPatch(room, contagens, word) {
       word,
       hint: room?.hangman?.hint || null,
       by: room?.hangman?.leaderId || null,
-      winnerUid: room?.hangman?.winnerUid || null,
+      // Quem ganhou vem de fora quando é esta mesma escrita que o decide: ler
+      // do room dava o valor ANTERIOR (nulo), e a palavra ficava no histórico
+      // sem dono mesmo tendo sido adivinhada.
+      winnerUid: vencedorUid || room?.hangman?.winnerUid || null,
       misses: room?.hangman?.misses || 0,
       at: serverNow(),
     };
@@ -1441,10 +1444,14 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
       const minha = revealLetter(word, playerMask(room, guesserUid), letter);
       patch[`masks/${maskKey(room, guesserUid)}`] = minha;
       patch.solved = maskIsSolved(minha);
-      if (patch.solved) patch.winnerUid = guesserUid;
     } else {
       patch.solved = maskIsSolved(nova);
     }
+    // Quem fechou a palavra fica registado, com as tentativas à vista ou não.
+    // Estava só no ramo anónimo, e como as tentativas à vista são o normal, o
+    // fim da ronda dizia "Acertaram!" sem dizer a quem, e o histórico da
+    // sessão nunca dava a palavra a ninguém.
+    if (patch.solved) patch.winnerUid = guesserUid;
     // Uma letra certa conta para a equipa de quem a disse: é o que dá às
     // equipas um propósito para lá de serem uma lista de nomes.
     const equipa = teamOfPlayer(room, guesserUid);
@@ -1460,7 +1467,7 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
     const contagens = { ...(room.hangman.correctCount || {}) };
     contagens[guesserUid] = (contagens[guesserUid] || 0) + 1;
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
-    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word));
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word, guesserUid));
   } else {
     // A letra errada guarda quem a disse, para aparecer no topo na cor dessa
     // pessoa. Repetida não conta como erro novo — errar duas vezes a mesma
@@ -1709,11 +1716,11 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
       // andamento; o que se mostra a cada um é a dele.
       patch.mask = revealWholeWord(word, room.hangman.mask || "", tentativa) || room.hangman.mask;
       patch.solved = maskIsSolved(novaMascara);
-      if (patch.solved) patch.winnerUid = guesserUid;
     } else {
       patch.mask = novaMascara;
       patch.solved = maskIsSolved(novaMascara);
     }
+    if (patch.solved) patch.winnerUid = guesserUid;
     const equipa = teamOfPlayer(room, guesserUid);
     if (equipa) {
       // A palavra inteira vale mais do que uma letra: foi um salto, não um
@@ -1728,7 +1735,7 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
     patch[`correctCount/${guesserUid}`] = contagens[guesserUid];
     // A ronda só acaba quando o quadro TODO está resolvido. Com várias
     // palavras, acertar uma não pode reordenar a fila a meio da ronda.
-    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word));
+    if (patch.solved) Object.assign(patch, roundEndPatch(room, contagens, word, guesserUid));
   } else {
     Object.assign(patch, missPatch(room, guesserUid, word));
     patch[`wrongWords/w${Date.now().toString(36)}`] = {

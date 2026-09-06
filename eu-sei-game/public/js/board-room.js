@@ -1941,8 +1941,13 @@ export function renderHangman(room) {
     const teto = maxMissesOf(room);
     if (hangman.solved) {
       const vencedor = hangman.winnerUid ? room.players?.[hangman.winnerUid]?.name : null;
+      // "Montou primeiro" só faz sentido com folhas pessoais, em que cada um
+      // monta a sua. Com a palavra à vista de todos, o que a pessoa fez foi
+      // fechá-la — e dizer-lhe que a montou primeiro era dar-lhe crédito pelas
+      // letras dos outros.
+      const comoGanhou = guessesAreAnonymous(room) ? "montou a palavra primeiro" : "fechou a palavra";
       hangmanEls.missesLabel.textContent = vencedor
-        ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} montou a palavra primeiro.`)
+        ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} ${comoGanhou}.`)
         : "Acertaram! 🎉";
     } else if (individualMisses(room)) {
       // Com erros de cada um não há "enforcado": ninguém acaba a ronda dos
