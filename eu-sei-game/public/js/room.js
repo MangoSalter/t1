@@ -1026,6 +1026,19 @@ export function teamOfPlayer(room, uid) {
   return room?.hangman?.teamOf?.[uid] || null;
 }
 
+// De quem é a palavra pessoal, quando as tentativas são anónimas.
+//
+// Sem equipas é de cada um. COM equipas é da equipa: os colegas veem o mesmo
+// progresso, que é a única coisa que faz de uma equipa uma equipa — antes
+// disto, ligar as duas opções ao mesmo tempo dava a cada jogador a sua
+// palavra e a equipa passava a ser uma lista de nomes sem nada em comum.
+// O anonimato mantém-se: continua a não se saber QUEM acertou nem que letra
+// cada um tentou, só que a equipa avançou.
+export function maskKey(room, uid) {
+  const equipa = teamOfPlayer(room, uid);
+  return equipa ? `equipa:${equipa}` : uid;
+}
+
 // --- Cores dos jogadores ---
 // Cada jogador escolhe a sua ao entrar no modo. Serve para as tentativas
 // erradas no topo do quadro dizerem QUEM as disse sem ter de escrever o nome
@@ -1226,8 +1239,14 @@ export async function fireBoardChaos(code, room, uid, word) {
     if (guessesAreAnonymous(room)) {
       // Com palavras pessoais, a prenda é para todos: dar a um só seria a gata
       // a escolher o vencedor.
+      // Uma escrita por MÁSCARA, não por jogador: com equipas, os colegas
+      // partilham a mesma e escrevê-la duas vezes seria escrever o mesmo.
+      const jaFeitas = new Set();
       hangmanGuessers(room).forEach((g) => {
-        patch[`masks/${g}`] = revealLetter(word, playerMask(room, g), letra);
+        const chave = maskKey(room, g);
+        if (jaFeitas.has(chave)) return;
+        jaFeitas.add(chave);
+        patch[`masks/${chave}`] = revealLetter(word, playerMask(room, g), letra);
       });
     }
   } else if (evento.kind === "skipTurn") {
@@ -1352,7 +1371,7 @@ export function playerMask(room, uid) {
   const hangman = room?.hangman;
   if (!hangman?.mask) return "";
   if (!guessesAreAnonymous(room)) return hangman.mask;
-  return hangman.masks?.[uid] || maskWord(hangman.mask);
+  return hangman.masks?.[maskKey(room, uid)] || maskWord(hangman.mask);
 }
 
 // Quem já montou a palavra toda. Serve para o ecrã de quem joga e para saber
@@ -1420,7 +1439,7 @@ export async function resolveGuess(code, room, uid, guesserUid, letter, word) {
       // partilhada continua a somar tudo, mas serve só a quem tem a caneta —
       // é o que lhe deixa ver o andamento da ronda.
       const minha = revealLetter(word, playerMask(room, guesserUid), letter);
-      patch[`masks/${guesserUid}`] = minha;
+      patch[`masks/${maskKey(room, guesserUid)}`] = minha;
       patch.solved = maskIsSolved(minha);
       if (patch.solved) patch.winnerUid = guesserUid;
     } else {
@@ -1674,7 +1693,7 @@ export async function resolveWordGuess(code, room, uid, guesserUid, tentativa, w
   const patch = { [`wordGuesses/${guesserUid}`]: null };
   if (acertou) {
     if (anonimo) {
-      patch[`masks/${guesserUid}`] = novaMascara;
+      patch[`masks/${maskKey(room, guesserUid)}`] = novaMascara;
       // A máscara partilhada continua a somar, para quem tem a caneta ver o
       // andamento; o que se mostra a cada um é a dele.
       patch.mask = revealWholeWord(word, room.hangman.mask || "", tentativa) || room.hangman.mask;

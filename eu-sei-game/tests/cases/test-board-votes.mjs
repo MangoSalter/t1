@@ -435,3 +435,38 @@ console.log("32) A lista de ferramentas aceites não pode divergir das que exist
 const doDesenho = Object.keys(BOARD_TOOLS).filter((k) => !BOARD_TOOLS[k].pan).sort();
 const aceites = doDesenho.filter((t) => sanitizeBoardPoints([{ x: 0, y: 0, tool: t }]).length === 1);
 check2("todas as ferramentas do quadro são aceites", aceites.join(","), doDesenho.join(","));
+
+console.log("33) Equipas + tentativas anónimas: a equipa partilha a palavra...");
+// Ligar as duas opções ao mesmo tempo dava a cada jogador a SUA palavra, e a
+// equipa passava a ser uma lista de nomes sem nada em comum: eu acertava uma
+// letra e o meu colega ao lado não a via. Agora a palavra pessoal é da
+// equipa. O anonimato não se perde — continua a não se saber QUEM acertou
+// nem que letra cada um tentou; sabe-se só que a equipa avançou.
+const { maskKey } = await import("./js/room.js");
+const salaEq = (extra) => ({
+  players: { a: { connected: true }, b: { connected: true }, c: { connected: true }, d: { connected: true } },
+  hangman: {
+    mode: "forca", play: "equipas", leaderId: "a", mask: "_a_a_a",
+    settings: { revealGuesses: 0 },
+    teams: { t1: { name: "Leões" }, t2: { name: "Palancas" } },
+    teamOf: { b: "t1", c: "t1", d: "t2" },
+    ...extra,
+  },
+});
+check2("sem equipa, a palavra é minha", maskKey(salaEq({ teamOf: {} }), "b"), "b");
+check2("com equipa, a palavra é da equipa", maskKey(salaEq(), "b"), "equipa:t1");
+check2("colegas partilham a mesma chave", maskKey(salaEq(), "c"), "equipa:t1");
+check2("adversário tem outra", maskKey(salaEq(), "d"), "equipa:t2");
+// O que interessa: o que o B acertou aparece ao C, e NÃO aparece ao D.
+const emJogo = salaEq({ masks: { "equipa:t1": "_a_a_a", "equipa:t2": "b_____" } });
+check2("o colega vê o que eu acertei", playerMask(emJogo, "c"), "_a_a_a");
+check2("o adversário não vê", playerMask(emJogo, "d"), "b_____");
+// E ganhar é da equipa: montada a palavra, ganharam os dois.
+const equipaGanhou = salaEq({ masks: { "equipa:t1": "banana" } });
+check2("montada a palavra, ganhou quem a montou", String(playerSolved(equipaGanhou, "b")), "true");
+check2("e o colega ganhou com ele", String(playerSolved(equipaGanhou, "c")), "true");
+check2("o adversário não ganhou", String(playerSolved(equipaGanhou, "d")), "false");
+// Com as tentativas à vista não há palavras pessoais nenhumas: todos veem a
+// partilhada, com ou sem equipas.
+const aVista = salaEq({ settings: { revealGuesses: 1 }, masks: { "equipa:t1": "banana" } });
+check2("à vista, equipas veem a mesma de sempre", playerMask(aVista, "d"), "_a_a_a");
