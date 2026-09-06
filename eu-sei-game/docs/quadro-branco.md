@@ -86,20 +86,16 @@ Cheio, avisa; carrega-se em Limpar e continua-se.
 Quatro escolhas de gosto que não são minhas para fazer. Estão aqui com opções
 concretas e uma recomendação em cada, para se responderem numa linha.
 
-### 1. O quadro dá pontos à sala?
+### 1. O quadro dá pontos à sala? — FEITO, pela opção (b)
 
-Hoje não dá nenhuns: joga-se, ganha-se a partida do quadro, e o placar geral da
-sala fica na mesma.
+Cada letra certa vale 1 e a palavra inteira vale 3, e isso sobe ao placar da
+sala quando a partida do quadro acaba. Não são números novos: é o que já se
+contava lá dentro para decidir quem ganhava. O ecrã de fim mostra ao lado de
+cada um quanto é que leva para o placar, para os pontos não aparecerem no
+placar geral sem se perceber de onde vieram.
 
-- **(a) Continuar assim.** O quadro é uma pausa entre rondas, não conta.
-- **(b) Contar, com os números que já existem.** Cada letra certa vale 1 e a
-  palavra inteira vale 3 — é exatamente o que o `matchScore` já conta dentro do
-  quadro; faltava só somá-lo ao placar da sala no fim da partida.
-- **(c) Só um bónus ao vencedor** da partida do quadro, como no "Desenha e
-  Adivinha" (que dá 15 a quem acerta e 8 a quem desenhou).
-
-*Recomendo (b)*: as contas já estão feitas e testadas, é ligá-las. E dá ao
-quadro a mesma dignidade dos outros mini-jogos, em vez de o deixar a valer zero.
+Se preferires (a) não contar ou (c) só um bónus ao vencedor, diz — é uma
+função só.
 
 ### 2. Quando é que a Brasa se oferece para ajudar?
 

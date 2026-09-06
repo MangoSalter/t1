@@ -17,6 +17,7 @@ import {
   correctCountOf, currentGuesser, finishHangman, fireBoardChaos, freeGuessing, guessesAreAnonymous,
   hangmanGuessers, individualMisses, joinTeam, joinWords, letterAlreadyTried, maskWord,
   matchIsOver, matchRanking, matchWordsTotal, maxMissesOf, missesOfPlayer, modeAllowsTool,
+  payBoardMatchScore, boardMatchPayout, boardMatchPaid,
   passGuessTurn, passHangmanPen, passHangmanPenRandom, pickHangmanColor, playerColor, playerMask,
   pointsObjectToArray, pushHangmanDoodlePoints, renameTeam, resolveGuess, resolveWordGuess, revealLetter,
   sanitizeBoardPoints, setBoardMode, setBoardSetting, setHangmanPuzzle, setPlayMode, setTeamCount,
@@ -1274,12 +1275,23 @@ hangmanEls.teamsCloseBtn.addEventListener("click", hangmanCloseTeams);
 
 // --- Fim da partida ---
 
+// Em que sala é que já pedi para pagar os pontos ao placar. Limpa-se assim que
+// a partida deixa de estar acabada — ou seja, quando se recomeça —, porque aí
+// há pontos novos para pagar. Declarado ANTES de quem o usa de propósito: já
+// houve duas vezes nesta base de código em que uma variável usada antes de ser
+// declarada partiu o ecrã inteiro.
+let pagoNestaSala = null;
+
 function hangmanRenderMatchOver(room) {
   const acabou = matchIsOver(room);
   hangmanEls.matchOverlay.classList.toggle("hidden", !acabou);
-  if (!acabou) return;
+  if (!acabou) {
+    pagoNestaSala = null;
+    return;
+  }
 
   const ordem = matchRanking(room);
+  const ganhosDaSala = boardMatchPayout(room);
   const maisPontos = ordem.length > 0 ? ordem[0].pontos : 0;
   hangmanEls.matchRanking.innerHTML = "";
   let lugar = 0;
@@ -1314,7 +1326,12 @@ function hangmanRenderMatchOver(room) {
 
     const pts = document.createElement("span");
     pts.className = "hangman-match-points";
-    pts.textContent = `${entrada.pontos} letra${entrada.pontos === 1 ? "" : "s"}`;
+    // Ao lado das letras, o que isso vale no placar da SALA: sem esse número à
+    // vista, os pontos apareciam no placar geral sem ninguém perceber de onde
+    // tinham vindo.
+    const paraASala = entrada.membros.reduce((soma, u) => soma + (ganhosDaSala[u] || 0), 0);
+    pts.textContent = `${entrada.pontos} letra${entrada.pontos === 1 ? "" : "s"}`
+      + (paraASala > 0 ? ` · +${paraASala} pts na sala` : "");
     linha.appendChild(pts);
     hangmanEls.matchRanking.appendChild(linha);
   });
@@ -1328,6 +1345,15 @@ function hangmanRenderMatchOver(room) {
   const manda = canSetBoardMode(room, state.uid);
   hangmanEls.matchAgainBtn.classList.toggle("hidden", !manda);
   hangmanEls.matchWait.textContent = manda ? "" : "À espera de quem manda no quadro para começar outra.";
+
+  // O anfitrião leva os pontos ao placar da sala. Só ele, e só uma vez — o
+  // guarda está no room.js (matchPaid, escrito na mesma atualização); este
+  // aqui evita só pedir a mesma coisa a cada desenho de ecrã enquanto a
+  // resposta não chega de volta.
+  if (isHost(room) && !boardMatchPaid(room) && state.code !== pagoNestaSala) {
+    pagoNestaSala = state.code;
+    queueMicrotask(() => payBoardMatchScore(state.code, state.room, state.uid));
+  }
 }
 
 // --- Histórico das palavras ---

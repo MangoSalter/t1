@@ -1296,6 +1296,44 @@ export function matchIsOver(room) {
   return !!room?.hangman?.matchOver;
 }
 
+// OS PONTOS DO QUADRO SOBEM AO PLACAR DA SALA quando a partida acaba.
+//
+// Uma letra certa vale 1 e a palavra inteira vale 3 — não são números novos:
+// é exatamente o que o matchScore já conta cá dentro para decidir quem ganhou
+// a partida do quadro. O que faltava era somá-lo ao placar da sala. Sem isso,
+// ganhar no quadro não valia nada fora dele, e um mini-jogo que não conta é um
+// mini-jogo a menos.
+//
+// Com equipas, quem recebe continua a ser a PESSOA: a equipa decide quem ganha
+// a partida do quadro, mas o placar da sala é de cada um, e dividir pontos de
+// equipa por gente que entrou e saiu a meio não daria contas honestas.
+//
+// Paga o anfitrião, porque o placar é da sala e não do quadro, e paga UMA vez:
+// o matchPaid vai na mesma escrita, para dois clientes a desenhar o ecrã ao
+// mesmo tempo não pagarem a dobrar.
+export async function payBoardMatchScore(code, room, uid) {
+  const hangman = room?.hangman;
+  if (!hangman?.matchOver || hangman.matchPaid) return false;
+  if (room.hostId !== uid) return false;
+  const pontos = hangman.matchScore || {};
+  const updates = { "hangman/matchPaid": true };
+  Object.entries(pontos).forEach(([jogador, n]) => {
+    if (!n || !room.players?.[jogador]) return;
+    updates[`players/${jogador}/score`] = (room.players[jogador].score || 0) + n;
+  });
+  await update(roomRef(code), updates);
+  return true;
+}
+
+// Quanto é que esta partida do quadro vale a cada um no placar da sala.
+export function boardMatchPayout(room) {
+  return { ...(room?.hangman?.matchScore || {}) };
+}
+
+export function boardMatchPaid(room) {
+  return !!room?.hangman?.matchPaid;
+}
+
 export function wordsDone(room) {
   return room?.hangman?.wordsDone || 0;
 }
@@ -1350,8 +1388,8 @@ export async function startNewMatch(code, room, uid) {
   if (!canSetBoardMode(room, uid)) return false;
   await update(ref(db, `rooms/${code}/hangman`), {
     ...puzzleResetPatch(),
-    matchOver: null, wordsDone: 0, matchScore: null, teamScore: null,
-    history: null, correctCount: null,
+    matchOver: null, matchPaid: null, wordsDone: 0, matchScore: null,
+    teamScore: null, history: null, correctCount: null,
   });
   return true;
 }

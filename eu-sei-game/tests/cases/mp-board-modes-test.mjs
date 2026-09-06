@@ -468,6 +468,28 @@ if (fim.linhas.length !== 2) fail(`a classificação devia listar os dois (tem $
 // pior do que aparecer em último.
 if (!fim.linhas.some((l) => /0 letras/.test(l))) fail("quem não acertou devia aparecer com zero");
 
+console.log("16a2) E os pontos do quadro sobem ao placar da SALA...");
+// O quadro não dava pontos nenhuns à sala: jogava-se, ganhava-se, e o placar
+// geral ficava na mesma. Agora o que se fez lá dentro (1 por letra, 3 pela
+// palavra inteira) soma-se ao placar da sala quando a partida acaba — uma vez
+// só, e é o anfitrião que o faz.
+await host.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).hangman?.matchPaid === true, code, { timeout: 10000 });
+const placar = await host.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  return Object.fromEntries(Object.entries(r.players).map(([u, p]) => [p.name, { sala: p.score || 0, quadro: r.hangman.matchScore?.[u] || 0 }]));
+}, code);
+console.log(`   placar da sala vs. o que fizeram no quadro: ${JSON.stringify(placar)}`);
+Object.entries(placar).forEach(([nome, v]) => {
+  if (v.quadro > 0 && v.sala < v.quadro) fail(`${nome} fez ${v.quadro} no quadro e o placar da sala só tem ${v.sala}`);
+});
+if (!Object.values(placar).some((v) => v.quadro > 0)) fail("alguém tinha de ter feito pontos no quadro");
+// E o ecrã de fim diz de onde vêm, senão os pontos aparecem no placar geral
+// sem ninguém perceber porquê.
+const linhaComPontos = await host.evaluate(() =>
+  [...document.querySelectorAll(".hangman-match-points")].map((e) => e.textContent).join(" | "));
+console.log(`   no ecrã: ${linhaComPontos}`);
+if (!/pts na sala/.test(linhaComPontos)) fail("o ecrã de fim devia dizer quanto vai para o placar da sala");
+
 console.log("16b) As palavras jogadas ficam no histórico da sessão...");
 // É no fim da ronda, e só aí, que a palavra pode sair do browser de quem a
 // escreveu: já não há nada para esconder.

@@ -682,3 +682,45 @@ check2("penalização: sem efeito com erros da sala",
   String(!!acha("penaltyEvery").naoSeAplica(comPartilhados)), "true");
 check2("penalização: vale com erros de cada um",
   String(acha("penaltyEvery").naoSeAplica(comIndividuais)), "null");
+
+console.log("41) Os pontos do quadro sobem ao placar da SALA, e uma vez só...");
+// O quadro não dava pontos nenhuns à sala: jogava-se, ganhava-se a partida do
+// quadro, e o placar geral ficava na mesma. Uma letra certa vale 1 e a palavra
+// inteira vale 3 — não são números novos, é o que o matchScore já contava cá
+// dentro para decidir quem ganhava a partida.
+const { payBoardMatchScore, boardMatchPaid } = await import("./js/room.js");
+const salaPaga = () => ({
+  hostId: "ana",
+  players: {
+    ana: { connected: true, name: "Ana", score: 10 },
+    ze: { connected: true, name: "Zé", score: 4 },
+    fora: { connected: false, name: "Fora", score: 0 },
+  },
+  hangman: { mode: "forca", matchOver: true, matchScore: { ana: 5, ze: 2, fantasma: 9 } },
+});
+const ALVO = "rooms/PAGA";
+await updateDb(refDb(dbTeste, ALVO), JSON.parse(JSON.stringify(salaPaga())));
+const lerSala = async () => (await getDb(refDb(dbTeste, ALVO))).val();
+
+// Quem não é anfitrião não paga: o placar é da sala, e duas pessoas a pagar
+// pagavam a dobrar.
+await payBoardMatchScore("PAGA", salaPaga(), "ze");
+check2("quem não é anfitrião não mexe no placar", (await lerSala()).players.ana.score, 10);
+
+await payBoardMatchScore("PAGA", salaPaga(), "ana");
+const paga = await lerSala();
+check2("a Ana levou os 5 que fez", paga.players.ana.score, 15);
+check2("o Zé levou os 2 dele", paga.players.ze.score, 6);
+check2("quem não jogou fica na mesma", paga.players.fora.score, 0);
+check2("um fantasma na contagem não cria jogador", String(paga.players.fantasma === undefined), "true");
+check2("fica marcado como pago", String(boardMatchPaid(paga)), "true");
+
+// Pagar outra vez não paga outra vez — o ecrã redesenha-se muitas vezes.
+await payBoardMatchScore("PAGA", paga, "ana");
+check2("não paga a dobrar", (await lerSala()).players.ana.score, 15);
+
+// E enquanto a partida não acabou, não há nada a pagar.
+const aMeio = { ...salaPaga(), hangman: { mode: "forca", matchOver: false, matchScore: { ana: 3 } } };
+await updateDb(refDb(dbTeste, "rooms/MEIO"), JSON.parse(JSON.stringify(aMeio)));
+await payBoardMatchScore("MEIO", aMeio, "ana");
+check2("partida a meio não paga nada", (await getDb(refDb(dbTeste, "rooms/MEIO"))).val().players.ana.score, 10);
