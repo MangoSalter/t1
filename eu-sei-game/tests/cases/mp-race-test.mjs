@@ -125,9 +125,19 @@ console.log(`   classificação: ${JSON.stringify(room.race.standings)}`);
 console.log(`   pontos da ronda: ${JSON.stringify(room.race.roundPoints)}`);
 const hostId = room.hostId;
 const betoId = Object.keys(room.players).find((u) => room.players[u].name === "Beto");
-if (room.race.standings[hostId].place !== 1) { console.log("   FALHOU: quem aguentou mais devia ficar em 1º"); process.exitCode = 1; }
+// A ordem verifica-se contra os tempos REALMENTE guardados, e não contra os
+// que o teste tentou impor. O carro da Ana pode bater sozinho num obstáculo
+// antes de o teste a mandar bater — e a primeira batida é a que conta, por
+// isso o 9100 pode nunca ter sido aceite. Assumir o contrário fazia o teste
+// falhar de vez em quando por causa do jogo a funcionar bem.
+const tempoDe = (uid) => room.race.racers[uid].crashTimeMs ?? room.race.racers[uid].timeMs ?? 0;
+const aguentouMais = tempoDe(hostId) >= tempoDe(betoId) ? hostId : betoId;
+const nomeDoPrimeiro = room.players[aguentouMais].name;
+console.log(`   tempos guardados: Ana ${tempoDe(hostId)}ms, Beto ${tempoDe(betoId)}ms — devia ganhar ${nomeDoPrimeiro}`);
+if (room.race.standings[aguentouMais].place !== 1) { console.log("   FALHOU: quem aguentou mais devia ficar em 1º"); process.exitCode = 1; }
 if (!(room.players[hostId].score > 0)) { console.log("   FALHOU: os pontos não foram somados"); process.exitCode = 1; }
-if (!(room.race.roundPoints[hostId] > room.race.roundPoints[betoId])) { console.log("   FALHOU: quem aguentou mais devia ter mais pontos"); process.exitCode = 1; }
+const oOutro = aguentouMais === hostId ? betoId : hostId;
+if (!(room.race.roundPoints[aguentouMais] > room.race.roundPoints[oOutro])) { console.log("   FALHOU: quem aguentou mais devia ter mais pontos"); process.exitCode = 1; }
 await host.waitForSelector("#race-results:not(.hidden)", { timeout: 5000 });
 const resultRows = await host.locator("#race-results .score-row").allTextContents();
 console.log(`   resultados no ecrã: ${JSON.stringify(resultRows)}`);

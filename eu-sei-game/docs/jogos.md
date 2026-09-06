@@ -17,7 +17,7 @@ coluna da direita é uma recomendação, não um veredito.
 | **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão, sem palpites escritos | **Corta.** O modo novo do quadro faz o mesmo e melhor: palpites escritos, julgados sozinhos, cores, equipas e histórico. Ter os dois é confundir |
 | **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substitui** pelo jogo do mapa novo (plano em baixo) |
 | **Conquistar o Mapa** (o mapa novo, em sala) | Os 177 países como territórios a sério, cada um do primeiro que o souber; errar deixa o país em causa e vale a dobrar a quem o souber a seguir; as bandeiras que o Brasa revela aparecem no mapa de toda a gente; três línguas ao mesmo tempo na mesma sala | **Fica.** É o segundo pilar, a par do quadro |
-| **Estrada Maluca** (corrida) | Defeito diagnosticado e por corrigir: quem se despista duas vezes reescreve o tempo depois de as classificações estarem feitas; o teste ainda assume o fluxo antigo | **Corrigir antes de expor** — ou cortar |
+| **Estrada Maluca** (corrida) | Corrigido: a primeira batida é a que conta (transação), e o teste deixou de assumir que o carro só bate quando ele mandar. Na oficina, à espera de mais uma passagem antes de voltar | **Rever na oficina antes de voltar** |
 | **Fuga da Infeção** (apanhada) | O teste falha de forma intermitente no passo dos power-ups, cerca de metade das vezes; nunca foi investigado a fundo | **Corrigir antes de expor** — ou cortar |
 | **Batalha no labirinto** | Tem testes (lógica e ecrã), mas nunca passou por uma revisão como a do quadro | **Rever antes de expor** |
 | **Mini-golfe** | Tem testes de lógica e de ecrã | **Rever antes de expor** |

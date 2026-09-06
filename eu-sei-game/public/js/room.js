@@ -2649,8 +2649,15 @@ export async function crashRacer(code, uid, timeMs, room) {
 }
 
 async function crashRacerNow(code, uid, timeMs) {
-  await update(ref(db, `rooms/${code}/race/racers/${uid}`), {
-    alive: false, crashTimeMs: Math.round(timeMs), crashedAt: serverNow(),
+  // A PRIMEIRA BATIDA É A BATIDA. Vai por transação e não por escrita directa
+  // porque só a leitura-e-escrita atómica garante que uma segunda batida não
+  // reescreve o tempo da primeira. Sem isto, uma chamada atrasada aterrava
+  // depois da ronda já contada e trocava o tempo com que a classificação
+  // tinha sido feita — os resultados no ecrã deixavam de bater certo com os
+  // números guardados, e quem olhasse para os dois via o jogo a mentir.
+  await runTransaction(ref(db, `rooms/${code}/race/racers/${uid}`), (atual) => {
+    if (!atual || atual.alive === false) return undefined; // já bateu: fica como está
+    return { ...atual, alive: false, crashTimeMs: Math.round(timeMs), crashedAt: serverNow() };
   });
 }
 
