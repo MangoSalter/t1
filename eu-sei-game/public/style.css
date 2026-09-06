@@ -1130,26 +1130,45 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 
 /* --- O mapa-múndi ---
-   O ecrã é inteiro, como o quadro: um mapa dentro de um cartão não é um mapa.
-   A barra fica fina de propósito — o que interessa ver é o mundo. */
-.mapa-screen { display: none; flex-direction: column; height: 100dvh; padding: 0; max-width: none; }
-.mapa-screen.active { display: flex; }
+   Ecrã inteiro e FIXO, como o quadro: `position: fixed; inset: 0` é o que
+   garante que a página não ganha barra de deslocamento nenhuma, em ecrã
+   nenhum. Com altura em vh, um ecrã alto deixava sobra por baixo e um ecrã
+   baixo empurrava o mapa para fora — as duas coisas obrigavam a rolar. */
+.mapa-screen { display: none; }
+.screen.mapa-screen.active {
+  display: flex; flex-direction: column;
+  position: fixed; inset: 0; z-index: 8; padding: 0; margin: 0;
+}
 .mapa-toolbar {
+  flex: 0 0 auto;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 12px; border-bottom: 2px solid var(--paper-line); background: var(--paper);
+  padding: 8px 12px; border-bottom: 2px solid var(--ink); background: var(--paper);
 }
 .mapa-form { display: flex; gap: 6px; flex: 1 1 260px; min-width: 0; }
 .mapa-form input { flex: 1 1 auto; min-width: 0; }
 .mapa-progresso { font-weight: 700; white-space: nowrap; }
+.mapa-modo { max-width: 200px; }
+/* min-height: 0 é o que deixa o mapa encolher dentro do flex em vez de
+   empurrar a barra para fora do ecrã. Sem isto, um mapa grande faz crescer a
+   coluna e volta a haver deslocamento. */
 .mapa-zona { position: relative; flex: 1 1 auto; min-height: 0; }
 #mapa-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.mapa-hipoteses { position: absolute; display: flex; gap: 6px; flex-wrap: wrap; max-width: min(90%, 520px); }
+.mapa-hipoteses button { background: var(--paper); border: 2px solid var(--ink); }
 .mapa-status {
   position: absolute; left: 12px; bottom: 12px; margin: 0;
   background: var(--paper); border: 2px solid var(--paper-line); border-radius: 8px;
   padding: 6px 10px; max-width: min(90%, 520px);
 }
+
+/* No telemóvel a barra tem de caber sem comer o mapa: a caixa de escrever
+   passa a ocupar a sua própria linha, os botões encolhem para o ícone, e o
+   que sobra é tudo mapa. Os alvos ficam nos 44 px do costume. */
 @media (max-width: 720px) {
   .mapa-toolbar { padding: 6px 8px; gap: 6px; }
-  .mapa-toolbar button { min-height: 44px; }
+  .mapa-toolbar button { min-height: 44px; padding: 6px 10px; }
+  .mapa-form { order: 3; flex: 1 0 100%; }
   .mapa-form input { min-height: 44px; }
+  .mapa-modo { min-height: 44px; max-width: 140px; flex: 1 1 auto; }
+  .mapa-status { left: 8px; right: 8px; bottom: 8px; max-width: none; font-size: 0.95rem; }
 }

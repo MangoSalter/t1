@@ -49,6 +49,30 @@ function anel(indices) {
   return pontos;
 }
 
+// O MERIDIANO 180. A Rússia (e as Fiji, e as Aleutas) atravessam-no, e num
+// mapa equiretangular isso faz o traço saltar de um lado do mundo para o
+// outro — desenhado, é uma faixa horizontal a atravessar o mapa inteiro por
+// cima da Sibéria. Foi exatamente isso que apareceu no ecrã.
+//
+// A correção é cortar o anel onde ele salta: fica um pedaço de cada lado do
+// mapa, que é onde o país está mesmo. Um salto de mais de meio mundo entre
+// dois pontos seguidos nunca é um país — é a volta ao mundo.
+function partirNoMeridiano(pontos) {
+  const pedacos = [];
+  let atual = [];
+  for (let i = 0; i < pontos.length; i += 1) {
+    const p = pontos[i];
+    const anterior = pontos[i - 1];
+    if (anterior && Math.abs(p[0] - anterior[0]) > 180) {
+      if (atual.length > 2) pedacos.push(atual);
+      atual = [];
+    }
+    atual.push(p);
+  }
+  if (atual.length > 2) pedacos.push(atual);
+  return pedacos;
+}
+
 const proj = (lon, lat) => [
   Math.round(((lon + 180) / 360) * 10000) / 10000,
   Math.round(((90 - lat) / 180) * 10000) / 10000,
@@ -58,9 +82,43 @@ const proj = (lon, lat) => [
 // com os países em inglês estaria partido à nascença, por isso a tradução vive
 // à parte, num ficheiro que se lê e se corrige à mão.
 const nomesPt = JSON.parse(await readFile(new URL("./nomes-pt.json", import.meta.url), "utf8"));
+// O continente de cada país. Não vem nos dados (o Natural Earth traz só o
+// nome), e é ele que permite jogar um continente de cada vez em vez de encarar
+// o mundo inteiro de uma assentada.
+const porContinente = JSON.parse(await readFile(new URL("./continentes.json", import.meta.url), "utf8"));
+const continenteDe = {};
+for (const [cont, lista] of Object.entries(porContinente)) {
+  lista.forEach((n) => { continenteDe[n] = cont; });
+}
+
+// Como as pessoas CHAMAM aos países, que não é sempre como se escrevem. "EUA",
+// "Holanda", "Inglaterra", "Birmânia" — quem escreve isto conhece o país, e o
+// jogo é sobre conhecer, não sobre soletrar. Ao contrário dos nomes e dos
+// continentes, esta lista pode ter buracos sem estragar nada: um país sem
+// alcunha aceita o nome próprio, e ponto.
+const alcunhas = JSON.parse(await readFile(new URL("./alcunhas.json", import.meta.url), "utf8"));
+
+// O código de duas letras de cada país, para a BANDEIRA. Um emoji de bandeira
+// são duas letras em alfabeto de sinalização, por isso com "PT" faz-se 🇵🇹 sem
+// imagem nenhuma — nada de ficheiros, nada de marcas de água, nada que possa
+// faltar do servidor. Onde o sistema não desenhar a bandeira, mostra as duas
+// letras, que continua a ser uma pista.
+//
+// Três territórios não têm código ISO (Chipre do Norte, Somalilândia, Kosovo,
+// que tem um provisório). Ficam sem bandeira e o jogo segue — a pista deles é
+// só o nome.
+const numeroParaIso = JSON.parse(await readFile(new URL("./iso2.json", import.meta.url), "utf8"));
+
 const semNome = topo.objects.countries.geometries
   .map((g) => g.properties.name)
   .filter((n) => !nomesPt[n]);
+const semContinente = topo.objects.countries.geometries
+  .map((g) => g.properties.name)
+  .filter((n) => !continenteDe[n]);
+if (semContinente.length > 0) {
+  console.error(`sem continente em continentes.json: ${semContinente.join(", ")}`);
+  process.exit(1);
+}
 if (semNome.length > 0) {
   // Parar é de propósito: gerar o ficheiro com metade dos países em inglês
   // seria pior do que não o gerar.
@@ -75,9 +133,19 @@ const paises = topo.objects.countries.geometries.map((g) => {
     // O primeiro anel de cada polígono é o contorno; os seguintes são buracos
     // (o Lesoto dentro da África do Sul, por exemplo). Para o jogo interessa
     // o contorno — um buraco desenhado como território seria uma ilha falsa.
-    aneis.push(anel(grupo[0]).map(([lon, lat]) => proj(lon, lat)));
+    partirNoMeridiano(anel(grupo[0])).forEach((pedaco) => {
+      aneis.push(pedaco.map(([lon, lat]) => proj(lon, lat)));
+    });
   }
-  return { id: g.id, nome: nomesPt[g.properties.name], en: g.properties.name, aneis };
+  return {
+    id: g.id,
+    nome: nomesPt[g.properties.name],
+    en: g.properties.name,
+    cont: continenteDe[g.properties.name],
+    alt: alcunhas[g.properties.name] || [],
+    iso: numeroParaIso[String(Number(g.id))] || null,
+    aneis,
+  };
 });
 
 await mkdir(path.dirname(saida), { recursive: true });

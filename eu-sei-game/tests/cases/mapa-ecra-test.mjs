@@ -3,7 +3,7 @@
 // A lógica tem o seu teste sem browser (test-mapa.mjs); este responde à outra
 // metade: clicar mesmo no mapa acerta no país certo, escrever o nome pinta-o e
 // tranca-o, e quem se engana percebe porquê.
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
@@ -113,6 +113,170 @@ await page.waitForTimeout(120);
 const arrastado = await camara();
 console.log(`   pan ${comZoom.panX} -> ${arrastado.panX}`);
 if (arrastado.panX === comZoom.panX) fail("o botão direito devia arrastar o mapa");
+
+console.log("8) O Enter entrega a resposta, e o foco não se perde...");
+// O ritmo do jogo é escrever, Enter, escrever. Ir buscar a caixa com o rato
+// entre respostas era o que o travava.
+await page.click("#mapa-recomecar-btn");
+const angola = await ecraDe(17.87, -11.2);
+await page.mouse.click(angola.x, angola.y);
+await page.keyboard.type("angola");
+await page.keyboard.press("Enter");
+await page.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos.Angola;
+}, { timeout: 5000 });
+const focoDepois = await page.evaluate(() => document.activeElement?.id);
+console.log(`   depois do Enter, o foco está em: ${focoDepois}`);
+if (focoDepois !== "mapa-input") fail("o foco devia ficar na caixa para se escrever a seguir");
+
+console.log("9) Escrever como as pessoas falam...");
+const eua = await ecraDe(-98.5, 39.8);
+await page.mouse.click(eua.x, eua.y);
+await page.fill("#mapa-input", "eua");
+await page.keyboard.press("Enter");
+await page.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos["Estados Unidos"];
+}, { timeout: 5000 });
+console.log("   'eua' conquistou os Estados Unidos");
+
+console.log("10) Escape larga o país escolhido...");
+await page.mouse.click(angola.x, angola.y);
+await page.fill("#mapa-input", "seja o que for");
+await page.keyboard.press("Escape");
+const largou = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return { sel: m.mapa.selecionado, caixa: document.getElementById("mapa-input").value };
+});
+console.log(`   selecionado: ${largou.sel}, caixa: "${largou.caixa}"`);
+if (largou.sel) fail("o Escape devia largar o país escolhido");
+if (largou.caixa !== "") fail("o Escape devia limpar a caixa");
+
+console.log("11) Os modos mudam o tamanho da partida...");
+await page.selectOption("#mapa-modo", "Europa");
+await page.waitForFunction(() => /de 4[0-9]\b/.test(document.getElementById("mapa-progresso").textContent), { timeout: 5000 })
+  .catch(() => {});
+const naEuropa = await page.locator("#mapa-progresso").textContent();
+console.log(`   contador na Europa: "${naEuropa.trim()}"`);
+if (/de 177/.test(naEuropa)) fail("no modo Europa o contador não pode falar dos 177");
+// E clicar num país de fora diz porquê, em vez de não fazer nada. As
+// coordenadas têm de ser calculadas OUTRA VEZ: trocar de modo enquadra o
+// continente escolhido, e o sítio onde Angola estava no ecrã mudou.
+const angolaNaEuropa = await ecraDe(17.87, -11.2);
+await page.mouse.click(angolaNaEuropa.x, angolaNaEuropa.y);
+const foraDoModo = await page.locator("#mapa-status").textContent();
+console.log(`   clicar em Angola na Europa: "${foraDoModo.trim()}"`);
+if (!/não entra/i.test(foraDoModo)) fail("clicar num país fora do modo devia explicar porquê");
+
+console.log("12) A ajuda pousa uma bandeira no mapa...");
+await page.selectOption("#mapa-modo", "mundo");
+await page.click("#mapa-ajuda-btn");
+const comPista = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return { pistas: m.mapa.pistas.slice(), texto: document.getElementById("mapa-status").textContent };
+});
+console.log(`   pista: ${comPista.pistas.join(", ")} — "${comPista.texto.trim()}"`);
+if (comPista.pistas.length !== 1) fail("pedir ajuda devia revelar uma bandeira");
+if (!/bandeira/i.test(comPista.texto)) fail("devia dizer que pousou uma bandeira");
+// E pedir outra vez revela outra, sem repetir.
+await page.click("#mapa-ajuda-btn");
+const duas = await page.evaluate(async () => (await import("./js/mapa.js")).mapa.pistas.slice());
+console.log(`   duas pistas: ${duas.join(", ")}`);
+if (duas.length !== 2 || duas[0] === duas[1]) fail("a segunda ajuda devia revelar outro país");
+
+console.log("13) O mapa cabe no ecrã — sem rolar a página...");
+// Pedido depois de o ver num ecrã grande: rolar para baixo para ver o mapa é o
+// contrário de um mapa. Mede-se o que interessa: a página não pode ter
+// deslocamento nenhum, e a barra não pode comer o ecrã.
+const medidas = await page.evaluate(() => {
+  const barra = document.querySelector(".mapa-toolbar").getBoundingClientRect();
+  const tela = document.getElementById("mapa-canvas").getBoundingClientRect();
+  return {
+    rolaVertical: document.documentElement.scrollHeight > window.innerHeight + 1,
+    rolaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
+    barra: Math.round(barra.height),
+    tela: Math.round(tela.height),
+    janela: window.innerHeight,
+  };
+});
+console.log(`   janela ${medidas.janela}px — barra ${medidas.barra}px, mapa ${medidas.tela}px`);
+console.log(`   a página rola? vertical: ${medidas.rolaVertical}, horizontal: ${medidas.rolaHorizontal}`);
+if (medidas.rolaVertical) fail("a página não devia ter deslocamento vertical");
+if (medidas.rolaHorizontal) fail("a página não devia ter deslocamento horizontal");
+if (medidas.tela < medidas.janela * 0.7) fail(`o mapa devia ficar com a maior parte do ecrã (tem ${medidas.tela} de ${medidas.janela})`);
+
+console.log("14) E no telemóvel também, com os alvos a darem-se com o dedo...");
+const telemovel = await browser.newContext({ ...devices["iPhone 13"] });
+const tlm = await telemovel.newPage();
+await tlm.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await tlm.click("#solo-menu-btn");
+await tlm.click('[data-screen="solo-menu"] [data-open-mapa]');
+await tlm.waitForSelector('[data-screen="mapa"].active', { timeout: 5000 });
+await tlm.waitForFunction(async () => (await import("./js/mapa.js")).mapa.paises.length > 0, { timeout: 10000 });
+const noTelemovel = await tlm.evaluate(() => {
+  const barra = document.querySelector(".mapa-toolbar").getBoundingClientRect();
+  const tela = document.getElementById("mapa-canvas").getBoundingClientRect();
+  const pequenos = [...document.querySelectorAll(".mapa-toolbar button, .mapa-toolbar input, .mapa-toolbar select")]
+    .map((el) => ({ id: el.id || el.textContent.trim().slice(0, 14), h: Math.round(el.getBoundingClientRect().height) }))
+    .filter((x) => x.h > 0 && x.h < 40);
+  return {
+    barra: Math.round(barra.height), tela: Math.round(tela.height), janela: window.innerHeight,
+    rolaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
+    pequenos,
+  };
+});
+console.log(`   janela ${noTelemovel.janela}px — barra ${noTelemovel.barra}px (${Math.round(noTelemovel.barra / noTelemovel.janela * 100)}%), mapa ${noTelemovel.tela}px`);
+console.log(`   alvos abaixo de 40px: ${noTelemovel.pequenos.length ? noTelemovel.pequenos.map((x) => `${x.id}=${x.h}`).join(", ") : "nenhum"}`);
+if (noTelemovel.rolaHorizontal) fail("no telemóvel a página não devia rolar para o lado");
+if (noTelemovel.barra > noTelemovel.janela / 3) fail("a barra está a comer mais de um terço do ecrã do telemóvel");
+if (noTelemovel.pequenos.length > 0) fail("há alvos pequenos de mais para o dedo");
+await telemovel.close();
+
+console.log("15) A caixa do que se diz fica DENTRO do mapa, por cima do oceano...");
+// Com o mapa a não encher a tela toda (é duas vezes mais largo do que alto, a
+// tela quase nunca é), o canto da tela cai fora do mapa e a caixa ficava a
+// boiar no papel, ao lado do mundo.
+const caixaDentro = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  const c = document.getElementById("mapa-canvas").getBoundingClientRect();
+  const caixa = document.getElementById("mapa-status").getBoundingClientRect();
+  const cima = m.ecraDoMundo(0, 0);
+  const baixo = m.ecraDoMundo(1, 1);
+  return {
+    dentroX: caixa.left - c.left >= cima.x - 1 && caixa.right - c.left <= baixo.x + 1,
+    dentroY: caixa.top - c.top >= cima.y - 1 && caixa.bottom - c.top <= baixo.y + 1,
+  };
+});
+console.log(`   caixa dentro do mapa — horizontal: ${caixaDentro.dentroX}, vertical: ${caixaDentro.dentroY}`);
+if (!caixaDentro.dentroX || !caixaDentro.dentroY) fail("a caixa devia ficar por cima do mapa, não ao lado dele");
+
+console.log("16) Três hipóteses: só depois de o jogo parar, e com espera entre usos...");
+const botaoEscondido = await page.evaluate(() =>
+  document.getElementById("mapa-hipoteses-btn").classList.contains("hidden"));
+console.log(`   botão escondido no início: ${botaoEscondido}`);
+if (!botaoEscondido) fail("as três hipóteses não são para se jogar sempre assim");
+// Força a situação de jogo parado, que é o que faz o botão aparecer.
+await page.evaluate(() => document.getElementById("mapa-hipoteses-btn").classList.remove("hidden"));
+const chile = await ecraDe(-71.5, -35.7);
+await page.mouse.click(chile.x, chile.y);
+await page.click("#mapa-hipoteses-btn");
+const opcoes = await page.evaluate(() =>
+  [...document.querySelectorAll("[data-hipotese]")].map((b) => b.dataset.hipotese));
+console.log(`   hipóteses no ecrã: ${opcoes.join(", ")}`);
+if (opcoes.length !== 3) fail("deviam aparecer três hipóteses");
+if (!opcoes.includes("Chile")) fail("a hipótese certa tem de estar entre elas");
+// Escolher a certa conquista.
+await page.click('[data-hipotese="Chile"]');
+await page.waitForFunction(async () => !!(await import("./js/mapa.js")).mapa.donos.Chile, { timeout: 5000 });
+console.log("   escolher a certa conquistou o Chile");
+// E a seguir há espera: pedir outra vez agora não dá.
+const peru = await ecraDe(-75, -9.2);
+await page.mouse.click(peru.x, peru.y);
+await page.click("#mapa-hipoteses-btn");
+const naEspera = await page.locator("#mapa-status").textContent();
+console.log(`   pedir logo a seguir: "${naEspera.trim()}"`);
+if (!/espera/i.test(naEspera)) fail("devia haver espera entre dois pedidos de três hipóteses");
 
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);

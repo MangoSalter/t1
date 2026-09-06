@@ -109,3 +109,154 @@ if (falhas > 0) {
   process.exit(1);
 }
 console.log("=> test-mapa ok");
+
+console.log("9) Escrever como as pessoas falam, não como os atlas escrevem...");
+// O jogo é sobre CONHECER o país. Quem escreve "EUA" sabe o país; quem escreve
+// "Portgual" sabe o país e enganou-se numa tecla.
+const eua = m.mapa.paises.find((p) => p.en === "United States of America");
+check("EUA", m.acertou(eua, "eua"), true);
+check("USA", m.acertou(eua, "USA"), true);
+check("Estados Unidos", m.acertou(eua, "estados unidos"), true);
+const ru = m.mapa.paises.find((p) => p.en === "United Kingdom");
+check("Inglaterra vale por Reino Unido", m.acertou(ru, "Inglaterra"), true);
+const pb = m.mapa.paises.find((p) => p.en === "Netherlands");
+check("Holanda", m.acertou(pb, "holanda"), true);
+const mm = m.mapa.paises.find((p) => p.en === "Myanmar");
+check("Birmânia", m.acertou(mm, "birmania"), true);
+const pt2 = m.mapa.paises.find((p) => p.nome === "Portugal");
+check("uma gralha passa", m.acertou(pt2, "portgual"), true);
+check("uma letra a menos passa", m.acertou(pt2, "portugl"), true);
+check("duas gralhas num nome curto não passam", m.acertou(pt2, "prtgal"), false);
+const rdc = m.mapa.paises.find((p) => p.en === "Dem. Rep. Congo");
+const congo = m.mapa.paises.find((p) => p.en === "Congo");
+check("RD Congo pela alcunha", m.acertou(rdc, "rdc"), true);
+check("e não se confunde com o outro Congo", m.acertou(congo, "rdc"), false);
+const gb = m.mapa.paises.find((p) => p.nome === "Guiné-Bissau");
+const gui = m.mapa.paises.find((p) => p.nome === "Guiné");
+check("meio nome não vale", m.acertou(gb, "guine"), false);
+check("mas o nome inteiro vale", m.acertou(gui, "guine"), true);
+
+console.log("10) Os modos: o mundo, um continente, ou só os grandes...");
+m.mapa.donos = {};
+m.mapa.modo = "mundo";
+check("o mundo inteiro", m.emJogo().length, 177);
+m.mapa.modo = "Europa";
+const europa = m.emJogo();
+check("só a Europa", europa.every((p) => p.cont === "Europa"), true);
+check("e Portugal está lá", europa.some((p) => p.nome === "Portugal"), true);
+check("e Angola não", europa.some((p) => p.nome === "Angola"), false);
+check("Angola não está em jogo na Europa", m.estaEmJogo(m.mapa.paises.find((p) => p.nome === "Angola")), false);
+m.mapa.modo = "grandes";
+const grandes = m.emJogo();
+check("os grandes são 60", grandes.length, 60);
+check("a Rússia é um deles", grandes.some((p) => p.nome === "Rússia"), true);
+check("o Luxemburgo não", grandes.some((p) => p.nome === "Luxemburgo"), false);
+// E o contador e o fim da partida seguem o modo, não o mundo.
+m.mapa.modo = "Oceânia";
+const oceania = m.emJogo();
+check("na Oceânia falta a Oceânia", m.porConquistar().length, oceania.length);
+oceania.forEach((p) => m.conquistar(p, "#000"));
+check("conquistada a Oceânia, a partida acabou", m.estaCompleto(), true);
+check("mesmo com o resto do mundo por conquistar", m.mapa.paises.length > oceania.length, true);
+m.mapa.donos = {};
+m.mapa.modo = "mundo";
+
+console.log("11) As pistas são BANDEIRAS pousadas no país certo...");
+// Um emoji de bandeira são duas letras em alfabeto de sinalização: com "PT"
+// sai a bandeira portuguesa, sem imagem nenhuma a descarregar — nada que possa
+// faltar do servidor, nada com marca de água.
+m.mapa.donos = {};
+m.mapa.pistas = [];
+m.mapa.modo = "mundo";
+const ptFlag = m.mapa.paises.find((p) => p.nome === "Portugal");
+check("Portugal tem código", ptFlag.iso, "PT");
+check("e a bandeira sai dele", m.bandeiraDe(ptFlag), "🇵🇹");
+check("Angola também", m.bandeiraDe(m.mapa.paises.find((p) => p.nome === "Angola")), "🇦🇴");
+// Três territórios não têm código ISO. Sem bandeira, mas sem rebentar.
+const semIso = m.mapa.paises.find((p) => !p.iso);
+check("sem código não há bandeira, e não parte nada", m.bandeiraDe(semIso), "");
+
+const revelado = m.revelarPista();
+check("revela um país", !!revelado, true);
+check("e fica na lista de pistas", m.mapa.pistas.includes(revelado.nome), true);
+const segundo = m.revelarPista();
+check("a segunda pista é outro país", segundo.nome !== revelado.nome, true);
+// Nunca revela um que já está conquistado.
+m.mapa.donos = Object.fromEntries(m.mapa.paises.filter((p) => p.nome !== "Laos").map((p) => [p.nome, "#000"]));
+m.mapa.pistas = [];
+check("só revela o que falta", m.revelarPista()?.nome, "Laos");
+m.mapa.donos = {};
+m.mapa.pistas = [];
+
+console.log("12) A bandeira pousa no MAIOR pedaço do país...");
+// No meio de todos os pedaços juntos, a bandeira da Indonésia ia parar ao mar
+// entre as ilhas.
+const indonesia = m.mapa.paises.find((p) => p.nome === "Indonésia");
+const centro = m.centroDe(indonesia);
+const dentro = indonesia.aneis.some((a) => m.dentroDoAnel(a, centro.x, centro.y));
+console.log(`   centro da Indonésia: (${centro.x.toFixed(3)}, ${centro.y.toFixed(3)}) — dentro de terra: ${dentro}`);
+check("a bandeira da Indonésia cai em terra", dentro, true);
+
+console.log("13) Três hipóteses: a certa e duas do mesmo lado do mundo...");
+// Três nomes de sítios completamente diferentes não são uma escolha, são uma
+// oferta: as erradas vêm do mesmo continente sempre que houver.
+m.mapa.donos = {};
+m.mapa.modo = "mundo";
+const alvo = m.mapa.paises.find((p) => p.nome === "Angola");
+let semente = 1;
+const previsivel = () => { semente = (semente * 9301 + 49297) % 233280; return semente / 233280; };
+const tres = m.tresHipoteses(alvo, previsivel);
+console.log(`   hipóteses para Angola: ${tres.map((p) => p.nome).join(", ")}`);
+check("são três", tres.length, 3);
+check("a certa está lá", tres.includes(alvo), true);
+check("não há repetidas", new Set(tres.map((p) => p.nome)).size, 3);
+check("as outras são do mesmo continente", tres.every((p) => p.cont === "África"), true);
+// E não é sempre a mesma ordem, senão a certa era sempre a primeira.
+const ordens = new Set();
+for (let i = 0; i < 20; i += 1) ordens.add(m.tresHipoteses(alvo).map((p) => p.nome).join("|"));
+check("a ordem varia", ordens.size > 1, true);
+
+console.log("14) Os países que atravessam o meridiano 180 não riscam o mapa...");
+// A Rússia atravessa-o. Num mapa equiretangular, um anel que salta de um lado
+// do mundo para o outro desenha uma faixa horizontal por cima de tudo — foi o
+// que apareceu no ecrã. Cortado em pedaços, nenhum anel dá a volta ao mundo.
+const maiorSalto = (p) => Math.max(...p.aneis.map((a) => {
+  let s = 0;
+  for (let i = 1; i < a.length; i += 1) s = Math.max(s, Math.abs(a[i][0] - a[i - 1][0]));
+  return s;
+}));
+const russia = m.mapa.paises.find((p) => p.nome === "Rússia");
+console.log(`   maior salto num anel da Rússia: ${maiorSalto(russia).toFixed(3)} da largura do mapa`);
+check("a Rússia não dá a volta ao mundo num traço", maiorSalto(russia) < 0.5, true);
+const pioresSaltos = m.mapa.paises.map((p) => ({ nome: p.nome, s: maiorSalto(p) })).sort((a, b) => b.s - a.s)[0];
+console.log(`   pior salto de todos: ${pioresSaltos.nome} com ${pioresSaltos.s.toFixed(3)}`);
+check("nenhum país risca o mapa de lado a lado", pioresSaltos.s < 0.5, true);
+
+console.log("15) Os oceanos: clicar na água e dizer qual é...");
+m.mapa.donos = {};
+m.mapa.pistas = [];
+m.mapa.modo = "oceanos";
+check("são cinco", m.emJogo().length, 5);
+check("e são os cinco", m.emJogo().map((o) => o.nome).join(" | "),
+  "Oceano Pacífico | Oceano Atlântico | Oceano Índico | Oceano Antártico | Oceano Glacial Ártico");
+// Pontos conhecidos no meio de cada oceano.
+const agua = (lon, lat) => m.oceanoEm((lon + 180) / 360, (90 - lat) / 180)?.nome;
+check("meio do Atlântico", agua(-30, 20), "Oceano Atlântico");
+check("meio do Pacífico (leste)", agua(-140, 10), "Oceano Pacífico");
+check("meio do Pacífico (oeste)", agua(170, -10), "Oceano Pacífico");
+check("meio do Índico", agua(75, -20), "Oceano Índico");
+check("ao largo da Antártida", agua(0, -70), "Oceano Antártico");
+check("no topo do mundo", agua(0, 85), "Oceano Glacial Ártico");
+// Em cima de terra não há oceano: clicar em Portugal é clicar em Portugal.
+check("Lisboa não é oceano", agua(-9.14, 38.72) ?? "terra", "terra");
+check("Brasília também não", agua(-47.88, -15.79) ?? "terra", "terra");
+// Escrever o nome funciona como nos países, com alcunhas.
+const atl = m.OCEANOS.find((o) => o.nome === "Oceano Atlântico");
+check("Atlântico", m.acertou(atl, "atlantico"), true);
+check("só 'atlântico' chega", m.acertou(atl, "Atlântico"), true);
+check("Índico não é o Atlântico", m.acertou(atl, "indico"), false);
+// Conquistar e acabar a partida vale para os oceanos como para os países.
+m.emJogo().forEach((o) => m.conquistar(o, "#5c7e91"));
+check("conquistados os cinco, acabou", m.estaCompleto(), true);
+m.mapa.donos = {};
+m.mapa.modo = "mundo";

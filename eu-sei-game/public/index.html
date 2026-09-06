@@ -569,6 +569,7 @@
   <section data-screen="mapa" class="screen mapa-screen">
     <div class="mapa-toolbar">
       <button type="button" id="mapa-exit-btn" class="ghost">← Voltar</button>
+      <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo"></select>
       <span id="mapa-progresso" class="mapa-progresso"></span>
       <form id="mapa-form" class="mapa-form">
         <input id="mapa-input" type="text" autocomplete="off" spellcheck="false"
@@ -576,11 +577,14 @@
         <button type="submit" class="primary">Escrever</button>
       </form>
       <button type="button" id="mapa-fit-btn" class="ghost" title="Ver o mundo todo">🌍</button>
+      <button type="button" id="mapa-ajuda-btn" class="ghost">🐈‍⬛ Pedir ajuda</button>
+      <button type="button" id="mapa-hipoteses-btn" class="ghost hidden">❓ Três hipóteses</button>
       <button type="button" id="mapa-recomecar-btn" class="ghost">Recomeçar</button>
     </div>
     <div class="mapa-zona">
       <canvas id="mapa-canvas"></canvas>
       <p id="mapa-status" class="mapa-status" role="status" aria-live="polite"></p>
+      <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses"></div>
     </div>
   </section>
   <section data-screen="board" class="screen board-screen">
