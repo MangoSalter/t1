@@ -19,7 +19,7 @@
 //    guardava tudo em fração da tela; foi deitada fora porque com fração não
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
-import { BOARD_TOOLS } from "./data.js";
+import { BOARD_TOOLS, pickMascotIntro } from "./data.js";
 import { sfx } from "./sfx.js";
 
 // Reexportado: as ferramentas VIVEM no data.js (é o único sítio, e é livre de
@@ -143,6 +143,7 @@ const els = {
   status: document.getElementById("board-status"),
   panel: document.getElementById("board-panel"),
   panelCloseBtn: document.getElementById("board-panel-close-btn"),
+  mascote: document.getElementById("board-mascote"),
   openBtns: document.querySelectorAll("[data-open-board]"),
 };
 
@@ -899,6 +900,26 @@ export function setFillShapes(on) {
 
 // --- Ligações ---
 
+// Uma fala da casa ao abrir o quadro. Curta, some sozinha, e não muda nada do
+// que se pode fazer: é só para o quadro não começar como uma folha caída do
+// nada. A seguir o que interessa é a folha.
+let falaTimer = null;
+function falaDaCasaNoQuadro() {
+  if (!els.mascote) return;
+  const fala = pickMascotIntro("board");
+  if (!fala) return;
+  els.mascote.innerHTML = "";
+  const b = document.createElement("b");
+  b.textContent = `${fala.who}: `;
+  els.mascote.append(b, document.createTextNode(`“${fala.text}”`));
+  els.mascote.classList.remove("hidden", "a-sair");
+  if (falaTimer) clearTimeout(falaTimer);
+  falaTimer = setTimeout(() => {
+    els.mascote.classList.add("a-sair");
+    falaTimer = setTimeout(() => els.mascote.classList.add("hidden"), 700);
+  }, 7000);
+}
+
 function showBoardScreen() {
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === "board");
@@ -1090,7 +1111,10 @@ if (boardAvailable) {
   els.zoomOutBtn?.addEventListener("click", () => zoomBy(1 / ZOOM_STEP));
   els.zoomResetBtn?.addEventListener("click", resetZoom);
   els.zoomFitBtn?.addEventListener("click", zoomToFit);
-  els.openBtns.forEach((btn) => btn.addEventListener("click", showBoardScreen));
+  els.openBtns.forEach((btn) => btn.addEventListener("click", () => {
+    showBoardScreen();
+    falaDaCasaNoQuadro();
+  }));
 
   els.panelCloseBtn?.addEventListener("click", () => els.panel.removeAttribute("open"));
 

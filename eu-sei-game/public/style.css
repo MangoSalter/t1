@@ -1229,3 +1229,17 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .mapa-fim { padding: 14px; max-width: 94%; }
   .mapa-fim-numeros b { font-size: 1.05rem; }
 }
+
+/* A fala da casa no mapa. Canto de cima à esquerda — a classificação fica à
+   direita e a caixa de estado em baixo, por isso não se pisam. */
+.mapa-mascote {
+  position: absolute; top: 10px; left: 10px; z-index: 4; margin: 0;
+  max-width: min(320px, 46%); padding: 7px 11px; border-radius: 10px;
+  background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(58, 49, 38, 0.18);
+  font-size: 0.85rem; line-height: 1.35; font-style: italic;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: opacity 0.6s ease;
+}
+.mapa-mascote b { font-style: normal; }
+.mapa-mascote.a-sair { opacity: 0; }
+@media (max-width: 640px) { .mapa-mascote { font-size: 0.78rem; max-width: 52%; } }

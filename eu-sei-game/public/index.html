@@ -594,6 +594,9 @@
       <p id="mapa-status" class="mapa-status" role="status" aria-live="polite"></p>
       <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses"></div>
       <!-- Só aparece em sala: sozinho não há classificação nenhuma para dar. -->
+      <!-- Uma fala da casa ao abrir o mapa. Some sozinha: é para dar as boas
+           vindas, não para ficar a ocupar o mapa. -->
+      <p id="mapa-mascote" class="mapa-mascote hidden"></p>
       <ol id="mapa-sala-tabela" class="mapa-sala-tabela hidden" aria-label="Classificação"></ol>
       <!-- O retrato da partida. Vinha numa linha de estado com nove números
            separados por pontos, que ninguém lia. Aqui é um painel, aparece
@@ -671,6 +674,10 @@
       <span id="board-status" class="hint small"></span>
     </div>
     <canvas id="board-canvas" class="board-canvas"></canvas>
+    <!-- A fala da casa tem elemento próprio: a caixa de estado ao lado conta
+         os traços e é reescrita a cada desenho — pôr a fala lá dentro era
+         apagá-la logo a seguir e tapar uma informação que serve. -->
+    <p id="board-mascote" class="mapa-mascote hidden"></p>
   </section>
 
   <!-- QUADRO BRANCO DE SALA. A folha é a mesma para todos, mas o ecrã à

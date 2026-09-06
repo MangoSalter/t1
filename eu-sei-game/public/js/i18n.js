@@ -38,6 +38,18 @@ const TEXTOS = {
     mapaQualPais: "Que país é este?",
     mapaACarregar: "A carregar o mundo...",
     mapaComecar: "Clica num país e escreve o nome dele.",
+    // As falas da casa. O mapa é dos poucos ecrãs que fala três línguas, por
+    // isso as falas vivem aqui e não no data.js com as dos outros jogos — uma
+    // gata a resmungar em português para quem escolheu inglês não é coesão, é
+    // um descuido.
+    mapaFalas: [
+      ["Dona Manga", "O mundo todo? Eu conheço dois sítios: o sofá e a cozinha."],
+      ["Dona Manga", "Se demorares, deito-me em cima da Europa. Fica combinado."],
+      ["Dona Manga", "Sei onde ficam os países todos. Só não me apetece dizer."],
+      ["Brasa", "Se ficares preso, chama por mim. Eu mostro a bandeira e finjo que não fui eu."],
+      ["Brasa", "Comecei pela Ásia porque é a maior. Não foi boa ideia."],
+      ["Brasa", "A Dona Manga diz que já fez o mapa todo. Nunca a vi a fazer nada."],
+    ],
     mapaSemMapa: "Não consegui carregar o mapa. Tenta recarregar a página.",
     mapaEMar: "Isso é mar. Clica em terra.",
     mapaETerra: "Isso é terra. Clica na água.",
@@ -92,6 +104,14 @@ const TEXTOS = {
     mapaQualPais: "Which country is this?",
     mapaACarregar: "Loading the world...",
     mapaComecar: "Click a country and type its name.",
+    mapaFalas: [
+      ["Dona Manga", "The whole world? I know two places: the sofa and the kitchen."],
+      ["Dona Manga", "Take too long and I'm lying down on Europe. Fair warning."],
+      ["Dona Manga", "I know where every country is. I just don't feel like saying."],
+      ["Brasa", "If you get stuck, call me. I'll show the flag and pretend it wasn't me."],
+      ["Brasa", "I started with Asia because it's the biggest. That was a mistake."],
+      ["Brasa", "Dona Manga says she's finished the whole map. I've never seen her do anything."],
+    ],
     mapaSemMapa: "Could not load the map. Try reloading the page.",
     mapaEMar: "That's sea. Click on land.",
     mapaETerra: "That's land. Click on water.",
@@ -146,6 +166,14 @@ const TEXTOS = {
     mapaQualPais: "¿Qué país es este?",
     mapaACarregar: "Cargando el mundo...",
     mapaComecar: "Haz clic en un país y escribe su nombre.",
+    mapaFalas: [
+      ["Doña Manga", "¿El mundo entero? Yo conozco dos sitios: el sofá y la cocina."],
+      ["Doña Manga", "Si tardas, me acuesto encima de Europa. Queda dicho."],
+      ["Doña Manga", "Sé dónde están todos los países. Solo que no me apetece decirlo."],
+      ["Brasa", "Si te atascas, llámame. Enseño la bandera y finjo que no fui yo."],
+      ["Brasa", "Empecé por Asia porque es la más grande. No fue buena idea."],
+      ["Brasa", "Doña Manga dice que ya hizo el mapa entero. Nunca la vi hacer nada."],
+    ],
     mapaSemMapa: "No pude cargar el mapa. Prueba a recargar la página.",
     mapaEMar: "Eso es mar. Haz clic en tierra.",
     mapaETerra: "Eso es tierra. Haz clic en el agua.",

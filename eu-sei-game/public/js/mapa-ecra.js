@@ -30,6 +30,7 @@ const els = {
   ajudaBtn: document.getElementById("mapa-ajuda-btn"),
   hipotesesBtn: document.getElementById("mapa-hipoteses-btn"),
   hipoteses: document.getElementById("mapa-hipoteses"),
+  mascote: document.getElementById("mapa-mascote"),
   fim: document.getElementById("mapa-fim"),
   fimNumeros: document.getElementById("mapa-fim-numeros"),
   fimContinentes: document.getElementById("mapa-fim-continentes"),
@@ -178,6 +179,29 @@ function redesenhar() {
 
 function dizer(texto) {
   els.status.textContent = texto;
+}
+
+// UMA FALA DA CASA ao abrir o mapa. O mapa e o quadro são os dois jogos que
+// ficaram em pé, e eram os dois únicos onde a Dona Manga e o Brasa não
+// apareciam — havia falas para os doze mini-jogos que entretanto saíram do
+// site e nenhuma para estes. Ao abrir, uma fala; passados uns segundos,
+// desaparece, porque a seguir o que interessa é o mapa.
+let falaTimer = null;
+function falaDaCasa() {
+  if (!els.mascote) return;
+  const falas = t("mapaFalas");
+  if (!Array.isArray(falas) || falas.length === 0) return;
+  const [quem, texto] = falas[Math.floor(Math.random() * falas.length)];
+  els.mascote.innerHTML = "";
+  const b = document.createElement("b");
+  b.textContent = `${quem}: `;
+  els.mascote.append(b, document.createTextNode(`“${texto}”`));
+  els.mascote.classList.remove("hidden", "a-sair");
+  if (falaTimer) clearTimeout(falaTimer);
+  falaTimer = setTimeout(() => {
+    els.mascote.classList.add("a-sair");
+    falaTimer = setTimeout(() => els.mascote.classList.add("hidden"), 700);
+  }, 7000);
 }
 
 // A sala também precisa de falar na caixa de estado — para contar o que
@@ -399,6 +423,7 @@ function abrirMapa() {
         redesenhar();
         dizer(t("mapaComecar"));
         armarAjuda();
+        falaDaCasa();
       })
       .catch(() => dizer(t("mapaSemMapa")));
     return;
@@ -406,6 +431,7 @@ function abrirMapa() {
   enquadrarQuandoDer();
   redesenhar();
   armarAjuda();
+  falaDaCasa();
 }
 
 function sairDoMapa() {

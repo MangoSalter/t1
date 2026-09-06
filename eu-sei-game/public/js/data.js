@@ -420,6 +420,16 @@ export const ACHIEVEMENTS = [
 // de cada jogo de propósito: uma frase genérica lida-se uma vez e ignora-se
 // para sempre.
 export const MASCOT_INTROS = {
+  // O QUADRO E O MAPA são os dois jogos que ficaram em pé, e eram os dois
+  // únicos sem falas: havia-as para os doze mini-jogos que entretanto saíram
+  // do site e nenhuma para estes. (As do mapa vivem no i18n.js, porque o mapa
+  // fala três línguas.)
+  board: [
+    { who: "Dona Manga", text: "Folha em branco. Eu costumo deitar-me em cima destas." },
+    { who: "Dona Manga", text: "Desenha o que quiseres. Eu depois passo por cima." },
+    { who: "Brasa", text: "Uma vez desenhei a Dona Manga. Ela não gostou. Cuidado." },
+    { who: "Brasa", text: "Se te enganares, diz que era de propósito. Funciona quase sempre." },
+  ],
   reflex: [
     { who: "Dona Manga", text: "Olho de lince? Eu vejo tudo com os olhos fechados. Tenta acompanhar." },
     { who: "Brasa", text: "Se não encontrares, pisca duas vezes. Às vezes ajuda. A mim nunca ajudou." },
