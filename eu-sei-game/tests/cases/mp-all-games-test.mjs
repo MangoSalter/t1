@@ -21,6 +21,30 @@ const cfg = await page.locator("[data-bonus-game]").evaluateAll((els) => els.map
 console.log(`   menu: ${JSON.stringify(menu)}`);
 console.log(`   definições: ${JSON.stringify(cfg)}`);
 const keys = await page.evaluate(async () => (await import("./js/room.js")).BONUS_GAME_KEYS);
+// A FILA NÃO LEVA JOGOS DA OFICINA — foi o defeito que o dono apanhou:
+// escondiam-se os botões e a fila continuava a metê-los no meio da partida,
+// e a pessoa acabava a jogar aquilo que mandou tirar do site.
+//
+// Este caso corre com a oficina ABERTA (?oficina=1), para poder percorrer os
+// jogos todos; por isso a regra verifica-se aqui à parte, com a oficina
+// fechada, que é como está para quem entra no site.
+const comOficinaFechada = await page.evaluate(async () => {
+  const m = await import("./js/room.js");
+  return m.filaSemOficina(m.BONUS_GAME_KEYS, false);
+});
+console.log(`   a fila de quem entra no site leva: ${JSON.stringify(comOficinaFechada)}`);
+const escapou = comOficinaFechada.filter((k) => ["mapTrivia", "race", "landmark"].includes(k));
+if (escapou.length) { console.log(`   FALHOU: a fila do site levava jogos da oficina: ${escapou.join(", ")}`); process.exitCode = 1; }
+if (!comOficinaFechada.includes("mapa") || !comOficinaFechada.includes("hangman")) {
+  console.log("   FALHOU: a fila do site tem de levar os jogos do site"); process.exitCode = 1;
+}
+// Com a oficina aberta leva tudo, que é como se continuam a testar os que lá
+// estão a ser melhorados.
+const noSite = await page.evaluate(async () => {
+  const m = await import("./js/room.js");
+  return m.filaSemOficina(m.BONUS_GAME_KEYS);
+});
+console.log(`   com a oficina aberta, a fila percorre: ${JSON.stringify(noSite)}`);
 console.log(`   BONUS_GAME_KEYS: ${JSON.stringify(keys)}`);
 if (menu.length !== keys.length) { console.log("   FALHOU: o menu não cobre todos os jogos bónus"); process.exitCode = 1; }
 if (cfg.length !== keys.length) { console.log("   FALHOU: as definições não cobrem todos os jogos bónus"); process.exitCode = 1; }
@@ -52,7 +76,7 @@ const disabled = await page.locator("[data-mp-game]").evaluateAll((els) => els.f
 console.log(`   desativados: ${JSON.stringify(disabled)} (esperado nenhum)`);
 if (disabled.length > 0) { console.log("   FALHOU"); process.exitCode = 1; }
 
-console.log("4) A fila percorre TODOS os 8 jogos sem encravar, e acaba no ecrã final...");
+console.log("4) A fila percorre todos os jogos sem encravar, e acaba no ecrã final...");
 await page.evaluate(({ c, keys }) => {
   window.__testDb.update(`rooms/${c}/config`, { bonusGames: keys });
   const r = window.__testDb.get(`rooms/${c}`);
@@ -76,8 +100,8 @@ for (let step = 0; step < keys.length + 2; step++) {
 }
 await page.waitForSelector('[data-screen="final"].active', { timeout: 10000 });
 console.log(`   ecrãs visitados: ${JSON.stringify(seen)}`);
-console.log(`   ${seen.length} de ${keys.length} jogos vistos, e chegou ao final`);
-if (seen.length < keys.length) { console.log("   FALHOU: a fila não passou por todos"); process.exitCode = 1; }
+console.log(`   ${seen.length} de ${noSite.length} jogos vistos, e chegou ao final`);
+if (seen.length < noSite.length) { console.log("   FALHOU: a fila não passou por todos"); process.exitCode = 1; }
 
 await b.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));

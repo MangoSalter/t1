@@ -20,7 +20,10 @@ export const DEFAULT_CONFIG = {
   timeLimit: 90,
   excludeHardLetters: true,
   numRounds: 5,
-  bonusGames: ["hangman", "mapTrivia"],
+  // O quadro e o mapa novo — os dois que estão no site. Estava aqui o
+  // Mapa-Múndi antigo, que foi para a oficina: uma sala acabada de criar
+  // trazia por omissão um jogo que já não se mostra a ninguém.
+  bonusGames: ["hangman", "mapa"],
 };
 
 export const CONFIG_LIMITS = {
@@ -485,6 +488,43 @@ export function pickMascotIntro(gameKey) {
   if (!list || list.length === 0) return null;
   return list[Math.floor(Math.random() * list.length)];
 }
+
+// A OFICINA: os jogos que existem mas ainda não estão para se mostrar.
+//
+// A lista vive AQUI, no data.js, e não no oficina.js, por uma razão de
+// arrumação que já custou uma vez: o oficina.js mexe no localStorage e no
+// documento, e o room.js não pode importar nada disso sem partir os testes
+// puros. Mas o room.js precisa da lista — senão esconde os botões e continua
+// a meter os jogos escondidos na fila de bónus, e a pessoa acaba a jogar um
+// jogo que mandou tirar do site.
+// O interrutor da oficina. A chave vive aqui, com a lista, para o oficina.js
+// e o room.js não guardarem cada um a sua cópia da mesma string — divergirem
+// significava esconder os jogos num sítio e continuar a jogá-los no outro.
+export const CHAVE_OFICINA = "euSei_oficina";
+
+// Está a oficina aberta? Seguro em Node (onde não há localStorage): os testes
+// puros importam o room.js fora do browser, e uma exceção aqui partia-os
+// todos.
+export function oficinaAberta() {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(CHAVE_OFICINA) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export const JOGOS_NA_OFICINA = [
+  "reflex",    // Olho de Lince
+  "bug",       // Mata o Inseto
+  "monkey",    // Cada Macaco no Seu Galho
+  "map",       // Mapa-Múndi antigo (substituído pelo mapa a sério)
+  "mapTrivia", // o mesmo, na sala
+  "pacman",    // Kota Corre!
+  "cards",     // Descartando Juntos
+  "car",       // Estrada Maluca (solo)
+  "race",      // Estrada Maluca (sala)
+  "landmark",  // Onde Fica Isto?
+];
 
 // --- Eventos de "caos" da Dona Manga ---
 //

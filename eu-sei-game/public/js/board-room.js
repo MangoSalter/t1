@@ -31,6 +31,7 @@ import {
 import { state, screens, isHost } from "./app-state.js";
 import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
 import { sfx } from "./sfx.js";
+import { abrirPaleta } from "./paleta.js";
 
 // O ecrã é inteiro (sai da moldura/cartão normal da app) porque um quadro
 // dentro de um cartão não é um quadro. Quem escreve depende do modo: no
@@ -143,6 +144,7 @@ const hangmanEls = {
   undoBtn: document.getElementById("hangman-undo-btn"),
   continueBtn: document.getElementById("hangman-continue-btn"),
   passPenBtn: document.getElementById("hangman-pass-pen-btn"),
+  paletaBtn: document.getElementById("hangman-paleta-btn"),
   penOverlay: document.getElementById("hangman-pen-overlay"),
   penList: document.getElementById("hangman-pen-list"),
   penRandomBtn: document.getElementById("hangman-pen-random-btn"),
@@ -620,6 +622,9 @@ function hangmanClosePenPicker() {
 }
 
 hangmanEls.passPenBtn.addEventListener("click", hangmanOpenPenPicker);
+// Mais cores, no quadro de sala tal como no solo: dez chegam para escrever,
+// não chegam para desenhar.
+hangmanEls.paletaBtn?.addEventListener("click", () => abrirPaleta(hangmanDoodleState.color, selectHangmanColor));
 hangmanEls.penCancelBtn.addEventListener("click", hangmanClosePenPicker);
 hangmanEls.penRandomBtn.addEventListener("click", async () => {
   await passHangmanPenRandom(state.code, state.room, state.uid);
@@ -2263,3 +2268,7 @@ export function renderHangman(room) {
     }
   }
 }
+
+// Exposto para os testes poderem ler a caneta do quadro de sala sem passarem
+// pelo desenho — o mesmo que o __board faz no quadro solo.
+export const __quadroSala = hangmanDoodleState;

@@ -6,7 +6,7 @@ const errors = [];
 page.on("pageerror", (err) => errors.push(err.message));
 page.on("console", (msg) => { if (msg.type() === "error") errors.push(msg.text()); });
 
-await page.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+await page.goto("http://localhost:8937/index.html?oficina=1", { waitUntil: "networkidle" });
 
 console.log("1) Criar sala com Ana (host) e injetar 2 jogadores (3 no total, minimo para bonus)...");
 await page.fill("#name-input", "Ana");
@@ -31,7 +31,14 @@ if (!info.bonusGames || info.bonusGames.length !== 2) {
 }
 
 console.log("2) Verificar checkboxes de jogos bonus no lobby...");
-await page.waitForTimeout(200);
+// Este caso corre com a oficina aberta (?oficina=1) porque é aqui que vive a
+// cobertura do voto de aceitação do Mapa-Múndi antigo, que foi para a oficina
+// mas continua a precisar de testes enquanto lá estiver. Escolhe-o à mão, já
+// que por omissão a sala traz o quadro e o mapa novo.
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/config`, { bonusGames: ["hangman", "mapTrivia"] });
+}, code);
+await page.waitForTimeout(300);
 const hangmanChecked = await page.locator('[data-bonus-game="hangman"]').isChecked();
 const mapChecked = await page.locator('[data-bonus-game="mapTrivia"]').isChecked();
 console.log(`   Forca marcada: ${hangmanChecked}, Mapa-Mundi marcada: ${mapChecked} (esperado true, true)`);

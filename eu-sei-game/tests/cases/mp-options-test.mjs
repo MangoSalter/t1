@@ -41,37 +41,51 @@ if (!rows[0].includes("Beto") || !rows[0].includes("42")) {
   process.exitCode = 1;
 }
 
-console.log("4) Mudar para o separador Rabisco e desenhar (Ana, cor de índice 0)...");
-await page.click("#options-tab-scratchpad");
-await page.waitForSelector("#options-panel-scratchpad:not(.hidden)", { timeout: 3000 });
-const canvasBox = await page.locator("#options-scratchpad-canvas").boundingBox();
-await page.mouse.move(canvasBox.x + 50, canvasBox.y + 50);
-await page.mouse.down();
-await page.mouse.move(canvasBox.x + 150, canvasBox.y + 100, { steps: 8 });
-await page.mouse.up();
-await page.waitForFunction((code) => Object.keys(window.__testDb.get(`rooms/${code}`).scratchpad?.points || {}).length > 0, code, { timeout: 3000 });
-let room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
-console.log(`   pontos transmitidos: ${Object.keys(room.scratchpad.points || {}).length}, uid do 1º ponto: ${Object.values(room.scratchpad.points)[0].uid} (esperado ${hostId})`);
-if (Object.keys(room.scratchpad.points || {}).length === 0 || Object.values(room.scratchpad.points)[0].uid !== hostId) {
-  console.log("   FALHOU"); process.exitCode = 1;
-}
+console.log("4) Dentro de um jogo, o menu dá a SAÍDA para o lobby — que era o que faltava...");
+// Este é o defeito que o dono apanhou a jogar: entrava-se no quadro e não
+// havia maneira de voltar. Para sair era preciso deixar a sala, e a seguir
+// toda a gente tinha de escrever o código outra vez — sair de um jogo
+// desfazia o grupo.
+await page.click("#options-close-btn");
+await page.click('[data-mp-game="hangman"]');
+await page.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
+await page.click("#options-fab");
+await page.waitForSelector("#options-overlay:not(.hidden)", { timeout: 3000 });
+const temSaida = await page.locator("#options-back-btn").isVisible();
+console.log(`   botão de voltar ao lobby visível para a anfitriã: ${temSaida} (esperado true)`);
+if (!temSaida) { console.log("   FALHOU: sem saída, a única forma de sair do quadro é deixar a sala"); process.exitCode = 1; }
 
-console.log("5) Simular p2 a desenhar também (qualquer jogador pode, sem 'vez')...");
-await page.evaluate(async ({ code }) => {
-  const roomModule = await import("./js/room.js");
-  const r = window.__testDb.get(`rooms/${code}`);
-  await roomModule.pushScratchpadPoints(code, r, [{ x: 0.3, y: 0.3, uid: "p2", newStroke: true }]);
-}, { code });
-await page.waitForTimeout(150);
-room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
-const hasP2Point = Object.values(room.scratchpad.points).some((p) => p.uid === "p2");
-console.log(`   p2 conseguiu desenhar também: ${hasP2Point} (esperado true — sem restrição de 'vez' aqui)`);
-if (!hasP2Point) { console.log("   FALHOU"); process.exitCode = 1; }
+console.log("5) E voltar leva mesmo ao lobby, com a sala e os pontos intactos...");
+await page.click("#options-back-btn");
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+const room = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`), code);
+const jogadores = Object.keys(room.players || {}).length;
+console.log(`   estado: ${room.state}, jogadores na sala: ${jogadores}, pontos do Beto: ${room.players.p2.score}`);
+if (room.state !== "lobby") { console.log("   FALHOU: devia ter voltado ao lobby"); process.exitCode = 1; }
+if (jogadores !== 3) { console.log("   FALHOU: voltar ao lobby não pode perder ninguém"); process.exitCode = 1; }
+if (room.players.p2.score !== 42) { console.log("   FALHOU: o que se ganhou, ganhou-se — os pontos ficam"); process.exitCode = 1; }
+if (room.hangman) { console.log("   FALHOU: o lobby não devia abrir com os restos do jogo anterior"); process.exitCode = 1; }
+// E no lobby o botão não faz falta: já lá se está.
+await page.click("#options-fab");
+await page.waitForSelector("#options-overlay:not(.hidden)", { timeout: 3000 });
+const noLobby = await page.locator("#options-back-btn").isVisible();
+console.log(`   no próprio lobby o botão some: ${!noLobby} (esperado true)`);
+if (noLobby) { console.log("   FALHOU: no lobby não há para onde voltar"); process.exitCode = 1; }
 
-console.log("6) Limpar o rabisco...");
-await page.click("#options-scratchpad-clear-btn");
-await page.waitForFunction((code) => Object.keys(window.__testDb.get(`rooms/${code}`).scratchpad?.points || {}).length === 0, code, { timeout: 3000 });
-console.log("   OK: rabisco limpo");
+console.log("6) Quem não manda na sala vê a explicação, em vez de um botão que não faz nada...");
+await page.click("#options-close-btn");
+await page.evaluate((c) => { window.__testDb.update(`rooms/${c}`, { hostId: "p2", state: "hangman" }); }, code);
+await page.waitForTimeout(400);
+await page.click("#options-fab");
+await page.waitForSelector("#options-overlay:not(.hidden)", { timeout: 3000 });
+const aviso = await page.locator("#options-back-hint").textContent();
+const botaoParaConvidado = await page.locator("#options-back-btn").isVisible();
+console.log(`   convidado vê botão: ${botaoParaConvidado} (esperado false) · aviso: "${aviso.trim()}"`);
+if (botaoParaConvidado) { console.log("   FALHOU: só quem manda muda o ecrã de toda a gente"); process.exitCode = 1; }
+if (!/Beto/.test(aviso)) { console.log("   FALHOU: o aviso devia dizer a quem pedir"); process.exitCode = 1; }
+// Devolve a sala à Ana para o passo seguinte poder sair como deve ser.
+await page.evaluate(({ c, h }) => { window.__testDb.update(`rooms/${c}`, { hostId: h, state: "lobby" }); }, { c: code, h: hostId });
+await page.waitForTimeout(300);
 
 console.log("7) Fechar Opções e sair da sala -> botão flutuante deve desaparecer...");
 await page.click("#options-close-btn");

@@ -1,3 +1,5 @@
+import { JOGOS_NA_OFICINA, CHAVE_OFICINA, oficinaAberta } from "./data.js";
+
 // A OFICINA: os jogos que existem mas ainda não estão para se mostrar.
 //
 // São jogos que funcionam, têm testes e não estão bons o suficiente para
@@ -7,20 +9,11 @@
 // eles como se nada fosse).
 //
 // Voltar a expor um jogo é tirá-lo desta lista e do data-oficina no HTML.
-export const JOGOS_NA_OFICINA = [
-  "reflex",    // Olho de Lince
-  "bug",       // Mata o Inseto
-  "monkey",    // Cada Macaco no Seu Galho
-  "map",       // Mapa-Múndi antigo (substituído pelo mapa a sério)
-  "mapTrivia", // o mesmo, na sala
-  "pacman",    // Kota Corre!
-  "cards",     // Descartando Juntos
-  "car",       // Estrada Maluca (solo)
-  "race",      // Estrada Maluca (sala)
-  "landmark",  // Onde Fica Isto?
-];
+// A lista vive no data.js — é preciso lá para o room.js a poder ler sem
+// arrastar consigo o localStorage e o documento. Aqui fica o que é do ecrã.
+export { JOGOS_NA_OFICINA };
 
-const CHAVE = "euSei_oficina";
+const CHAVE = CHAVE_OFICINA;
 
 // A oficina abre-se de duas maneiras: com ?oficina=1 no endereço (dá um link
 // para mandar a quem está a ajudar a testar) ou com localStorage.euSei_oficina
@@ -33,7 +26,7 @@ export function naOficina() {
       localStorage.setItem(CHAVE, "1");
       return true;
     }
-    return localStorage.getItem(CHAVE) === "1";
+    return oficinaAberta();
   } catch {
     return false;
   }

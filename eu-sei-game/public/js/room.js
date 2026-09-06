@@ -9,7 +9,7 @@ import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
   pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS, BOARD_TOOL_KEYS,
-  LANDMARKS, pickLandmarkRound, sameWord } from "./data.js";
+  LANDMARKS, pickLandmarkRound, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
 // à Forca) ---
@@ -131,6 +131,20 @@ export const LANDMARK_TEAM_RESULT_DISPLAY_MS = 5000;
 // O mapa foi o que obrigou a escrever isto: pagava os pontos do seu próprio
 // marcador ao placar da sala, e conquistar quarenta países dava seiscentos
 // pontos contra os trinta da apanhada. O test-equilibrio.mjs guarda a regra.
+// A FILA DE BÓNUS NUNCA LEVA UM JOGO DA OFICINA. Esconder os botões não
+// chegava: uma sala com a configuração já guardada continuava a trazer o jogo
+// escondido na fila, e a pessoa acabava a jogar aquilo que mandou tirar do
+// site — sem sequer perceber de onde tinha vindo. Se a filtragem deixar a
+// fila vazia, fica o quadro, que é o que estava lá antes de haver bónus
+// nenhuns.
+export function filaSemOficina(chaves, oficina = oficinaAberta()) {
+  // Com a oficina aberta (?oficina=1) a fila leva tudo: é assim que se
+  // continuam a jogar e a testar os que estão a ser melhorados.
+  if (oficina) return (chaves || []).length > 0 ? [...chaves] : ["hangman"];
+  const limpa = (chaves || []).filter((k) => !JOGOS_NA_OFICINA.includes(k));
+  return limpa.length > 0 ? limpa : ["hangman"];
+}
+
 export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf", "mapa"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
@@ -195,25 +209,6 @@ async function appendPoints(basePath, existingObj, newPoints, uid, maxPoints) {
   }
   await update(ref(db, basePath), updates);
   return newPoints.length > espaco ? DOODLE_BOARD_FULL : null;
-}
-
-// --- Rabisco coletivo (menu de Opções, disponível em qualquer ecrã da
-// sala) — ao contrário do quadro da Forca (só o anfitrião, um jogo de
-// charadas), este é só por diversão: qualquer jogador pode desenhar a
-// qualquer momento, cada um na sua cor. Sem "dono"/vez — se dois
-// desenharem ao mesmo tempo, os traços intercalam-se na lista (por
-// confiança, como o resto do jogo). Os pontos mais antigos vão saindo à
-// medida que se desenham novos, tal como o quadro da Forca.
-// Teto de segurança, não limite de uso — ver appendPoints.
-export const SCRATCHPAD_MAX_POINTS = 5000;
-
-export async function pushScratchpadPoints(code, room, newPoints) {
-  const uid = newPoints[0]?.uid;
-  await appendPoints(`rooms/${code}/scratchpad/points`, room.scratchpad?.points, newPoints, uid, SCRATCHPAD_MAX_POINTS);
-}
-
-export async function clearScratchpad(code) {
-  await set(ref(db, `rooms/${code}/scratchpad/points`), null);
 }
 
 // --- Quadro branco (bónus de fim de partida) ---
@@ -539,7 +534,7 @@ export async function nextRoundOrFinal(code, room) {
       const enabledBonus = (room.config?.bonusGames && room.config.bonusGames.length > 0)
         ? room.config.bonusGames
         : ["hangman"];
-      const queue = shuffleArray(enabledBonus);
+      const queue = shuffleArray(filaSemOficina(enabledBonus));
       await update(roomRef(code), { bonusQueue: queue, bonusQueueTotal: queue.length });
       await startNextBonusGame(code, { ...room, bonusQueue: queue, bonusQueueTotal: queue.length });
     } else {
@@ -634,12 +629,37 @@ export async function resetForRematch(code, room) {
     tag: null,
     battle: null,
     draw: null,
-    scratchpad: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;
   });
   await update(roomRef(code), updates);
+}
+
+// VOLTAR AO LOBBY sem desfazer a sala. Faltava, e a falta era grave: de
+// dentro de um jogo — o quadro em especial, que não tem fim próprio — a única
+// saída era deixar a sala, e a seguir toda a gente tinha de escrever o código
+// outra vez. Na prática, sair de um jogo desfazia o grupo.
+//
+// Limpa o estado do jogo que estava a decorrer, para o lobby não abrir com os
+// restos dele, mas NÃO toca nos pontos: o que se ganhou, ganhou-se.
+export async function backToLobby(code, room) {
+  await update(roomRef(code), {
+    state: "lobby",
+    stateChangedAt: serverNow(),
+    bonusQueue: null,
+    bonusQueueTotal: null,
+    bonusProgress: null,
+    hangman: null,
+    mapa: null,
+    mapTrivia: null,
+    tag: null,
+    battle: null,
+    draw: null,
+    race: null,
+    landmark: null,
+    golf: null,
+  });
 }
 
 export async function leaveRoom(code, uid) {

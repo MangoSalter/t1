@@ -12,8 +12,8 @@ import {
 } from "./data.js";
 import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig,
-  maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, pushScratchpadPoints,
-  clearScratchpad, startBallPhase, claimBallWin, startLetterPick, voteLetter,
+  maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
+  startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray,
   pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
@@ -2467,38 +2467,28 @@ function renderFinal(room) {
 // (cada jogador na sua cor, sem "vez"/dono — ao contrário do Desenha e
 // Adivinha, aqui todos podem escrever ao mesmo tempo, não vale pontos).
 
-const SCRATCHPAD_PALETTE = ["#c0524a", "#3f7d5c", "#3a5f8a", "#b8862f", "#7a4f9e", "#2f8a86", "#a15a2e", "#5a6b3a"];
-const SCRATCHPAD_BROADCAST_INTERVAL_MS = 90;
-const SCRATCHPAD_MIN_DIST = 0.006;
+// ---------- OPÇÕES DA SALA ----------
+//
+// O botão de engrenagem aparece em qualquer ecrã dentro de uma sala. Tinha
+// dois separadores: a classificação e um "rabisco" — uma folha de desenho por
+// diversão dentro do menu de pausa de todos os jogos. O rabisco saiu: quem
+// quer desenhar tem o quadro branco, que é um jogo inteiro e melhor em tudo,
+// e ali só ocupava o espaço do que se vai mesmo lá fazer.
+//
+// O que faltava era a SAÍDA. De dentro de um jogo não havia maneira de voltar
+// ao lobby: para sair do quadro era preciso deixar a sala e pôr o código
+// outra vez, o que na prática desfazia o grupo. Agora está aqui, ao lado da
+// classificação, que é onde uma pessoa vai procurar quando quer parar.
 
 const optionsEls = {
   fab: document.getElementById("options-fab"),
   overlay: document.getElementById("options-overlay"),
-  tabLeaderboard: document.getElementById("options-tab-leaderboard"),
-  tabScratchpad: document.getElementById("options-tab-scratchpad"),
   panelLeaderboard: document.getElementById("options-panel-leaderboard"),
-  panelScratchpad: document.getElementById("options-panel-scratchpad"),
   leaderboardList: document.getElementById("options-leaderboard-list"),
-  canvas: document.getElementById("options-scratchpad-canvas"),
-  clearBtn: document.getElementById("options-scratchpad-clear-btn"),
+  backBtn: document.getElementById("options-back-btn"),
+  backHint: document.getElementById("options-back-hint"),
   closeBtn: document.getElementById("options-close-btn"),
 };
-
-const scratchpadState = {
-  drawing: false,
-  lastPoint: null,
-  pending: [],
-  lastBroadcastAt: 0,
-  dpr: 1,
-  rectW: 0,
-  rectH: 0,
-};
-
-function scratchpadColorForUid(room, uid) {
-  const ids = Object.keys(room?.players || {});
-  const idx = Math.max(0, ids.indexOf(uid));
-  return SCRATCHPAD_PALETTE[idx % SCRATCHPAD_PALETTE.length];
-}
 
 function renderOptionsLeaderboard(room) {
   const players = Object.entries(room.players || {});
@@ -2513,135 +2503,45 @@ function renderOptionsLeaderboard(room) {
   });
 }
 
-function scratchpadSyncCanvasSize() {
-  const canvas = optionsEls.canvas;
-  const rect = canvas.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return false;
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.round(rect.width * dpr);
-  const h = Math.round(rect.height * dpr);
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
+// Voltar ao lobby é uma coisa que muda o ecrã DE TODA A GENTE, por isso é de
+// quem manda. Aos outros diz-se porquê, em vez de se esconder o botão e os
+// deixar à procura dele — foi a falta de qualquer coisa aqui que fez alguém
+// sair da sala para conseguir sair do quadro.
+function refreshOptionsBack(room) {
+  const noLobby = !room || room.state === "lobby";
+  const souAnfitriao = isHost(room);
+  optionsEls.backBtn.classList.toggle("hidden", noLobby || !souAnfitriao);
+  const mostrarAviso = !noLobby && !souAnfitriao;
+  optionsEls.backHint.classList.toggle("hidden", !mostrarAviso);
+  if (mostrarAviso) {
+    const anfitriao = room.players?.[room.hostId]?.name || "quem criou a sala";
+    optionsEls.backHint.textContent = `Para voltar ao lobby sem desfazer a sala, pede a ${anfitriao}.`;
   }
-  scratchpadState.dpr = dpr;
-  scratchpadState.rectW = rect.width;
-  scratchpadState.rectH = rect.height;
-  return true;
 }
 
-function scratchpadRedraw() {
-  if (!scratchpadSyncCanvasSize()) return;
-  const canvas = optionsEls.canvas;
-  const ctx = canvas.getContext("2d");
-  const { dpr, rectW, rectH } = scratchpadState;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, rectW, rectH);
+optionsEls.backBtn.addEventListener("click", async () => {
   const room = state.room;
-  const points = [...pointsObjectToArray(room?.scratchpad?.points), ...scratchpadState.pending];
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 3;
-  let prev = null;
-  points.forEach((p) => {
-    const x = p.x * rectW;
-    const y = p.y * rectH;
-    if (p.newStroke || !prev) {
-      prev = { x, y };
-      return;
-    }
-    ctx.strokeStyle = scratchpadColorForUid(room, p.uid);
-    ctx.beginPath();
-    ctx.moveTo(prev.x, prev.y);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    prev = { x, y };
-  });
-}
-
-function scratchpadPointFromEvent(e) {
-  const rect = optionsEls.canvas.getBoundingClientRect();
-  const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-  const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-  return { x, y };
-}
-
-function scratchpadFlush() {
-  if (scratchpadState.pending.length === 0) return;
-  const toSend = scratchpadState.pending;
-  scratchpadState.pending = [];
-  scratchpadState.lastBroadcastAt = performance.now();
-  pushScratchpadPoints(state.code, state.room, toSend);
-}
-
-optionsEls.canvas.addEventListener("pointerdown", (e) => {
-  if (!state.code) return;
-  e.preventDefault();
-  optionsEls.canvas.setPointerCapture(e.pointerId);
-  scratchpadState.drawing = true;
-  const p = scratchpadPointFromEvent(e);
-  scratchpadState.lastPoint = p;
-  scratchpadState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: true });
-  scratchpadRedraw();
+  if (!room || !isHost(room)) return;
+  optionsEls.overlay.classList.add("hidden");
+  await backToLobby(state.code, room);
 });
-optionsEls.canvas.addEventListener("pointermove", (e) => {
-  if (!scratchpadState.drawing) return;
-  const p = scratchpadPointFromEvent(e);
-  const last = scratchpadState.lastPoint;
-  const dist = last ? Math.hypot(p.x - last.x, p.y - last.y) : 1;
-  if (dist < SCRATCHPAD_MIN_DIST) return;
-  scratchpadState.lastPoint = p;
-  scratchpadState.pending.push({ x: p.x, y: p.y, uid: state.uid, newStroke: false });
-  scratchpadRedraw();
-  if (performance.now() - scratchpadState.lastBroadcastAt > SCRATCHPAD_BROADCAST_INTERVAL_MS) {
-    scratchpadFlush();
-  }
-});
-function scratchpadEndStroke() {
-  if (!scratchpadState.drawing) return;
-  scratchpadState.drawing = false;
-  scratchpadState.lastPoint = null;
-  scratchpadFlush();
-}
-optionsEls.canvas.addEventListener("pointerup", scratchpadEndStroke);
-optionsEls.canvas.addEventListener("pointercancel", scratchpadEndStroke);
-optionsEls.canvas.addEventListener("pointerleave", scratchpadEndStroke);
-
-optionsEls.clearBtn.addEventListener("click", () => {
-  clearScratchpad(state.code);
-});
-
-function optionsShowTab(tab) {
-  const isLeaderboard = tab === "leaderboard";
-  optionsEls.tabLeaderboard.classList.toggle("active", isLeaderboard);
-  optionsEls.tabScratchpad.classList.toggle("active", !isLeaderboard);
-  optionsEls.panelLeaderboard.classList.toggle("hidden", !isLeaderboard);
-  optionsEls.panelScratchpad.classList.toggle("hidden", isLeaderboard);
-  if (!isLeaderboard) scratchpadRedraw();
-}
-optionsEls.tabLeaderboard.addEventListener("click", () => optionsShowTab("leaderboard"));
-optionsEls.tabScratchpad.addEventListener("click", () => optionsShowTab("scratchpad"));
 
 optionsEls.fab.addEventListener("click", () => {
   if (!state.room) return;
-  optionsShowTab("leaderboard");
   renderOptionsLeaderboard(state.room);
+  refreshOptionsBack(state.room);
   optionsEls.overlay.classList.remove("hidden");
 });
 optionsEls.closeBtn.addEventListener("click", () => {
   optionsEls.overlay.classList.add("hidden");
 });
 
-window.addEventListener("resize", () => {
-  if (!optionsEls.overlay.classList.contains("hidden")) scratchpadRedraw();
-});
-
-// Chamado a cada atualização da sala para manter a classificação e o
-// rabisco em tempo real enquanto o overlay estiver aberto.
+// Chamado a cada atualização da sala, para a classificação e o botão de sair
+// acompanharem o que está a acontecer enquanto o painel está aberto.
 function refreshOptionsIfOpen(room) {
   if (optionsEls.overlay.classList.contains("hidden")) return;
   renderOptionsLeaderboard(room);
-  scratchpadRedraw();
+  refreshOptionsBack(room);
 }
 
 // ---------- HOST LOOP: transições dirigidas por tempo ----------

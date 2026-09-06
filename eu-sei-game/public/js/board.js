@@ -21,6 +21,7 @@
 
 import { BOARD_TOOLS, pickMascotIntro } from "./data.js";
 import { sfx } from "./sfx.js";
+import { abrirPaleta } from "./paleta.js";
 
 // Reexportado: as ferramentas VIVEM no data.js (é o único sítio, e é livre de
 // DOM para o módulo da rede e os testes puros lhes chegarem), mas quem já as
@@ -120,7 +121,7 @@ const els = {
   toolRow: document.getElementById("board-tool-row"),
   colorRow: document.getElementById("board-color-row"),
   widthRow: document.getElementById("board-width-row"),
-  customColor: document.getElementById("board-custom-color"),
+  paletaBtn: document.getElementById("board-paleta-btn"),
   bgSelect: document.getElementById("board-bg-select"),
   widthRange: document.getElementById("board-width-range"),
   widthValue: document.getElementById("board-width-value"),
@@ -846,7 +847,7 @@ export function selectColor(color) {
   els.colorRow.querySelectorAll("[data-board-color]").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.boardColor === color));
   });
-  if (els.customColor && /^#[0-9a-f]{6}$/i.test(color)) els.customColor.value = color;
+
   // Escolher uma cor com a borracha na mão quer quase de certeza dizer
   // "voltar a escrever" — trocar sozinho poupa um clique que ninguém percebe
   // que falta dar.
@@ -1103,7 +1104,7 @@ if (boardAvailable) {
   });
   els.exitBtn?.addEventListener("click", leaveBoardScreen);
   els.bgSelect?.addEventListener("change", (e) => setBoardBackground(e.target.value));
-  els.customColor?.addEventListener("input", (e) => selectColor(e.target.value));
+  els.paletaBtn?.addEventListener("click", () => abrirPaleta(board.color, selectColor));
   els.widthRange?.addEventListener("input", (e) => selectWidth(e.target.value));
   els.opacityRange?.addEventListener("input", (e) => selectOpacity(Number(e.target.value) / 100));
   els.fillToggle?.addEventListener("change", (e) => setFillShapes(e.target.checked));
