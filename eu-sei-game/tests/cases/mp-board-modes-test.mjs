@@ -378,11 +378,23 @@ await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.ma
 
 // Erros suficientes para a gata aparecer. Os erros não têm teto (maxMisses 0),
 // por isso o jogo não acaba antes.
-for (const letra of ["q", "w", "x"]) {
+// Erra-se até a gata aparecer, em vez de assumir um número exato de letras.
+// Um dos eventos dela é PERDOAR um erro — pode apagar a própria letra por que
+// o teste estava à espera, e nesse caso é preciso errar mais uma vez. Esperar
+// por uma letra concreta era uma corrida contra o que o jogo faz de propósito.
+for (const letra of ["q", "w", "x", "j", "k", "y", "v"]) {
+  const jaTemCaos = await host.evaluate((c) => !!window.__testDb.get(`rooms/${c}`).hangman.chaos, code);
+  if (jaTemCaos) break;
   await host.waitForFunction(() => !document.getElementById("hangman-guess-form").classList.contains("hidden"), { timeout: 10000 });
   await host.fill("#hangman-guess-input", letra);
   await host.click("#hangman-guess-form button[type=submit]");
-  await host.waitForFunction((args) => !!window.__testDb.get(`rooms/${args[0]}`).hangman.wrong?.[args[1]], [code, letra], { timeout: 10000 });
+  // Espera que a tentativa seja JULGADA (a pendente desaparece), o que
+  // acontece quer a letra fique nas erradas quer a gata a perdoe logo a
+  // seguir.
+  await host.waitForFunction((args) => {
+    const h = window.__testDb.get(`rooms/${args[0]}`).hangman;
+    return !h.guesses || Object.keys(h.guesses).length === 0;
+  }, [code, letra], { timeout: 10000 });
 }
 await host.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman.chaos, code, { timeout: 10000 });
 const oCaos = await host.evaluate((c) => window.__testDb.get(`rooms/${c}`).hangman, code);
