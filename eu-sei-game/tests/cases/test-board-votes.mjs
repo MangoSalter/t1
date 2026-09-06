@@ -495,3 +495,76 @@ check2("vencedor da anterior apagado", String(depois.winnerUid === undefined || 
 check2("erros zerados", depois.misses, 0);
 check2("letras erradas apagadas", String(depois.wrong === undefined || depois.wrong === null), "true");
 check2("já não está resolvida", String(depois.solved), "false");
+
+console.log("35) As escritas do quadro recusam quem não manda: uma a uma...");
+// Este jogo é "por confiança" — não há servidor a arbitrar, e qualquer cliente
+// pode tentar escrever o que quiser na sala. Por isso cada escrita verifica
+// QUEM a está a fazer antes de a fazer. Isso foi auditado à vista, mas nunca
+// testado, e uma verificação que desaparece numa refactorização não dá erro
+// nenhum: dá um jogo em que qualquer um limpa o quadro dos outros.
+//
+// A regra do teste é sempre a mesma: chamar cada escrita com o uid ERRADO e
+// exigir que a sala fique exatamente como estava.
+const guardas = await import("./js/room.js");
+const salaGuarda = {
+  hostId: "anfitriao",
+  players: {
+    anfitriao: { connected: true, name: "Anfitriã" },
+    caneta: { connected: true, name: "Com caneta" },
+    ze: { connected: true, name: "Zé" },
+  },
+  hangman: {
+    mode: "forca", leaderId: "caneta", play: "equipas",
+    mask: "_a_a_a", misses: 1, hint: "fruta",
+    teams: { t1: { name: "Leões" }, t2: { name: "Palancas" } },
+    teamOf: { ze: "t1" },
+    turnOrder: ["ze", "anfitriao"],
+    colors: { ze: "#b24b38", caneta: "#5c7e91", anfitriao: "#5b7442" },
+    doodle: { points: { p0000001_x: { x: 0.1, y: 0.1, tool: "pen" } } },
+    settings: { revealGuesses: 1 },
+    guesses: { ze: { letter: "b", at: 1 } },
+    wordGuesses: { ze: { text: "banana", at: 1 } },
+  },
+};
+const CAMINHO = "rooms/GUARDA/hangman";
+await updateDb(refDb(dbTeste, CAMINHO), JSON.parse(JSON.stringify(salaGuarda.hangman)));
+const estadoDoQuadro = async () => JSON.stringify((await getDb(refDb(dbTeste, CAMINHO))).val());
+const antes = await estadoDoQuadro();
+
+// "zé" não tem a caneta nem é anfitrião: nenhuma destas devia mexer em nada.
+const tentativas = [
+  ["limpar o quadro", () => guardas.clearHangmanDoodle("GUARDA", salaGuarda, "ze")],
+  ["escrever a palavra", () => guardas.setHangmanPuzzle("GUARDA", salaGuarda, "ze", "______", "outra")],
+  ["revelar letras na palavra", () => guardas.updateHangmanMask("GUARDA", salaGuarda, "ze", "banana")],
+  ["marcar um erro", () => guardas.addHangmanMiss("GUARDA", salaGuarda, "ze")],
+  ["apagar a palavra", () => guardas.clearHangmanPuzzle("GUARDA", salaGuarda, "ze")],
+  ["mudar o modo do quadro", () => guardas.setBoardMode("GUARDA", salaGuarda, "ze", "livre")],
+  ["mudar as definições", () => guardas.setBoardSetting("GUARDA", salaGuarda, "ze", "maxMisses", 0)],
+  ["mudar para cada um por si", () => guardas.setPlayMode("GUARDA", salaGuarda, "ze", "solo")],
+  ["mudar o número de equipas", () => guardas.setTeamCount("GUARDA", salaGuarda, "ze", 4)],
+  ["renomear equipa que não é dele", () => guardas.renameTeam("GUARDA", salaGuarda, "ze", "t2", "Roubada")],
+  ["arbitrar uma letra", () => guardas.resolveGuess("GUARDA", salaGuarda, "ze", "ze", "b", "banana")],
+  ["arbitrar a palavra inteira", () => guardas.resolveWordGuess("GUARDA", salaGuarda, "ze", "ze", "banana", "banana")],
+  ["anular o traço de quem desenha", () => guardas.undoLastHangmanStroke("GUARDA", salaGuarda, "ze")],
+  ["desenhar no quadro na Forca", () => guardas.pushHangmanDoodlePoints("GUARDA", salaGuarda, "ze", [{ x: 0.5, y: 0.5 }])],
+  ["começar outra partida", () => guardas.startNewMatch("GUARDA", salaGuarda, "ze")],
+  ["chamar a gata do caos", () => guardas.fireBoardChaos("GUARDA", salaGuarda, "ze", "banana")],
+];
+for (const [nome, chamada] of tentativas) {
+  await chamada();
+  check2(`recusa: ${nome}`, await estadoDoQuadro(), antes);
+}
+
+// E o contrário, que é o que impede o teste de passar por estar tudo trancado:
+// quem TEM a caneta consegue mesmo fazê-lo.
+await guardas.addHangmanMiss("GUARDA", salaGuarda, "caneta");
+const comCaneta = (await getDb(refDb(dbTeste, CAMINHO))).val();
+check2("quem tem a caneta marca o erro", comCaneta.misses, 2);
+// O anfitrião pode passar a caneta mesmo sem a ter — é o que destranca a sala
+// quando quem desenhava se vai embora.
+await guardas.passHangmanPen("GUARDA", salaGuarda, "ze", "ze");
+check2("o Zé não passa a caneta a si próprio",
+  (await getDb(refDb(dbTeste, CAMINHO))).val().leaderId, "caneta");
+await guardas.passHangmanPen("GUARDA", salaGuarda, "anfitriao", "ze");
+check2("o anfitrião destranca a sala",
+  (await getDb(refDb(dbTeste, CAMINHO))).val().leaderId, "ze");
