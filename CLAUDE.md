@@ -19,6 +19,13 @@ Cheaper is only better when the result is the same. Do not skip a test, a
 measurement, or a check the change actually needs — that is not saving, it is
 guessing.
 
+## Don't stop while there is work left (standing rule)
+If the session goes quiet but the task list still has open items, keep going —
+take the next one, finish it, test it, publish it. Silence is not a stop
+signal. Only actually stop when every remaining task needs a decision that is
+the owner's to make, and even then say which decision and carry on with
+anything that doesn't depend on it.
+
 ## Language
 Chat replies in English. Everything inside the product — code comments, UI
 strings, commit messages, docs — stays in Portuguese, except where the i18n

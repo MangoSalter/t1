@@ -2642,6 +2642,9 @@ export async function startBattleTeam(code, room) {
       arenaW: BATTLE_ARENA_W, arenaH: BATTLE_ARENA_H,
       positions, lives,
       armed: {}, eliminated: {}, eliminatedAt: {}, kills: {},
+      // Os golpes e os baques da ronda anterior não podem aparecer na
+      // primeira imagem da nova: começam limpos.
+      golpes: {}, baques: {},
       weapons: {},
       startedAt: serverNow(),
       endAt: serverNow() + BATTLE_ROUND_MS,
@@ -2694,6 +2697,20 @@ export async function claimBattleWeapon(code, uid, weaponId) {
 // Uma transação sobre as vidas do alvo garante que, se dois atacantes
 // acertarem golpes quase ao mesmo tempo, só uma vida se perde de cada vez
 // (em vez de possivelmente contar os dois golpes em simultâneo).
+// Quanto tempo dura, no ecrã, o golpe e o baque. Curtos de propósito: são
+// para se ver que aconteceu alguma coisa, não para atrapalhar o que vem a
+// seguir num jogo em que se está sempre a fugir.
+export const BATTLE_GOLPE_MS = 220;
+export const BATTLE_BAQUE_MS = 320;
+
+// O GOLPE VIAJA. Antes o ataque era invisível: quem batia via o seu próprio
+// contador interno a mexer e mais nada, e quem levava só via as vidas a
+// descer sem perceber de onde tinha vindo. Um jogo de pancada em que não se
+// vê a pancada.
+export async function registarGolpe(code, uid) {
+  await update(ref(db, `rooms/${code}/battle/golpes`), { [uid]: serverNow() });
+}
+
 export async function claimBattleHit(code, room, attackerUid, targetUid) {
   if (attackerUid === targetUid) return;
   const battle = room.battle;
@@ -2707,6 +2724,11 @@ export async function claimBattleHit(code, room, attackerUid, targetUid) {
   });
   if (!result.committed) return;
   const newLives = result.snapshot.val();
+  // O baque marca-se SEMPRE que se acerta, mesmo que a pessoa sobreviva: é o
+  // que diz a quem levou que levou, e a quem bateu que acertou.
+  await update(ref(db, `rooms/${code}/battle/baques`), {
+    [targetUid]: { em: serverNow(), de: attackerUid },
+  });
   if (newLives === null || newLives > 0) return; // ainda vivo, nada mais a fazer
   const prevKills = room.battle?.kills?.[attackerUid] || 0;
   await update(roomRef(code), {
@@ -3016,12 +3038,21 @@ export async function advanceLandmarkRoundOrFinish(code, room) {
 // na Batalha; as barreiras e os congelamentos são estado partilhado, por
 // isso valem para todos.
 
-export const GOLF_MP_COURSE_W = 1600;
-export const GOLF_MP_COURSE_H = 900;
+// O CAMPO CRESCEU E GANHOU TERRENO. Era um corredor de 1600x900 a direito,
+// da esquerda para a direita, com seis paredes pelo meio: chegava-se ao
+// buraco em linha reta e o jogo acabava antes de começar. "Demasiado simples,
+// monótono e curto", nas palavras de quem o jogou.
+//
+// Agora é um percurso com voltas, e sobretudo com TERRENO — que é o que
+// separa um campo de um corredor. Cada tipo de chão faz uma coisa à bola, e
+// é a soma deles que dá caminhos diferentes para o mesmo buraco: pelo meio,
+// depressa e arriscado; por fora, devagar e seguro.
+export const GOLF_MP_COURSE_W = 2400;
+export const GOLF_MP_COURSE_H = 1200;
 export const GOLF_MP_BALL_RADIUS = 9;
 export const GOLF_MP_HOLE_RADIUS = 16;
-export const GOLF_MP_START = { x: 70, y: 450 };
-export const GOLF_MP_HOLE = { x: 1520, y: 450 };
+export const GOLF_MP_START = { x: 90, y: 1090 };
+export const GOLF_MP_HOLE = { x: 2300, y: 110 };
 export const GOLF_MP_ROUND_MS = 90000;
 export const GOLF_MP_RESULT_DISPLAY_MS = 6000;
 export const GOLF_MP_FINISH_POINTS = [25, 16, 10, 6];
@@ -3036,15 +3067,113 @@ export const GOLF_MP_BARRIER_H = 190;
 export const GOLF_MP_OFFSWITCH_MS = 2600;
 export const GOLF_MP_BROADCAST_MS = 120;
 
-// Paredes fixas do campo, iguais para todos.
+// Paredes fixas do campo, iguais para todos. Desenhadas como um caminho em S:
+// sobe-se pela esquerda, atravessa-se o meio e desce-se pela direita, com
+// atalhos por dentro para quem se atrever.
 export const GOLF_MP_WALLS = [
-  { x: 300, y: 0, w: 24, h: 340 },
-  { x: 300, y: 560, w: 24, h: 340 },
-  { x: 620, y: 200, w: 24, h: 500 },
-  { x: 940, y: 0, w: 24, h: 340 },
-  { x: 940, y: 560, w: 24, h: 340 },
-  { x: 1260, y: 220, w: 24, h: 460 },
+  { x: 320, y: 620, w: 24, h: 580 },
+  { x: 320, y: 240, w: 24, h: 260 },
+  { x: 640, y: 0, w: 24, h: 620 },
+  { x: 640, y: 800, w: 24, h: 400 },
+  { x: 960, y: 300, w: 24, h: 900 },
+  { x: 1280, y: 0, w: 24, h: 700 },
+  { x: 1280, y: 880, w: 24, h: 320 },
+  { x: 1600, y: 200, w: 24, h: 800 },
+  { x: 1920, y: 0, w: 24, h: 520 },
+  { x: 1920, y: 700, w: 24, h: 500 },
+  { x: 340, y: 240, w: 300, h: 24 },
+  { x: 980, y: 880, w: 300, h: 24 },
+  { x: 1620, y: 200, w: 300, h: 24 },
 ];
+
+// O TERRENO. Cada tipo faz uma coisa só, e faz-se notar:
+//
+//   acelerador — o chão empurra na direção da seta. É o que dá a sensação de
+//                velocidade que faltava, e o que permite atravessar o campo
+//                num lance em vez de cinco.
+//   saltitao   — bate e devolve, com mais força do que levou. Um obstáculo
+//                que castiga sem prender: nunca deixa a bola encravada.
+//   areia      — trava a sério. É o preço do atalho: o caminho curto passa
+//                aqui, o comprido não.
+//
+// São dados e não código para se poderem desenhar novos campos sem tocar na
+// física — e para os testes poderem medir o campo em vez de o adivinhar.
+export const GOLF_MP_ACELERADORES = [
+  { x: 120, y: 700, w: 170, h: 120, dx: 0, dy: -1 },
+  { x: 700, y: 120, w: 220, h: 120, dx: 1, dy: 0 },
+  { x: 1020, y: 980, w: 220, h: 120, dx: 1, dy: 0 },
+  { x: 1360, y: 300, w: 200, h: 120, dx: 0, dy: -1 },
+  { x: 1990, y: 560, w: 200, h: 120, dx: 1, dy: 0 },
+  { x: 380, y: 980, w: 220, h: 110, dx: 1, dy: 0 },
+];
+export const GOLF_MP_SALTITOES = [
+  { x: 480, y: 480, r: 42 },
+  { x: 820, y: 760, r: 42 },
+  { x: 1130, y: 240, r: 46 },
+  { x: 1450, y: 820, r: 42 },
+  { x: 1780, y: 420, r: 46 },
+  { x: 2120, y: 900, r: 42 },
+];
+export const GOLF_MP_AREIAS = [
+  { x: 700, y: 380, w: 220, h: 200 },
+  { x: 1340, y: 620, w: 220, h: 200 },
+  { x: 1660, y: 900, w: 240, h: 220 },
+  { x: 2000, y: 180, w: 260, h: 200 },
+];
+// Quanto cada terreno mexe com a bola.
+export const GOLF_MP_EMPURRAO = 1500;   // aceleração do chão, por segundo
+export const GOLF_MP_SALTO = 1.15;      // devolve com 15% mais do que levou
+export const GOLF_MP_AREIA_TRAVAO = 0.965; // por quadro de imagem, composto
+
+// O que o TERRENO faz à bola num quadro de imagem. Pura de propósito: a
+// física do golfe corre no browser de cada um, mas a regra é uma só, e uma
+// regra que se pode medir sem browser é uma regra que se pode confiar.
+//
+// Devolve a velocidade nova. Não mexe na posição — disso trata quem chama,
+// que é quem sabe do choque com as paredes.
+export function golfTerreno(x, y, vx, vy, dt) {
+  let nvx = vx;
+  let nvy = vy;
+  // Aceleradores: o chão empurra, e empurra mesmo que a bola esteja parada —
+  // é o que os torna um caminho e não só um bónus.
+  for (const a of GOLF_MP_ACELERADORES) {
+    if (x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h) {
+      nvx += a.dx * GOLF_MP_EMPURRAO * dt;
+      nvy += a.dy * GOLF_MP_EMPURRAO * dt;
+    }
+  }
+  // Areia: trava a sério, mas nunca prende. Um travão que chegasse a zero
+  // deixava a bola morta no meio do campo sem nada a fazer.
+  for (const s of GOLF_MP_AREIAS) {
+    if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) {
+      const travao = GOLF_MP_AREIA_TRAVAO ** (dt * 60);
+      nvx *= travao;
+      nvy *= travao;
+    }
+  }
+  return { vx: nvx, vy: nvy };
+}
+
+// Os saltitões devolvem a bola. Separado do resto porque muda a POSIÇÃO além
+// da velocidade: a bola tem de sair de dentro do saltitão, senão ficava lá a
+// bater para sempre.
+export function golfSaltitao(x, y, vx, vy, raioDaBola) {
+  for (const b of GOLF_MP_SALTITOES) {
+    const dx = x - b.x;
+    const dy = y - b.y;
+    const dist = Math.hypot(dx, dy);
+    const limite = b.r + raioDaBola;
+    if (dist === 0 || dist >= limite) continue;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    // Reflete a velocidade na normal e devolve com um pouco mais do que levou.
+    const projecao = vx * nx + vy * ny;
+    const rvx = (vx - 2 * projecao * nx) * GOLF_MP_SALTO;
+    const rvy = (vy - 2 * projecao * ny) * GOLF_MP_SALTO;
+    return { x: b.x + nx * limite, y: b.y + ny * limite, vx: rvx, vy: rvy, bateu: true };
+  }
+  return { x, y, vx, vy, bateu: false };
+}
 
 export async function startGolfTeam(code, room) {
   const balls = {};

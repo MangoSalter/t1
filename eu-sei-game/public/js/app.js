@@ -23,6 +23,7 @@ import {
   TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, tagClampToWalls, tagTravadoPor,
   TAG_POWERUP_MAX_ACTIVE, TAG_POWERUP_SPAWN_INTERVAL_MS, TAG_RESULT_DISPLAY_MS, updateBattlePosition, claimBattleWeapon,
   claimBattleHit, spawnBattleWeapon, resolveBattleRound, finishBattleRound, battleClampToWalls,
+  registarGolpe, BATTLE_GOLPE_MS, BATTLE_BAQUE_MS,
   BATTLE_WALLS, BATTLE_PLAYER_RADIUS, BATTLE_WEAPON_RADIUS, BATTLE_WEAPON_MAX_ACTIVE, BATTLE_WEAPON_SPAWN_INTERVAL_MS,
   BATTLE_ATTACK_RADIUS, BATTLE_ATTACK_COOLDOWN_MS, BATTLE_LIVES, BATTLE_RESULT_DISPLAY_MS, updateRacer,
   crashRacer, resolveRaceRound, finishRaceRound, raceObstacleLane, racerTimeMs,
@@ -34,6 +35,7 @@ import {
   GOLF_MP_COURSE_W, GOLF_MP_COURSE_H, GOLF_MP_BALL_RADIUS, GOLF_MP_HOLE_RADIUS, GOLF_MP_START,
   GOLF_MP_HOLE, GOLF_MP_WALLS, GOLF_MP_POWERUP_RADIUS, GOLF_MP_POWERUP_MAX_ACTIVE, GOLF_MP_POWERUP_SPAWN_INTERVAL_MS,
   GOLF_MP_BROADCAST_MS, GOLF_MP_RESULT_DISPLAY_MS,
+  golfTerreno, golfSaltitao, GOLF_MP_ACELERADORES, GOLF_MP_SALTITOES, GOLF_MP_AREIAS,
   mapaMangaRouba, MAPA_MANGA_CADA_MS,
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
@@ -1529,7 +1531,10 @@ function battleAttack() {
   const now = performance.now();
   if (now - battleState.lastAttackAt < BATTLE_ATTACK_COOLDOWN_MS) return;
   battleState.lastAttackAt = now;
-  battleState.swingUntil = now + 180;
+  battleState.swingUntil = now + BATTLE_GOLPE_MS;
+  // O golpe vai para a sala para os OUTROS o verem. Sem isto, o ataque era um
+  // acontecimento privado de quem carregava na tecla.
+  registarGolpe(state.code, state.uid);
   Object.entries(battle.positions || {}).forEach(([uid, pos]) => {
     if (uid === state.uid || battle.eliminated?.[uid]) return;
     const dist = Math.hypot(battleState.x - pos.x, battleState.y - pos.y);
@@ -1701,6 +1706,9 @@ function battleTick(now) {
 
   // Renderiza todos os jogadores (mesma suavização visual da Fuga da
   // Infeção para quem não é o próprio — ver nota lá em cima).
+  // Um só relógio por desenho: chamar o da sala por jogador dava tempos
+  // diferentes dentro do mesmo quadro de imagem.
+  const agoraDaSala = serverNow();
   Object.keys(room.players || {}).forEach((uid) => {
     const isMe = uid === state.uid;
     const eliminated = !!battle.eliminated?.[uid];
@@ -1724,6 +1732,19 @@ function battleTick(now) {
     el.classList.toggle("battle-player-me", isMe);
     el.classList.toggle("battle-player-armed", armed);
     el.classList.toggle("battle-player-eliminated", eliminated);
+    // O GOLPE E O BAQUE. O ataque era invisível: quem batia via um contador
+    // interno mexer e mais nada, e quem levava via as vidas a descer sem
+    // perceber de onde. Agora vê-se o braço a girar em quem bate e o
+    // encolher em quem leva — nos dois ecrãs, porque os dois viajam na sala.
+    //
+    // O próprio jogador usa o relógio LOCAL: o golpe dele tem de aparecer no
+    // instante em que carrega na tecla, não quando a sala responder.
+    const golpeEm = isMe
+      ? (battleState.swingUntil > performance.now() ? agoraDaSala : 0)
+      : (battle.golpes?.[uid] || 0);
+    el.classList.toggle("battle-player-golpe", agoraDaSala - golpeEm < BATTLE_GOLPE_MS);
+    const baque = battle.baques?.[uid]?.em || 0;
+    el.classList.toggle("battle-player-baque", agoraDaSala - baque < BATTLE_BAQUE_MS);
     el.style.left = `${display.x}px`;
     el.style.top = `${display.y}px`;
     const lives = Math.max(0, battle.lives?.[uid] ?? BATTLE_LIVES);
@@ -2158,6 +2179,41 @@ function golfMpEnter(room) {
     el.style.height = `${w.h}px`;
     golfMpState.worldEl.appendChild(el);
   });
+  // O TERRENO desenha-se por baixo de tudo o resto: é chão, não obstáculo.
+  // Cada tipo tem de se ler de relance a passar por cima a toda a velocidade
+  // — um terreno que só se percebe parando não serve para nada num jogo de
+  // velocidade.
+  GOLF_MP_AREIAS.forEach((a) => {
+    const el = document.createElement("div");
+    el.className = "golf-areia";
+    el.style.left = `${a.x}px`;
+    el.style.top = `${a.y}px`;
+    el.style.width = `${a.w}px`;
+    el.style.height = `${a.h}px`;
+    golfMpState.worldEl.appendChild(el);
+  });
+  GOLF_MP_ACELERADORES.forEach((a) => {
+    const el = document.createElement("div");
+    el.className = "golf-acelerador";
+    el.style.left = `${a.x}px`;
+    el.style.top = `${a.y}px`;
+    el.style.width = `${a.w}px`;
+    el.style.height = `${a.h}px`;
+    // A seta diz para onde empurra. Sem ela, o acelerador é um tapete de cor
+    // que atira a bola para um sítio qualquer.
+    el.textContent = a.dx > 0 ? "»" : a.dx < 0 ? "«" : a.dy < 0 ? "⌃" : "⌄";
+    golfMpState.worldEl.appendChild(el);
+  });
+  GOLF_MP_SALTITOES.forEach((b) => {
+    const el = document.createElement("div");
+    el.className = "golf-saltitao";
+    el.style.left = `${b.x - b.r}px`;
+    el.style.top = `${b.y - b.r}px`;
+    el.style.width = `${b.r * 2}px`;
+    el.style.height = `${b.r * 2}px`;
+    golfMpState.worldEl.appendChild(el);
+  });
+
   const holeEl = document.createElement("div");
   holeEl.className = "golf-hole golf-mp-hole";
   holeEl.style.left = `${GOLF_MP_HOLE.x - GOLF_MP_HOLE_RADIUS}px`;
@@ -2236,8 +2292,26 @@ function golfMpTick(now) {
     golfMpState.vy = (golfMpState.vy / speed) * GOLF_MP_MAX_SPEED;
   }
 
+  // O TERRENO entra ANTES do movimento: os aceleradores empurram, a areia
+  // trava, e só depois se anda com a velocidade que ficou.
+  const terreno = golfTerreno(golfMpState.x, golfMpState.y, golfMpState.vx, golfMpState.vy, dt);
+  golfMpState.vx = terreno.vx;
+  golfMpState.vy = terreno.vy;
+
   let newX = golfMpState.x + golfMpState.vx * dt;
   let newY = golfMpState.y + golfMpState.vy * dt;
+
+  // Os saltitões devolvem a bola com mais do que levou. Vêm depois de andar e
+  // antes das paredes: a bola tem de sair de dentro do saltitão no mesmo
+  // quadro em que lhe bate, senão fica lá a bater sem parar.
+  const salto = golfSaltitao(newX, newY, golfMpState.vx, golfMpState.vy, GOLF_MP_BALL_RADIUS);
+  if (salto.bateu) {
+    newX = salto.x;
+    newY = salto.y;
+    golfMpState.vx = salto.vx;
+    golfMpState.vy = salto.vy;
+    sfx("bump");
+  }
 
   // As barreiras largadas por outros jogadores entram aqui, exatamente como
   // as paredes fixas: é o que faz o power-up doer mesmo.

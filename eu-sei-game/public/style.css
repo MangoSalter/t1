@@ -1280,3 +1280,55 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   position: absolute; background: #6b6252; border-radius: 4px;
   box-shadow: inset 0 0 0 2px rgba(58, 49, 38, 0.35);
 }
+
+/* O GOLPE E O BAQUE do Labirinto. Curtos e legíveis: num jogo em que se está
+   sempre a fugir, uma animação longa esconde o que vem a seguir.
+   O golpe é um arco que sai do jogador — vê-se o alcance da arma, que é
+   justamente a informação que faltava para se saber quando fugir. */
+.battle-player-golpe::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 96px; height: 96px; margin: -48px; border-radius: 50%;
+  border: 3px solid var(--danger); border-left-color: transparent; border-bottom-color: transparent;
+  animation: battle-golpe 220ms ease-out;
+  pointer-events: none;
+}
+@keyframes battle-golpe {
+  from { transform: rotate(-90deg) scale(0.5); opacity: 1; }
+  to   { transform: rotate(180deg) scale(1); opacity: 0; }
+}
+/* O baque: encolhe e pisca a vermelho. Quem levou percebe que levou mesmo que
+   estivesse a olhar para outro canto do mapa. */
+.battle-player-baque { animation: battle-baque 320ms ease-out; }
+@keyframes battle-baque {
+  0%   { transform: scale(1.35); filter: brightness(2.4) saturate(0.3); }
+  40%  { transform: scale(0.82); filter: brightness(1.6); }
+  100% { transform: scale(1); filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Sem movimento, mas não sem informação: quem não quer animações continua
+     a precisar de saber que bateu e que levou. */
+  .battle-player-golpe::after { animation: none; opacity: 0.9; }
+  .battle-player-baque { animation: none; outline: 3px solid var(--danger); }
+}
+
+/* O TERRENO do mini-golfe. Três chãos, três leituras imediatas: a areia
+   trava, o acelerador empurra na direção da seta, o saltitão devolve. */
+.golf-areia {
+  position: absolute; background: repeating-linear-gradient(45deg,
+    rgba(227, 165, 61, 0.35) 0 10px, rgba(227, 165, 61, 0.18) 10px 20px);
+  border-radius: 12px; border: 2px dashed rgba(160, 120, 40, 0.5);
+}
+.golf-acelerador {
+  position: absolute; border-radius: 10px;
+  background: linear-gradient(90deg, rgba(92, 126, 145, 0.25), rgba(92, 126, 145, 0.55));
+  border: 2px solid rgba(58, 90, 110, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem; font-weight: 900; color: rgba(40, 70, 90, 0.75);
+  letter-spacing: -4px;
+}
+.golf-saltitao {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f0c419, #c2569b);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.35);
+}

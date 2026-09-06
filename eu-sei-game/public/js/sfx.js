@@ -84,6 +84,9 @@ const SOUNDS = {
   conquista: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 200, { delayMs: i * 85, gain: 0.07 })); },
   // Miado desconfiado: a Dona Manga meteu-se ao barulho.
   caos: () => { tone(420, 260, { type: "triangle", slideTo: 300, gain: 0.07 }); },
+  // Pancada seca do saltitão do mini-golfe: a bola bateu e voltou. Curta e
+  // grave, porque acontece muitas vezes seguidas num lance bom.
+  bump: () => { tone(180, 70, { type: "square", gain: 0.05, slideTo: 120 }); },
   // Sino do Stop.
   stop: () => { tone(880, 300, { type: "triangle", gain: 0.08 }); tone(1320, 300, { type: "triangle", gain: 0.05 }); },
   // Giz a riscar o quadro: um chiado curto no INÍCIO de cada traço, não um

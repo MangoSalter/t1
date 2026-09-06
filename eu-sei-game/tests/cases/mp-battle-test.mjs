@@ -91,6 +91,50 @@ await page.keyboard.press("Space");
 await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).battle.lives.p2 === 2, code, { timeout: 15000 });
 console.log("   OK: p2 perdeu 1 vida (3 -> 2) por ataque real via Espaço");
 
+console.log("5b) O ataque VÊ-SE — era invisível, e num jogo de pancada isso é meio jogo...");
+// Antes o ataque não desenhava nada: quem batia via um contador interno mexer
+// e quem levava via as vidas a descer sem perceber de onde. Agora o golpe e o
+// baque viajam na sala, para os dois lados os verem.
+// Espera-se pela MARCA em vez de se ler logo a seguir ao ataque: as animações
+// duram uns 300ms e o waitForFunction anterior podia já ter gasto mais do que
+// isso. Um teste que corre contra um relógio destes falha por sorte.
+const esperaMarca = async (seletor, classe, oQue) => {
+  const apareceu = await page.waitForFunction(
+    ([sel, cls]) => {
+      const el = sel === ".battle-player-me"
+        ? document.querySelector(sel)
+        : [...document.querySelectorAll(".battle-player")].find((e) => !e.classList.contains("battle-player-me"));
+      return !!el && el.classList.contains(cls);
+    },
+    [seletor, classe],
+    { timeout: 4000 },
+  ).then(() => true).catch(() => false);
+  console.log(`   ${oQue}: ${apareceu}`);
+  if (!apareceu) { console.log(`   FALHOU: ${oQue} devia ver-se`); process.exitCode = 1; }
+  return apareceu;
+};
+// Outro ataque, agora com a marca a ser esperada em vez de espreitada.
+await page.keyboard.press("Space");
+await esperaMarca(".battle-player-me", "battle-player-golpe", "golpe desenhado em quem bateu");
+await esperaMarca(".battle-player-outro", "battle-player-baque", "baque em quem levou");
+// E o golpe está na sala, que é o que faz os OUTROS o verem.
+const naSala = await page.evaluate((c) => {
+  const b = window.__testDb.get(`rooms/${c}`).battle;
+  return { golpes: Object.keys(b.golpes || {}).length, baques: Object.keys(b.baques || {}).length };
+}, code);
+console.log(`   na sala: ${naSala.golpes} golpe(s), ${naSala.baques} baque(s)`);
+if (naSala.golpes === 0) { console.log("   FALHOU: o golpe tem de viajar, senão só quem bate é que o vê"); process.exitCode = 1; }
+if (naSala.baques === 0) { console.log("   FALHOU: o baque tem de viajar"); process.exitCode = 1; }
+// As marcas passam sozinhas: uma animação que fica presa é pior do que
+// nenhuma, porque mente sobre o que está a acontecer agora.
+await page.waitForTimeout(600);
+const passou = await page.evaluate(() => {
+  const meu = document.querySelector(".battle-player-me");
+  return !meu.classList.contains("battle-player-golpe");
+});
+console.log(`   e o golpe passa sozinho: ${passou}`);
+if (!passou) { console.log("   FALHOU: a marca do golpe ficou presa no ecrã"); process.exitCode = 1; }
+
 console.log("6) Terminar p2 usando a função real do servidor duas vezes (respeitando a transação de vidas)...");
 await page.evaluate(async ({ code, hostId }) => {
   const roomModule = await import("./js/room.js");
