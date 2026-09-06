@@ -625,3 +625,14 @@ export const BOARD_TOOLS = {
 
 // Só os nomes, para quem precisa de validar sem carregar o resto.
 export const BOARD_TOOL_KEYS = Object.keys(BOARD_TOOLS).filter((k) => !BOARD_TOOLS[k].pan);
+
+// Duas palavras são a mesma palavra? Sem acentos, sem maiúsculas, sem espaços
+// a mais. Vive aqui, e não no módulo da rede, porque quem precisa disto são os
+// JOGOS — e um jogo que só precisa de comparar dois nomes não devia ter de
+// arrastar a Firebase atrás de si.
+export function sameWord(a, b) {
+  const limpa = (t) => String(t || "")
+    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt").trim().replace(/\s+/g, " ");
+  return !!limpa(a) && limpa(a) === limpa(b);
+}

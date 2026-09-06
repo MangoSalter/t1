@@ -9,8 +9,7 @@ import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
   pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS, BOARD_TOOL_KEYS,
-  LANDMARKS, pickLandmarkRound,
-} from "./data.js";
+  LANDMARKS, pickLandmarkRound, sameWord } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
 // à Forca) ---
@@ -1900,12 +1899,9 @@ export async function submitWordGuess(code, room, uid, text) {
 // Comparação de palavras inteiras: ignora acentos e maiúsculas, e trata
 // vários espaços como um só. Quem diz a palavra certa não pode perder por
 // causa de um acento ou de um espaço a mais.
-export function sameWord(a, b) {
-  const limpa = (t) => String(t || "")
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "")
-    .toLocaleLowerCase("pt").trim().replace(/\s+/g, " ");
-  return !!limpa(a) && limpa(a) === limpa(b);
-}
+// Mudou-se para o data.js, para os jogos que não falam com a rede também lhe
+// chegarem. Continua a sair daqui para não partir quem já a importava.
+export { sameWord };
 
 export function wrongWordList(room) {
   const wrong = room?.hangman?.wrongWords || {};
