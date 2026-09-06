@@ -196,20 +196,58 @@ function hangmanDoodleSyncCanvasSize() {
   return true;
 }
 
+// O QUADRO JÁ DESENHADO, guardado à parte.
+//
+// Antes, cada desenho de ecrã repintava tudo desde o princípio — e o ecrã
+// redesenha-se a cada mudança na sala, não só quando alguém desenha: um erro,
+// uma tentativa, um balão da Dona Manga. Medido num quadro cheio: 500 pontos
+// custavam um quadro de imagem (grátis), 8000 custavam 56 ms e 20 000 (o teto)
+// custavam 138 ms — sete imagens por segundo, com a mão a arrastar. Numa sala
+// com gente a desenhar ao mesmo tempo isso vê-se e sente-se.
+//
+// Os pontos que já vieram da sala não mudam enquanto ninguém desenha, por isso
+// pintam-se UMA vez para uma tela à parte e daí em diante copia-se essa tela de
+// uma assentada. Por cima vão só os pontos que ainda estão na mão (os que ainda
+// não foram para a rede), que são poucos. A tela guardada refaz-se quando os
+// pontos da sala mudam de verdade — e é a contagem mais a última chave que o
+// dizem, porque os pontos são só acrescentados, nunca alterados no meio.
+const quadroPintado = document.createElement("canvas");
+let assinaturaDoQuadro = null;
+
+function assinaturaDosPontos(pontos, w, h) {
+  const chaves = Object.keys(pontos || {});
+  let ultima = "";
+  for (const k of chaves) if (k > ultima) ultima = k;
+  return `${chaves.length}|${ultima}|${w}x${h}`;
+}
+
 function hangmanDoodleRedraw() {
   if (!hangmanDoodleSyncCanvasSize()) return;
   const canvas = hangmanEls.doodleCanvas;
   const ctx = canvas.getContext("2d");
   const { dpr, rectW, rectH } = hangmanDoodleState;
+  const daSala = state.room?.hangman?.doodle?.points;
+
+  const assinatura = assinaturaDosPontos(daSala, canvas.width, canvas.height);
+  if (assinatura !== assinaturaDoQuadro) {
+    quadroPintado.width = canvas.width;
+    quadroPintado.height = canvas.height;
+    const cache = quadroPintado.getContext("2d");
+    cache.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cache.clearRect(0, 0, rectW, rectH);
+    pintarPontos(cache, pointsObjectToArray(daSala), rectW, rectH);
+    assinaturaDoQuadro = assinatura;
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(quadroPintado, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, rectW, rectH);
-  const room = state.room;
-  const points = [
-    ...pointsObjectToArray(room?.hangman?.doodle?.points),
+  const naMao = [
     ...hangmanDoodleState.pending,
     ...(hangmanDoodleState.shapePending ? [hangmanDoodleState.shapePending] : []),
   ];
-  pintarPontos(ctx, points, rectW, rectH);
+  if (naMao.length > 0) pintarPontos(ctx, naMao, rectW, rectH);
 }
 
 // O pintor, separado do redesenho do ecrã para a imagem guardada poder usar
