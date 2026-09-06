@@ -30,6 +30,7 @@ import {
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
 import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
+import { sfx } from "./sfx.js";
 
 // O ecrã é inteiro (sai da moldura/cartão normal da app) porque um quadro
 // dentro de um cartão não é um quadro. Quem escreve depende do modo: no
@@ -505,6 +506,9 @@ hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
     width: hangmanDoodleState.width,
     erase: key === "eraser",
   });
+  // O giz risca ao POUSAR, não enquanto a mão anda: um chiado que dura o que
+  // dura o traço seria a primeira coisa que toda a gente ia desligar.
+  sfx("giz");
   hangmanDoodleRedraw();
 });
 
@@ -1442,6 +1446,13 @@ let hangmanQuipTimer = null;
 let hangmanChaosNosErros = -1;
 let hangmanUltimaMascara = null;
 let hangmanUltimaVez = null;
+// O som toca na MUDANÇA, e por isso é preciso guardar o que já se sabia. Cada
+// um ouve só o resultado das SUAS tentativas: com tentativas anónimas, um
+// "acertaste" no altifalante do vizinho dizia o que o ecrã esconde de
+// propósito.
+let somAcertosMeus = null;
+let somErrosMeus = null;
+let somResolvida = null;
 function contarLetras(mask) {
   return [...String(mask || "")].filter((ch) => ch !== "_").length;
 }
@@ -2197,6 +2208,25 @@ export function renderHangman(room) {
   // "acertaste e continuas".
   hangmanUltimaMascara = mask || null;
   hangmanUltimaVez = daVez;
+
+  // --- O som ---
+  // Primeira passagem por esta palavra: só se GUARDA o ponto de partida. Sem
+  // isto, entrar numa ronda a meio tocava tudo o que já tinha acontecido.
+  if (comPalavra && !!mask) {
+    const meusAcertos = correctCountOf(room, state.uid);
+    const meusErros = Object.values(hangman.wrong || {})
+      .filter((w) => w && w.uid === state.uid).length;
+    if (somAcertosMeus !== null && meusAcertos > somAcertosMeus) sfx("certo");
+    else if (somErrosMeus !== null && meusErros > somErrosMeus) sfx("errado");
+    else if (somResolvida === false && hangman.solved) sfx("fim");
+    somAcertosMeus = meusAcertos;
+    somErrosMeus = meusErros;
+    somResolvida = !!hangman.solved;
+  } else {
+    somAcertosMeus = null;
+    somErrosMeus = null;
+    somResolvida = null;
+  }
 
   narrarQuadro(room, amLeader);
 

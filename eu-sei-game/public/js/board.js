@@ -20,6 +20,7 @@
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
 import { BOARD_TOOLS } from "./data.js";
+import { sfx } from "./sfx.js";
 
 // Reexportado: as ferramentas VIVEM no data.js (é o único sítio, e é livre de
 // DOM para o módulo da rede e os testes puros lhes chegarem), mas quem já as
@@ -512,6 +513,9 @@ function eventPressure(e) {
 }
 
 function beginStroke(e) {
+  // O giz risca ao pousar. Ver a nota no sfx.js: um chiado contínuo enquanto a
+  // mão anda seria a primeira coisa a desligar.
+  sfx("giz");
   const s = screenFromEvent(e);
   const p = worldFromScreen(s.x, s.y);
   const tool = BOARD_TOOLS[board.tool];

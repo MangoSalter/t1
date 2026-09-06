@@ -86,7 +86,36 @@ const SOUNDS = {
   caos: () => { tone(420, 260, { type: "triangle", slideTo: 300, gain: 0.07 }); },
   // Sino do Stop.
   stop: () => { tone(880, 300, { type: "triangle", gain: 0.08 }); tone(1320, 300, { type: "triangle", gain: 0.05 }); },
+  // Giz a riscar o quadro: um chiado curto no INÍCIO de cada traço, não um
+  // zumbido contínuo enquanto a mão anda. Um som que dura o que dura o traço
+  // seria a primeira coisa que toda a gente ia desligar.
+  giz: () => ruido(90, { gain: 0.03, corte: 2600 }),
 };
+
+// Um sopro de ruído filtrado. Os osciladores dão notas; para um chiado é
+// preciso ruído, e um filtro passa-alto para soar a giz e não a chuva.
+function ruido(durMs, opts = {}) {
+  const ac = audio();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+  const amostras = Math.max(1, Math.floor((ac.sampleRate * durMs) / 1000));
+  const buffer = ac.createBuffer(1, amostras, ac.sampleRate);
+  const dados = buffer.getChannelData(0);
+  for (let i = 0; i < amostras; i += 1) dados[i] = Math.random() * 2 - 1;
+  const fonte = ac.createBufferSource();
+  fonte.buffer = buffer;
+  const filtro = ac.createBiquadFilter();
+  filtro.type = "highpass";
+  filtro.frequency.setValueAtTime(opts.corte || 2000, t0);
+  const gain = ac.createGain();
+  const peak = opts.gain ?? 0.03;
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
+  fonte.connect(filtro).connect(gain).connect(ac.destination);
+  fonte.start(t0);
+  fonte.stop(t0 + durMs / 1000 + 0.02);
+}
 
 /** Toca um som pelo nome. Silencioso se o som não existir ou estiver desligado. */
 export function sfx(name) {

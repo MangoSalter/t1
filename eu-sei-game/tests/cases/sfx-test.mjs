@@ -36,6 +36,19 @@ const played = await page.evaluate(async (names) => {
       osc.stop = (t) => { rec.stop = t; return stop(t); };
       return osc;
     }
+    // Nem todos os sons sao osciladores: o giz e ruido filtrado, e sem espiar
+    // tambem a fonte de buffer um som novo podia ser longo ou alto sem este
+    // teste dar por nada. A regra e a mesma para os dois.
+    createBufferSource() {
+      const src = super.createBufferSource();
+      const start = src.start.bind(src);
+      const stop = src.stop.bind(src);
+      const rec = { start: 0, stop: 0, gain: 0 };
+      notes.push(rec);
+      src.start = (t) => { rec.start = t; return start(t); };
+      src.stop = (t) => { rec.stop = t; return stop(t); };
+      return src;
+    }
     createGain() {
       const g = super.createGain();
       const ramp = g.gain.exponentialRampToValueAtTime.bind(g.gain);
