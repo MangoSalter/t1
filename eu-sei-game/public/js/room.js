@@ -257,7 +257,17 @@ export async function joinRoom(code, uid, name, avatar) {
   const snap = await get(r);
   if (!snap.exists()) throw new Error("Essa sala não existe.");
   const room = snap.val();
-  if (room.state !== "lobby") throw new Error("Essa sala já começou a jogar.");
+  // Uma sala a meio de uma partida está fechada a estranhos: entrar a meio de
+  // uma ronda pontuada distorce a classificação de quem lá está desde o
+  // princípio. O QUADRO é a exceção, e por uma razão simples: não é uma
+  // partida com rondas, é uma folha à volta da qual as pessoas se juntam. Numa
+  // sala de verdade há sempre quem chegue atrasado, e mandá-lo embora com
+  // "essa sala já começou a jogar" é o contrário do que o quadro é. Quem chega
+  // escolhe a cor e entra no jogo — não apanha pontos de rondas que não jogou
+  // porque no quadro não há rondas dessas.
+  if (room.state !== "lobby" && room.state !== "hangman") {
+    throw new Error("Essa sala já começou a jogar.");
+  }
   const playerCount = Object.keys(room.players || {}).length;
   if (!room.players?.[uid] && playerCount >= 10) {
     throw new Error("Essa sala já está cheia (máx. 10 jogadores).");
