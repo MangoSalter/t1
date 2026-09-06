@@ -62,7 +62,20 @@ await page.waitForFunction((code) => {
 }, code, { timeout: 15000 });
 console.log("   OK: p2 foi infetado por contacto");
 
-console.log("5) Testar apanha de power-up: Ana deixa de estar infetada (reset de teste) e um power-up aparece na posição dela...");
+console.log("5) Testar apanha de power-up: ronda nova, Ana sã, e um power-up em cima dela...");
+// RONDA NOVA, de propósito. O passo 4 infetou o último sobrevivente: os três
+// ficam infetados e o anfitrião resolve a ronda — o ecrã da apanhada sai do
+// sítio e o ciclo do jogo pára. Quando isso acontecia antes deste passo, o
+// power-up ficava no chão de um jogo que já não estava a correr e o teste
+// falhava por "tempo esgotado", uma vez em cada duas ou três. Não era um
+// teste instável: era o teste a correr contra o relógio da ronda e a perder
+// às vezes.
+await page.evaluate(async (code) => {
+  const roomModule = await import("./js/room.js");
+  const sala = window.__testDb.get(`rooms/${code}`);
+  await roomModule.startTagTeam(code, sala);
+}, code);
+await page.waitForSelector('[data-screen="tag"].active', { timeout: 10000 });
 await page.evaluate((code) => {
   window.__testDb.update(`rooms/${code}/tag`, { infected: { p2: true } }); // so p2 infetado agora
 }, code);
@@ -74,10 +87,25 @@ const anaPos2 = await page.evaluate(() => {
 await page.evaluate(({ code, anaPos2 }) => {
   window.__testDb.update(`rooms/${code}/tag/powerups`, { testpower: { type: "shield", x: anaPos2.left, y: anaPos2.top } });
 }, { code, anaPos2 });
-await page.waitForFunction((code) => {
-  const r = window.__testDb.get(`rooms/${code}`);
-  return r.tag.powerups.testpower === undefined;
-}, code, { timeout: 15000 });
+try {
+  await page.waitForFunction((code) => {
+    const r = window.__testDb.get(`rooms/${code}`);
+    return !r.tag.powerups || r.tag.powerups.testpower === undefined;
+  }, code, { timeout: 15000 });
+} catch (e) {
+  const diag = await page.evaluate((code) => {
+    const r = window.__testDb.get(`rooms/${code}`);
+    const el = document.querySelector(".tag-player.tag-player-me");
+    return {
+      infetados: r.tag.infected,
+      powerups: r.tag.powerups,
+      ana: el ? { left: el.style.left, top: el.style.top } : null,
+      ecra: document.querySelector('[data-screen="tag"]')?.classList.contains("active"),
+    };
+  }, code);
+  console.log(`   DIAGNOSTICO: ${JSON.stringify(diag)}`);
+  throw e;
+}
 console.log("   OK: power-up foi apanhado (removido)");
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 const anaShielded = (room.tag.effects?.[hostId]?.shieldUntil || 0) > Date.now();
@@ -85,14 +113,30 @@ console.log(`   Ana tem escudo ativo: ${anaShielded} (esperado true)`);
 if (!anaShielded) { console.log("   FALHOU: efeito de escudo não foi aplicado"); process.exitCode = 1; }
 
 console.log("6) Forçar fim da ronda (endAt no passado) e confirmar resolução + pontos...");
+// Quem sobreviveu sai do infectedAt, não do infected: a ronda nova do passo 5
+// começou limpa, por isso diz-se aqui, explicitamente, quem é que foi apanhado
+// — só o p2 — para a conta ter uma resposta certa em vez de depender do que
+// sobrou dos passos anteriores.
 await page.evaluate((code) => {
-  window.__testDb.update(`rooms/${code}/tag`, { endAt: Date.now() - 1000 });
+  const sala = window.__testDb.get(`rooms/${code}`);
+  const inicio = sala.tag.startedAt || Date.now();
+  window.__testDb.update(`rooms/${code}/tag`, {
+    infected: { p2: true },
+    infectedAt: { p2: inicio + 1000 },
+    endAt: Date.now() - 1000,
+  });
 }, code);
 await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).tag.resolved === true, code, { timeout: 15000 });
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   resolvido. survived: ${JSON.stringify(room.tag.survived)}, roundPoints: ${JSON.stringify(room.tag.roundPoints)}`);
-if (room.tag.survived[hostId] !== false || room.tag.survived.p3 !== true) {
-  console.log("   FALHOU: estado de sobrevivência inesperado (Ana devia estar infetada=false sobrevivente, p3 devia ter sobrevivido)");
+if (room.tag.survived[hostId] !== true || room.tag.survived.p3 !== true || room.tag.survived.p2 !== false) {
+  console.log("   FALHOU: estado de sobrevivência inesperado (só o p2 foi apanhado; a Ana e o p3 sobreviveram)");
+  process.exitCode = 1;
+}
+// E os pontos têm de seguir a sobrevivência: quem foi apanhado a um segundo do
+// início não pode levar o mesmo que quem aguentou a ronda toda.
+if (!(room.tag.roundPoints[hostId] > room.tag.roundPoints.p2)) {
+  console.log(`   FALHOU: quem sobreviveu devia levar mais pontos (${room.tag.roundPoints[hostId]} vs ${room.tag.roundPoints.p2})`);
   process.exitCode = 1;
 }
 await page.waitForSelector('[data-screen="tag"].active [id="tag-results"]:not(.hidden)', { timeout: 15000 });
