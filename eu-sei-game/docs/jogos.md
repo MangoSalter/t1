@@ -195,7 +195,24 @@ para o site. Verifica também que a amortecedor do quadro nunca inverte a ordem.
 
 ---
 
-# Uma pergunta pequena, para quando quiseres
+# Duas perguntas pequenas, para quando quiseres
+
+## A maratona ficou com dois jogos
+
+A "Maratona de mini-jogos" vinha com seis marcados por omissão — os curtos.
+Os mais longos (Forca, Mini-Golfe) ficavam por opção, e isso fazia todo o
+sentido com doze mini-jogos no menu. Com quatro, sobram **dois** marcados:
+Palavra Relâmpago e Memória. Uma maratona de dois jogos de trinta segundos
+não é bem uma maratona.
+
+Experimentei marcar os quatro por omissão e desfiz: partiu cinco testes que
+percorrem a maratona até ao fim, e ao olhar para o estrago percebi que a
+decisão não é minha. Quanto tempo deve durar uma maratona por omissão é
+gosto, não correção — e deixar os longos por opção foi escolha tua, não
+descuido. Basta dizeres "marca os quatro" e são dois minutos (mais os
+testes).
+
+## Quem se desliga continua a ganhar pontos
 
 Nos dois jogos de sobreviver — Fuga da Infeção e Batalha no Labirinto — quem
 se desliga a meio da ronda continua a contar segundos e a levar o bónus de
