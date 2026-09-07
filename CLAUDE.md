@@ -57,9 +57,22 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite takes ~11 minutes at 4 jobs, ~25 serially.
+rooms. The full suite is 85 cases and takes **13m36s at 4 jobs** (measured,
+not estimated — it said ~11 minutes for a while and had quietly grown past
+it). The serial figure in here used to say ~25 minutes; I have not re-measured
+it, so treat it as folklore. If you need a number, measure it.
 
 Browser cases set `euSei_lingua=pt` before asserting on text, and open
 `index.html?oficina=1` when they need a game that is hidden from the public
-site (see `public/js/oficina.js`). `oficina-test.mjs` is the one case that
-opens the plain URL — without it, a broken hide would pass the whole suite.
+site (see `public/js/oficina.js`). Most cases open the plain URL — 48 of them —
+but `oficina-test.mjs` is the only one that CHECKS THE HIDING: that the
+workshop games are gone from the menus and unticked in the marathon. Without
+it a broken hide passes the whole suite, because every other case either
+doesn't look, or looks only at what it came for.
+
+Note for whoever reads this next: `?oficina=1` writes to localStorage, so it
+sticks for the rest of that browser context. A case that opens the workshop
+early and later wants to see the site as a visitor has to clear
+`euSei_oficina` by hand — navigating to the plain URL is not enough. That
+caught me once: a check counted twelve mini-games where a visitor sees four,
+and passed while measuring the wrong thing.
