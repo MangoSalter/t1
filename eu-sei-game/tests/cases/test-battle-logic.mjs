@@ -1,4 +1,7 @@
-import { battleClampToWalls, computeBattleResults, BATTLE_WALLS, BATTLE_LIVES } from "./js/room.js";
+import {
+  battleClampToWalls, computeBattleResults, BATTLE_WALLS, BATTLE_LIVES,
+  BATTLE_PLAYER_RADIUS, BATTLE_ATTACK_RADIUS,
+} from "./js/room.js";
 
 let failed = false;
 function assert(cond, msg) {
@@ -46,6 +49,43 @@ console.log(`   roundPoints: ${JSON.stringify(r2.roundPoints)}, alive: ${JSON.st
 assert(r2.alive.b === false, "'b' marcado como não sobrevivente");
 assert(r2.roundPoints.b === 30, `pontos de 'b' = 30 (30s sobrevividos, sem bónus, obtido ${r2.roundPoints.b})`);
 assert(r2.roundPoints.a === 110, `pontos de 'a' continuam corretos (obtido ${r2.roundPoints.a})`);
+
+// NÃO SE BATE ATRAVÉS DE UMA PAREDE — e o que impede isso é UM PÍXEL.
+//
+// O golpe acerta por distância e mais nada: o cliente percorre os outros
+// jogadores e bate em quem estiver a menos de BATTLE_ATTACK_RADIUS. Não há
+// verificação de parede nenhuma. Num labirinto isso seria injusto de uma forma
+// que estraga o jogo — dava para ficar do lado de lá de uma parede a bater em
+// alguém que não te pode alcançar nem fugir para onde não o vejas.
+//
+// Só não acontece por causa das contas: encostados aos dois lados da parede
+// mais fina, os dois jogadores ficam a raio + espessura + raio = 16 + 24 + 16
+// = 56px um do outro, e o golpe chega a 55. Um píxel.
+//
+// Ninguém escreveu isto em lado nenhum, e três números independentes o
+// seguram: engrossar o alcance, afinar uma parede ou encolher o jogador
+// tornam o jogo injusto sem partir teste nenhum. Este passo é essa nota.
+{
+  const R = BATTLE_PLAYER_RADIUS;
+  let menor = null;
+  for (const p of BATTLE_WALLS) {
+    const meioY = p.y + p.h / 2;
+    const meioX = p.x + p.w / 2;
+    const travessias = [
+      [{ x: p.x - 1, y: meioY }, { x: p.x + p.w + 1, y: meioY }],   // pela espessura, na horizontal
+      [{ x: meioX, y: p.y - 1 }, { x: meioX, y: p.y + p.h + 1 }],   // e na vertical
+    ];
+    for (const [a, b] of travessias) {
+      const A = battleClampToWalls(a.x, a.y, R);
+      const B = battleClampToWalls(b.x, b.y, R);
+      const d = Math.hypot(A.x - B.x, A.y - B.y);
+      if (d > 0 && (menor === null || d < menor)) menor = d;
+    }
+  }
+  console.log(`   parede mais fina: dois jogadores encostados ficam a ${menor.toFixed(1)}px; o golpe chega a ${BATTLE_ATTACK_RADIUS}px`);
+  assert(menor > BATTLE_ATTACK_RADIUS,
+    `não se acerta através da parede mais fina (${menor.toFixed(1)}px de separação contra ${BATTLE_ATTACK_RADIUS}px de alcance)`);
+}
 
 console.log(`\n${BATTLE_WALLS.length} paredes definidas, ${BATTLE_LIVES} vidas por jogador.`);
 console.log(failed ? "\nRESULTADO: FALHOU" : "\nRESULTADO: OK");

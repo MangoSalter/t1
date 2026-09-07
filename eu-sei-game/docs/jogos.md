@@ -20,7 +20,7 @@ coluna da direita é uma recomendação, não um veredito.
 | **Conquistar o Mapa** (o mapa novo, em sala) | Os 177 países como territórios a sério, cada um do primeiro que o souber; errar deixa o país em causa e vale a dobrar a quem o souber a seguir; as bandeiras que o Brasa revela aparecem no mapa de toda a gente; três línguas ao mesmo tempo na mesma sala | **Fica.** É o segundo pilar, a par do quadro |
 | **Estrada Maluca** (corrida) | Corrigido: a primeira batida é a que conta (transação), e o teste deixou de assumir que o carro só bate quando ele mandar. Está na oficina | **À espera da tua decisão** (ver o fim deste ficheiro) |
 | **Fuga da Infeção** (apanhada) | A intermitência foi investigada e **arranjada** (444b65d): não eram os power-ups, era o relógio da ronda — infetar o último sobrevivente fechava a ronda e o power-up ficava num jogo já morto. Corridas seguidas do teste passam. Depois disso levou a arena toda à vista, paredes novas e power-ups de fuga | **Fica** |
-| **Batalha no labirinto** | Tem testes (lógica e ecrã) e ganhou as animações de golpe e baque que pediste. Continua sem uma auditoria de ponta a ponta como a do quadro | **Fica**, com auditoria por fazer |
+| **Batalha no labirinto** | Tem testes (lógica e ecrã) e ganhou as animações de golpe e baque que pediste. Auditoria começada: o golpe acerta só por distância, sem olhar a paredes, e o que impede bater através da parede mais fina é **um píxel** (16+24+16 = 56 de separação contra 55 de alcance) — está agora preso por teste, porque mexer no alcance, na espessura ou no tamanho do jogador tornava o jogo injusto sem partir nada | **Fica**, auditoria a meio |
 | **Mini-golfe** | Tem testes de lógica e de ecrã. A pista passou a 2400x1200 com terreno (aceleradores, saltitões, areia) e power-ups, por a anterior ser curta e monótona | **Fica** |
 | **Onde Fica Isto?** (desenhado) | **Refeito** como pediste: já não é escolha múltipla sobre um desenho pronto — uma pessoa recebe o monumento e desenha-o, os outros dizem o país. O desenho da casa passou a ser a RESPOSTA, mostrada no fim com o nome e o país. Baralho de 16 monumentos | **Fica** |
 
@@ -192,6 +192,21 @@ isto não muda nada, que é o ponto.
 `tests/cases/test-equilibrio.mjs` guarda a regra: um jogo novo que pague fora
 da banda falha o teste, para a conversa sobre quanto vale acontecer antes de ir
 para o site. Verifica também que a amortecedor do quadro nunca inverte a ordem.
+
+---
+
+# Uma pergunta pequena, para quando quiseres
+
+Nos dois jogos de sobreviver — Fuga da Infeção e Batalha no Labirinto — quem
+se desliga a meio da ronda continua a contar segundos e a levar o bónus de
+sobrevivente, porque a conta olha para "foi apanhado?" e não para "ainda cá
+está?". Na prática, sair pode ser a jogada que mais pontos dá, se ninguém se
+lembrar de ir bater no boneco parado.
+
+Não mexi nisto porque a correção óbvia — só pontuar quem está ligado — castiga
+quem tem net má exatamente como castiga quem desiste, e isso pode ser pior do
+que a doença. É uma decisão de gosto, não de código. Os dois jogos fazem o
+mesmo, por isso não é um estar errado e o outro certo.
 
 ---
 
