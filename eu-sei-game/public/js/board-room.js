@@ -21,7 +21,7 @@ import {
   canAskHelp, askBrasaHelp, serveBrasaHelp, helpCosts, blockedFromWordGuess,
   isWordMode,
   passGuessTurn, passHangmanPen, passHangmanPenRandom, pickHangmanColor, playerColor, playerMask,
-  pointsObjectToArray, pushHangmanDoodlePoints, renameTeam, resolveGuess, resolveWordGuess, revealLetter,
+  pointsObjectToArray, pushHangmanDoodlePoints, renameTeam, resolveGuess, resolveWordGuess, revealLetter, temPontos,
   sanitizeBoardPoints, setBoardMode, setBoardSetting, setHangmanPuzzle, setPlayMode, setTeamCount,
   splitWordsInput, startNewMatch, submitLetterGuess, submitWordGuess, takenHangmanColors, tallyVotes,
   teamList, teamOfPlayer, teamsLocked, teamsOn, undoLastHangmanStroke, updateHangmanMask,
@@ -1974,7 +1974,7 @@ export function renderHangman(room) {
   // Guardar a imagem é de quem a quer: não é uma escrita na sala, é uma cópia
   // do que já se vê. Exportar e importar mexem no quadro de todos, por isso
   // ficam com quem manda nele.
-  const temDesenho = pontosDoQuadro().length > 0;
+  const temDesenho = temPontos(state.room?.hangman?.doodle?.points);
   hangmanEls.saveImgBtn.classList.toggle("hidden", !(temDesenho && amLeader));
   hangmanEls.saveImgBtnViewer.classList.toggle("hidden", !(temDesenho && !amLeader));
   hangmanEls.exportBtn.classList.toggle("hidden", !(temDesenho && canSetBoardMode(room, state.uid)));

@@ -200,6 +200,21 @@ export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw",
 // mesmo tempo (no rabisco) se sobreponham na mesma sequência.
 const POINT_SEQ_WIDTH = 7;
 
+// "Há alguma coisa desenhada?" — sem construir a lista para saber.
+//
+// A barra do quadro pergunta isto A CADA DESENHO DE ECRÃ, para decidir se
+// mostra os botões de guardar e exportar, e o ecrã redesenha-se a cada mudança
+// na sala. Com o pointsObjectToArray, cada uma dessas perguntas ordenava as
+// chaves todas e construía a lista inteira só para lhe medir o comprimento:
+// num quadro com 8000 pontos eram 12 ms por mudança, deitados fora à frente
+// de quem está a desenhar.
+export function temPontos(pointsObj) {
+  if (!pointsObj) return false;
+  if (Array.isArray(pointsObj)) return pointsObj.some(Boolean);
+  for (const _ in pointsObj) return true;
+  return false;
+}
+
 export function pointsObjectToArray(pointsObj) {
   if (!pointsObj) return [];
   if (Array.isArray(pointsObj)) return pointsObj.filter(Boolean); // formato antigo
