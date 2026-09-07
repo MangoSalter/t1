@@ -17,6 +17,7 @@
 import {
   BATTLE_WALLS, BATTLE_ARENA_W, BATTLE_ARENA_H, BATTLE_PLAYER_RADIUS, battleClampToWalls,
   TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, TAG_PLAYER_RADIUS, tagClampToWalls,
+  randomBattleWeaponSpot, BATTLE_WEAPON_RADIUS,
 } from "./js/room.js";
 
 let falhou = false;
@@ -96,6 +97,31 @@ for (const [nome, a, W, H] of [["Batalha", bat, BATTLE_ARENA_W, BATTLE_ARENA_H],
   const parte = (a.livres / total) * 100;
   console.log(`   ${nome}: ${parte.toFixed(0)}% da arena é andável`);
   check(parte > 50, `${nome}: mais de metade da arena é andável (${parte.toFixed(0)}%)`);
+}
+
+// AS ARMAS NÃO NASCEM DENTRO DE PAREDES.
+//
+// Uma arma dentro de uma parede nunca é apanhada, e como só há quatro ao mesmo
+// tempo, cada uma dessas tira uma arma do jogo até a ronda acabar — sem erro
+// nenhum, só menos jogo. O sorteio tenta vinte sítios e, se falhar os vinte,
+// cai no meio da arena; é preciso que o meio também esteja limpo.
+//
+// Corre-se muitas vezes porque é sorteio: uma passagem não prova nada.
+console.log("4) As armas da Batalha nascem sempre em chão livre...");
+{
+  const R = BATTLE_WEAPON_RADIUS;
+  let dentroDeParede = 0;
+  let piorExemplo = null;
+  for (let i = 0; i < 3000; i++) {
+    const p = randomBattleWeaponSpot();
+    const livre = battleClampToWalls(p.x, p.y, R);
+    if (Math.abs(livre.x - p.x) > 0.001 || Math.abs(livre.y - p.y) > 0.001) {
+      dentroDeParede++;
+      if (!piorExemplo) piorExemplo = `(${p.x},${p.y})`;
+    }
+  }
+  console.log(`   3000 sorteios: ${dentroDeParede} dentro de paredes${piorExemplo ? ` (ex.: ${piorExemplo})` : ""}`);
+  check(dentroDeParede === 0, `nenhuma arma nasce dentro de uma parede${dentroDeParede ? ` (${dentroDeParede} em 3000)` : ""}`);
 }
 
 console.log(`\n${BATTLE_WALLS.length} paredes na Batalha, ${TAG_WALLS.length} na Infeção.`);

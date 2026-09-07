@@ -2735,7 +2735,11 @@ export async function updateBattlePosition(code, uid, x, y) {
   await update(ref(db, `rooms/${code}/battle/positions/${uid}`), { x, y, updatedAt: serverNow() });
 }
 
-function randomBattleWeaponSpot() {
+// Exportada por causa do teste: uma arma que nasça dentro de uma parede nunca
+// é apanhada, e como só há quatro ao mesmo tempo, cada uma dessas tira uma
+// arma do jogo até a ronda acabar. É sorteio, por isso não se prova a olho —
+// prova-se a correr muitas vezes.
+export function randomBattleWeaponSpot() {
   const margin = 0.06;
   for (let attempt = 0; attempt < 20; attempt++) {
     const x = Math.round((margin + Math.random() * (1 - margin * 2)) * BATTLE_ARENA_W);
