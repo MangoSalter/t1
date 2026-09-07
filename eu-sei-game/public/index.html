@@ -456,7 +456,7 @@
         <button type="button" data-mp-game="tag">Fuga da Infeção<span class="mp-game-desc">Perseguição no mesmo mapa: quem está infetado passa a infeção por contacto.</span></button>
         <button type="button" data-mp-game="battle">Labirinto: Batalha<span class="mp-game-desc">Apanha uma arma no chão e sobrevive. 3 vidas cada.</span></button>
         <button type="button" data-oficina data-mp-game="race">Estrada Maluca<span class="mp-game-desc">Todos apanham os mesmos carros ao mesmo tempo. Ganha quem aguentar mais.</span></button>
-        <button type="button" data-oficina data-mp-game="landmark">Onde Fica Isto?<span class="mp-game-desc">Mesmo monumento para todos: acerta o país, e depressa.</span></button>
+        <button type="button" data-mp-game="marcos">Onde Fica Isto?<span class="mp-game-desc">Um desenha um monumento famoso, os outros dizem em que país fica.</span></button>
         <button type="button" data-mp-game="golf">Mini-Golfe<span class="mp-game-desc">Mesmo buraco ao mesmo tempo, com power-ups para usar contra os outros.</span></button>
         <button type="button" data-mp-game="mapa">Conquistar o Mapa<span class="mp-game-desc">O mapa-múndi para todos ao mesmo tempo: clica num país, escreve o nome, fica com ele. Quem errar deixa o país em causa — e vale a dobrar a quem o souber.</span></button>
       </div>
@@ -500,7 +500,7 @@
             <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
             <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
             <label data-oficina><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
-            <label data-oficina><input type="checkbox" data-bonus-game="landmark" /> Onde Fica Isto? em equipa</label>
+            <label><input type="checkbox" data-bonus-game="marcos" /> Onde Fica Isto? em equipa</label>
             <label><input type="checkbox" data-bonus-game="golf" /> Mini-Golfe em equipa</label>
           </div>
         </details>
@@ -822,7 +822,7 @@
        desenhar roda por todos, um por ronda; quem desenha é o juiz. -->
   <section data-screen="draw" class="screen hangman-board">
     <div class="hangman-toolbar">
-      <span class="hangman-title">Desenha e Adivinha</span>
+      <span id="draw-title" class="hangman-title">Desenha e Adivinha</span>
       <span id="draw-status" class="hint small"></span>
       <button id="draw-clear-btn" type="button" class="ghost hidden">🧹 Limpar</button>
       <button id="draw-select-winner-btn" type="button" class="ghost-primary hidden">🏆 Alguém acertou!</button>
@@ -830,6 +830,7 @@
       <button id="draw-continue-btn" type="button" class="primary hidden">Próxima ronda</button>
     </div>
     <canvas id="draw-doodle-canvas" class="hangman-doodle-canvas"></canvas>
+    <div id="draw-reveal" class="landmark-image draw-reveal hidden"></div>
     <div id="draw-result" class="draw-result hidden"></div>
   </section>
 
@@ -894,19 +895,6 @@
   </section>
 
   <!-- ONDE FICA ISTO? EM EQUIPA -->
-  <section data-screen="landmark" class="screen">
-    <div class="card wide center">
-      <h2>Onde Fica Isto?</h2>
-      <p class="hint small">Todos veem o mesmo desenho ao mesmo tempo. Acerta o país — e quanto mais depressa responderes, mais pontos levas.</p>
-      <p id="landmark-team-round-info" class="hint"></p>
-      <div class="round-timer" id="landmark-team-timer"></div>
-      <div id="landmark-team-image" class="landmark-image"></div>
-      <div id="landmark-team-options" class="landmark-options"></div>
-      <p id="landmark-team-status" class="hint"></p>
-      <div id="landmark-team-results" class="score-table hidden"></div>
-    </div>
-  </section>
-
   <!-- MINI-GOLFE EM EQUIPA -->
   <section data-screen="golf" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">

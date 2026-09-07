@@ -22,7 +22,6 @@ const NA_OFICINA = [
   ["#solo-play-landmark-btn", "Onde Fica Isto?"],
   ['[data-mp-game="mapTrivia"]', "Mapa-Múndi em equipa"],
   ['[data-mp-game="race"]', "Estrada Maluca em equipa"],
-  ['[data-mp-game="landmark"]', "Onde Fica Isto? em equipa"],
 ];
 
 // E os que TÊM de continuar à vista. Uma lista que só verifica o esconder
@@ -33,6 +32,9 @@ const NO_SITE = [
   ["#solo-play-hangman-btn", "Forca"],
   ["#solo-play-golf-btn", "Mini-Golfe"],
   ['[data-mp-game="hangman"]', "Quadro branco em equipa"],
+  // Voltou ao site refeito: já não é escolha múltipla sobre um desenho
+  // pronto, é uma pessoa a desenhar o monumento e as outras a dizer o país.
+  ['[data-mp-game="marcos"]', "Onde Fica Isto? em equipa (desenhado)"],
   ['[data-mp-game="mapa"]', "Conquistar o Mapa"],
 ];
 

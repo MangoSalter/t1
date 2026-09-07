@@ -9,7 +9,7 @@ import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
   pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS, BOARD_TOOL_KEYS,
-  LANDMARKS, pickLandmarkRound, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
+  pickLandmark, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional
 // à Forca) ---
@@ -142,14 +142,19 @@ export const RACE_RESULT_DISPLAY_MS = 6000;
 export const RACE_BROADCAST_MS = 250;
 
 // --- "Onde Fica Isto?" em equipa (bónus de fim de partida) ---
-// Toda a gente vê o mesmo desenho e as mesmas opções ao mesmo tempo; quem
-// acerta leva pontos, e quem acerta depressa leva mais. É o único jogo bónus
-// que dá para jogar com o telemóvel na mão sem correr atrás de ninguém.
-export const LANDMARK_TEAM_ROUNDS = 5;
-export const LANDMARK_TEAM_ROUND_MS = 15000;
-export const LANDMARK_TEAM_POINTS = 8;
-export const LANDMARK_TEAM_SPEED_BONUS_MAX = 6;
-export const LANDMARK_TEAM_RESULT_DISPLAY_MS = 5000;
+// "ONDE FICA ISTO?" — agora DESENHADO, não escolhido.
+//
+// Era escolha múltipla sobre um desenho já feito: toda a gente via o mesmo
+// monumento e carregava num de quatro países. Morria à segunda partida, pelo
+// motivo de sempre nos jogos de escolha múltipla — quem já viu o desenho já
+// sabe a resposta, e mais depressa do que quem está a aprender.
+//
+// Passa a ser uma ronda do Desenha e Adivinha com o baralho dos marcos: uma
+// pessoa recebe o monumento e desenha-o, os outros dizem O PAÍS em voz alta.
+// O desenho da casa deixa de ser a pergunta e passa a ser a RESPOSTA — no fim
+// da ronda aparece a todos, com o nome e o país, que é onde se aprende alguma
+// coisa. E o desenho nunca é igual duas vezes, porque é feito à mão na hora.
+export const TEMA_MARCOS = "marcos";
 
 // A ESCALA DOS PONTOS. Os jogos bónus são o extra da partida, não a partida:
 // nenhum pode valer tanto que decida sozinho quem ganhou. A regra é simples —
@@ -179,7 +184,7 @@ export function filaSemOficina(chaves, oficina = oficinaAberta()) {
   return limpa.length > 0 ? limpa : ["hangman"];
 }
 
-export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "landmark", "golf", "mapa"];
+export const BONUS_GAME_KEYS = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "marcos", "golf", "mapa"];
 
 // --- Traços partilhados (rabisco, quadro da Forca, Desenha e Adivinha) ---
 //
@@ -603,8 +608,8 @@ export async function startNextBonusGame(code, room) {
     await startDrawGame(code, nextRoom);
   } else if (key === "race") {
     await startRaceGame(code, nextRoom);
-  } else if (key === "landmark") {
-    await startLandmarkTeam(code, nextRoom);
+  } else if (key === "marcos") {
+    await startDrawGame(code, nextRoom, TEMA_MARCOS);
   } else if (key === "golf") {
     await startGolfTeam(code, nextRoom);
   } else if (key === "mapa") {
@@ -632,8 +637,8 @@ export async function startQuickBonusGame(code, room, key) {
     await startDrawGame(code, nextRoom);
   } else if (key === "race") {
     await startRaceGame(code, nextRoom);
-  } else if (key === "landmark") {
-    await startLandmarkTeam(code, nextRoom);
+  } else if (key === "marcos") {
+    await startDrawGame(code, nextRoom, TEMA_MARCOS);
   } else if (key === "golf") {
     await startGolfTeam(code, nextRoom);
   } else if (key === "mapa") {
@@ -691,7 +696,6 @@ export async function backToLobby(code, room) {
     battle: null,
     draw: null,
     race: null,
-    landmark: null,
     golf: null,
   });
 }
@@ -2217,11 +2221,26 @@ export const DRAW_MAX_POINTS = 20000;
 export const DRAW_WINNER_POINTS = 15;
 export const DRAW_DRAWER_BONUS = 8;
 
-export async function startDrawGame(code, room) {
+// Sorteia o que se vai desenhar. Dois baralhos, o mesmo jogo: no tema livre
+// sai uma palavra desenhável ("Girafa"), no tema dos marcos sai um monumento
+// ("Torre Eiffel") e guarda-se também o id, para no fim se poder mostrar o
+// desenho de referência e dizer o país.
+export function sortearRondaDeDesenho(tema, usados) {
+  if (tema === TEMA_MARCOS) {
+    const marco = pickLandmark(usados);
+    return { secretWord: marco.name, landmarkId: marco.id, usedKey: marco.id };
+  }
+  const palavra = pickDrawWord(usados);
+  return { secretWord: palavra, landmarkId: null, usedKey: palavra };
+}
+
+export async function startDrawGame(code, room, tema = "livre") {
   const turnOrder = shuffleArray(Object.keys(room.players || {}).filter((uid) => room.players[uid].connected));
+  const ronda = sortearRondaDeDesenho(tema, []);
   await update(roomRef(code), {
     state: "draw",
     draw: {
+      tema,
       turnOrder,
       turnIndex: 0,
       drawerId: turnOrder[0],
@@ -2229,7 +2248,8 @@ export async function startDrawGame(code, room) {
       // jogo ("por confiança" — ver nota no topo): quem espreitar a
       // consola estraga o jogo a si próprio. O cliente só a mostra a quem
       // desenha, e revela-a a todos quando a ronda fecha.
-      secretWord: pickDrawWord([]),
+      secretWord: ronda.secretWord,
+      landmarkId: ronda.landmarkId,
       usedWords: [],
       doodle: { points: null },
       resolved: false,
@@ -2288,11 +2308,16 @@ export async function advanceDrawRound(code, room) {
     await startNextBonusGame(code, room);
     return;
   }
-  const usedWords = [...(draw.usedWords || []), draw.secretWord].filter(Boolean);
+  // No tema dos marcos o que não se repete é o MARCO, não o nome: é o id que
+  // entra na lista dos usados, porque é por id que o baralho se filtra.
+  const jaSaiu = draw.tema === TEMA_MARCOS ? (draw.landmarkId ? [draw.landmarkId] : []) : [draw.secretWord];
+  const usedWords = [...(draw.usedWords || []), ...jaSaiu].filter(Boolean);
+  const ronda = sortearRondaDeDesenho(draw.tema, usedWords);
   await update(ref(db, `rooms/${code}/draw`), {
     turnIndex: nextIndex,
     drawerId: draw.turnOrder[nextIndex],
-    secretWord: pickDrawWord(usedWords),
+    secretWord: ronda.secretWord,
+    landmarkId: ronda.landmarkId,
     usedWords,
     doodle: { points: null },
     resolved: false,
@@ -2920,109 +2945,6 @@ export async function resolveRaceRound(code, room) {
 
 export async function finishRaceRound(code, room) {
   await startNextBonusGame(code, room);
-}
-
-// --- "Onde Fica Isto?" em equipa ---
-
-// Guarda-se só o ID do marco, não o SVG: o desenho já vive no data.js de cada
-// cliente, e mandá-lo pela rede seriam vários KB por ronda sem ganho nenhum.
-function buildLandmarkRound(usedIds) {
-  const { landmark, options } = pickLandmarkRound(new Set(usedIds || []));
-  return {
-    landmarkId: landmark.id,
-    options,
-    startedAt: serverNow(),
-    endAt: serverNow() + LANDMARK_TEAM_ROUND_MS,
-    answers: {},
-    resolved: false,
-    resolvedAt: null,
-    roundResults: null,
-  };
-}
-
-export async function startLandmarkTeam(code, room) {
-  const round = buildLandmarkRound([]);
-  await update(roomRef(code), {
-    state: "landmark",
-    landmark: { roundIndex: 1, roundsTotal: LANDMARK_TEAM_ROUNDS, usedIds: [round.landmarkId], ...round },
-  });
-}
-
-// A primeira resposta é a que conta: sem isto, dava para experimentar as
-// quatro opções até acertar e ainda levar o bónus de rapidez.
-export async function submitLandmarkAnswer(code, room, uid, option) {
-  const lm = room.landmark;
-  if (!lm || lm.resolved || lm.answers?.[uid]) return;
-  await set(ref(db, `rooms/${code}/landmark/answers/${uid}`), {
-    option, at: serverNow(),
-  });
-}
-
-// Função pura. O bónus de rapidez decresce com o tempo gasto na ronda: quem
-// acerta no primeiro segundo leva o bónus quase todo, quem acerta no fim
-// leva só os pontos base.
-export function computeLandmarkRoundResults(room) {
-  const lm = room.landmark || {};
-  const correctAnswer = LANDMARKS.find((l) => l.id === lm.landmarkId)?.answer || null;
-  const startedAt = lm.startedAt || 0;
-  const roundMs = Math.max((lm.endAt || 0) - startedAt, 1);
-  const roundResults = {};
-  const roundPoints = {};
-  Object.keys(room.players || {}).forEach((uid) => {
-    const entry = lm.answers?.[uid] || null;
-    const correct = !!entry && entry.option === correctAnswer;
-    const elapsed = entry ? Math.max(0, Math.min(entry.at - startedAt, roundMs)) : roundMs;
-    const speedBonus = correct
-      ? Math.round(LANDMARK_TEAM_SPEED_BONUS_MAX * (1 - elapsed / roundMs))
-      : 0;
-    roundResults[uid] = { answer: entry?.option || null, correct, elapsedMs: entry ? elapsed : null, speedBonus };
-    roundPoints[uid] = correct ? LANDMARK_TEAM_POINTS + speedBonus : 0;
-  });
-  return { roundResults, roundPoints, correctAnswer };
-}
-
-export async function resolveLandmarkRound(code, room) {
-  if (!room.landmark || room.landmark.resolved) return;
-  // Mesma razão da corrida: a resposta que fechou a ronda pode ainda não
-  // estar no instantâneo em memória, e quem respondeu à tangente ficaria
-  // sem pontos.
-  const snap = await get(roomRef(code));
-  const fresh = snap.exists() ? snap.val() : room;
-  const lm = fresh.landmark;
-  if (!lm || lm.resolved) return;
-  const { roundResults, roundPoints, correctAnswer } = computeLandmarkRoundResults(fresh);
-  const updates = {
-    "landmark/resolved": true,
-    "landmark/resolvedAt": serverNow(),
-    "landmark/roundResults": roundResults,
-    "landmark/correctAnswer": correctAnswer,
-  };
-  Object.entries(roundPoints).forEach(([uid, pts]) => {
-    if (pts > 0) {
-      const prevScore = fresh.players?.[uid]?.score || 0;
-      updates[`players/${uid}/score`] = prevScore + pts;
-    }
-  });
-  await update(roomRef(code), updates);
-}
-
-export async function advanceLandmarkRoundOrFinish(code, room) {
-  const lm = room.landmark;
-  if (!lm) return;
-  if (lm.roundIndex >= lm.roundsTotal) {
-    await startNextBonusGame(code, room);
-    return;
-  }
-  const usedIds = lm.usedIds || [];
-  const round = buildLandmarkRound(usedIds);
-  await update(roomRef(code), {
-    landmark: {
-      roundIndex: lm.roundIndex + 1,
-      roundsTotal: lm.roundsTotal,
-      usedIds: [...usedIds, round.landmarkId],
-      ...round,
-    },
-  });
 }
 
 // --- Mini-Golfe em equipa ---

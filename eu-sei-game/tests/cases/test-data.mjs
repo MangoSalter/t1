@@ -1,5 +1,6 @@
 import {
   CATEGORIES, ALPHABET, HARD_LETTERS, pickLetters, pickCategories, catKey, catIndexFromKey,
+  LANDMARKS, pickLandmark,
 } from "/home/user/desktop-tutorial/eu-sei-game/public/js/data.js";
 
 function assert(cond, label) {
@@ -67,6 +68,37 @@ assert(ALPHABET.length === 26, "alfabeto tem 26 letras");
   // enabledIndexes vazio = comporta-se como sem filtro (todas as 40).
   const cats = pickCategories(5, new Set(), new Set());
   assert(cats.length === 5, "pickCategories com enabledIndexes vazio ignora o filtro (todas disponíveis)");
+}
+
+// --- O baralho do "Onde Fica Isto?" ---
+//
+// Cada marco tem de trazer a frase de revelação ESCRITA À MÃO. Montá-la por
+// regra dava "Era a Big Ben, em Reino Unido": em português o artigo muda com
+// o nome e a preposição muda com o país. É a frase que a pessoa lê no fim da
+// ronda, e é onde o jogo ensina alguma coisa — sair torta estraga o momento.
+{
+  assert(LANDMARKS.length >= 12, `o baralho tem pelo menos 12 marcos (tem ${LANDMARKS.length})`);
+  assert(new Set(LANDMARKS.map((l) => l.id)).size === LANDMARKS.length, "ids dos marcos são únicos");
+  const paises = new Set(LANDMARKS.map((l) => l.answer));
+  assert(paises.size === LANDMARKS.length, "cada marco fica num país diferente (o solo faz distratores com isto)");
+
+  const semCampo = LANDMARKS.filter((l) => !l.name || !l.answer || !l.onde || !l.frase || !l.svg);
+  assert(semCampo.length === 0, `todos os marcos têm nome, país, "onde", frase e desenho${semCampo.length ? ` (faltam em ${semCampo.map((l) => l.id).join(", ")})` : ""}`);
+
+  const semPais = LANDMARKS.filter((l) => !l.frase.includes(l.answer));
+  assert(semPais.length === 0, `a frase de cada marco diz o país${semPais.length ? ` (não diz em ${semPais.map((l) => l.id).join(", ")})` : ""}`);
+  const semNome = LANDMARKS.filter((l) => !l.frase.toLowerCase().includes(l.name.toLowerCase()));
+  assert(semNome.length === 0, `a frase de cada marco diz o nome do monumento${semNome.length ? ` (não diz em ${semNome.map((l) => l.id).join(", ")})` : ""}`);
+  // "em França" e não "em a França": o artigo tem de vir já contraído.
+  const ondeTorto = LANDMARKS.filter((l) => !/^(em|no|na|nos|nas) /.test(l.onde) || / a | o /.test(l.onde));
+  assert(ondeTorto.length === 0, `o "onde" de cada marco começa por preposição contraída${ondeTorto.length ? ` (torto em ${ondeTorto.map((l) => l.id).join(", ")})` : ""}`);
+
+  // Esgotar o baralho não pode encravar a partida: recomeça.
+  const esgotado = pickLandmark(LANDMARKS.map((l) => l.id));
+  assert(!!esgotado && !!esgotado.id, "com o baralho todo usado, pickLandmark recomeça em vez de devolver vazio");
+  const semUmSo = new Set();
+  for (let i = 0; i < 40; i++) semUmSo.add(pickLandmark([LANDMARKS[0].id]).id);
+  assert(!semUmSo.has(LANDMARKS[0].id), "pickLandmark nunca repete um marco que já saiu");
 }
 
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");

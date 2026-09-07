@@ -192,7 +192,137 @@ export function pickMapCriteria() {
 // solo e uma futura versão em equipa. ---
 export const LANDMARKS = [
   {
+    id: "belem", name: "Torre de Belém", answer: "Portugal",
+    onde: "em Portugal", frase: "Era a Torre de Belém, em Portugal.",
+    // A primeira da casa: o jogo é português e o baralho não tinha um único
+    // sítio que se pudesse ir ver ao domingo.
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,80 Q25,76 50,80 T100,80 L100,100 L0,100 Z" fill="#9fc4d8" stroke="none"/>
+      <rect x="26" y="52" width="44" height="30" fill="#e8dcc0" stroke="var(--ink)" stroke-width="2.2"/>
+      <rect x="38" y="18" width="22" height="36" fill="#efe4cb" stroke="var(--ink)" stroke-width="2.2"/>
+      <g fill="#efe4cb" stroke="var(--ink)" stroke-width="1.6">
+        <rect x="26" y="48" width="6" height="5"/><rect x="36" y="48" width="6" height="5"/>
+        <rect x="46" y="48" width="6" height="5"/><rect x="56" y="48" width="6" height="5"/>
+        <rect x="64" y="48" width="6" height="5"/>
+        <rect x="38" y="14" width="5" height="5"/><rect x="47" y="14" width="5" height="5"/><rect x="55" y="14" width="5" height="5"/>
+      </g>
+      <g fill="#efe4cb" stroke="var(--ink)" stroke-width="1.8">
+        <circle cx="28" cy="60" r="5"/><circle cx="68" cy="60" r="5"/>
+      </g>
+      <path d="M45,82 L45,66 Q49,60 53,66 L53,82 Z" fill="var(--ink)" opacity="0.75"/>
+      <path d="M42,30 L56,30 M42,38 L56,38" stroke="var(--ink)" stroke-width="1.4"/>
+    </svg>`,
+  },
+  {
+    id: "coliseu", name: "Coliseu de Roma", answer: "Itália",
+    onde: "em Itália", frase: "Era o Coliseu de Roma, em Itália.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="6" y1="86" x2="94" y2="86" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M16,86 L16,34 Q50,20 84,34 L84,86 Z" fill="#e3d5b6" stroke="var(--ink)" stroke-width="2.4"/>
+      <path d="M74,30 L84,34 L84,86 L74,86 Z" fill="#cbb992" stroke="var(--ink)" stroke-width="1.6"/>
+      <g fill="#a99570" stroke="var(--ink)" stroke-width="1.2">
+        <path d="M22,52 L22,44 Q26,40 30,44 L30,52 Z"/><path d="M36,48 L36,40 Q40,36 44,40 L44,48 Z"/>
+        <path d="M50,46 L50,38 Q54,34 58,38 L58,46 Z"/><path d="M64,48 L64,40 Q68,36 72,40 L72,48 Z"/>
+        <path d="M22,74 L22,64 Q26,60 30,64 L30,74 Z"/><path d="M36,72 L36,62 Q40,58 44,62 L44,72 Z"/>
+        <path d="M50,70 L50,60 Q54,56 58,60 L58,70 Z"/><path d="M64,72 L64,62 Q68,58 72,62 L72,72 Z"/>
+      </g>
+      <path d="M16,56 Q50,48 84,56" fill="none" stroke="var(--ink)" stroke-width="1.6"/>
+    </svg>`,
+  },
+  {
+    id: "partenon", name: "Partenon", answer: "Grécia",
+    onde: "na Grécia", frase: "Era o Partenon, na Grécia.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,88 Q30,80 50,84 T100,88 L100,100 L0,100 Z" fill="#c9b98f" stroke="none"/>
+      <rect x="14" y="80" width="72" height="6" fill="#efe7d2" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#f4eddb" stroke="var(--ink)" stroke-width="1.8">
+        <rect x="20" y="46" width="8" height="34"/><rect x="33" y="46" width="8" height="34"/>
+        <rect x="46" y="46" width="8" height="34"/><rect x="59" y="46" width="8" height="34"/>
+        <rect x="72" y="46" width="8" height="34"/>
+      </g>
+      <rect x="14" y="40" width="72" height="7" fill="#efe7d2" stroke="var(--ink)" stroke-width="2"/>
+      <polygon points="50,18 88,40 12,40" fill="#f4eddb" stroke="var(--ink)" stroke-width="2.4"/>
+      <path d="M34,38 L50,26 L66,38" fill="none" stroke="var(--ink)" stroke-width="1.4"/>
+    </svg>`,
+  },
+  {
+    id: "machupicchu", name: "Machu Picchu", answer: "Peru",
+    onde: "no Peru", frase: "Era Machu Picchu, no Peru.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,92 L0,60 L20,30 L34,54 L48,20 L70,58 L84,40 L100,66 L100,92 Z" fill="#7fa06a" stroke="var(--ink)" stroke-width="2"/>
+      <polygon points="48,20 62,46 34,46" fill="#93ad7d" stroke="var(--ink)" stroke-width="1.6"/>
+      <g fill="#cdbf9a" stroke="var(--ink)" stroke-width="1.4">
+        <rect x="22" y="72" width="56" height="6"/><rect x="28" y="64" width="44" height="6"/>
+        <rect x="34" y="56" width="32" height="6"/>
+      </g>
+      <g fill="#e0d4b4" stroke="var(--ink)" stroke-width="1.4">
+        <path d="M38,56 L38,48 L46,42 L54,48 L54,56 Z"/>
+        <path d="M58,64 L58,58 L64,54 L70,58 L70,64 Z"/>
+      </g>
+      <line x1="0" y1="92" x2="100" y2="92" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "fuji", name: "Monte Fuji", answer: "Japão",
+    onde: "no Japão", frase: "Era o monte Fuji, no Japão.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="76" cy="24" r="11" fill="#e8776b" stroke="var(--ink)" stroke-width="1.8"/>
+      <path d="M4,84 L50,20 L96,84 Z" fill="#8fa8c4" stroke="var(--ink)" stroke-width="2.4"/>
+      <path d="M34,40 L50,20 L66,40 Q60,34 55,40 Q50,33 45,40 Q40,34 34,40 Z" fill="#f6f4ef" stroke="var(--ink)" stroke-width="1.8"/>
+      <line x1="0" y1="84" x2="100" y2="84" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M8,90 Q20,86 32,90 M40,94 Q52,90 64,94 M68,88 Q80,84 92,88" fill="none" stroke="#7f9ab8" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    id: "chichen", name: "Chichén Itzá", answer: "México",
+    onde: "no México", frase: "Era Chichén Itzá, no México.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="88" x2="96" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#d8c9a4" stroke="var(--ink)" stroke-width="1.8">
+        <rect x="14" y="78" width="72" height="10"/><rect x="20" y="68" width="60" height="10"/>
+        <rect x="26" y="58" width="48" height="10"/><rect x="32" y="48" width="36" height="10"/>
+        <rect x="38" y="38" width="24" height="10"/>
+      </g>
+      <rect x="41" y="26" width="18" height="13" fill="#c3b184" stroke="var(--ink)" stroke-width="1.8"/>
+      <rect x="46" y="30" width="8" height="9" fill="var(--ink)" opacity="0.7"/>
+      <path d="M44,88 L44,26 M56,88 L56,26" fill="none" stroke="var(--ink)" stroke-width="1.6"/>
+      <path d="M44,88 L56,88 L56,26 L44,26 Z" fill="#e6d9b8" stroke="none" opacity="0.45"/>
+    </svg>`,
+  },
+  {
+    id: "moai", name: "Moais da Ilha da Páscoa", answer: "Chile",
+    onde: "no Chile", frase: "Eram os moais da Ilha da Páscoa, no Chile.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,84 Q50,78 100,84 L100,100 L0,100 Z" fill="#8ba36f" stroke="none"/>
+      <line x1="0" y1="84" x2="100" y2="84" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M62,84 L62,50 Q62,42 70,42 Q78,42 78,50 L78,84 Z" fill="#9c968c" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M22,84 L22,34 Q22,18 40,18 Q58,18 58,34 L58,84 Z" fill="#b3ada2" stroke="var(--ink)" stroke-width="2.4"/>
+      <path d="M26,40 Q31,36 36,40 M44,40 Q49,36 54,40" fill="none" stroke="var(--ink)" stroke-width="2"/>
+      <ellipse cx="31" cy="46" rx="4" ry="3" fill="var(--ink)" opacity="0.75"/>
+      <ellipse cx="49" cy="46" rx="4" ry="3" fill="var(--ink)" opacity="0.75"/>
+      <path d="M40,46 L40,60 Q36,62 40,64 Q44,62 40,60" fill="none" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M32,70 Q40,74 48,70" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    id: "saobasilio", name: "Catedral de São Basílio", answer: "Rússia",
+    onde: "na Rússia", frase: "Era a catedral de São Basílio, na Rússia.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="6" y1="88" x2="94" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="18" y="62" width="64" height="26" fill="#e6dcc6" stroke="var(--ink)" stroke-width="2.2"/>
+      <rect x="38" y="40" width="24" height="24" fill="#efe6d2" stroke="var(--ink)" stroke-width="2.2"/>
+      <rect x="20" y="52" width="18" height="12" fill="#efe6d2" stroke="var(--ink)" stroke-width="1.8"/>
+      <rect x="62" y="52" width="18" height="12" fill="#efe6d2" stroke="var(--ink)" stroke-width="1.8"/>
+      <path d="M38,42 Q30,30 50,14 Q70,30 62,42 Z" fill="#c0574f" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M20,54 Q15,45 29,34 Q43,45 38,54 Z" fill="#4f7fb0" stroke="var(--ink)" stroke-width="1.8"/>
+      <path d="M62,54 Q57,45 71,34 Q85,45 80,54 Z" fill="#5f9a63" stroke="var(--ink)" stroke-width="1.8"/>
+      <path d="M50,14 L50,8 M29,34 L29,29 M71,34 L71,29" stroke="var(--ink)" stroke-width="1.8"/>
+      <rect x="45" y="74" width="10" height="14" fill="var(--ink)" opacity="0.7"/>
+    </svg>`,
+  },
+  {
     id: "eiffel", name: "Torre Eiffel", answer: "França",
+    onde: "em França", frase: "Era a Torre Eiffel, em França.",
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <line x1="10" y1="88" x2="90" y2="88" stroke="var(--ink)" stroke-width="2"/>
       <path d="M50,10 L30,88 M50,10 L70,88 M38,55 L62,55 M32,72 L68,72 M42,35 L58,35" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
@@ -201,6 +331,7 @@ export const LANDMARKS = [
   },
   {
     id: "piramides", name: "Pirâmides de Gizé", answer: "Egito",
+    onde: "no Egito", frase: "Eram as Pirâmides de Gizé, no Egito.",
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <line x1="6" y1="88" x2="94" y2="88" stroke="var(--ink)" stroke-width="2"/>
       <circle cx="80" cy="22" r="10" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.6"/>
@@ -211,6 +342,7 @@ export const LANDMARKS = [
   },
   {
     id: "cristo", name: "Cristo Redentor", answer: "Brasil",
+    onde: "no Brasil", frase: "Era o Cristo Redentor, no Brasil.",
     // Silhueta de figura vestida com túnica, braços abertos ao alto (como
     // a estátua real, não um simples "mais" em cima de uma colina).
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -223,6 +355,7 @@ export const LANDMARKS = [
   },
   {
     id: "muralha", name: "Grande Muralha da China", answer: "China",
+    onde: "na China", frase: "Era a Grande Muralha da China.",
     // Muralha em degraus a subir colinas, com ameias (dentes) no topo e uma
     // torre de vigia — a versão anterior era só uma linha ondulada com uma
     // casinha ao lado, irreconhecível como muralha.
@@ -249,6 +382,7 @@ export const LANDMARKS = [
   },
   {
     id: "liberdade", name: "Estátua da Liberdade", answer: "Estados Unidos",
+    onde: "nos Estados Unidos", frase: "Era a Estátua da Liberdade, nos Estados Unidos.",
     // Braço ligado ao corpo a erguer a tocha (antes era uma linha solta ao
     // lado da figura, parecia um poste de luz em vez de um braço erguido).
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -263,6 +397,7 @@ export const LANDMARKS = [
   },
   {
     id: "bigben", name: "Big Ben", answer: "Reino Unido",
+    onde: "no Reino Unido", frase: "Era o Big Ben, no Reino Unido.",
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <rect x="38" y="30" width="24" height="58" fill="#d9a563" stroke="var(--ink)" stroke-width="2.2"/>
       <polygon points="34,30 50,10 66,30" fill="var(--primary)" stroke="var(--ink)" stroke-width="2.2"/>
@@ -274,6 +409,7 @@ export const LANDMARKS = [
   },
   {
     id: "opera", name: "Ópera de Sydney", answer: "Austrália",
+    onde: "na Austrália", frase: "Era a Ópera de Sydney, na Austrália.",
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <line x1="6" y1="88" x2="94" y2="88" stroke="var(--ink)" stroke-width="2"/>
       <path d="M14,88 C 14,60 30,40 34,88 Z" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
@@ -283,6 +419,7 @@ export const LANDMARKS = [
   },
   {
     id: "tajmahal", name: "Taj Mahal", answer: "Índia",
+    onde: "na Índia", frase: "Era o Taj Mahal, na Índia.",
     svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <line x1="8" y1="88" x2="92" y2="88" stroke="var(--ink)" stroke-width="2"/>
       <rect x="30" y="55" width="40" height="33" fill="#f6efdd" stroke="var(--ink)" stroke-width="2.2"/>
@@ -293,6 +430,17 @@ export const LANDMARKS = [
     </svg>`,
   },
 ];
+
+// Escolhe um marco ainda não usado, para a versão DESENHADA do "Onde Fica
+// Isto?" (ver pickLandmarkRound logo abaixo, que é a versão de escolha
+// múltipla). Aceita um Set ou um array: o solo guarda os usados num Set, a
+// sala guarda-os em lista, porque tem de os escrever na base de dados.
+export function pickLandmark(usados) {
+  const jaSaiu = new Set(usados || []);
+  const livres = LANDMARKS.filter((l) => !jaSaiu.has(l.id));
+  const pool = livres.length > 0 ? livres : LANDMARKS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 export function pickLandmarkRound(usedIds) {
   const available = LANDMARKS.filter((l) => !usedIds.has(l.id));
@@ -523,7 +671,8 @@ export const JOGOS_NA_OFICINA = [
   "cards",     // Descartando Juntos
   "car",       // Estrada Maluca (solo)
   "race",      // Estrada Maluca (sala)
-  "landmark",  // Onde Fica Isto?
+  "landmark",  // Onde Fica Isto? — só a versão SOLO, de escolha múltipla; a
+               // versão em sala foi refeita como desenho ("marcos") e está no site
 ];
 
 // --- Eventos de "caos" da Dona Manga ---

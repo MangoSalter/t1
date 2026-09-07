@@ -29,8 +29,8 @@ import {
   crashRacer, resolveRaceRound, finishRaceRound, raceObstacleLane, racerTimeMs,
   raceSpawnIntervalAt, raceSpeedAt, RACE_LANES, RACE_CAR_W, RACE_CAR_H,
   RACE_ROAD_H, RACE_PLAYER_Y, RACE_BASE_SPEED, RACE_SPAWN_INTERVAL_START_MS, RACE_BROADCAST_MS,
-  RACE_RESULT_DISPLAY_MS, submitLandmarkAnswer, resolveLandmarkRound, advanceLandmarkRoundOrFinish, LANDMARK_TEAM_POINTS,
-  LANDMARK_TEAM_RESULT_DISPLAY_MS, updateGolfBall, claimGolfFinish, claimGolfPowerup, useGolfCharge,
+  RACE_RESULT_DISPLAY_MS, TEMA_MARCOS,
+  updateGolfBall, claimGolfFinish, claimGolfPowerup, useGolfCharge,
   spawnGolfPowerup, pruneGolfBarriers, golfActiveWalls, resolveGolfRound, finishGolfRound,
   GOLF_MP_COURSE_W, GOLF_MP_COURSE_H, GOLF_MP_BALL_RADIUS, GOLF_MP_HOLE_RADIUS, GOLF_MP_START,
   GOLF_MP_HOLE, GOLF_MP_WALLS, GOLF_MP_POWERUP_RADIUS, GOLF_MP_POWERUP_MAX_ACTIVE, GOLF_MP_POWERUP_SPAWN_INTERVAL_MS,
@@ -335,7 +335,6 @@ function onRoomUpdate(room) {
     case "tag": renderTag(room); showScreen("tag"); break;
     case "battle": renderBattle(room); showScreen("battle"); break;
     case "race": renderRace(room); showScreen("race"); break;
-    case "landmark": renderLandmarkTeam(room); showScreen("landmark"); break;
     case "golf": renderGolfMp(room); showScreen("golf"); break;
     case "mapa": renderMapaSala(room); showScreen("mapa"); break;
     case "final": renderFinal(room); showScreen("final"); break;
@@ -399,7 +398,7 @@ const lobbyEls = {
 // de bónus de fim de partida), o que deixava os quadros de desenho mortos
 // numa sala de teste com 1–2 pessoas: o botão não fazia nada e parecia que
 // o jogo "não abria". Só os jogos de perseguição precisam mesmo de 2+.
-const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, landmark: 1, golf: 2, mapa: 1 };
+const MP_GAME_MIN_PLAYERS = { hangman: 1, mapTrivia: 1, draw: 2, tag: 2, battle: 2, race: 2, marcos: 2, golf: 2, mapa: 1 };
 
 esconderAOficina();
 
@@ -873,7 +872,9 @@ const DRAW_DOODLE_BROADCAST_INTERVAL_MS = 90;
 const DRAW_DOODLE_MIN_DIST = 0.004;
 
 const drawEls = {
+  title: document.getElementById("draw-title"),
   status: document.getElementById("draw-status"),
+  reveal: document.getElementById("draw-reveal"),
   doodleCanvas: document.getElementById("draw-doodle-canvas"),
   clearBtn: document.getElementById("draw-clear-btn"),
   selectWinnerBtn: document.getElementById("draw-select-winner-btn"),
@@ -1040,13 +1041,23 @@ function renderDraw(room) {
   const amDrawer = draw.drawerId === state.uid;
   const drawerName = room.players?.[draw.drawerId]?.name || "Alguém";
   const roundLabel = `Ronda ${draw.turnIndex + 1}/${draw.turnOrder.length}`;
+  // O mesmo ecrã serve os dois baralhos: palavras soltas ("Girafa") e
+  // monumentos ("Torre Eiffel", e o que se adivinha é o PAÍS).
+  const marcos = draw.tema === TEMA_MARCOS;
+  const marco = marcos ? LANDMARKS.find((l) => l.id === draw.landmarkId) : null;
+  drawEls.title.textContent = marcos ? "Onde Fica Isto?" : "Desenha e Adivinha";
 
   if (!draw.resolved) {
     // A palavra secreta só aparece a quem desenha; os outros só sabem de
     // quem é a vez (e adivinham em voz alta).
+    drawEls.reveal.classList.add("hidden");
     drawEls.status.textContent = amDrawer
-      ? `${roundLabel} — desenha: “${draw.secretWord || "?"}”`
-      : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`;
+      ? (marcos
+        ? `${roundLabel} — desenha: “${draw.secretWord || "?"}” (fica ${marco?.onde || "?"})`
+        : `${roundLabel} — desenha: “${draw.secretWord || "?"}”`)
+      : (marcos
+        ? `${roundLabel} — ${drawerName} está a desenhar um monumento. Digam o PAÍS em voz alta!`
+        : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`);
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
     drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
@@ -1060,7 +1071,18 @@ function renderDraw(room) {
     drawEls.skipBtn.classList.add("hidden");
     drawEls.continueBtn.classList.toggle("hidden", !isHost(room));
     drawEls.result.classList.remove("hidden");
-    const word = draw.secretWord ? `Era “${draw.secretWord}”. ` : "";
+    // No tema dos marcos o desenho da casa aparece AQUI, no fim — é a
+    // resposta, não a pergunta. Quem nunca viu o monumento fica a saber
+    // como é e onde fica; quem já sabia não ganhou vantagem nenhuma.
+    drawEls.reveal.classList.toggle("hidden", !marco);
+    if (marco) drawEls.reveal.innerHTML = marco.svg;
+    // A frase vem escrita à mão no baralho, não montada aqui: em português o
+    // artigo muda com o nome ("o Big Ben", "as Pirâmides") e a preposição
+    // muda com o país ("em França", "no Egito", "na Índia"). Por regra saía
+    // "Era a Big Ben, em Reino Unido".
+    const word = marco
+      ? `${marco.frase} `
+      : draw.secretWord ? `Era “${draw.secretWord}”. ` : "";
     if (draw.roundWinnerId) {
       const winnerName = room.players?.[draw.roundWinnerId]?.name || "Alguém";
       drawEls.result.textContent = `🎉 ${word}${winnerName} acertou! +${DRAW_WINNER_POINTS} pts (e +${DRAW_DRAWER_BONUS} para ${drawerName})`;
@@ -2465,89 +2487,6 @@ function renderGolfMp(room) {
   }
 }
 
-// ---------- ONDE FICA ISTO? EM EQUIPA ----------
-// Ronda simultânea: todos veem o mesmo desenho (o SVG vem do data.js local, só
-// o ID viaja pela rede) e as mesmas opções. A primeira resposta é a que conta.
-
-const landmarkTeamEls = {
-  roundInfo: document.getElementById("landmark-team-round-info"),
-  timer: document.getElementById("landmark-team-timer"),
-  image: document.getElementById("landmark-team-image"),
-  options: document.getElementById("landmark-team-options"),
-  status: document.getElementById("landmark-team-status"),
-  results: document.getElementById("landmark-team-results"),
-};
-
-// Guarda o que já está desenhado no ecrã para não recriar os botões a cada
-// atualização da sala — senão o rato "perdia" o botão a meio do clique.
-const landmarkTeamState = { renderedKey: null };
-
-function renderLandmarkTeam(room) {
-  const lm = room.landmark;
-  if (!lm) return;
-  const landmark = LANDMARKS.find((l) => l.id === lm.landmarkId);
-  const myAnswer = lm.answers?.[state.uid]?.option || null;
-  const key = `${lm.roundIndex}|${lm.landmarkId}|${myAnswer}|${lm.resolved}`;
-
-  landmarkTeamEls.roundInfo.textContent = `Ronda ${lm.roundIndex}/${lm.roundsTotal}`;
-
-  if (landmarkTeamState.renderedKey !== key) {
-    landmarkTeamState.renderedKey = key;
-    landmarkTeamEls.image.innerHTML = landmark?.svg || "";
-    landmarkTeamEls.options.innerHTML = "";
-    (lm.options || []).forEach((opt) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "landmark-option-btn";
-      btn.textContent = opt;
-      if (lm.resolved) {
-        if (opt === lm.correctAnswer) btn.classList.add("correct");
-        else if (opt === myAnswer) btn.classList.add("wrong");
-        btn.disabled = true;
-      } else if (myAnswer) {
-        btn.disabled = true;
-        if (opt === myAnswer) btn.classList.add("chosen");
-      } else {
-        btn.addEventListener("click", () => submitLandmarkAnswer(state.code, state.room, state.uid, opt));
-      }
-      landmarkTeamEls.options.appendChild(btn);
-    });
-  }
-
-  if (!lm.resolved) {
-    const msLeft = Math.max(0, (lm.endAt || 0) - serverNow());
-    landmarkTeamEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
-    const answered = Object.keys(lm.answers || {}).length;
-    const total = Object.keys(room.players || {}).length;
-    landmarkTeamEls.status.textContent = myAnswer
-      ? `Respondeste "${myAnswer}". Já responderam ${answered}/${total}.`
-      : `Onde fica este marco? (${answered}/${total} já responderam)`;
-    landmarkTeamEls.results.classList.add("hidden");
-  } else {
-    landmarkTeamEls.timer.textContent = "";
-    landmarkTeamEls.status.textContent = landmark
-      ? `É ${landmark.name} — ${lm.correctAnswer}.`
-      : `Resposta certa: ${lm.correctAnswer}.`;
-    landmarkTeamEls.results.classList.remove("hidden");
-    landmarkTeamEls.results.innerHTML = "";
-    Object.entries(room.players || {}).forEach(([uid, p]) => {
-      const r = lm.roundResults?.[uid] || {};
-      const detail = !r.answer
-        ? "não respondeu"
-        : r.correct
-          ? `${r.answer} ✅ em ${(r.elapsedMs / 1000).toFixed(1)}s`
-          : `${r.answer} ❌`;
-      const pts = r.correct ? LANDMARK_TEAM_POINTS + (r.speedBonus || 0) : 0;
-      const row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
-        <span class="score-round">${escapeHtml(detail)}</span>
-        <span class="score-total">+${pts} pts</span>`;
-      landmarkTeamEls.results.appendChild(row);
-    });
-  }
-}
-
 // ---------- FINAL ----------
 
 const finalEls = {
@@ -2763,19 +2702,6 @@ async function runHostLoopTick(room) {
       } else if (race && race.resolved) {
         if (now - (race.resolvedAt || 0) > RACE_RESULT_DISPLAY_MS) {
           await finishRaceRound(state.code, room);
-        }
-      }
-    } else if (room.state === "landmark") {
-      const lm = room.landmark;
-      if (lm && !lm.resolved) {
-        const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
-        const allAnswered = connectedIds.length > 0 && connectedIds.every((uid) => lm.answers?.[uid]);
-        if (now >= (lm.endAt || 0) || allAnswered) {
-          await resolveLandmarkRound(state.code, room);
-        }
-      } else if (lm && lm.resolved) {
-        if (now - (lm.resolvedAt || 0) > LANDMARK_TEAM_RESULT_DISPLAY_MS) {
-          await advanceLandmarkRoundOrFinish(state.code, room);
         }
       }
     } else if (room.state === "golf") {

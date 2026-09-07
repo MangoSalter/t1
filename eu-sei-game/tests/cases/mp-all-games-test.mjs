@@ -33,8 +33,11 @@ const comOficinaFechada = await page.evaluate(async () => {
   return m.filaSemOficina(m.BONUS_GAME_KEYS, false);
 });
 console.log(`   a fila de quem entra no site leva: ${JSON.stringify(comOficinaFechada)}`);
-const escapou = comOficinaFechada.filter((k) => ["mapTrivia", "race", "landmark"].includes(k));
+const escapou = comOficinaFechada.filter((k) => ["mapTrivia", "race"].includes(k));
 if (escapou.length) { console.log(`   FALHOU: a fila do site levava jogos da oficina: ${escapou.join(", ")}`); process.exitCode = 1; }
+if (!comOficinaFechada.includes("marcos")) {
+  console.log('   FALHOU: o "Onde Fica Isto?" desenhado é do site, tem de vir na fila'); process.exitCode = 1;
+}
 if (!comOficinaFechada.includes("mapa") || !comOficinaFechada.includes("hangman")) {
   console.log("   FALHOU: a fila do site tem de levar os jogos do site"); process.exitCode = 1;
 }
@@ -85,12 +88,19 @@ await page.evaluate(({ c, keys }) => {
 await page.waitForSelector('[data-screen="roundscore"].active', { timeout: 5000 });
 await page.click("#round-next-btn");
 
+// Conta JOGOS, não ecrãs. O "Desenha e Adivinha" e o "Onde Fica Isto?" são o
+// mesmo ecrã com baralhos diferentes (palavras soltas / monumentos): contar
+// ecrãs dava um a menos e fazia parecer que a fila tinha saltado um jogo.
 const seen = [];
 for (let step = 0; step < keys.length + 2; step++) {
   await page.waitForTimeout(400);
   const screen = await page.evaluate(() => document.querySelector(".screen.active")?.dataset.screen);
   if (screen === "final") break;
-  if (screen && !seen.includes(screen)) seen.push(screen);
+  const tema = screen === "draw"
+    ? await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).draw?.tema || "livre", code)
+    : null;
+  const jogo = tema ? `${screen}:${tema}` : screen;
+  if (screen && !seen.includes(jogo)) seen.push(jogo);
   // Avança este jogo pelo caminho mais curto disponível.
   await page.evaluate(async (c) => {
     const m = await import("./js/room.js");
@@ -99,7 +109,7 @@ for (let step = 0; step < keys.length + 2; step++) {
   }, code);
 }
 await page.waitForSelector('[data-screen="final"].active', { timeout: 10000 });
-console.log(`   ecrãs visitados: ${JSON.stringify(seen)}`);
+console.log(`   jogos visitados: ${JSON.stringify(seen)}`);
 console.log(`   ${seen.length} de ${noSite.length} jogos vistos, e chegou ao final`);
 if (seen.length < noSite.length) { console.log("   FALHOU: a fila não passou por todos"); process.exitCode = 1; }
 
