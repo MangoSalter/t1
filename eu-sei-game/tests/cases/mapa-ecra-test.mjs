@@ -277,6 +277,16 @@ if (noTelemovel.pequenos.length > 0) fail("há alvos pequenos de mais para o ded
 await telemovel.close();
 
 console.log("15) A caixa do que se diz fica DENTRO do mapa, por cima do oceano...");
+// Deixa o desenho assentar antes de medir. A caixa é posicionada a partir das
+// medidas da tela, e medir no mesmo instante em que a barra muda de altura lê
+// a posição de antes — falhou assim quando a barra ganhou os rótulos.
+await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  window.dispatchEvent(new Event("resize"));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return m.mapa.rectW;
+});
+await page.waitForTimeout(250);
 // Com o mapa a não encher a tela toda (é duas vezes mais largo do que alto, a
 // tela quase nunca é), o canto da tela cai fora do mapa e a caixa ficava a
 // boiar no papel, ao lado do mundo.
@@ -289,18 +299,38 @@ const caixaDentro = await page.evaluate(async () => {
   return {
     dentroX: caixa.left - c.left >= cima.x - 1 && caixa.right - c.left <= baixo.x + 1,
     dentroY: caixa.top - c.top >= cima.y - 1 && caixa.bottom - c.top <= baixo.y + 1,
+    medidas: {
+      caixa: [Math.round(caixa.left - c.left), Math.round(caixa.top - c.top), Math.round(caixa.right - c.left), Math.round(caixa.bottom - c.top)],
+      mapa: [Math.round(cima.x), Math.round(cima.y), Math.round(baixo.x), Math.round(baixo.y)],
+    },
   };
 });
-console.log(`   caixa dentro do mapa — horizontal: ${caixaDentro.dentroX}, vertical: ${caixaDentro.dentroY}`);
+console.log(`   caixa dentro do mapa — horizontal: ${caixaDentro.dentroX}, vertical: ${caixaDentro.dentroY} · ${JSON.stringify(caixaDentro.medidas || {})}`);
 if (!caixaDentro.dentroX || !caixaDentro.dentroY) fail("a caixa devia ficar por cima do mapa, não ao lado dele");
 
 console.log("16) Três hipóteses: só depois de o jogo parar, e com espera entre usos...");
+// Recomeça-se a partida antes de medir. A ajuda automática destrava este
+// botão ao fim de 25 segundos SEM conquistas — e isso é o jogo a funcionar
+// bem. O que não pode é o teste depender de chegar aqui dentro desses 25
+// segundos: com mais passos pelo caminho, passou a chegar depois, e o caso
+// falhava por o jogo estar certo.
+await page.selectOption("#mapa-modo", "grandes");
+await page.waitForTimeout(150);
+await page.selectOption("#mapa-modo", "mundo");
+await page.waitForTimeout(150);
 const botaoEscondido = await page.evaluate(() =>
   document.getElementById("mapa-hipoteses-btn").classList.contains("hidden"));
-console.log(`   botão escondido no início: ${botaoEscondido}`);
+console.log(`   botão escondido numa partida acabada de começar: ${botaoEscondido}`);
 if (!botaoEscondido) fail("as três hipóteses não são para se jogar sempre assim");
-// Força a situação de jogo parado, que é o que faz o botão aparecer.
-await page.evaluate(() => document.getElementById("mapa-hipoteses-btn").classList.remove("hidden"));
+// Força a situação de jogo parado, que é o que faz o botão aparecer. Marca-se
+// o ESTADO que o jogo usa (destravado), e não só a classe: tirar a classe à
+// mão era desfeito pelo primeiro redesenho, e só passava por acaso quando a
+// ajuda automática já tinha destravado o botão antes.
+await page.evaluate(() => {
+  const b = document.getElementById("mapa-hipoteses-btn");
+  b.dataset.destravado = "1";
+  b.classList.remove("hidden");
+});
 const chile = await ecraDe(-71.5, -35.7);
 await page.mouse.click(chile.x, chile.y);
 await page.click("#mapa-hipoteses-btn");

@@ -575,9 +575,21 @@
   <section data-screen="mapa" class="screen mapa-screen">
     <div class="mapa-toolbar">
       <button type="button" id="mapa-exit-btn" class="ghost" data-i18n="mapaVoltar">← Voltar</button>
-      <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo"></select>
-      <select id="mapa-dificuldade" class="mapa-modo" aria-label="Dificuldade"></select>
-      <select id="mapa-camada" class="mapa-modo" aria-label="O que nomear"></select>
+      <!-- AS TRÊS ESCOLHAS DA PARTIDA num sítio só. Soltas na barra chegavam
+           a 33% do ecrã de um telemóvel — no limite do que se admite — e mais
+           uma partia-o. Aqui ficam atrás de um botão no telemóvel e à vista
+           no computador, e ganham RÓTULOS: três caixas sem legenda, mesmo no
+           computador, não diziam a ninguém qual era qual. -->
+      <button type="button" id="mapa-opcoes-btn" class="ghost mapa-opcoes-btn"
+              aria-expanded="false" aria-controls="mapa-opcoes" title="Escolhas da partida">⚙️</button>
+      <div id="mapa-opcoes" class="mapa-opcoes">
+        <label class="mapa-opcao"><span data-i18n="mapaOndeLabel">Onde</span>
+          <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo"></select></label>
+        <label class="mapa-opcao"><span data-i18n="mapaComoLabel">Como</span>
+          <select id="mapa-dificuldade" class="mapa-modo" aria-label="Dificuldade"></select></label>
+        <label class="mapa-opcao"><span data-i18n="mapaOQueLabel">O quê</span>
+          <select id="mapa-camada" class="mapa-modo" aria-label="O que nomear"></select></label>
+      </div>
       <span id="mapa-progresso" class="mapa-progresso"></span>
       <span id="mapa-marcador" class="mapa-progresso mapa-marcador"></span>
       <form id="mapa-form" class="mapa-form">

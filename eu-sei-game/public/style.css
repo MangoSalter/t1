@@ -1332,3 +1332,25 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   border: 3px solid var(--ink);
   box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.35);
 }
+
+/* AS ESCOLHAS DA PARTIDA no mapa. No computador ficam à vista, em linha, com
+   os rótulos por cima. No telemóvel a barra não tem espaço para três caixas —
+   estavam a comer um terço do ecrã — e por isso escondem-se atrás do ⚙️. */
+.mapa-opcoes { display: flex; gap: 8px; align-items: flex-end; }
+.mapa-opcao { display: flex; flex-direction: column; gap: 2px; font-size: 0.68rem; opacity: 0.8; }
+.mapa-opcao select { font-size: 0.85rem; }
+.mapa-opcoes-btn { display: none; min-width: 44px; min-height: 44px; font-size: 1.1rem; }
+@media (max-width: 760px) {
+  .mapa-opcoes-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .mapa-opcoes {
+    display: none; position: absolute; top: 100%; left: 8px; z-index: 8;
+    flex-direction: column; align-items: stretch; gap: 10px;
+    padding: 12px; border-radius: 12px;
+    background: var(--paper); border: 2px solid var(--ink);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  }
+  .mapa-opcoes.aberto { display: flex; }
+  .mapa-opcao { font-size: 0.8rem; opacity: 1; }
+  .mapa-opcao select { min-height: 44px; font-size: 1rem; }
+  .mapa-toolbar { position: relative; }
+}

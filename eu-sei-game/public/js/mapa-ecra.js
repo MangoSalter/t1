@@ -26,6 +26,8 @@ const els = {
   modo: document.getElementById("mapa-modo"),
   dificuldade: document.getElementById("mapa-dificuldade"),
   camada: document.getElementById("mapa-camada"),
+  opcoes: document.getElementById("mapa-opcoes"),
+  opcoesBtn: document.getElementById("mapa-opcoes-btn"),
   status: document.getElementById("mapa-status"),
   exitBtn: document.getElementById("mapa-exit-btn"),
   fitBtn: document.getElementById("mapa-fit-btn"),
@@ -544,6 +546,26 @@ if (haEcra()) {
   encherCamadas();
   els.modo?.addEventListener("change", () => trocarModo(els.modo.value));
   els.camada?.addEventListener("change", () => trocarCamada(els.camada.value));
+
+  // No telemóvel as escolhas da partida vivem atrás do ⚙️. Escolher uma
+  // fecha o painel: quem trocou de modo quer ver o mapa, não a lista.
+  els.opcoesBtn?.addEventListener("click", () => {
+    const aberto = els.opcoes.classList.toggle("aberto");
+    els.opcoesBtn.setAttribute("aria-expanded", String(aberto));
+  });
+  [els.modo, els.dificuldade, els.camada].forEach((sel) => {
+    sel?.addEventListener("change", () => {
+      els.opcoes?.classList.remove("aberto");
+      els.opcoesBtn?.setAttribute("aria-expanded", "false");
+    });
+  });
+  // Tocar fora fecha-o também, como qualquer painel desta app.
+  document.addEventListener("click", (e) => {
+    if (!els.opcoes?.classList.contains("aberto")) return;
+    if (els.opcoes.contains(e.target) || els.opcoesBtn?.contains(e.target)) return;
+    els.opcoes.classList.remove("aberto");
+    els.opcoesBtn?.setAttribute("aria-expanded", "false");
+  });
   els.dificuldade?.addEventListener("change", () => {
     mapa.dificuldade = els.dificuldade.value;
     mapa.selecionado = null;
