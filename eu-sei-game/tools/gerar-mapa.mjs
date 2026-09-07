@@ -115,6 +115,11 @@ const numeroParaIso = JSON.parse(await readFile(new URL("./iso2.json", import.me
 // mostra e o que se diz.
 const traducoes = JSON.parse(await readFile(new URL("./traducoes.json", import.meta.url), "utf8"));
 
+// AS CAPITAIS. O capitais-en.json é gerado a partir do world-countries, que
+// NÃO é dependência do projeto: instala-se à mão quando se quiser regerar
+// (`npm install --no-save world-countries`) e o ficheiro fica guardado. O
+// jogo não precisa dele para correr, e os testes muito menos.
+//
 // AS CAPITAIS. O nome inglês vem do world-countries; o português vem do
 // capitais-pt.json, e SÓ para as que diferem — Madrid, Paris e Lima escrevem-se
 // igual, e uma lista de 173 nomes escritos à mão é uma lista com 173 sítios
