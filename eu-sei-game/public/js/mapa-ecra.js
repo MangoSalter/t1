@@ -13,6 +13,7 @@ import {
   marcador, reiniciarMarcador, registarErro, resumo,
 } from "./mapa.js";
 import { t, aoMudarLingua } from "./i18n.js";
+import { armarCaos, limparCaos } from "./caos.js";
 
 const els = {
   screen: document.querySelector('[data-screen="mapa"]'),
@@ -62,6 +63,7 @@ const jogo = {
   jaSugeridos: [],
   hipotesesLivreEm: 0,
   ajudaTimer: null,
+  caosTimer: null,
   // A SALA, quando há uma. Sozinho isto fica a null e o ecrã comporta-se como
   // sempre: escreve no mapa que tem à frente e mais nada. Numa sala, o mesmo
   // ecrã passa a avisar quem manda — e é a sala que devolve o estado, porque
@@ -79,6 +81,15 @@ const jogo = {
 //   aoRevelar(nome)             — a pista aparece no mapa de toda a gente
 export function ligarASala(adaptador) {
   jogo.sala = adaptador || null;
+  // Entrar numa sala CANCELA o caos que já estivesse armado do modo sozinho.
+  // Sem isto, quem abrisse o mapa sozinho e entrasse numa sala a seguir podia
+  // levar com a pata da gata no meio de uma partida partilhada — uma
+  // desvantagem que mais ninguém tinha.
+  if (jogo.sala && jogo.caosTimer) {
+    clearTimeout(jogo.caosTimer);
+    jogo.caosTimer = null;
+    limparCaos();
+  }
   // Recomeçar limpa o mapa de quem carrega. Numa sala isso seria limpar o
   // trabalho dos outros no ecrã de um só — o mapa passaria a estar diferente
   // em cada sítio. O botão sai.
@@ -187,6 +198,31 @@ function dizer(texto) {
 // site e nenhuma para estes. Ao abrir, uma fala; passados uns segundos,
 // desaparece, porque a seguir o que interessa é o mapa.
 let falaTimer = null;
+// A DONA MANGA TAMBÉM SE METE NO MAPA. Havia caos nos mini-jogos que foram
+// todos para a oficina, e nenhum nos dois que ficaram. Aqui a pata dela tapa
+// um bocado do mapa por uns segundos, e quando o Brasa a distrai os pontos
+// que ele passa por baixo da mesa entram no marcador — que é onde os pontos
+// do mapa vivem.
+//
+// Nunca em sala: numa partida partilhada, uma pata no ecrã de um só é uma
+// desvantagem que os outros não têm.
+function armarCaosNoMapa() {
+  if (jogo.caosTimer) clearTimeout(jogo.caosTimer);
+  jogo.caosTimer = null;
+  if (jogo.sala) return;
+  jogo.caosTimer = armarCaos({
+    continuaAJogar: () => jogo.ligado && !estaCompleto(),
+    ecra: () => els.screen,
+    aoDisparar: (bonus) => {
+      if (bonus > 0) {
+        marcador.pontos += bonus;
+        redesenhar();
+      }
+      armarCaosNoMapa();
+    },
+  });
+}
+
 function falaDaCasa() {
   if (!els.mascote) return;
   const falas = t("mapaFalas");
@@ -424,6 +460,7 @@ function abrirMapa() {
         dizer(t("mapaComecar"));
         armarAjuda();
         falaDaCasa();
+        armarCaosNoMapa();
       })
       .catch(() => dizer(t("mapaSemMapa")));
     return;
@@ -432,11 +469,15 @@ function abrirMapa() {
   redesenhar();
   armarAjuda();
   falaDaCasa();
+  armarCaosNoMapa();
 }
 
 function sairDoMapa() {
   jogo.ligado = false;
   if (jogo.ajudaTimer) clearTimeout(jogo.ajudaTimer);
+  if (jogo.caosTimer) clearTimeout(jogo.caosTimer);
+  jogo.caosTimer = null;
+  limparCaos();
   // Numa sala, o botão de voltar não é para sair do mapa: o mapa é a partida,
   // e sair dela é obra de quem manda. Quem toca aqui pede à sala para acabar,
   // e a sala é que muda o ecrã de toda a gente.

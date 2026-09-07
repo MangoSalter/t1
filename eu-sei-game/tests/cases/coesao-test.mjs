@@ -102,6 +102,58 @@ console.log(`   falas por língua: ${JSON.stringify(contagens)}`);
 if (new Set(Object.values(contagens)).size !== 1) fail("as três línguas deviam ter as mesmas falas");
 if (contagens.pt < 4) fail("quatro falas é o mínimo para não se repetirem sempre");
 
+console.log("4b) A Dona Manga também se mete no mapa — e nunca numa sala...");
+// Havia caos nos doze mini-jogos que foram todos para a oficina, e nenhum nos
+// dois que ficaram. O mapa passa a tê-lo; o quadro não, porque uma pata em
+// cima de um desenho a meio estraga trabalho em vez de dar graça.
+const caos = await page.evaluate(async () => {
+  const c = await import("./js/caos.js");
+  const d = await import("./js/data.js");
+  const ecra = document.querySelector('[data-screen="mapa"]');
+  // Dispara-se à mão o evento da pata: esperar pelos 6 a 14 segundos do
+  // temporizador tornava este caso lento e instável.
+  const pata = d.CHAOS_EVENTS.find((e) => e.kind === "paw");
+  c.dispararCaos(pata, ecra);
+  const banner = document.getElementById("chaos-banner");
+  const paw = document.getElementById("chaos-paw");
+  const visto = {
+    banner: banner.textContent,
+    bannerVisivel: !banner.classList.contains("hidden"),
+    pataVisivel: !paw.classList.contains("hidden"),
+  };
+  c.limparCaos();
+  return {
+    ...visto,
+    limpouBanner: banner.classList.contains("hidden"),
+    limpouPata: paw.classList.contains("hidden"),
+    bonusDaPata: c.dispararCaos(pata, ecra),
+    bonusDoBrasa: c.dispararCaos(d.CHAOS_EVENTS.find((e) => e.kind === "bonus"), ecra),
+  };
+});
+console.log(`   no mapa: "${caos.banner}" · pata: ${caos.pataVisivel}`);
+if (!caos.bannerVisivel) fail("o caos devia anunciar-se");
+if (!caos.pataVisivel) fail("a pata devia aparecer");
+if (!/Manga|Brasa/.test(caos.banner)) fail("o caos é da casa, tem de dizer de quem foi");
+if (!caos.limpouBanner || !caos.limpouPata) fail("o caos tem de sair do ecrã — uma pata presa tapa o jogo para sempre");
+console.log(`   bónus: pata dá ${caos.bonusDaPata}, o Brasa dá ${caos.bonusDoBrasa}`);
+if (caos.bonusDaPata !== 0) fail("a pata não dá pontos, só atrapalha");
+if (!(caos.bonusDoBrasa > 0)) fail("o Brasa passa pontos por baixo da mesa — é o que o torna o Brasa");
+await page.evaluate(async () => (await import("./js/caos.js")).limparCaos());
+
+// E numa sala a gata não entra: uma pata no ecrã de um só é uma desvantagem
+// que os outros não têm.
+const emSala = await page.evaluate(async () => {
+  const m = await import("./js/mapa-ecra.js");
+  const armadoAntes = m.__mapa.jogo.caosTimer !== null && m.__mapa.jogo.caosTimer !== undefined;
+  m.ligarASala({ minhaCor: "#b24b38", aoConquistar: async () => ({ ganhou: true }), aoErrar: () => {}, aoRevelar: () => {} });
+  const paradoDepois = m.__mapa.jogo.caosTimer === null || m.__mapa.jogo.caosTimer === undefined;
+  m.ligarASala(null);
+  return { armadoAntes, paradoDepois };
+});
+console.log(`   sozinho o caos estava armado: ${emSala.armadoAntes} · com a sala ligada fica quieto: ${emSala.paradoDepois}`);
+if (!emSala.armadoAntes) fail("no mapa a sozinho o caos devia estar armado");
+if (!emSala.paradoDepois) fail("entrar numa sala tem de cancelar o caos — senão a pata cai no meio de uma partida partilhada");
+
 console.log("5) A fala sai do ecrã sozinha, para não ficar a tapar o mapa...");
 // Sete segundos no código; aqui adianta-se o relógio em vez de esperar.
 await page.evaluate(() => {

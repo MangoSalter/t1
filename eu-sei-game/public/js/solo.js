@@ -7,9 +7,10 @@
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
-  ACHIEVEMENTS, pickMascotIntro, pickChaosEvent, gameHowTo,
+  ACHIEVEMENTS, pickMascotIntro, gameHowTo,
 } from "./data.js";
 import { estaNaOficina, esconderAOficina } from "./oficina.js";
+import { armarCaos, limparCaos, caosLigado, guardarCaosLigado } from "./caos.js";
 import {
   PRESENTATION_MODES, presentationMode, setPresentationMode,
   voiceEnabled, setVoiceEnabled, voiceSupported, say, stopSpeaking,
@@ -24,7 +25,6 @@ const SCORE_HISTORY_KEY = "euSei_soloScoreHistory";
 const SCORE_HISTORY_MAX = 20;
 const ACCOUNT_KEY = "euSei_soloAccount";
 const ACHIEVEMENTS_KEY = "euSei_soloAchievements";
-const CHAOS_KEY = "euSei_soloChaos";
 const XP_PER_POINT = 1;
 
 const SOLO_BASE_CATEGORIES = 5;
@@ -1093,63 +1093,27 @@ function hideGameHud() {
 // contra ti, e isso não é variedade, é injustiça. Quem mesmo assim preferir
 // jogar limpo desliga no menu.
 
-function loadChaosEnabled() {
-  try {
-    return localStorage.getItem(CHAOS_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
-
-function saveChaosEnabled(on) {
-  try {
-    localStorage.setItem(CHAOS_KEY, on ? "on" : "off");
-  } catch {
-    // sem drama: a preferência só não persiste.
-  }
-}
+// O caos vive agora no caos.js, partilhado com o mapa-múndi — ver a nota lá.
+// Aqui fica só o que é do modo sozinho: quando armar, e onde somar o bónus
+// que o Brasa passa por baixo da mesa.
 
 function clearChaos() {
   clearTimeout(solo.chaosStartTimeoutId);
-  clearTimeout(solo.chaosEndTimeoutId);
   solo.chaosStartTimeoutId = null;
-  solo.chaosEndTimeoutId = null;
-  els.chaosBanner.classList.add("hidden");
-  els.chaosPaw.classList.add("hidden");
-  document.querySelectorAll(".chaos-wobble").forEach((el) => el.classList.remove("chaos-wobble"));
+  limparCaos();
 }
 
 function scheduleChaosEvent() {
   clearChaos();
   solo.chaosBonus = 0;
-  if (!loadChaosEnabled()) return;
-  // Entre 6 e 14 segundos: cedo demais e não se percebe que o jogo já
-  // estava a correr; tarde demais e a maioria dos jogos já acabou.
-  const delay = 6000 + Math.random() * 8000;
-  solo.chaosStartTimeoutId = setTimeout(() => {
-    if (els.gameHud.classList.contains("hidden")) return; // já não há jogo a correr
-    fireChaosEvent(pickChaosEvent());
-  }, delay);
+  solo.chaosStartTimeoutId = armarCaos({
+    // Perguntado na hora: um jogo que já acabou não leva com a gata em cima.
+    continuaAJogar: () => !els.gameHud.classList.contains("hidden"),
+    ecra: () => document.querySelector(".screen.active"),
+    aoDisparar: (bonus) => { solo.chaosBonus = (solo.chaosBonus || 0) + bonus; },
+  });
 }
 
-function fireChaosEvent(ev) {
-  sfx("caos");
-  els.chaosBanner.textContent = `${ev.who}: “${ev.text}”`;
-  els.chaosBanner.classList.remove("hidden");
-  const arena = document.querySelector(".screen.active");
-  if (ev.kind === "paw") {
-    els.chaosPaw.classList.remove("hidden");
-  } else if (ev.kind === "wobble") {
-    arena?.classList.add("chaos-wobble");
-  } else if (ev.kind === "bonus") {
-    solo.chaosBonus = (solo.chaosBonus || 0) + (ev.bonus || 0);
-  }
-  solo.chaosEndTimeoutId = setTimeout(() => {
-    els.chaosBanner.classList.add("hidden");
-    els.chaosPaw.classList.add("hidden");
-    arena?.classList.remove("chaos-wobble");
-  }, ev.ms || 4000);
-}
 function updateGameHudScore() {
   if (!solo.hudScoreGetter) return;
   els.gameHudScoreValue.textContent = String(solo.hudScoreGetter());
@@ -1372,9 +1336,9 @@ els.sfxToggle.addEventListener("change", () => {
   if (els.sfxToggle.checked) sfx("toque");
 });
 
-els.chaosToggle.checked = loadChaosEnabled();
+els.chaosToggle.checked = caosLigado();
 els.chaosToggle.addEventListener("change", () => {
-  saveChaosEnabled(els.chaosToggle.checked);
+  guardarCaosLigado(els.chaosToggle.checked);
   // Desligar a meio de um jogo tem de valer já, não só no próximo.
   if (!els.chaosToggle.checked) clearChaos();
 });
