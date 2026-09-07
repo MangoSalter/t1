@@ -12,17 +12,17 @@ coluna da direita é uma recomendação, não um veredito.
 
 | Jogo | Estado | O que eu recomendo |
 |---|---|---|
-| **Quadro branco** (livre, Forca, Desenha e Adivinha) | 13 ficheiros de teste, auditado de ponta a ponta, 9 defeitos reais corrigidos, pontos ligados ao placar, ajuda do Brasa, telemóvel medido | **Fica.** É a joia da coroa e é onde está o trabalho todo |
+| **Quadro branco** (livre, Forca, Desenha e Adivinha) | 17 ficheiros de teste, auditado de ponta a ponta, 9 defeitos reais corrigidos, pontos ligados ao placar, ajuda do Brasa, telemóvel medido. Tem agora vigia ao custo de repintar: uma mudança na sala custa uma cópia de tela e zero traços, com o quadro cheio ou vazio | **Fica.** É a joia da coroa e é onde está o trabalho todo |
 | **Eu sei clássico** (letra + categorias + votação) | É o jogo que dá o nome à app; tem testes de fluxo e da votação | **Fica.** Sem ele a app perde a identidade |
-| **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão, sem palpites escritos | **Corta.** O modo novo do quadro faz o mesmo e melhor: palpites escritos, julgados sozinhos, cores, equipas e histórico. Ter os dois é confundir |
-| **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substitui** pelo jogo do mapa novo (plano em baixo) |
+| **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão. Ganhou um segundo baralho — o dos monumentos, que é o "Onde Fica Isto?" refeito — e a saída para quando quem desenha fecha o separador a meio | **Fica.** A recomendação anterior era cortá-lo por o modo novo do quadro fazer o mesmo e melhor; mantenho que se sobrepõem, mas agora ele carrega o "Onde Fica Isto?" às costas, e isso é razão para ficar |
+| **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substituído**, feito: o mapa novo ocupou-lhe o lugar e este foi para a oficina |
 | **Conquistar o Mapa — capitais** | Segunda camada no mesmo mapa: os mesmos territórios e modos, mas a pergunta passa a ser a capital. 173 capitais (a Antártida, o Kosovo, a Somalilândia e o Chipre do Norte ficam de fora por não terem). Só a sozinho, por agora | **Fica** |
 | **Conquistar o Mapa** (o mapa novo, em sala) | Os 177 países como territórios a sério, cada um do primeiro que o souber; errar deixa o país em causa e vale a dobrar a quem o souber a seguir; as bandeiras que o Brasa revela aparecem no mapa de toda a gente; três línguas ao mesmo tempo na mesma sala | **Fica.** É o segundo pilar, a par do quadro |
-| **Estrada Maluca** (corrida) | Corrigido: a primeira batida é a que conta (transação), e o teste deixou de assumir que o carro só bate quando ele mandar. Na oficina, à espera de mais uma passagem antes de voltar | **Rever na oficina antes de voltar** |
-| **Fuga da Infeção** (apanhada) | O teste falha de forma intermitente no passo dos power-ups, cerca de metade das vezes; nunca foi investigado a fundo | **Corrigir antes de expor** — ou cortar |
-| **Batalha no labirinto** | Tem testes (lógica e ecrã), mas nunca passou por uma revisão como a do quadro | **Rever antes de expor** |
-| **Mini-golfe** | Tem testes de lógica e de ecrã | **Rever antes de expor** |
-| **Onde Fica Isto?** (foto + alfinete) | Tem teste | **Rever antes de expor** |
+| **Estrada Maluca** (corrida) | Corrigido: a primeira batida é a que conta (transação), e o teste deixou de assumir que o carro só bate quando ele mandar. Está na oficina | **À espera da tua decisão** (ver o fim deste ficheiro) |
+| **Fuga da Infeção** (apanhada) | A intermitência foi investigada e **arranjada** (444b65d): não eram os power-ups, era o relógio da ronda — infetar o último sobrevivente fechava a ronda e o power-up ficava num jogo já morto. Corridas seguidas do teste passam. Depois disso levou a arena toda à vista, paredes novas e power-ups de fuga | **Fica** |
+| **Batalha no labirinto** | Tem testes (lógica e ecrã) e ganhou as animações de golpe e baque que pediste. Continua sem uma auditoria de ponta a ponta como a do quadro | **Fica**, com auditoria por fazer |
+| **Mini-golfe** | Tem testes de lógica e de ecrã. A pista passou a 2400x1200 com terreno (aceleradores, saltitões, areia) e power-ups, por a anterior ser curta e monótona | **Fica** |
+| **Onde Fica Isto?** (desenhado) | **Refeito** como pediste: já não é escolha múltipla sobre um desenho pronto — uma pessoa recebe o monumento e desenha-o, os outros dizem o país. O desenho da casa passou a ser a RESPOSTA, mostrada no fim com o nome e o país. Baralho de 16 monumentos | **Fica** |
 
 ## Jogar sozinho
 
@@ -32,8 +32,10 @@ coluna da direita é uma recomendação, não um veredito.
 | **Forca** (rondas, sequência, categorias) | Bem desenvolvido, com teste de sequência e de maratona | **Fica** |
 | **Maratona de mini-jogos** | Não é um jogo, é a cola que liga os outros — com as falas da Dona Manga e do Brasa pelo meio | **Fica**, mas o valor dela depende de quais é que sobram |
 | **Descartando Juntos** (cartas) | O mais complexo de todos; tem testes de lógica e de "profundidade" | **Decide tu**: é muito código para um jogo que talvez não seja o que queres que a app seja |
-| **Kota Corre!**, **Mata o Inseto**, **Cada Macaco no Seu Galho**, **Memória**, **Olho de Lince**, **Palavra Relâmpago** | Seis mini-jogos pequenos, cada um com o seu teste | **Escolhe dois ou três.** Seis coisas pequenas e parecidas dão a sensação de muito para jogar e pouco para gostar; dois bem feitos valem mais |
-| **Mapa-Múndi**, **Onde Fica Isto?**, **Mini-Golfe**, **Estrada Maluca** | Versões solo dos de cima | Seguem o destino dos irmãos multijogador |
+| **Memória** e **Palavra Relâmpago** | Os dois que escolheste dos seis pequenos | **Ficam** |
+| **Kota Corre!**, **Mata o Inseto**, **Cada Macaco no Seu Galho**, **Olho de Lince** | Os outros quatro, na oficina | **À espera da tua decisão** |
+| **Mini-Golfe** solo | Versão solo do de cima | **Fica** |
+| **Mapa-Múndi**, **Onde Fica Isto?**, **Estrada Maluca** (solo) | Na oficina. O "Onde Fica Isto?" solo continua a ser o de escolha múltipla: o refeito é Pictionary, e Pictionary precisa de duas pessoas | **À espera da tua decisão** |
 | **Recordes** e **Conquistas** | Ecrãs de apoio | **Ficam** |
 
 ### O corte que eu faria, se fosse meu
@@ -47,7 +49,13 @@ jogo apagado tem de ser reescrito.
 
 ---
 
-# O jogo do mapa-múndi — plano
+# O jogo do mapa-múndi — plano (FEITO)
+
+> As seis fases abaixo estão construídas e no site: os 177 países como
+> territórios, o modo difícil, a sugestão quando o jogo estagna, a sala com
+> transação, o pódio, e uma segunda camada com as capitais (a sozinho). Fica
+> aqui como estava porque é o registo de como se decidiu — não como trabalho
+> por fazer.
 
 ## O jogo, como o descreveste
 
@@ -120,15 +128,13 @@ Entrada própria no menu de jogar sozinho e na sala, ecrã inteiro como o quadro
 a Dona Manga a comentar quando alguém erra três vezes seguidas, e os pontos a
 subirem ao placar da sala como agora acontece no quadro.
 
-## O que eu preciso de ti
+## O que eu precisava de ti (respondido pelo caminho)
 
-Nada para começar as fases 1 e 2 — isso é trabalho e não escolhas. Antes da
-fase 3 há duas decisões que são tuas:
-
-1. **Quantos países** por partida: os 177, ou um continente de cada vez?
-2. **Os pontos**: cada país vale o mesmo, ou os difíceis valem mais? (Dá para
-   medir a dificuldade pelo tamanho do território, que é um número que já
-   tenho.)
+1. **Quantos países** por partida: ficaram os 177, com modos por continente
+   para quem quiser mais curto.
+2. **Os pontos**: cada país vale o mesmo à saída, e o que dá gosto — seguidos,
+   continentes, roubos — vive no marcador de dentro do mapa. Para fora vai um
+   pódio da mesma grandeza dos outros jogos (ver "A escala dos pontos").
 
 ## O corte, feito (decisão do dono, setembro)
 
@@ -146,8 +152,9 @@ app com **`?oficina=1`** — é assim que os testes lhes continuam a chegar, par
 não apodrecerem à espera.
 
 **Fica no site:** Quadro branco (sala e solo), Eu sei clássico, Desenha e
-Adivinha, Fuga da Infeção, Labirinto: Batalha, Mini-Golfe, Conquistar o Mapa,
-Forca solo, Palavra Relâmpago, Memória.
+Adivinha, **Onde Fica Isto?** (a versão desenhada, que voltou depois de
+refeita), Fuga da Infeção, Labirinto: Batalha, Mini-Golfe, Conquistar o Mapa
+(países, e capitais a sozinho), Forca solo, Palavra Relâmpago, Memória.
 
 ## A escala dos pontos
 
@@ -185,3 +192,28 @@ isto não muda nada, que é o ponto.
 `tests/cases/test-equilibrio.mjs` guarda a regra: um jogo novo que pague fora
 da banda falha o teste, para a conversa sobre quanto vale acontecer antes de ir
 para o site. Verifica também que a amortecedor do quadro nunca inverte a ordem.
+
+---
+
+# A decisão que falta (a única)
+
+Os oito jogos da oficina estão à espera de uma coisa que não é trabalho meu:
+**quais é que queres mesmo de volta.**
+
+Não avanço sozinho por uma razão concreta: cortaste-os por não estarem bons, e
+dos seis mini-jogos pequenos disseste "escolhe dois ou três" — ficaram dois.
+Pôr os outros quatro em condições é trabalho que pode ir todo ao lixo se a
+resposta for "esses não". Prefiro perguntar a gastar.
+
+O que sei sobre cada um, para a resposta ser mais fácil:
+
+| Na oficina | O que lhe falta, em concreto |
+|---|---|
+| Olho de Lince, Mata o Inseto, Cada Macaco, Kota Corre! | Nada de partido: funcionam e têm testes. O problema é serem quatro coisas pequenas e parecidas — é a razão do teu "escolhe dois ou três" |
+| Mapa-Múndi antigo (solo e sala) | Substituído pelo mapa a sério. Só faz sentido voltar se gostares dele como jogo curto, e não como mapa |
+| Descartando Juntos | Muito código para um jogo que talvez não seja o que queres que a app seja. É o que mais custa manter |
+| Estrada Maluca (solo e sala) | O defeito conhecido está arranjado. Só precisa de uma passagem de qualidade como as que os do site levaram |
+| Onde Fica Isto? solo | O irmão de sala voltou refeito como desenho. O solo continua a ser escolha múltipla — Pictionary precisa de duas pessoas, por isso este teria de ser outra ideia |
+
+Enquanto não responderes, o esforço vai para os dez que estão no site. Basta
+dizeres os nomes.
