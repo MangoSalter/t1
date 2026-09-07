@@ -2312,10 +2312,26 @@ export async function selectDrawWinner(code, room, judgeUid, winnerUid) {
   });
 }
 
+// Está mesmo na sala? Sair fecha o separador (o jogador desaparece) ou deixa
+// cair a ligação (fica com connected a falso). Para quem está a jogar é a
+// mesma coisa: aquela pessoa não vai desenhar nada.
+function naSala(room, uid) {
+  return !!uid && room?.players?.[uid]?.connected === true;
+}
+
 // Ninguém acertou desta vez — fecha a ronda sem atribuir pontos.
+//
+// Normalmente só quem desenha pode fechar a ronda, e com razão: é o único que
+// sabe a palavra. Mas se ele se foi embora a meio, essa regra deixava a sala
+// presa para sempre — não há relógio nenhum neste jogo, e os outros ficavam a
+// olhar para "o Beto está a desenhar" sem saída. Quando quem tinha a caneta já
+// não está na sala, qualquer pessoa pode fechar a ronda.
 export async function skipDrawRound(code, room, uid) {
   const draw = room.draw;
-  if (!draw || draw.resolved || draw.drawerId !== uid) return;
+  if (!draw || draw.resolved) return;
+  const eleProprio = draw.drawerId === uid;
+  const quemDesenhavaSaiu = !naSala(room, draw.drawerId);
+  if (!eleProprio && !quemDesenhavaSaiu) return;
   await update(roomRef(code), {
     "draw/resolved": true,
     "draw/roundWinnerId": null,
@@ -2326,7 +2342,14 @@ export async function skipDrawRound(code, room, uid) {
 export async function advanceDrawRound(code, room) {
   const draw = room.draw;
   if (!draw) return;
-  const nextIndex = draw.turnIndex + 1;
+  // A ordem das vezes é sorteada no início e nunca mais muda. Quem sair pelo
+  // meio continuava a ter a sua vez — e a ronda chegava com a caneta na mão de
+  // alguém que já não está na sala, o que é a mesma paragem do skipDrawRound,
+  // só que mais à frente. Passa-se à frente de quem já não cá está.
+  let nextIndex = draw.turnIndex + 1;
+  while (nextIndex < draw.turnOrder.length && !naSala(room, draw.turnOrder[nextIndex])) {
+    nextIndex++;
+  }
   if (nextIndex >= draw.turnOrder.length) {
     await startNextBonusGame(code, room);
     return;
