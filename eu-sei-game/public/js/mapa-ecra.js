@@ -9,7 +9,8 @@ import {
   mapa, carregarPaises, enquadrar, zoomPor, mundoDoEcra, paisEm,
   porConquistar, estaCompleto, acertou, conquistar, sugerir, desenhar,
   MODOS, emJogo, estaEmJogo, enquadrarJogo, revelarPista, bandeiraDe,
-  tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, porNomeEscrito,
+  tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, CAMADAS, porNomeEscrito,
+  alvoDaResposta,
   marcador, reiniciarMarcador, registarErro, resumo,
 } from "./mapa.js";
 import { t, aoMudarLingua } from "./i18n.js";
@@ -24,6 +25,7 @@ const els = {
   marcador: document.getElementById("mapa-marcador"),
   modo: document.getElementById("mapa-modo"),
   dificuldade: document.getElementById("mapa-dificuldade"),
+  camada: document.getElementById("mapa-camada"),
   status: document.getElementById("mapa-status"),
   exitBtn: document.getElementById("mapa-exit-btn"),
   fitBtn: document.getElementById("mapa-fit-btn"),
@@ -97,6 +99,9 @@ export function ligarASala(adaptador) {
   // Pelo mesmo motivo: "outra vez" limparia o mapa a toda a gente.
   els.fimOutraBtn?.classList.toggle("hidden", !!jogo.sala);
   els.modo?.toggleAttribute("disabled", !!jogo.sala);
+  // A camada também não: a sala inteira tem de estar a responder à mesma
+  // pergunta, senão os pontos de uns não querem dizer o mesmo que os de outros.
+  els.camada?.toggleAttribute("disabled", !!jogo.sala);
 }
 
 // A sala manda o estado; o ecrã obedece. Os donos vêm por uid e passam a cor
@@ -183,9 +188,14 @@ function redesenhar() {
   els.marcador.textContent = marcador.inicio === null
     ? ""
     : t("mapaMarcador", r.pontos, r.cadeia, r.porMinuto);
+  // A caixa pergunta o que a camada quer: pedir "o nome do país" quando se
+  // está a jogar às capitais era mandar a pessoa dar a resposta errada.
+  const nasCapitais = mapa.camada === "capitais";
   els.input.placeholder = mapa.selecionado
-    ? t("mapaQualPais")
-    : t(mapa.dificuldade === "livre" ? "mapaCaixaLivre" : "mapaCaixa");
+    ? (nasCapitais ? t("mapaQualCapital", mapa.selecionado.nome) : t("mapaQualPais"))
+    : t(nasCapitais
+      ? (mapa.dificuldade === "livre" ? "mapaCaixaCapitalLivre" : "mapaCaixaCapital")
+      : (mapa.dificuldade === "livre" ? "mapaCaixaLivre" : "mapaCaixa"));
 }
 
 function dizer(texto) {
@@ -359,6 +369,38 @@ function encherDificuldades() {
   els.dificuldade.value = mapa.dificuldade;
 }
 
+function encherCamadas() {
+  if (!els.camada || els.camada.options.length > 0) return;
+  CAMADAS.forEach((c) => {
+    const op = document.createElement("option");
+    op.value = c.chave;
+    op.textContent = c.nome;
+    op.title = c.desc;
+    els.camada.appendChild(op);
+  });
+  els.camada.value = mapa.camada;
+}
+
+// Trocar de camada é começar outra partida: o que se conquistou a nomear
+// países não conta a nomear capitais, e o marcador tem de recomeçar com ele.
+function trocarCamada(chave) {
+  mapa.camada = chave;
+  mapa.donos = {};
+  mapa.pistas = [];
+  mapa.selecionado = null;
+  jogo.jaSugeridos = [];
+  jogo.hipotesesLivreEm = 0;
+  reiniciarMarcador();
+  esconderFim();
+  esconderHipoteses();
+  enquadrarQuandoDer(true);
+  redesenhar();
+  const c = CAMADAS.find((x) => x.chave === chave);
+  dizer(chave === "capitais" ? t("mapaCamadaCapitais", emJogo().length) : t("mapaModoPronto", c ? c.nome : chave, emJogo().length));
+  armarAjuda();
+  focar();
+}
+
 function encherModos() {
   if (!els.modo || els.modo.options.length > 0) return;
   MODOS.forEach((m) => {
@@ -428,15 +470,21 @@ function mostrarHipoteses(pais) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "ghost";
-    b.dataset.hipotese = op.nome;
+    // Na camada das capitais as três hipóteses são CAPITAIS: mostrar os nomes
+    // dos países quando a pergunta é a capital seria oferecer três respostas
+    // todas erradas. A bandeira fica — diz de que país se trata, e saber isso
+    // não é o mesmo que saber a capital dele.
+    const resposta = alvoDaResposta(op);
+    const etiqueta = resposta ? resposta.nome : op.nome;
+    b.dataset.hipotese = etiqueta;
     const bandeira = bandeiraDe(op);
-    b.textContent = bandeira ? `${bandeira} ${op.nome}` : op.nome;
+    b.textContent = bandeira ? `${bandeira} ${etiqueta}` : etiqueta;
     b.addEventListener("click", () => {
       esconderHipoteses();
       // Custa a espera QUER SE ACERTE QUER NÃO: se só custasse ao errar, valia
       // sempre a pena pedir.
       if (mapa.dificuldade !== "escolher") jogo.hipotesesLivreEm = Date.now() + ESPERA_HIPOTESES_MS;
-      els.input.value = op.nome;
+      els.input.value = etiqueta;
       els.form.requestSubmit();
     });
     els.hipoteses.appendChild(b);
@@ -493,7 +541,9 @@ function sairDoMapa() {
 if (haEcra()) {
   encherModos();
   encherDificuldades();
+  encherCamadas();
   els.modo?.addEventListener("change", () => trocarModo(els.modo.value));
+  els.camada?.addEventListener("change", () => trocarCamada(els.camada.value));
   els.dificuldade?.addEventListener("change", () => {
     mapa.dificuldade = els.dificuldade.value;
     mapa.selecionado = null;

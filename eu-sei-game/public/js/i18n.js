@@ -38,6 +38,10 @@ const TEXTOS = {
     mapaQualPais: "Que país é este?",
     mapaACarregar: "A carregar o mundo...",
     mapaComecar: "Clica num país e escreve o nome dele.",
+    mapaCamadaCapitais: (n) => `Capitais: ${n} territórios. Clica num e diz a capital.`,
+    mapaQualCapital: (p) => `Qual é a capital de ${p}?`,
+    mapaCaixaCapital: "Clica num território e diz a capital",
+    mapaCaixaCapitalLivre: "Escreve uma capital",
     // As falas da casa. O mapa é dos poucos ecrãs que fala três línguas, por
     // isso as falas vivem aqui e não no data.js com as dos outros jogos — uma
     // gata a resmungar em português para quem escolheu inglês não é coesão, é
@@ -104,6 +108,10 @@ const TEXTOS = {
     mapaQualPais: "Which country is this?",
     mapaACarregar: "Loading the world...",
     mapaComecar: "Click a country and type its name.",
+    mapaCamadaCapitais: (n) => `Capitals: ${n} territories. Click one and name its capital.`,
+    mapaQualCapital: (p) => `What is the capital of ${p}?`,
+    mapaCaixaCapital: "Click a territory and name its capital",
+    mapaCaixaCapitalLivre: "Type a capital",
     mapaFalas: [
       ["Dona Manga", "The whole world? I know two places: the sofa and the kitchen."],
       ["Dona Manga", "Take too long and I'm lying down on Europe. Fair warning."],
@@ -166,6 +174,10 @@ const TEXTOS = {
     mapaQualPais: "¿Qué país es este?",
     mapaACarregar: "Cargando el mundo...",
     mapaComecar: "Haz clic en un país y escribe su nombre.",
+    mapaCamadaCapitais: (n) => `Capitales: ${n} territorios. Haz clic en uno y di la capital.`,
+    mapaQualCapital: (p) => `¿Cuál es la capital de ${p}?`,
+    mapaCaixaCapital: "Haz clic en un territorio y di la capital",
+    mapaCaixaCapitalLivre: "Escribe una capital",
     mapaFalas: [
       ["Doña Manga", "¿El mundo entero? Yo conozco dos sitios: el sofá y la cocina."],
       ["Doña Manga", "Si tardas, me acuesto encima de Europa. Queda dicho."],

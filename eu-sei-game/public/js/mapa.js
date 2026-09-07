@@ -51,6 +51,11 @@ export const mapa = {
   selecionado: null,
   modo: "mundo",
   dificuldade: "livre",
+  // A CAMADA: o que se está a nomear. O mapa é o mesmo, os modos são os
+  // mesmos, os territórios são os mesmos — muda só a pergunta. Saber onde
+  // fica a Mongólia e saber que a capital é Ulã Bator são duas coisas
+  // diferentes, e a segunda cabe no jogo que já existe sem lhe mexer.
+  camada: "paises",
   // Os países cuja bandeira já foi revelada como pista. Some quando o país é
   // conquistado: a pista deixou de ser pista.
   pistas: [],
@@ -247,6 +252,13 @@ const QUANTOS_GRANDES = 60;
 //    FORMA, e é o mais difícil dos dois.
 //  - livre: escreve-se o nome de qualquer país e ele pinta-se onde estiver.
 //    Basta lembrar-se dele; encontrar é com o jogo.
+// As duas camadas. Ficam aqui, ao lado dos modos e das dificuldades, porque
+// são a mesma espécie de escolha: o que muda é a pergunta, não o mapa.
+export const CAMADAS = [
+  { chave: "paises", nome: "Países", desc: "Nomeia o território." },
+  { chave: "capitais", nome: "Capitais", desc: "Nomeia a capital de cada território." },
+];
+
 export const DIFICULDADES = [
   // Sem escrever nada: clica-se e escolhe-se de três. É o modo do telemóvel,
   // onde escrever um nome com o teclado a tapar o mapa é o que mais estraga o
@@ -261,10 +273,13 @@ export const DIFICULDADES = [
 // livre funcionar: escreve-se e o jogo procura.
 export function porNomeEscrito(escrito) {
   const faltam = porConquistar();
+  const nomesDe = (p) => {
+    const alvo = alvoDaResposta(p);
+    return alvo ? [alvo.nome, alvo.en, ...(alvo.alt || [])].filter(Boolean) : [];
+  };
   // Primeiro os que batem certo mesmo; só depois os que batem com uma gralha,
   // senão uma gralha podia roubar um país cujo nome estava escrito bem.
-  return faltam.find((p) => sameWord(escrito, p.nome) || sameWord(escrito, p.en)
-      || (p.alt || []).some((a) => sameWord(escrito, a)))
+  return faltam.find((p) => nomesDe(p).some((n) => sameWord(escrito, n)))
     || faltam.find((p) => acertou(p, escrito))
     || null;
 }
@@ -276,7 +291,7 @@ export function areaDoPais(p) {
 // Os países que ESTÃO EM JOGO no modo escolhido. Os outros continuam a
 // desenhar-se, apagados: um mapa da Europa com o resto do mundo em branco
 // continua a ser um mapa: ajuda a situar, e tirar o resto era pior.
-export function emJogo() {
+function doModo() {
   if (mapa.modo === "oceanos") return OCEANOS;
   if (mapa.modo === "mundo") return mapa.paises;
   if (mapa.modo === "grandes") {
@@ -285,6 +300,26 @@ export function emJogo() {
       .slice(0, QUANTOS_GRANDES);
   }
   return mapa.paises.filter((p) => p.cont === mapa.modo);
+}
+
+export function emJogo() {
+  const lista = doModo();
+  // Na camada das capitais só entram os territórios que TÊM capital. A
+  // Antártida não tem governo, o Kosovo e a Somalilândia não têm dados: pedir
+  // a capital deles era pedir uma resposta que não existe, e o mapa nunca
+  // ficaria completo.
+  if (mapa.camada === "capitais") return lista.filter((p) => p.cap && p.cap.pt);
+  return lista;
+}
+
+// O que a resposta tem de acertar: o território, ou a capital dele. Devolve
+// um objeto com a mesma forma nos dois casos, para o resto do motor não ter
+// de saber em que camada está.
+export function alvoDaResposta(pais) {
+  if (!pais) return null;
+  if (mapa.camada !== "capitais") return pais;
+  if (!pais.cap) return null;
+  return { nome: pais.cap.pt, en: pais.cap.en, alt: pais.cap.alt || [], doPais: pais.nome };
 }
 
 export function estaEmJogo(pais) {
@@ -321,19 +356,36 @@ function batemCerto(pais, escrito) {
   return !!soa && nomes.some((n) => comoSoa(n) === soa);
 }
 
+// Todas as respostas certas que existem nesta camada. Serve a regra das
+// gralhas: uma gralha não pode valer se o que foi escrito é a resposta certa
+// de OUTRO sítio.
+function respostasConhecidas() {
+  if (mapa.camada === "capitais") {
+    return mapa.paises.filter((p) => p.cap && p.cap.pt)
+      .map((p) => ({ nome: p.cap.pt, en: p.cap.en, alt: p.cap.alt || [] }));
+  }
+  return [...mapa.paises, ...OCEANOS];
+}
+
 export function acertou(pais, escrito) {
-  if (!pais) return false;
-  if (batemCerto(pais, escrito)) return true;
+  // Recebe sempre o TERRITÓRIO; é aqui que se resolve o que ele quer dizer na
+  // camada em que se está. Assim quem chama não muda quando se muda de
+  // camada — e foi por não haver este sítio único que a primeira tentativa
+  // deste jogo espalhou a mesma decisão por quatro ficheiros.
+  const alvo = alvoDaResposta(pais);
+  if (!alvo) return false;
+  if (batemCerto(alvo, escrito)) return true;
 
   // Só agora as gralhas. E com uma condição que a varredura dos 177 contra os
   // 177 obrigou a pôr: uma gralha NÃO vale se o que foi escrito for o nome
   // certo de outro país. Sem isto, "Zâmbia" passava por Gâmbia, "Austrália"
   // por Áustria e "Eslovénia" por Eslováquia — dois países a responder um pelo
   // outro, que é muito pior do que recusar uma gralha.
-  const conhecidos = [...mapa.paises, ...OCEANOS];
-  if (conhecidos.some((outro) => outro !== pais && batemCerto(outro, escrito))) return false;
+  const conhecidos = respostasConhecidas();
+  const mesmoSitio = (o) => o.nome === alvo.nome && o.en === alvo.en;
+  if (conhecidos.some((outro) => !mesmoSitio(outro) && batemCerto(outro, escrito))) return false;
 
-  const nomes = [pais.nome, pais.en, ...(pais.alt || [])].filter(Boolean);
+  const nomes = [alvo.nome, alvo.en, ...(alvo.alt || [])].filter(Boolean);
   return nomes.some((n) => quaseIgual(escrito, n));
 }
 

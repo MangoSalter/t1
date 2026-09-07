@@ -115,6 +115,38 @@ const numeroParaIso = JSON.parse(await readFile(new URL("./iso2.json", import.me
 // mostra e o que se diz.
 const traducoes = JSON.parse(await readFile(new URL("./traducoes.json", import.meta.url), "utf8"));
 
+// AS CAPITAIS. O nome inglês vem do world-countries; o português vem do
+// capitais-pt.json, e SÓ para as que diferem — Madrid, Paris e Lima escrevem-se
+// igual, e uma lista de 173 nomes escritos à mão é uma lista com 173 sítios
+// onde enganar-se. Assim a lista a rever é pequena, e uma capital que falte lá
+// não fica errada: fica na forma internacional, que é a que se lê nos atlas.
+const capitaisEn = JSON.parse(await readFile(new URL("./capitais-en.json", import.meta.url), "utf8"));
+const capitaisPt = JSON.parse(await readFile(new URL("./capitais-pt.json", import.meta.url), "utf8"));
+
+function capitalDe(iso) {
+  const en = capitaisEn[iso];
+  if (!en) return null;
+  const posto = capitaisPt[iso];
+  const pt = posto?.pt || en;
+  const alt = [...(posto?.alt || [])];
+  // O nome inglês entra sempre como alternativa quando o português é outro:
+  // quem aprendeu "Copenhagen" sabe a capital tão bem como quem aprendeu
+  // "Copenhaga".
+  if (pt !== en) alt.push(en);
+  const limpo = (t) => String(t).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const vistos = new Set([limpo(pt)]);
+  return {
+    pt,
+    en,
+    alt: alt.filter((n) => {
+      const c = limpo(n);
+      if (vistos.has(c)) return false;
+      vistos.add(c);
+      return true;
+    }),
+  };
+}
+
 const semNome = topo.objects.countries.geometries
   .map((g) => g.properties.name)
   .filter((n) => !nomesPt[n]);
@@ -169,6 +201,7 @@ const paises = topo.objects.countries.geometries.map((g) => {
       });
     })(),
     iso: numeroParaIso[String(Number(g.id))] || null,
+    cap: capitalDe(numeroParaIso[String(Number(g.id))] || ""),
     aneis,
   };
 });

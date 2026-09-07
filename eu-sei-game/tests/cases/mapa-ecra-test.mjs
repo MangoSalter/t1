@@ -411,6 +411,54 @@ console.log(`   depois de recomeçar: ${limpo} conquistados, painel escondido: $
 if (limpo !== 0) fail("recomeçar devia limpar o mapa");
 if (!painelDepois) fail("o painel de fim não devia ficar aberto depois de recomeçar");
 
+console.log("N+3) A camada das CAPITAIS: o mesmo mapa, outra pergunta...");
+// A camada é o segundo uso do mesmo mapa: os mesmos territórios, os mesmos
+// modos, e a pergunta a mudar. Aqui verifica-se pelo ecrã que a caixa pergunta
+// a coisa certa e que a resposta certa é mesmo a capital.
+await page.selectOption("#mapa-modo", "mundo");
+await page.waitForTimeout(200);
+await page.selectOption("#mapa-camada", "capitais");
+await page.waitForTimeout(300);
+const emCapitais = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return { camada: m.mapa.camada, emJogo: m.emJogo().length, donos: Object.keys(m.mapa.donos).length };
+});
+console.log(`   camada: ${emCapitais.camada}, territórios em jogo: ${emCapitais.emJogo}, conquistados: ${emCapitais.donos}`);
+if (emCapitais.camada !== "capitais") fail("o seletor devia mudar a camada");
+if (emCapitais.emJogo !== 173) fail(`na camada das capitais jogam-se 173 territórios (estão ${emCapitais.emJogo})`);
+if (emCapitais.donos !== 0) fail("trocar de camada recomeça a partida");
+const perguntaCapital = await page.locator("#mapa-input").getAttribute("placeholder");
+console.log(`   a caixa pergunta: "${perguntaCapital}"`);
+if (!/capital/i.test(perguntaCapital)) fail("a caixa devia pedir a capital, não o país");
+
+// E responder com a capital conquista o território.
+await page.fill("#mapa-input", "Lisboa");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos.Portugal;
+}, { timeout: 5000 }).catch(() => fail("dizer 'Lisboa' devia conquistar Portugal"));
+// O nome do país já não serve: é a capital que se pergunta.
+await page.fill("#mapa-input", "França");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForTimeout(300);
+const franca = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos["França"];
+});
+console.log(`   escrever "França" na camada das capitais conquistou o país: ${franca} (esperado false)`);
+if (franca) fail("na camada das capitais, o nome do país não pode valer");
+// Mas a capital dele sim.
+await page.fill("#mapa-input", "Paris");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos["França"];
+}, { timeout: 5000 }).catch(() => fail("dizer 'Paris' devia conquistar a França"));
+console.log("   e 'Paris' conquistou a França");
+await page.selectOption("#mapa-camada", "paises");
+await page.waitForTimeout(200);
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

@@ -359,6 +359,90 @@ m.mapa.paises.forEach((p) => {
 console.log(`   nomes aceites pelo país errado: ${enganos.length ? enganos.slice(0, 6).join("; ") : "nenhum"}`);
 check("nenhum país responde pelo nome de outro", enganos.length, 0);
 
+console.log("20b) As capitais: dados escritos à mão, por isso medidos...");
+// A lista de capitais em português é curada à mão, e listas à mão têm erros.
+// O que se pode verificar sozinho verifica-se aqui: que estão lá, que têm as
+// duas grafias, e — o mais importante — que nenhuma responde pelo nome de
+// outra, que foi o defeito que os nomes dos países já tiveram.
+const comCapital = dados.filter((p) => p.cap);
+console.log(`   ${comCapital.length} de ${dados.length} países têm capital`);
+check("quase todos têm capital", comCapital.length >= 170, true);
+// Os que não têm são conhecidos: não são países com governo próprio.
+const semCapital = dados.filter((p) => !p.cap).map((p) => p.nome).sort();
+console.log(`   sem capital: ${semCapital.join(", ")}`);
+check("só os do costume ficam sem capital",
+  semCapital.join("|"), "Antártida|Chipre do Norte|Kosovo|Somalilândia");
+check("todas as capitais têm nome em português", comCapital.every((p) => p.cap.pt && p.cap.pt.length > 1), true);
+check("e nome internacional", comCapital.every((p) => p.cap.en && p.cap.en.length > 1), true);
+// Onde o português difere do inglês, o inglês tem de continuar a ser aceite:
+// quem aprendeu "Copenhagen" sabe a capital tão bem como quem aprendeu
+// "Copenhaga".
+// Testa-se a ACEITAÇÃO e não a lista: onde a diferença é só um acento
+// ("Sofia"/"Sófia"), a forma inglesa não precisa de estar guardada porque as
+// regras de comparação já ignoram acentos. O que interessa é se passa.
+const diferentes = comCapital.filter((p) => p.cap.pt !== p.cap.en);
+const recusadas = diferentes.filter((p) => {
+  const alvo = { nome: p.cap.pt, en: p.cap.en, alt: p.cap.alt || [] };
+  return !m.acertou(alvo, p.cap.en);
+});
+console.log(`   ${diferentes.length} capitais escrevem-se diferente em português; formas inglesas recusadas: ${recusadas.length ? recusadas.map((p) => p.cap.en).join(", ") : "nenhuma"}`);
+check("a forma inglesa é sempre aceite", recusadas.length, 0);
+
+console.log("20c) Nenhuma capital responde pelo nome de outra...");
+// A mesma varredura que se fez aos países. As regras de tolerância são
+// generosas de propósito, e generosidade a mais faz uma capital responder
+// pela outra — "Viena" e "Vienciana" são o tipo de par que engana.
+const capitais = comCapital.map((p) => ({
+  pais: p.nome,
+  nomes: [p.cap.pt, p.cap.en, ...(p.cap.alt || [])].filter(Boolean),
+}));
+const confusoes = [];
+capitais.forEach((a) => {
+  const alvo = { nome: a.nomes[0], en: a.nomes[1], alt: a.nomes.slice(2) };
+  capitais.forEach((b) => {
+    if (a === b) return;
+    // Uma capital com o mesmo nome noutro país não é engano — é o mundo a ser
+    // assim (São José, Santiago). O que não pode é uma responder por outra
+    // por causa da tolerância a gralhas.
+    if (a.nomes.some((n) => b.nomes.some((m) => m.toLowerCase() === n.toLowerCase()))) return;
+    if (b.nomes.some((n) => m.acertou(alvo, n))) confusoes.push(`${b.nomes[0]} (${b.pais}) -> ${a.nomes[0]} (${a.pais})`);
+  });
+});
+console.log(`   capitais aceites pela capital errada: ${confusoes.length ? confusoes.slice(0, 6).join("; ") : "nenhuma"}`);
+check("nenhuma capital responde pela outra", confusoes.length, 0);
+
+console.log("20d) A camada das capitais: o mesmo mapa, outra pergunta...");
+m.mapa.modo = "mundo";
+m.mapa.donos = {};
+m.mapa.pistas = [];
+const portugal = m.mapa.paises.find((p) => p.nome === "Portugal");
+const franca = m.mapa.paises.find((p) => p.nome === "França");
+
+m.mapa.camada = "paises";
+check("na camada dos países, o país acerta", m.acertou(portugal, "Portugal"), true);
+check("e a capital não", m.acertou(portugal, "Lisboa"), false);
+
+m.mapa.camada = "capitais";
+check("na camada das capitais, a capital acerta", m.acertou(portugal, "Lisboa"), true);
+check("na grafia inglesa também", m.acertou(portugal, "Lisbon"), true);
+check("com uma gralha também", m.acertou(portugal, "Lisbooa"), true);
+check("e o nome do país já não serve", m.acertou(portugal, "Portugal"), false);
+check("a capital de outro país não serve", m.acertou(portugal, "Paris"), false);
+check("escrever encontra o país pela capital", m.porNomeEscrito("Paris")?.nome, "França");
+check("e as duas grafias levam ao mesmo sítio", m.porNomeEscrito("Moscow")?.nome, "Rússia");
+
+// Quem não tem capital sai de jogo: pedir a capital da Antártida era pedir
+// uma resposta que não existe, e o mapa nunca ficaria completo.
+const emJogoCapitais = m.emJogo().length;
+m.mapa.camada = "paises";
+const emJogoPaises = m.emJogo().length;
+console.log(`   territórios em jogo: ${emJogoPaises} com países, ${emJogoCapitais} com capitais`);
+check("a camada das capitais deixa de fora quem não tem capital", emJogoCapitais, 173);
+check("e a dos países leva-os todos", emJogoPaises, 177);
+m.mapa.camada = "capitais";
+check("a Antártida sai de jogo", m.emJogo().some((p) => p.nome === "Antártida"), false);
+m.mapa.camada = "paises";
+
 console.log("21) O marcador: pontos, sequências e o retrato da partida...");
 // Tempo fingido. As contas do marcador dependem do relógio, e um teste que
 // depende do relógio a sério é um teste que falha à sexta-feira.
