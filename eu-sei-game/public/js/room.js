@@ -663,11 +663,19 @@ export async function resetForRematch(code, room) {
     bonusQueue: null,
     bonusQueueTotal: null,
     bonusProgress: null,
+    // A MESMA LISTA do backToLobby, e por bom motivo: são as duas voltas ao
+    // lobby, e uma lista escrita à mão em dois sítios separa-se. Separou —
+    // quem acrescentou a corrida, o golfe e o mapa pôs-nos só numa, e a
+    // desforra ficava a arrastar o mapa da partida anterior. O passo 8 do
+    // mp-options-test compara as duas contra os jogos que existem.
     hangman: null,
     mapTrivia: null,
     tag: null,
     battle: null,
     draw: null,
+    race: null,
+    golf: null,
+    mapa: null,
   };
   Object.keys(room.players || {}).forEach((uid) => {
     updates[`players/${uid}/score`] = 0;

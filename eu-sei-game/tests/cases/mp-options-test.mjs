@@ -91,6 +91,43 @@ console.log("7) Fechar Opções e sair da sala -> botão flutuante deve desapare
 await page.click("#options-close-btn");
 const overlayHidden = await page.locator("#options-overlay").evaluate((el) => el.classList.contains("hidden"));
 if (!overlayHidden) { console.log("   FALHOU: overlay devia fechar"); process.exitCode = 1; }
+// AS DUAS SAÍDAS TÊM DE LIMPAR O MESMO.
+//
+// Há dois caminhos de volta ao lobby — o botão de voltar (backToLobby) e a
+// desforra no fim (resetForRematch) — e cada um tem a sua lista de estados a
+// apagar. Listas escritas à mão separam-se: quem acrescentou o mapa, o golfe
+// e a corrida pôs-nos numa e esqueceu-se da outra, e a desforra ficou a
+// deixar para trás o mapa da partida anterior. Este passo compara as duas
+// contra os jogos que existem, para a próxima adição não repetir a deriva.
+console.log("8) As duas voltas ao lobby limpam os restos de TODOS os jogos...");
+const sujar = async (c) => page.evaluate((code) => {
+  window.__testDb.update(`rooms/${code}`, {
+    state: "mapa",
+    hangman: { sujo: true }, mapTrivia: { sujo: true }, tag: { sujo: true },
+    battle: { sujo: true }, draw: { sujo: true }, race: { sujo: true },
+    golf: { sujo: true }, mapa: { sujo: true },
+  });
+}, c);
+const CHAVES_DE_JOGO = ["hangman", "mapTrivia", "tag", "battle", "draw", "race", "golf", "mapa"];
+for (const saida of ["backToLobby", "resetForRematch"]) {
+  await sujar(code);
+  await page.waitForTimeout(150);
+  await page.evaluate(async ({ c, fn }) => {
+    const m = await import("./js/room.js");
+    await m[fn](c, window.__testDb.get(`rooms/${c}`));
+  }, { c: code, fn: saida });
+  await page.waitForTimeout(200);
+  const sobrou = await page.evaluate(({ c, chaves }) => {
+    const r = window.__testDb.get(`rooms/${c}`) || {};
+    return chaves.filter((k) => r[k]);
+  }, { c: code, chaves: CHAVES_DE_JOGO });
+  console.log(`   ${saida}: restos deixados para trás -> ${sobrou.length ? sobrou.join(", ") : "nenhum"}`);
+  if (sobrou.length) {
+    console.log(`   FALHOU: ${saida} deixa o lobby com o estado de ${sobrou.join(", ")}`);
+    process.exitCode = 1;
+  }
+}
+
 await page.click('[data-leave]');
 await page.waitForSelector('[data-screen="home"].active', { timeout: 3000 });
 const fabHiddenAfterLeave = await page.locator("#options-fab").evaluate((el) => el.classList.contains("hidden"));
