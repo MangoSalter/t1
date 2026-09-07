@@ -19,7 +19,8 @@
 //    guardava tudo em fração da tela; foi deitada fora porque com fração não
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
-import { BOARD_TOOLS, pickMascotIntro } from "./data.js";
+import { BOARD_TOOLS, pickMascotIntro, gameHowTo } from "./data.js";
+import { say } from "./voice.js";
 import { sfx } from "./sfx.js";
 import { abrirPaleta } from "./paleta.js";
 
@@ -914,6 +915,13 @@ function falaDaCasaNoQuadro() {
   b.textContent = `${fala.who}: `;
   els.mascote.append(b, document.createTextNode(`“${fala.text}”`));
   els.mascote.classList.remove("hidden", "a-sair");
+  // E DIZ-SE EM VOZ ALTA, no modo guiado. A fala escrita chega a quem lê o
+  // ecrã; o modo guiado existe para quem precisa que lhe digam, e no quadro
+  // não dizia nada — a narração foi feita para o ecrã do "pronto?" dos
+  // mini-jogos, e o quadro não passa por lá. Primeiro o que se faz, depois a
+  // graça: quem está à espera de instruções não quer ouvir a piada primeiro.
+  const como = gameHowTo("board");
+  say(como ? `${como} ${fala.who} diz: ${fala.text}` : `${fala.who} diz: ${fala.text}`);
   if (falaTimer) clearTimeout(falaTimer);
   falaTimer = setTimeout(() => {
     els.mascote.classList.add("a-sair");

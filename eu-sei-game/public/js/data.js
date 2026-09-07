@@ -718,6 +718,12 @@ export const GAME_HOWTO = {
   cards: "Escolhe cartas para fazer pontos. Podes descartar as que não servem.",
   car: "Guia o carro pelas faixas e desvia-te do que vier pela estrada.",
   landmark: "Vê a fotografia e diz onde fica aquele sítio.",
+  // O quadro e o mapa não são mini-jogos e não passam pelo ecrã do "pronto?",
+  // por isso durante muito tempo não tiveram frase nenhuma aqui — a narração
+  // nasceu para os doze mini-jogos, e os mini-jogos foram quase todos para a
+  // oficina. Ficaram os dois melhores jogos da casa sem quem lhes dissesse o
+  // que fazer, que é justamente para quem o modo guiado existe.
+  board: "Tens uma folha em branco. Escolhe uma cor e desenha com o dedo ou com o rato.",
 };
 
 export function gameHowTo(key) {

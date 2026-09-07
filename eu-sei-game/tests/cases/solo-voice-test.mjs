@@ -169,6 +169,49 @@ console.log(`   o portão abriu sem sintetizador, e há aviso no ecrã: ${avisoV
 if (errosSemVoz.length > 0) fail(`sem sintetizador deu erro: ${errosSemVoz[0]}`);
 
 
+// O QUADRO TAMBÉM TEM DE FALAR.
+//
+// A narração nasceu para o ecrã do "pronto?" dos mini-jogos, e o quadro não
+// passa por lá — abre direto. Ficava o melhor jogo da casa a ser o único que
+// não dizia nada a quem ligou o modo guiado precisamente para lhe dizerem o
+// que fazer. A fala da Dona Manga estava lá, mas só escrita.
+//
+// Em página própria, para não mexer no encadeado dos passos de cima.
+console.log("7b) O quadro branco não passa pelo portão, e mesmo assim fala...");
+{
+  const q = await browser.newPage();
+  await q.addInitScript(() => {
+    const dito = [];
+    window.__ditas = dito;
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      get: () => ({
+        speak: (u) => { dito.push(u.text); },
+        cancel: () => {},
+        getVoices: () => [{ lang: "pt-PT", name: "Voz de teste" }],
+      }),
+    });
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: function (t) { this.text = t; },
+    });
+  });
+  await q.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
+  await q.click("#solo-menu-btn");
+  await q.click(".solo-presentation summary");
+  await q.click('[data-presentation="guiado"]');
+  await q.evaluate(() => { window.__ditas.length = 0; });
+  await q.click('[data-screen="solo-menu"] [data-open-board]');
+  await q.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
+  await q.waitForTimeout(400);
+  const ditasQuadro = await q.evaluate(() => window.__ditas.slice());
+  console.log(`   disse: ${JSON.stringify(ditasQuadro)}`);
+  if (ditasQuadro.length === 0) fail("o quadro abriu calado no modo guiado");
+  const noQuadro = ditasQuadro.join(" ");
+  if (!/desenha|cor|folha/i.test(noQuadro)) fail("devia dizer o que se faz no quadro, e não só a graça da casa");
+  await q.close();
+}
+
 console.log("8) Na SALA, o modo guiado narra o que acontece — e nunca a palavra...");
 // Este é o caso que o modo guiado veio servir: jogar com outras pessoas
 // online sem canal de voz. Sem ninguém a dizer o que se passa, a app diz.
