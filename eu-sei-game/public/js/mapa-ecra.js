@@ -15,6 +15,7 @@ import {
 } from "./mapa.js";
 import { t, aoMudarLingua } from "./i18n.js";
 import { armarCaos, limparCaos } from "./caos.js";
+import { say } from "./voice.js";
 
 const els = {
   screen: document.querySelector('[data-screen="mapa"]'),
@@ -202,6 +203,15 @@ function redesenhar() {
 
 function dizer(texto) {
   els.status.textContent = texto;
+  // E diz-se em voz alta, no modo guiado. O mapa não tinha voz nenhuma — a
+  // narração servia os mini-jogos, e os mini-jogos foram quase todos para a
+  // oficina. Aqui a caixa de estado é onde o jogo fala, por isso é o sítio
+  // certo: quem acertou, quantos faltam, a bandeira que o Brasa pousou.
+  //
+  // Não interrompe: numa boa sequência dizem-se três países em dois segundos,
+  // e cortar cada frase a meio para começar a seguinte não deixa ouvir
+  // nenhuma. É o contrário do que se quer entre ecrãs, e por isso é dito aqui.
+  say(texto, { interrupt: false });
 }
 
 // UMA FALA DA CASA ao abrir o mapa. O mapa e o quadro são os dois jogos que

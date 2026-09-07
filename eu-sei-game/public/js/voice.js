@@ -6,7 +6,19 @@
 // no modo guiado a app diz que jogo começa, o que se faz nele, e como correu.
 // No modo mínimo cala-se por completo — é a diferença entre os dois.
 
+import { lingua } from "./i18n.js";
+
 export const __voice = { said: [] };
+
+// A VOZ SEGUE A LÍNGUA DE QUEM JOGA. Estava presa ao pt-PT, e isso chegava
+// enquanto só o modo sozinho falava — mas o mapa fala três línguas, e um
+// sintetizador português a ler inglês é pior do que o silêncio: não se
+// percebe, e soa a defeito.
+const LINGUA_DA_VOZ = { pt: "pt-PT", en: "en-GB", es: "es-ES" };
+
+function codigoDaVoz() {
+  return LINGUA_DA_VOZ[lingua()] || "pt-PT";
+}
 
 const MODE_KEY = "euSei_presentationMode";
 const VOICE_KEY = "euSei_voiceEnabled";
@@ -83,7 +95,7 @@ export function voiceSupported() {
 // Escolhe uma voz portuguesa se existir. Se não existir, fala na que houver:
 // uma voz com sotaque errado é melhor do que silêncio, porque o que interessa
 // é a informação, não o sotaque.
-function pickVoice() {
+function pickVoice(codigo = codigoDaVoz()) {
   if (!supported) return null;
   let vozes = [];
   try {
@@ -92,8 +104,12 @@ function pickVoice() {
     return null;
   }
   if (vozes.length === 0) return null;
-  return vozes.find((v) => /^pt[-_]PT/i.test(v.lang))
-    || vozes.find((v) => /^pt/i.test(v.lang))
+  const base = codigo.slice(0, 2);
+  // Primeiro a variante exata (pt-PT), depois qualquer uma da mesma língua
+  // (pt-BR serve para ler português), e só então nada — falar com a voz
+  // errada é pior do que deixar o browser escolher.
+  return vozes.find((v) => v.lang.replace("_", "-").toLowerCase() === codigo.toLowerCase())
+    || vozes.find((v) => new RegExp(`^${base}`, "i").test(v.lang))
     || null;
 }
 
@@ -116,8 +132,9 @@ export function say(text, { interrupt = true } = {}) {
     // anterior enquanto se olha para o seguinte só confunde.
     if (interrupt) window.speechSynthesis.cancel();
     const u = new window.SpeechSynthesisUtterance(frase);
-    u.lang = "pt-PT";
-    const voz = pickVoice();
+    const codigo = codigoDaVoz();
+    u.lang = codigo;
+    const voz = pickVoice(codigo);
     if (voz) u.voice = voz;
     u.rate = 1.02;
     u.pitch = 1;

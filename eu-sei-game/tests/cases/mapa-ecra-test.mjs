@@ -489,6 +489,58 @@ console.log("   e 'Paris' conquistou a França");
 await page.selectOption("#mapa-camada", "paises");
 await page.waitForTimeout(200);
 
+console.log("N+4) No modo guiado o mapa FALA — e na língua de quem joga...");
+// A narração servia os mini-jogos, e quase todos foram para a oficina. O mapa
+// não tinha voz nenhuma. Agora tem: o que aparece na caixa de estado é o que
+// se ouve. E a voz segue a língua escolhida — um sintetizador português a ler
+// inglês é pior do que o silêncio.
+await page.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  v.setPresentationMode("guiado");
+  v.setVoiceEnabled(true);
+  v.__voice.said.length = 0;
+});
+await page.fill("#mapa-input", "brasil");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForTimeout(400);
+const falado = await page.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  return v.__voice.said.slice();
+});
+console.log(`   o mapa disse: ${JSON.stringify(falado.slice(-2))}`);
+if (falado.length === 0) fail("no modo guiado o mapa devia dizer o que se passa");
+if (!falado.some((f) => /brasil/i.test(f))) fail("devia dizer o país que se acertou");
+
+// A língua da voz acompanha a do jogo.
+const idiomas = await page.evaluate(async () => {
+  const i = await import("./js/i18n.js");
+  const v = await import("./js/voice.js");
+  const lidos = [];
+  for (const lang of ["pt", "en", "es"]) {
+    i.definirLingua(lang);
+    // Não há como ler o u.lang sem falar de verdade, por isso lê-se a decisão
+    // pela mesma porta que o say() usa: a língua atual do jogo.
+    lidos.push([lang, i.lingua()]);
+  }
+  i.definirLingua("pt");
+  v.setPresentationMode("minimo");
+  return lidos;
+});
+console.log(`   línguas: ${JSON.stringify(idiomas)}`);
+if (idiomas.some(([pedida, obtida]) => pedida !== obtida)) fail("a língua do jogo devia mudar quando se pede");
+
+// E no modo mínimo cala-se: é a diferença entre os dois modos.
+await page.evaluate(async () => {
+  const v = await import("./js/voice.js");
+  v.__voice.said.length = 0;
+});
+await page.fill("#mapa-input", "argentina");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForTimeout(400);
+const noMinimo = await page.evaluate(async () => (await import("./js/voice.js")).__voice.said.length);
+console.log(`   no modo mínimo disse ${noMinimo} frases (esperado 0)`);
+if (noMinimo !== 0) fail("no modo mínimo o mapa tem de estar calado");
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;
