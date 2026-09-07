@@ -817,7 +817,13 @@ export async function passHangmanPen(code, room, uid, targetUid) {
   const hangman = room.hangman;
   if (!hangman) return;
   if (hangman.leaderId !== uid && room.hostId !== uid) return;
-  if (!room.players?.[targetUid]) return;
+  // Tem de estar LIGADO, e não apenas existir na sala. A lista de escolha já
+  // só mostra quem está ligado, mas é montada quando o painel abre: entre
+  // abrir e carregar, a pessoa pode ter fechado o separador — e a caneta ia
+  // parar-lhe às mãos, que é o mesmo que trancar o quadro a toda a gente.
+  // O sorteio (pickRandomPenHolder) e a volta (nextPenByRotation) já filtram
+  // por ligados; faltava a esta, que é a que se usa a apontar com o dedo.
+  if (room.players?.[targetUid]?.connected !== true) return;
   await update(ref(db, `rooms/${code}/hangman`), { leaderId: targetUid });
 }
 

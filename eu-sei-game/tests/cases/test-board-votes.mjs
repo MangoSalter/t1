@@ -586,6 +586,15 @@ await guardas.passHangmanPen("GUARDA", salaGuarda, "anfitriao", "ze");
 check2("o anfitrião destranca a sala",
   (await getDb(refDb(dbTeste, CAMINHO))).val().leaderId, "ze");
 
+// E não se passa a caneta a quem já não está lá: seria trancar o quadro outra
+// vez, agora sem ninguém a quem se possa apontar o dedo. A lista de escolha
+// só mostra quem está ligado, mas é montada quando o painel abre — entre
+// abrir e carregar, a pessoa pode ter fechado o separador.
+salaGuarda.players.fantasma = { name: "Fantasma", connected: false, score: 0 };
+await guardas.passHangmanPen("GUARDA", salaGuarda, "anfitriao", "fantasma");
+check2("a caneta não vai para quem já saiu",
+  (await getDb(refDb(dbTeste, CAMINHO))).val().leaderId, "ze");
+
 console.log("36) Quem fecha a palavra fica registado — à vista ou às escondidas...");
 // O "quem ganhou" só era guardado quando as tentativas eram anónimas. Como o
 // normal é estarem à vista, o fim da ronda dizia "Acertaram!" sem dizer a
