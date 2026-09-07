@@ -79,9 +79,13 @@ Já confirmei que dá para ter, e a que custo:
 - **Fonte:** Natural Earth (domínio público) através do pacote `world-atlas`,
   com licença ISC. Sem contas, sem chaves, sem pedir nada a ninguém em tempo
   de jogo.
-- **Convertido para o formato do jogo:** 177 países, 286 anéis, 10 587 pontos.
-  **168 KB** num ficheiro só, com as coordenadas já em fração do mapa (0 a 1) e
-  arredondadas a quatro casas.
+- **Convertido para o formato do jogo:** 177 países, 288 anéis, 10 570 pontos.
+  **191 KB** num ficheiro só, com as coordenadas já em fração do mapa (0 a 1) e
+  arredondadas a quatro casas. (Números remedidos em setembro: o plano dizia
+  286 anéis, 10 587 pontos e 168 KB, do primeiro corte dos dados. O ficheiro
+  só se vai buscar quando o mapa abre — está medido no
+  `tests/cases/mapa-desempenho-test.mjs` —, por isso os 191 KB não pesam na
+  primeira página.)
 - **A projeção é a mesma da imagem que mandaste** (equiretangular): x vem da
   longitude, y da latitude, sem contas nenhumas. O que desenharmos assenta em
   cima da tua imagem.

@@ -76,4 +76,29 @@ console.log(`   e pediu-os ao abrir o mapa: ${pediuDepois}`);
 if (!pediuDepois) fail("o mapa tem de ir buscar os dados quando abre");
 
 console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: ok");
+// E NÃO PODEM CRESCER SEM QUE ALGUÉM REPARE.
+//
+// O ficheiro é gerado (world-atlas -> tools), e regenerá-lo com mais casas
+// decimais ou com fronteiras mais finas é uma linha de diferença no gerador.
+// Passou de 168 KB para 191 KB entre o plano e hoje sem ninguém dar por isso;
+// só dei quando fui verificar os números escritos na documentação. A 191 KB
+// não custa nada — vem só quando o mapa abre, e o passo 2 guarda isso — mas a
+// dois megabytes o mapa demorava a abrir num telemóvel em dados móveis.
+console.log("3) E os dados do mapa não cresceram sem ninguém reparar...");
+const TETO_KB = 260;
+const tamanhoKB = await page.evaluate(async () => {
+  const r = await fetch("./data/paises.json");
+  const t = await r.text();
+  const d = JSON.parse(t);
+  const lista = Array.isArray(d) ? d : Object.values(d).find(Array.isArray);
+  let aneis = 0;
+  for (const c of lista) aneis += (c.aneis || c.rings || []).length;
+  return { kb: t.length / 1024, paises: lista.length, aneis };
+});
+console.log(`   ${tamanhoKB.paises} países, ${tamanhoKB.aneis} anéis, ${tamanhoKB.kb.toFixed(0)} KB (teto ${TETO_KB} KB)`);
+if (tamanhoKB.kb > TETO_KB) {
+  fail(`os dados do mapa estão em ${tamanhoKB.kb.toFixed(0)} KB — acima do teto de ${TETO_KB} KB`);
+}
+if (tamanhoKB.paises !== 177) fail(`esperava 177 países, tenho ${tamanhoKB.paises}`);
+
 await browser.close();
