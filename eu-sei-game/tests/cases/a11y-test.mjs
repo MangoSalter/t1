@@ -151,6 +151,57 @@ if (tiny.length > 0) {
   process.exitCode = 1;
 }
 
+// E NO JOGO CLÁSSICO, QUE É ONDE MAIS SE TOCA.
+//
+// O passo de cima já existia, mas visitava um ecrã só — o da maratona. A
+// votação, que é a fase em que toda a gente toca mais vezes no telemóvel
+// (vota-se em todas as respostas de toda a gente, depressa, e um toque ao lado
+// muda a pontuação de outra pessoa), nunca foi medida. Tinha os botões a 36px.
+console.log("7b) E na votação do jogo clássico, que é onde mais se toca...");
+await pm.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await pm.fill("#name-input", "Ana");
+await pm.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await pm.click("#create-room-btn");
+await pm.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const codigoA11y = (await pm.locator("#lobby-code").textContent()).trim();
+await pm.evaluate((c) => window.__testDb.update(`rooms/${c}/players`, {
+  p2: { name: "Beto", score: 0, connected: true },
+  p3: { name: "Carla", score: 0, connected: true },
+}), codigoA11y);
+await pm.waitForTimeout(300);
+await pm.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  window.__testDb.update(`rooms/${c}`, {
+    state: "voting", round: 1, voting: { endAt: Date.now() + 60000 },
+    categoriesRound: { letter: "M", categoryIndexes: [0, 1, 2, 3], endAt: Date.now() + 90000 },
+    answers: {
+      [r.hostId]: { c0: "Maria", c1: "Marrocos" },
+      p2: { c0: "Miguel", c1: "México" },
+      p3: { c0: "Mara", c1: "Malta" },
+    },
+  });
+}, codigoA11y);
+await pm.waitForTimeout(800);
+const naVotacao = await pm.evaluate(() => {
+  const scr = document.querySelector(".screen.active");
+  const maus = [];
+  scr.querySelectorAll("button").forEach((el) => {
+    if (el.offsetParent === null) return;
+    const r = el.getBoundingClientRect();
+    if (r.height > 0 && r.height < 44) maus.push(`${el.textContent.trim().slice(0, 18)} (${Math.round(r.height)}px)`);
+  });
+  return { ecra: scr.dataset.screen, maus, botoes: scr.querySelectorAll("button").length };
+});
+console.log(`   ecrã ${naVotacao.ecra}: ${naVotacao.botoes} botões, abaixo de 44px: ${naVotacao.maus.length} ${naVotacao.maus.slice(0, 3).join(", ")}`);
+if (naVotacao.ecra !== "voting") {
+  console.log("   FALHOU: não cheguei ao ecrã da votação — a medição não diz nada");
+  process.exitCode = 1;
+}
+if (naVotacao.maus.length > 0) {
+  console.log("   FALHOU: botões de votar pequenos demais — um toque ao lado muda a pontuação de outra pessoa");
+  process.exitCode = 1;
+}
+
 console.log("8) As sobreposições novas: alvos que se dão com o dedo e teclado que chega lá...");
 // Os ecrãs novos (paleta, painel de fim, opções do mapa) não passavam por
 // aqui, e o primeiro que se mediu estava partido: os 68 quadrados da paleta
