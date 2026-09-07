@@ -1458,6 +1458,13 @@ function tagTick(now) {
   const sobraY = (viewportH - arenaH * escala) / 2;
   tagState.worldEl.style.transformOrigin = "0 0";
   tagState.worldEl.style.transform = `translate(${sobraX}px, ${sobraY}px) scale(${escala})`;
+  // A escala vai para o CSS porque há uma coisa que NÃO pode encolher com o
+  // resto: o anel que diz qual dos pontos és tu. O mapa inteiro cabe no ecrã
+  // (foi o que se pediu), e num telemóvel isso mete 1200px em 342 — a 0,28,
+  // um anel de 3px fica a 0,85px, ou seja, desaparece exatamente onde é mais
+  // preciso. Escrito em unidades do mundo a dividir pela escala, mede sempre
+  // o mesmo no ecrã, seja qual for o tamanho dele.
+  tagState.worldEl.style.setProperty("--escala-arena", escala);
 
   tagState.rafId = requestAnimationFrame(tagTick);
 }

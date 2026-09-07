@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage();
@@ -181,6 +181,62 @@ await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
 console.log("   OK: chegou ao ecrã final");
 room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
 console.log(`   scores finais: ${JSON.stringify(Object.fromEntries(Object.entries(room.players).map(([k, v]) => [k, v.score])))}`);
+
+// NUM TELEMÓVEL, TENS DE CONTINUAR A SABER QUAL DOS PONTOS ÉS TU.
+//
+// Pediste o mapa todo à vista, e é o que se faz: a arena de 1200x760 encolhe
+// até caber no ecrã. Num telemóvel de 390px isso é 28%, e cada jogador fica um
+// ponto de 9px. Passa — o jogo é ver-se de longe. O que não passa é o anel que
+// diz qual dos pontos és tu encolher junto: 3px a 28% são 0,85px, e o único
+// sinal que interessa desaparece exatamente onde o ecrã é mais pequeno.
+//
+// O anel é escrito em unidades do mundo a dividir pela escala, para medir
+// sempre o mesmo no ecrã. Este passo mede-o nos dois tamanhos.
+console.log("Num telemóvel e num computador, o anel do \"és tu\" mede o mesmo...");
+{
+  const medidas = [];
+  for (const [nome, alvo] of [["telemóvel", devices["iPhone 13"]], ["computador", { viewport: { width: 1280, height: 800 } }]]) {
+    const ctx2 = await browser.newContext({ ...alvo });
+    const p2 = await ctx2.newPage();
+    await p2.goto("http://localhost:8937/index.html?touch=1", { waitUntil: "networkidle" });
+    await p2.fill("#name-input", "Ana");
+    await p2.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+    await p2.click("#create-room-btn");
+    await p2.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+    const c2 = (await p2.locator("#lobby-code").textContent()).trim();
+    await p2.evaluate((c) => window.__testDb.update(`rooms/${c}/players`, {
+      p2: { name: "Beto", score: 0, connected: true },
+      p3: { name: "Carla", score: 0, connected: true },
+    }), c2);
+    await p2.waitForTimeout(300);
+    await p2.evaluate(async (c) => {
+      const m = await import("./js/room.js");
+      await m.startQuickBonusGame(c, window.__testDb.get(`rooms/${c}`), "tag");
+    }, c2);
+    await p2.waitForSelector('[data-screen="tag"].active', { timeout: 8000 });
+    await p2.waitForTimeout(800);
+    const m = await p2.evaluate(() => {
+      const mundo = document.querySelector(".tag-world");
+      const esc = parseFloat(getComputedStyle(mundo).getPropertyValue("--escala-arena")) || 1;
+      const eu = document.querySelector(".tag-player-me");
+      const sombra = eu ? getComputedStyle(eu).boxShadow : "";
+      const achado = sombra.match(/0px 0px 0px ([\d.]+)px/);
+      const b = eu ? eu.getBoundingClientRect() : null;
+      return { esc, anel: achado ? parseFloat(achado[1]) : null, peca: b ? Math.round(b.width) : null };
+    });
+    const noEcra = m.anel === null ? null : m.anel * m.esc;
+    console.log(`   ${nome}: escala ${m.esc.toFixed(3)} · peça ${m.peca}px · anel ${noEcra === null ? "?" : noEcra.toFixed(2)}px no ecrã`);
+    if (noEcra === null) { console.log("   FALHOU: não encontrei o anel do jogador"); process.exitCode = 1; }
+    else medidas.push({ nome, noEcra });
+    await ctx2.close();
+  }
+  for (const x of medidas) {
+    if (x.noEcra < 2) {
+      console.log(`   FALHOU: no ${x.nome} o anel mede ${x.noEcra.toFixed(2)}px — não se vê qual dos pontos és tu`);
+      process.exitCode = 1;
+    }
+  }
+}
 
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
