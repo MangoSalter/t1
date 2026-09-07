@@ -62,6 +62,30 @@ not estimated — it said ~11 minutes for a while and had quietly grown past
 it). The serial figure in here used to say ~25 minutes; I have not re-measured
 it, so treat it as folklore. If you need a number, measure it.
 
+## New UI is not done until it has been measured on a phone
+This is a party game: everyone joins from their own phone, so the phone is the
+device, not the edge case. Two defects in one day came from checking new UI
+only at desktop width, and both looked fine in a passing test:
+
+- the "Onde Fica Isto?" reveal card covered the sentence naming the monument,
+  because the sentence wraps to three lines at 390px and I had pinned both to
+  the bottom at fixed distances;
+- in Fuga da Infeção the ring saying which dot is *you* measured 0.85px,
+  because the whole arena scales to 0.28 on a phone and the ring scaled with it.
+
+So: open it in `devices["iPhone 13"]`, and measure — `getBoundingClientRect`
+on the thing you added, and on whatever sits next to it. "The element exists"
+and "the test is green" are not the same as "a person can see and hit it".
+Touch targets are 44px; a check that visits one screen only proves that screen
+(`a11y-test` had a touch-target step for months while the voting buttons sat
+at 36px, because it only ever opened the marathon screen).
+
+Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
+renders the same (every colour is explicit — total difference of 1 across the
+whole lobby), and the arena games differ on purpose — Labirinto and Mini-Golfe
+follow the player with a camera at scale 1, Fuga da Infeção fits the whole map
+and shrinks the pieces, which is what the owner asked for.
+
 Browser cases set `euSei_lingua=pt` before asserting on text, and open
 `index.html?oficina=1` when they need a game that is hidden from the public
 site (see `public/js/oficina.js`). Most cases open the plain URL — 48 of them —
