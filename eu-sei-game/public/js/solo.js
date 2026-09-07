@@ -2182,7 +2182,18 @@ function achievementContext() {
     bestHangmanStreak: account.bestHangmanStreak || 0,
     favorites,
     distinctGames: Object.keys(favorites).length,
-    totalGames: Object.keys(GAME_LABELS).length,
+    // SÓ OS JOGOS QUE A PESSOA PODE MESMO JOGAR.
+    //
+    // Contava os doze do GAME_LABELS, incluindo os oito que foram para a
+    // oficina. O "Provaste tudo" pedia doze jogos distintos a quem só tem
+    // quatro à frente, e o "Curioso" pedia cinco — as duas ficaram
+    // impossíveis de ganhar no dia em que os jogos saíram do menu, e uma
+    // conquista impossível é pior do que não existir: está lá à vista, a
+    // prometer uma coisa que não acontece.
+    //
+    // Com ?oficina=1 os doze voltam a contar, porque aí voltam a ser
+    // jogáveis. É a mesma regra do menu e da maratona.
+    totalGames: Object.keys(GAME_LABELS).filter((k) => !estaNaOficina(k)).length,
     runs: history.length,
     bestScore: history.length ? Math.max(...history.map((h) => h.score || 0)) : 0,
   };

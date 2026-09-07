@@ -99,6 +99,46 @@ const favChip = chips.find((c) => c.includes("favorito"));
 console.log(`   ${favChip}`);
 if (!favChip || favChip.includes("—")) { console.log("   FALHOU: o favorito devia vir do que ficou guardado"); process.exitCode = 1; }
 
+// NENHUMA CONQUISTA PODE SER IMPOSSÍVEL DE GANHAR.
+//
+// O "Provaste tudo" pedia os DOZE mini-jogos e o "Curioso" pedia cinco, mas
+// desde que oito foram para a oficina só quatro estão à frente de quem entra
+// no site. As duas ficaram impossíveis no dia do corte, sem ninguém dar por
+// isso — e uma conquista impossível é pior do que não existir: está no ecrã,
+// bloqueada, a prometer uma coisa que nunca acontece.
+//
+// A regra que fica: com os jogos que o menu MOSTRA, jogados todos e muitas
+// vezes, tudo tem de desbloquear.
+console.log("6) Com os jogos que o menu mostra, todas as conquistas são alcançáveis...");
+// A oficina fica ABERTA em localStorage desde o passo 1 (?oficina=1). Sem a
+// fechar, este passo contava os doze e passava sem querer dizer nada — foi
+// o que fez à primeira.
+await page.evaluate(() => localStorage.removeItem("euSei_oficina"));
+await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await page.click("#solo-menu-btn");
+await page.waitForSelector('[data-screen="solo-menu"].active', { timeout: 3000 });
+const jogosAVista = await page.evaluate(() => document.querySelectorAll(
+  '[data-screen="solo-menu"] button[id^="solo-play-"]:not([hidden])',
+).length);
+const impossiveis = await page.evaluate(async (n) => {
+  const { ACHIEVEMENTS } = await import("./js/data.js");
+  // Uma conta de alguém que jogou TUDO o que há, muitas vezes, e bem.
+  const favorites = {};
+  for (let i = 0; i < n; i++) favorites[`jogo${i}`] = 30;
+  const conta = {
+    xp: 999999, gamesPlayed: 9999, bestCombo: 999, bestHangmanStreak: 999,
+    favorites, distinctGames: n, totalGames: n, runs: 999, bestScore: 999999,
+  };
+  return ACHIEVEMENTS.filter((a) => !a.check(conta)).map((a) => `${a.name} (${a.desc})`);
+}, jogosAVista);
+console.log(`   mini-jogos à vista no menu: ${jogosAVista}`);
+console.log(`   conquistas impossíveis: ${impossiveis.length ? impossiveis.join(" · ") : "nenhuma"}`);
+if (jogosAVista === 0) { console.log("   FALHOU: não encontrei os botões do menu — a medição não diz nada"); process.exitCode = 1; }
+if (impossiveis.length > 0) {
+  console.log(`   FALHOU: estas conquistas não se ganham com ${jogosAVista} jogos à vista`);
+  process.exitCode = 1;
+}
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));

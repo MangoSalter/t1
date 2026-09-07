@@ -515,9 +515,12 @@ export const ACHIEVEMENTS = [
   },
   {
     id: "curioso", icon: "🧭", name: "Curioso",
-    desc: "Joga 5 mini-jogos diferentes.",
+    desc: "Joga 5 mini-jogos diferentes (ou todos, se houver menos).",
     who: "Brasa", quip: "Já experimentaste cinco! Eu ainda só sei dormir.",
-    check: (c) => c.distinctGames >= 5,
+    // O mínimo existe porque o número de jogos no menu MUDA: com oito na
+    // oficina sobram quatro, e pedir cinco a quem tem quatro é uma conquista
+    // que nunca ninguém ganha.
+    check: (c) => c.distinctGames >= Math.min(5, c.totalGames),
   },
   {
     id: "colecionador", icon: "🗺️", name: "Provaste tudo",
