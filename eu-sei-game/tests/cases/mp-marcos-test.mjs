@@ -5,7 +5,7 @@
 // FIM, com o nome e o país. Enquanto era pergunta, quem já tinha visto aquele
 // monumento sabia a resposta antes de ler as opções — o jogo morria à segunda
 // partida. Sendo resposta, é onde se aprende.
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage();
@@ -125,6 +125,52 @@ const aguenta = await page.evaluate(async () => {
 });
 console.log(`   com os ${aguenta.total} marcos já usados, saiu "${aguenta.id}"`);
 if (!aguenta.id || !aguenta.palavra) falhar("com o baralho esgotado devia recomeçar, não devolver vazio");
+
+// E NO TELEMÓVEL O DESENHO NÃO PODE TAPAR A FRASE.
+//
+// O desenho de referência e a frase ("Era a Torre Eiffel, em França") são as
+// duas metades do mesmo momento: uma mostra o monumento, a outra diz qual é e
+// onde fica. Estavam presos ao fundo do ecrã com distâncias fixas, e num
+// telemóvel a frase enrola para três linhas, sobe, e ia parar debaixo do
+// desenho — a resposta tapada pela ilustração da resposta.
+console.log("10) Num telemóvel, o desenho e a frase não se pisam...");
+for (const nomeTlm of ["iPhone 13", "Pixel 5"]) {
+  const ctx = await browser.newContext({ ...devices[nomeTlm] });
+  const tlm = await ctx.newPage();
+  await tlm.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+  await tlm.fill("#name-input", "Ana");
+  await tlm.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+  await tlm.click("#create-room-btn");
+  await tlm.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+  const c2 = (await tlm.locator("#lobby-code").textContent()).trim();
+  await tlm.evaluate((c) => window.__testDb.update(`rooms/${c}/players`, {
+    p2: { name: "Beto", score: 0, connected: true },
+    p3: { name: "Carla", score: 0, connected: true },
+  }), c2);
+  await tlm.waitForTimeout(300);
+  await tlm.click('[data-mp-game="marcos"]');
+  await tlm.waitForSelector('[data-screen="draw"].active', { timeout: 8000 });
+  const dono = await tlm.evaluate((c) => window.__testDb.get(`rooms/${c}`).hostId, c2);
+  await tlm.evaluate(({ c, h }) => window.__testDb.update(`rooms/${c}/draw`, { drawerId: h }), { c: c2, h: dono });
+  await tlm.waitForTimeout(300);
+  await tlm.evaluate(async (c) => {
+    const m = await import("./js/room.js");
+    const r = window.__testDb.get(`rooms/${c}`);
+    await m.selectDrawWinner(c, r, r.hostId, "p2");
+  }, c2);
+  await tlm.waitForTimeout(500);
+  const m = await tlm.evaluate(() => {
+    const cx = (el) => { const k = el.getBoundingClientRect(); return { x: Math.round(k.x), y: Math.round(k.y), w: Math.round(k.width), h: Math.round(k.height), bottom: Math.round(k.bottom), right: Math.round(k.right) }; };
+    return { vp: { w: innerWidth, h: innerHeight }, rev: cx(document.getElementById("draw-reveal")), res: cx(document.getElementById("draw-result")) };
+  });
+  const pisa = m.rev.bottom > m.res.y;
+  const fora = m.rev.x < 0 || m.rev.right > m.vp.w || m.res.x < 0 || m.res.right > m.vp.w || m.res.bottom > m.vp.h || m.rev.y < 0;
+  console.log(`   ${nomeTlm}: ecrã ${m.vp.w}x${m.vp.h} · desenho ${m.rev.w}x${m.rev.h} em y=${m.rev.y} · frase ${m.res.h}px em y=${m.res.y}`);
+  if (m.rev.w < 80 || m.rev.h < 80) falhar(`${nomeTlm}: o desenho ficou com ${m.rev.w}x${m.rev.h}px`);
+  if (pisa) falhar(`${nomeTlm}: o desenho tapa a frase que diz qual é o monumento`);
+  if (fora) falhar(`${nomeTlm}: alguma das duas saiu do ecrã`);
+  await ctx.close();
+}
 
 await browser.close();
 const reais = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));

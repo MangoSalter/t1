@@ -830,8 +830,14 @@
       <button id="draw-continue-btn" type="button" class="primary hidden">Próxima ronda</button>
     </div>
     <canvas id="draw-doodle-canvas" class="hangman-doodle-canvas"></canvas>
-    <div id="draw-reveal" class="landmark-image draw-reveal hidden"></div>
-    <div id="draw-result" class="draw-result hidden"></div>
+    <!-- O desenho de referência e a frase do resultado empilham-se numa
+         coluna só. Estavam os dois presos ao fundo do ecrã com distâncias
+         fixas, e no telemóvel a frase enrola para três linhas e sobe até
+         debaixo do desenho: o monumento tapava a frase que diz qual é. -->
+    <div class="draw-fim">
+      <div id="draw-reveal" class="landmark-image draw-reveal hidden"></div>
+      <div id="draw-result" class="draw-result hidden"></div>
+    </div>
   </section>
 
   <!-- MAPA-MÚNDI EM EQUIPA -->

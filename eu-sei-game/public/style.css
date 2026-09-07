@@ -355,14 +355,25 @@ button.hud-btn .icon-inline { color: var(--ink); }
 /* O desenho de referência do "Onde Fica Isto?": aparece só no fim da ronda,
    por cima da faixa do resultado, para se ver como é o monumento a sério
    depois de se ter tentado adivinhar o desenho feito à mão. */
+/* O fim da ronda: o desenho de referência por cima da frase que diz o que
+   era. UMA coluna, e não dois elementos presos ao fundo do ecrã com
+   distâncias fixas — no telemóvel a frase enrola para três linhas, sobe, e
+   ia parar debaixo do desenho. Empilhados, a altura da frase deixa de
+   importar. */
+.draw-fim {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  max-width: min(92vw, 460px);
+}
+.draw-fim > .hidden { display: none; }
+
 .draw-reveal {
-  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); z-index: 9;
-  width: 150px; height: 150px; margin: 0;
+  width: 150px; height: 150px; margin: 0; flex: 0 0 auto;
   box-shadow: 3px 3px 0 rgba(58,49,38,0.3);
 }
-@media (max-height: 560px) { .draw-reveal { width: 104px; height: 104px; bottom: 70px; } }
+@media (max-height: 620px) { .draw-reveal { width: 104px; height: 104px; } }
 
-.draw-result { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 10px 20px; font-weight: 700; box-shadow: 3px 3px 0 rgba(58,49,38,0.3); }
+.draw-result { background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 10px 20px; font-weight: 700; box-shadow: 3px 3px 0 rgba(58,49,38,0.3); text-align: center; }
 .minigame-end-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .mascot-quip { font-style: italic; }
 
