@@ -1252,10 +1252,21 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
    neutros — as cores que mais se usam a desenhar e as que menos havia. */
 .paleta-card { max-width: min(560px, 94vw); }
 .paleta-grelha { display: grid; gap: 4px; margin: 10px 0 14px; }
-.paleta-linha { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+/* align-items: start é ESSENCIAL, não decoração. Sem ele os quadrados ficam
+   com o alinhamento "stretch" que a grelha dá por omissão, a altura passa a
+   ser a da linha (que o conteúdo — nenhum — define), e o aspect-ratio deixa
+   de valer para a altura. Medido num telemóvel: 2px de lado. Uma paleta de
+   68 cores que não se consegue tocar. */
+.paleta-linha {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+  align-items: start;
+}
 .paleta-cor {
   aspect-ratio: 1; border: 1px solid rgba(58, 49, 38, 0.22); border-radius: 6px;
   padding: 0; cursor: pointer; min-width: 0;
+  /* Rede de segurança: mesmo que o aspect-ratio falhe outra vez, o quadrado
+     nunca fica mais pequeno do que um alvo utilizável. */
+  min-height: 30px;
 }
 .paleta-cor:hover { transform: scale(1.12); }
 .paleta-cor.escolhida { outline: 3px solid var(--ink); outline-offset: 1px; }
@@ -1266,8 +1277,12 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
    serve num jogo que se joga com o telemóvel na mão. */
 .board-paleta-btn { font-size: 1.15rem; padding: 4px 9px; min-width: 44px; min-height: 44px; }
 @media (max-width: 640px) {
-  .paleta-linha { grid-template-columns: repeat(8, 1fr); gap: 3px; }
-  .paleta-cor { border-radius: 4px; }
+  /* Menos colunas no telemóvel: com oito, cada quadrado ficava com 38px de
+     lado num ecrã de 375. Com seis passam dos 44px, que é o mínimo para um
+     dedo — e a paleta ganha duas linhas, que é o preço certo a pagar. */
+  .paleta-linha { grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .paleta-cor { border-radius: 5px; min-height: 44px; }
+  .paleta-grelha { max-height: 56vh; overflow-y: auto; }
 }
 
 /* A escolha de quem acertou: nomes grandes o suficiente para se carregar

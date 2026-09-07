@@ -321,6 +321,10 @@ function mostrarFim() {
       els.fimContinentes.appendChild(div);
     });
   els.fim.classList.remove("hidden");
+  // O foco entra no painel. É um diálogo: deixá-lo na caixa de escrever
+  // significa que quem navega por teclado continua a escrever para um jogo
+  // que já acabou, e não chega aos botões sem passar por tudo o resto.
+  els.fimFecharBtn?.focus();
 }
 
 function esconderFim() {
@@ -741,7 +745,11 @@ if (haEcra()) {
     armarAjuda();
     dizer(mensagemDeAcerto(alvo));
     avisarASala(alvo);
-    focar();
+    // O foco só volta à caixa se o jogo continuar. Com o mapa completo, o
+    // painel de fim já o levou para si — devolvê-lo à caixa punha a escrever
+    // num jogo acabado e deixava os botões do painel fora de alcance para
+    // quem navega por teclado.
+    if (!estaCompleto()) focar();
   });
 
   // Escape larga o país escolhido sem obrigar a clicar noutro sítio, e limpa o

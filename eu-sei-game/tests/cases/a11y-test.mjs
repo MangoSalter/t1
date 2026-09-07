@@ -1,7 +1,7 @@
 // Acessibilidade: o foco tem de ser visivel para quem navega por teclado, e a
 // preferencia de movimento reduzido tem de valer para TODAS as animacoes, nao
 // so para algumas.
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const errors = [];
@@ -129,7 +129,6 @@ Object.entries(contrast).forEach(([k, r]) => {
 });
 
 console.log("7) Alvos de toque no telemovel: minimo 44px de altura...");
-const { devices } = await import("playwright");
 const mob = await browser.newContext({ ...devices["iPhone 13"] });
 const pm = await mob.newPage();
 await pm.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
@@ -149,6 +148,78 @@ const tiny = await pm.evaluate(() => {
 console.log(`   alvos abaixo de 40px: ${tiny.length} ${tiny.slice(0, 4).join(", ")}`);
 if (tiny.length > 0) {
   console.log("   FALHOU: alvos pequenos demais para dedos — erra-se a categoria ao lado");
+  process.exitCode = 1;
+}
+
+console.log("8) As sobreposições novas: alvos que se dão com o dedo e teclado que chega lá...");
+// Os ecrãs novos (paleta, painel de fim, opções do mapa) não passavam por
+// aqui, e o primeiro que se mediu estava partido: os 68 quadrados da paleta
+// tinham DOIS PÍXEIS de lado num telemóvel. A grelha estica os filhos por
+// omissão, a altura passa a ser a da linha — que sem conteúdo é zero — e o
+// aspect-ratio deixa de valer. Uma paleta impossível de tocar.
+const tel = await browser.newContext({ ...devices["iPhone 13"] });
+const tp = await tel.newPage();
+await tp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await tp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await tp.reload({ waitUntil: "networkidle" });
+await tp.click("[data-open-board]");
+await tp.waitForSelector('[data-screen="board"].active', { timeout: 8000 });
+await tp.click("#board-paleta-btn");
+await tp.waitForSelector("#paleta-overlay:not(.hidden)", { timeout: 5000 });
+const paleta = await tp.evaluate(() => {
+  const bs = [...document.querySelectorAll(".paleta-cor")];
+  const lados = bs.map((b) => {
+    const r = b.getBoundingClientRect();
+    return Math.min(r.width, r.height);
+  });
+  return {
+    quantos: bs.length,
+    menor: Math.round(Math.min(...lados)),
+    semEtiqueta: bs.filter((b) => !b.getAttribute("aria-label")).length,
+    cabeNoEcra: document.querySelector(".paleta-card").getBoundingClientRect().height <= window.innerHeight,
+  };
+});
+console.log(`   paleta: ${paleta.quantos} cores, o mais pequeno tem ${paleta.menor}px de lado, ${paleta.semEtiqueta} sem etiqueta`);
+if (paleta.menor < 44) { console.log(`   FALHOU: um quadrado de ${paleta.menor}px não se toca com o dedo`); process.exitCode = 1; }
+if (paleta.semEtiqueta > 0) { console.log("   FALHOU: todas as cores precisam de etiqueta para quem usa leitor de ecrã"); process.exitCode = 1; }
+if (!paleta.cabeNoEcra) { console.log("   FALHOU: a paleta não cabe no ecrã do telemóvel"); process.exitCode = 1; }
+await tel.close();
+
+console.log("9) Escape fecha o que se abre, e o painel de fim recebe o foco...");
+const kb = await browser.newPage();
+await kb.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await kb.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await kb.reload({ waitUntil: "networkidle" });
+await kb.click("[data-open-board]");
+await kb.waitForSelector('[data-screen="board"].active', { timeout: 8000 });
+await kb.click("#board-paleta-btn");
+await kb.waitForSelector("#paleta-overlay:not(.hidden)", { timeout: 5000 });
+await kb.keyboard.press("Escape");
+await kb.waitForTimeout(200);
+const fechouComEscape = await kb.evaluate(() => document.getElementById("paleta-overlay").classList.contains("hidden"));
+console.log(`   Escape fecha a paleta: ${fechouComEscape}`);
+if (!fechouComEscape) { console.log("   FALHOU: uma sobreposição que não fecha com Escape prende quem usa teclado"); process.exitCode = 1; }
+
+// O painel de fim é um diálogo: o foco tem de entrar nele.
+await kb.evaluate(() => document.querySelectorAll("[data-screen]").forEach((el) => el.classList.toggle("active", el.dataset.screen === "home")));
+await kb.click('[data-screen="home"] [data-open-mapa]');
+await kb.waitForSelector('[data-screen="mapa"].active', { timeout: 8000 });
+await kb.waitForFunction(async () => (await import("./js/mapa.js")).mapa.paises.length > 0, { timeout: 10000 });
+await kb.selectOption("#mapa-modo", "oceanos");
+await kb.waitForTimeout(200);
+for (const n of ["pacifico", "atlantico", "indico", "antartico", "artico"]) {
+  await kb.fill("#mapa-input", n);
+  await kb.click("#mapa-form button[type=submit]");
+  await kb.waitForTimeout(80);
+}
+await kb.waitForSelector("#mapa-fim:not(.hidden)", { timeout: 5000 });
+const foco = await kb.evaluate(() => ({
+  focado: document.activeElement?.id || "",
+  role: document.getElementById("mapa-fim").getAttribute("role"),
+}));
+console.log(`   painel de fim: role=${foco.role}, foco em "${foco.focado}"`);
+if (!foco.focado.startsWith("mapa-fim")) {
+  console.log("   FALHOU: o foco devia entrar no painel — senão escreve-se num jogo que já acabou");
   process.exitCode = 1;
 }
 
