@@ -77,11 +77,22 @@ Only the third version — dark pixels inside the card, inset past the frame —
 actually failed on a blank card. Nothing about the first two looked wrong.
 
 The good news, checked by breaking each on purpose in September: the
-load-bearing guards here are real. `test-equilibrio` goes red both for a payout
-outside the 15-40 band and for the board damper swapped for a flat cap;
-`test-stub-fidelity` catches the stub mirroring identity instead of importing
-it; `oficina-test` catches the hiding being switched off. Spot-check others the
-same way rather than trusting a green tick.
+load-bearing guards here are real. Seven, falsified one at a time:
+
+| break this | and this goes red |
+|---|---|
+| kill points 15 -> 200 | `test-equilibrio` |
+| board damper -> flat cap | `test-equilibrio` |
+| stub mirrors identity instead of importing | `test-stub-fidelity` |
+| workshop hiding switched off | `oficina-test` |
+| first-letter rule out of `quaseIgual` | `test-mapa` |
+| whiteboard opens without its welcome | `coesao-test` |
+| map drawing made slow (185ms vs the 8ms ceiling) | `mapa-desempenho-test` |
+
+So the suite is sound; the two that fooled me were checks I had written that
+same hour, which is exactly when you already believe the thing works and the
+check agreeing feels like confirmation. Spot-check others the same way rather
+than trusting a green tick.
 
 ## New UI is not done until it has been measured on a phone
 This is a party game: everyone joins from their own phone, so the phone is the
