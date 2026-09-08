@@ -126,6 +126,63 @@ const aguenta = await page.evaluate(async () => {
 console.log(`   com os ${aguenta.total} marcos já usados, saiu "${aguenta.id}"`);
 if (!aguenta.id || !aguenta.palavra) falhar("com o baralho esgotado devia recomeçar, não devolver vazio");
 
+// TODOS OS MONUMENTOS TÊM DE SE VER MESMO.
+//
+// O baralho é feito de SVG escrito à mão. Um erro de fecho de etiqueta, uma
+// cor que não existe, um caminho fora do viewBox — e o cartão do fim da ronda
+// aparece em branco. O jogo continua a funcionar, o teste do baralho continua
+// verde (as chaves lá estão, as frases lá estão), e o momento em que se
+// aprende alguma coisa é uma moldura vazia. "A string existe" não é "vê-se um
+// monumento": pinta-se cada um e contam-se os píxeis.
+console.log("9b) Os 24 monumentos do baralho desenham-se mesmo...");
+{
+  const ids = await page.evaluate(async () => {
+    const { LANDMARKS } = await import("./js/data.js");
+    return LANDMARKS.map((l) => l.id);
+  });
+  const vazios = [];
+  for (const id of ids) {
+    await page.evaluate(async (marcoId) => {
+      const { LANDMARKS } = await import("./js/data.js");
+      const el = document.getElementById("draw-reveal");
+      el.classList.remove("hidden");
+      el.innerHTML = LANDMARKS.find((l) => l.id === marcoId).svg;
+    }, id);
+    await page.waitForTimeout(60);
+    // Contam-se PÍXEIS, não formas: a Torre Eiffel é um caminho composto e uma
+    // linha de chão sem altura, e contar formas dava-a como vazia sendo ela
+    // perfeitamente visível. O que interessa é quanto do cartão fica pintado.
+    const foto = await page.locator("#draw-reveal").screenshot();
+    const tinta = await page.evaluate(async (b64) => {
+      const img = new Image();
+      await new Promise((r) => { img.onload = r; img.src = "data:image/png;base64," + b64; });
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      // SÓ O INTERIOR do cartão, com uma margem de 15% de cada lado: o canto
+      // é a moldura, e usá-lo como referência dava o cartão inteiro por
+      // "pintado" — foi o que fez à primeira, e passava com o desenho todo
+      // fora do viewBox. Contam-se píxeis ESCUROS, que é do que os traços
+      // desta casa são feitos.
+      const m = Math.round(Math.min(c.width, c.height) * 0.15);
+      const dados = x.getImageData(m, m, c.width - 2 * m, c.height - 2 * m).data;
+      let escuros = 0, total = 0;
+      for (let i = 0; i < dados.length; i += 4) {
+        total++;
+        const lum = 0.299 * dados[i] + 0.587 * dados[i + 1] + 0.114 * dados[i + 2];
+        if (lum < 150) escuros++;
+      }
+      return { parte: total ? escuros / total : 0 };
+    }, foto.toString("base64"));
+    if (tinta.parte < 0.02) vazios.push(`${id} (${(tinta.parte * 100).toFixed(1)}% de traço)`);
+  }
+  console.log(`   ${ids.length} monumentos pintados; sem desenho à vista: ${vazios.length ? vazios.join(", ") : "nenhum"}`);
+  if (ids.length < 20) falhar(`o baralho tem ${ids.length} monumentos — esperava pelo menos 20`);
+  if (vazios.length > 0) falhar(`estes monumentos aparecem em branco: ${vazios.join(", ")}`);
+  await page.evaluate(() => { document.getElementById("draw-reveal").classList.add("hidden"); });
+}
+
 // E NO TELEMÓVEL O DESENHO NÃO PODE TAPAR A FRASE.
 //
 // O desenho de referência e a frase ("Era a Torre Eiffel, em França") são as

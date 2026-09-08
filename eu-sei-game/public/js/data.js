@@ -192,6 +192,161 @@ export function pickMapCriteria() {
 // solo e uma futura versão em equipa. ---
 export const LANDMARKS = [
   {
+    id: "sagrada", name: "Sagrada Família", answer: "Espanha",
+    onde: "em Espanha", frase: "Era a Sagrada Família, em Espanha.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="90" x2="96" y2="90" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#e0d3b4" stroke="var(--ink)" stroke-width="1.8">
+        <path d="M20,90 L20,44 Q24,22 28,44 L28,90 Z"/>
+        <path d="M34,90 L34,34 Q38,10 42,34 L42,90 Z"/>
+        <path d="M58,90 L58,34 Q62,10 66,34 L66,90 Z"/>
+        <path d="M72,90 L72,44 Q76,22 80,44 L80,90 Z"/>
+      </g>
+      <path d="M44,90 L44,54 Q50,40 56,54 L56,90 Z" fill="#efe6d0" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="var(--accent)" stroke="var(--ink)" stroke-width="1.2">
+        <circle cx="24" cy="40" r="3"/><circle cx="38" cy="30" r="3"/>
+        <circle cx="62" cy="30" r="3"/><circle cx="76" cy="40" r="3"/>
+      </g>
+      <path d="M46,68 Q50,60 54,68 L54,90 L46,90 Z" fill="var(--ink)" opacity="0.65"/>
+      <g stroke="var(--ink)" stroke-width="1" opacity="0.5">
+        <path d="M20,60 L28,60 M34,54 L42,54 M58,54 L66,54 M72,60 L80,60"/>
+      </g>
+    </svg>`,
+  },
+  {
+    id: "brandemburgo", name: "Portão de Brandemburgo", answer: "Alemanha",
+    onde: "na Alemanha", frase: "Era o Portão de Brandemburgo, na Alemanha.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="88" x2="96" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#efe7d4" stroke="var(--ink)" stroke-width="1.8">
+        <rect x="16" y="44" width="8" height="44"/><rect x="30" y="44" width="8" height="44"/>
+        <rect x="44" y="44" width="8" height="44"/><rect x="58" y="44" width="8" height="44"/>
+        <rect x="72" y="44" width="8" height="44"/>
+      </g>
+      <rect x="10" y="34" width="76" height="11" fill="#e4d9bd" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="12" y="26" width="72" height="8" fill="#efe7d4" stroke="var(--ink)" stroke-width="1.8"/>
+      <g fill="#c9a877" stroke="var(--ink)" stroke-width="1.6">
+        <rect x="38" y="14" width="24" height="6"/>
+        <circle cx="44" cy="10" r="3"/><circle cx="52" cy="10" r="3"/>
+        <path d="M60,20 L60,10 L66,14 Z"/>
+      </g>
+      <path d="M40,88 L40,52 L46,52 L46,88 Z" fill="var(--ink)" opacity="0.25"/>
+    </svg>`,
+  },
+  {
+    id: "mesquitaazul", name: "Mesquita Azul", answer: "Turquia",
+    onde: "na Turquia", frase: "Era a Mesquita Azul, na Turquia.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="90" x2="96" y2="90" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#e8e0cc" stroke="var(--ink)" stroke-width="1.6">
+        <path d="M12,90 L12,40 Q16,32 20,40 L20,90 Z"/>
+        <path d="M80,90 L80,40 Q84,32 88,40 L88,90 Z"/>
+      </g>
+      <path d="M12,40 Q16,26 20,40 Z" fill="#5f86ad" stroke="var(--ink)" stroke-width="1.4"/>
+      <path d="M80,40 Q84,26 88,40 Z" fill="#5f86ad" stroke="var(--ink)" stroke-width="1.4"/>
+      <rect x="26" y="60" width="48" height="30" fill="#efe7d4" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M26,60 Q50,28 74,60 Z" fill="#5f86ad" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M34,62 Q42,46 50,62 Z" fill="#7ba3c9" stroke="var(--ink)" stroke-width="1.4"/>
+      <path d="M50,62 Q58,46 66,62 Z" fill="#7ba3c9" stroke="var(--ink)" stroke-width="1.4"/>
+      <path d="M50,28 L50,20" stroke="var(--ink)" stroke-width="1.8"/>
+      <circle cx="50" cy="18" r="2.5" fill="var(--accent)" stroke="var(--ink)" stroke-width="1.2"/>
+      <rect x="45" y="74" width="10" height="16" fill="var(--ink)" opacity="0.6"/>
+    </svg>`,
+  },
+  {
+    id: "petra", name: "O Tesouro de Petra", answer: "Jordânia",
+    onde: "na Jordânia", frase: "Era o Tesouro de Petra, na Jordânia.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="100" height="100" fill="#c98f63"/>
+      <path d="M0,0 L18,0 L14,100 L0,100 Z M86,0 L100,0 L100,100 L82,100 Z" fill="#a97245"/>
+      <rect x="24" y="26" width="52" height="64" fill="#dda878" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#e8bd91" stroke="var(--ink)" stroke-width="1.5">
+        <rect x="28" y="52" width="7" height="38"/><rect x="40" y="52" width="7" height="38"/>
+        <rect x="53" y="52" width="7" height="38"/><rect x="65" y="52" width="7" height="38"/>
+      </g>
+      <polygon points="50,26 76,48 24,48" fill="#e8bd91" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M44,90 L44,66 Q50,58 56,66 L56,90 Z" fill="var(--ink)" opacity="0.75"/>
+      <circle cx="50" cy="40" r="5" fill="#dda878" stroke="var(--ink)" stroke-width="1.6"/>
+      <line x1="0" y1="90" x2="100" y2="90" stroke="var(--ink)" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "angkor", name: "Angkor Wat", answer: "Camboja",
+    onde: "no Camboja", frase: "Era Angkor Wat, no Camboja.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="80" width="100" height="20" fill="#8fa87b"/>
+      <line x1="0" y1="80" x2="100" y2="80" stroke="var(--ink)" stroke-width="2"/>
+      <g fill="#cbbf9c" stroke="var(--ink)" stroke-width="1.8">
+        <path d="M14,80 L14,52 Q20,34 26,52 L26,80 Z"/>
+        <path d="M74,80 L74,52 Q80,34 86,52 L86,80 Z"/>
+        <path d="M32,80 L32,44 Q38,24 44,44 L44,80 Z"/>
+        <path d="M56,80 L56,44 Q62,24 68,44 L68,80 Z"/>
+      </g>
+      <path d="M40,80 L40,36 Q50,10 60,36 L60,80 Z" fill="#ddd2b0" stroke="var(--ink)" stroke-width="2.2"/>
+      <rect x="10" y="70" width="80" height="10" fill="#ddd2b0" stroke="var(--ink)" stroke-width="1.8"/>
+      <g stroke="var(--ink)" stroke-width="1" opacity="0.55">
+        <path d="M44,52 L56,52 M42,60 L58,60 M16,62 L24,62 M76,62 L84,62"/>
+      </g>
+      <path d="M0,88 Q25,84 50,88 T100,88" fill="none" stroke="#7ba3c9" stroke-width="2"/>
+    </svg>`,
+  },
+  {
+    id: "kinderdijk", name: "Moinhos de Kinderdijk", answer: "Países Baixos",
+    onde: "nos Países Baixos", frase: "Eram os moinhos de Kinderdijk, nos Países Baixos.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="76" width="100" height="24" fill="#9dbb84"/>
+      <path d="M0,88 Q30,84 60,88 T100,86 L100,100 L0,100 Z" fill="#7ba3c9"/>
+      <line x1="0" y1="76" x2="100" y2="76" stroke="var(--ink)" stroke-width="1.8"/>
+      <path d="M24,76 L30,34 L46,34 L52,76 Z" fill="#c9a877" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M28,30 L48,30 L46,36 L30,36 Z" fill="#8f5f3a" stroke="var(--ink)" stroke-width="1.8"/>
+      <g stroke="var(--ink)" stroke-width="2.2" fill="#efe7d4">
+        <path d="M38,33 L38,6 M38,33 L64,33 M38,33 L38,60 M38,33 L12,33"/>
+      </g>
+      <g fill="#efe7d4" stroke="var(--ink)" stroke-width="1.4">
+        <rect x="35" y="6" width="6" height="14"/><rect x="50" y="30" width="14" height="6"/>
+        <rect x="35" y="46" width="6" height="14"/><rect x="12" y="30" width="14" height="6"/>
+      </g>
+      <rect x="34" y="60" width="9" height="16" fill="var(--ink)" opacity="0.6"/>
+      <path d="M70,76 L74,52 L84,52 L88,76 Z" fill="#c9a877" stroke="var(--ink)" stroke-width="1.6" opacity="0.8"/>
+    </svg>`,
+  },
+  {
+    id: "obelisco", name: "Obelisco de Buenos Aires", answer: "Argentina",
+    onde: "na Argentina", frase: "Era o Obelisco de Buenos Aires, na Argentina.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="84" width="100" height="16" fill="#b9b3a6"/>
+      <line x1="0" y1="84" x2="100" y2="84" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M42,84 L45,20 L50,10 L55,20 L58,84 Z" fill="#efe7d4" stroke="var(--ink)" stroke-width="2.2"/>
+      <path d="M50,10 L55,20 L50,20 Z" fill="#d8cfb8" stroke="none"/>
+      <rect x="38" y="84" width="24" height="6" fill="#e0d9c6" stroke="var(--ink)" stroke-width="1.8"/>
+      <g stroke="var(--ink)" stroke-width="1" opacity="0.45">
+        <path d="M44,40 L56,40 M43,58 L57,58"/>
+      </g>
+      <g fill="#7ba3c9" stroke="var(--ink)" stroke-width="1.2">
+        <rect x="8" y="70" width="18" height="14"/><rect x="74" y="66" width="18" height="18"/>
+      </g>
+      <circle cx="50" cy="6" r="2" fill="var(--accent)" stroke="var(--ink)" stroke-width="1"/>
+    </svg>`,
+  },
+  {
+    id: "torrecn", name: "Torre CN", answer: "Canadá",
+    onde: "no Canadá", frase: "Era a Torre CN, no Canadá.",
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="88" width="100" height="12" fill="#8f9aa8"/>
+      <line x1="0" y1="88" x2="100" y2="88" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M44,88 L47,44 L53,44 L56,88 Z" fill="#d9d3c6" stroke="var(--ink)" stroke-width="2"/>
+      <path d="M40,44 Q50,32 60,44 Q50,50 40,44 Z" fill="#efe7d4" stroke="var(--ink)" stroke-width="2"/>
+      <rect x="42" y="36" width="16" height="8" fill="#c4bdae" stroke="var(--ink)" stroke-width="1.6"/>
+      <path d="M48,36 L48,16 L52,16 L52,36 Z" fill="#d9d3c6" stroke="var(--ink)" stroke-width="1.8"/>
+      <line x1="50" y1="16" x2="50" y2="4" stroke="var(--ink)" stroke-width="2"/>
+      <circle cx="50" cy="3" r="2" fill="var(--accent)" stroke="var(--ink)" stroke-width="1"/>
+      <g fill="#a8b4c2" stroke="var(--ink)" stroke-width="1.2">
+        <rect x="10" y="70" width="14" height="18"/><rect x="28" y="76" width="10" height="12"/>
+        <rect x="66" y="72" width="12" height="16"/><rect x="82" y="78" width="10" height="10"/>
+      </g>
+    </svg>`,
+  },
+  {
     id: "belem", name: "Torre de Belém", answer: "Portugal",
     onde: "em Portugal", frase: "Era a Torre de Belém, em Portugal.",
     // A primeira da casa: o jogo é português e o baralho não tinha um único

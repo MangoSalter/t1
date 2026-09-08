@@ -22,7 +22,7 @@ coluna da direita é uma recomendação, não um veredito.
 | **Fuga da Infeção** (apanhada) | A intermitência foi investigada e **arranjada** (444b65d): não eram os power-ups, era o relógio da ronda — infetar o último sobrevivente fechava a ronda e o power-up ficava num jogo já morto. Corridas seguidas do teste passam. Depois disso levou a arena toda à vista, paredes novas e power-ups de fuga | **Fica** |
 | **Batalha no labirinto** | Tem testes (lógica e ecrã) e ganhou as animações de golpe e baque que pediste. Auditado: (a) o golpe acerta só por distância, sem olhar a paredes, e o que impede bater através da parede mais fina é **um píxel** (16+24+16 = 56 contra 55 de alcance); (b) o labirinto é todo andável, sem bolsas fechadas; (c) as armas nunca nascem dentro de uma parede. As três coisas estão presas por teste | **Fica** |
 | **Mini-golfe** | Tem testes de lógica e de ecrã. A pista passou a 2400x1200 com terreno (aceleradores, saltitões, areia) e power-ups, por a anterior ser curta e monótona | **Fica** |
-| **Onde Fica Isto?** (desenhado) | **Refeito** como pediste: já não é escolha múltipla sobre um desenho pronto — uma pessoa recebe o monumento e desenha-o, os outros dizem o país. O desenho da casa passou a ser a RESPOSTA, mostrada no fim com o nome e o país. Baralho de 16 monumentos | **Fica** |
+| **Onde Fica Isto?** (desenhado) | **Refeito** como pediste: já não é escolha múltipla sobre um desenho pronto — uma pessoa recebe o monumento e desenha-o, os outros dizem o país. O desenho da casa passou a ser a RESPOSTA, mostrada no fim com o nome e o país. Baralho de 24 monumentos, um por país | **Fica** |
 
 ## Jogar sozinho
 
