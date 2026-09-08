@@ -60,6 +60,10 @@ so Playwright uses the browser it installed itself. Checked by pointing the
 runner at a folder that does not exist and watching the cases go red on the
 default lookup. When you add a case, copy the launch line from a neighbour.
 
+The runner also served the copies with `python3 -m http.server`, so a
+JavaScript project's suite needed Python to start at all. It is twenty lines
+of `node:http` now — Node and `npm install` are the whole toolchain.
+
 ## A pure test with a hard-coded path tests the wrong files
 `test-data.mjs` and `test-linguas.mjs` imported
 `/home/user/.../public/js/data.js` by absolute path. That is not only

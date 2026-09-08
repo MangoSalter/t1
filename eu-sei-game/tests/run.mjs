@@ -25,7 +25,9 @@
 // node_modules, e a partir do /tmp não há nenhum para encontrar.
 import { spawn } from "node:child_process";
 import { cp, mkdtemp, readdir, readFile, writeFile, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, createReadStream } from "node:fs";
+import { createServer } from "node:http";
+import { stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,6 +90,43 @@ for (const port of todasAsPortas) {
 const root = await mkdtemp(path.join(tmpdir(), "eu-sei-tests-"));
 const copiaDosCasos = path.join(here, ".corrida");
 await rm(copiaDosCasos, { recursive: true, force: true });
+// Servidor de ficheiros, em Node. Era o `python3 -m http.server`, e isso
+// obrigava a ter python instalado para correr uma suite de um projeto que é
+// só JavaScript — noutra máquina a suite morria antes do primeiro caso, a
+// dizer que não encontrava um comando. São vinte linhas; a dependência não
+// valia o que custava.
+const TIPOS = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+};
+function servirPasta(dir, port) {
+  const s = createServer(async (req, res) => {
+    const pedido = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+    let alvo = path.join(dir, pedido);
+    // Sem isto, um pedido com ".." lia ficheiros de fora da pasta servida.
+    if (!alvo.startsWith(dir)) { res.writeHead(403).end(); return; }
+    try {
+      let info = await stat(alvo);
+      if (info.isDirectory()) { alvo = path.join(alvo, "index.html"); info = await stat(alvo); }
+      res.writeHead(200, {
+        "content-type": TIPOS[path.extname(alvo).toLowerCase()] || "application/octet-stream",
+        "content-length": info.size,
+      });
+      createReadStream(alvo).pipe(res);
+    } catch {
+      res.writeHead(404).end("não existe");
+    }
+  });
+  s.listen(port);
+  return s;
+}
+
 const servers = [];
 try {
   for (const t of trabalhadores) {
@@ -99,7 +138,7 @@ try {
       // cópia com o stub: o firebase-init.js verdadeiro vai buscar a Firebase
       // a um CDN por https, e o Node não importa de https.
       await cp(casesDir, dir, { recursive: true });
-      servers.push(spawn("python3", ["-m", "http.server", String(port)], { cwd: dir, stdio: "ignore" }));
+      servers.push(servirPasta(dir, port));
     }
     // A cópia dos casos com as portas deste trabalhador.
     t.dir = path.join(copiaDosCasos, `w${t.i}`);
@@ -173,7 +212,7 @@ try {
     process.exitCode = 1;
   }
 } finally {
-  servers.forEach((s) => s.kill());
+  servers.forEach((s) => s.close());
   await rm(root, { recursive: true, force: true });
   await rm(copiaDosCasos, { recursive: true, force: true });
 }
