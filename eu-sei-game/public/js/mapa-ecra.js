@@ -7,7 +7,7 @@
 // puro deixou de conseguir importá-lo à segunda linha.
 import {
   mapa, carregarPaises, enquadrar, zoomPor, mundoDoEcra, paisEm,
-  porConquistar, estaCompleto, acertou, conquistar, sugerir, desenhar,
+  porConquistar, estaCompleto, acertou, conquistar, desenhar,
   MODOS, emJogo, estaEmJogo, enquadrarJogo, revelarPista, bandeiraDe,
   tresHipoteses, ecraDoMundo, RACIO, oceanoEm, DIFICULDADES, CAMADAS, porNomeEscrito,
   alvoDaResposta,

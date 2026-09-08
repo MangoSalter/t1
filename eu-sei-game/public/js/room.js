@@ -6,9 +6,9 @@ import {
   onDisconnect, serverTimestamp, runTransaction, serverNow,
 } from "./firebase-init.js";
 import {
-  DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey, CATEGORIES,
+  DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey,
   BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
-  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, pickBoardChaos, BOARD_CHAOS, BOARD_TOOL_KEYS,
+  pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, BOARD_CHAOS, BOARD_TOOL_KEYS,
   pickLandmark, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
 
 // --- Mapa-Múndi em equipa (bónus de fim de partida, alternativa/adicional

@@ -4,7 +4,6 @@ import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 // "marcador" tem de ser a mesma coisa nos dois sítios, senão o mesmo botão
 // desenha diferente conforme o ecrã em que se está. Vivem no data.js, que não
 // toca no DOM — assim o módulo da rede e os testes puros também lhes chegam.
-import { say as narrar } from "./voice.js";
 import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES,

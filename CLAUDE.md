@@ -128,6 +128,14 @@ Touch targets are 44px; a check that visits one screen only proves that screen
 (`a11y-test` had a touch-target step for months while the voting buttons sat
 at 36px, because it only ever opened the marathon screen).
 
+To sweep every screen cheaply, don't navigate to each one: open the page on a
+phone context, then walk `[data-screen]` toggling `active` and measure every
+visible `button, label` in each. It takes seconds and it found the hangman
+board's tools at 40px — the mobile block raised the colours beside them to 44
+and forgot the tools, while the comment above the desktop rule claimed both
+were handled. Static markup is all this catches, so overlays and in-game HUDs
+still need real navigation; but the sweep tells you where to go and look.
+
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the
 whole lobby), and the arena games differ on purpose — Labirinto and Mini-Golfe

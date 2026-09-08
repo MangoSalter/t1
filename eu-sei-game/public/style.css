@@ -908,9 +908,11 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 #hangman-mode-hint { margin-left: auto; text-align: right; }
 
 .hangman-toolbar { row-gap: 6px; }
-/* No computador, 36px chega e poupa espaço numa barra cheia. No telemóvel
-   não: 36px é abaixo do alvo de dedo usado em todo o resto da app, e é aí que
-   se falha o toque. Ver a regra no bloco do telemóvel, mais abaixo. */
+/* No computador, 36px (cores) e 40px (ferramentas) chegam e poupam espaço
+   numa barra cheia. No telemóvel não: ficam abaixo do alvo de dedo usado em
+   todo o resto da app, e é aí que se falha o toque. As DUAS regras voltam aos
+   44px no bloco do telemóvel, mais abaixo — as cores já lá estavam, as
+   ferramentas ficaram para trás e passaram meses a 40px. */
 .hangman-toolbar .board-color, .hangman-toolbar .board-width { width: 36px; height: 36px; }
 .hangman-toolbar .board-tool { min-height: 40px; }
 
@@ -1152,6 +1154,10 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
   .hangman-board-zone { flex: 1 1 100%; }
   .hangman-color-row .board-color, .hangman-width-row .board-width { flex: 0 0 auto; }
   .hangman-toolbar .board-color, .hangman-toolbar .board-width { width: 44px; height: 44px; }
+  /* E as FERRAMENTAS também. Ficaram nos 40px do computador enquanto as cores
+     subiam para 44 — e a ferramenta é o que mais se troca no quadro (caneta,
+     borracha, caneta outra vez), por isso é o alvo que mais se falha. */
+  .hangman-toolbar .board-tool { min-height: 44px; }
   /* Só o ícone: o nome inteiro de sete botões não cabe em 390px, e cortá-los a
      meio é pior do que mostrar só o símbolo. */
   .hangman-board-zone button.ghost, .hangman-board-zone button.primary {

@@ -274,6 +274,61 @@ if (!foco.focado.startsWith("mapa-fim")) {
   process.exitCode = 1;
 }
 
+console.log("10) E na barra do quadro da Forca, que é a barra que mais se toca...");
+// Os passos de cima medem ecrãs do cartão da app. O quadro é outro mundo: é
+// ecrã inteiro, com uma barra de ferramentas própria, e passou meses com as
+// ferramentas a 40px enquanto as cores ao lado já estavam nos 44 — trocar de
+// ferramenta é o gesto que mais se repete a desenhar, por isso é o alvo que
+// mais se falha. Mede-se a barra inteira, não uma regra: assim a próxima
+// ferramenta que se acrescentar também tem de caber no dedo.
+const quadroCtx = await browser.newContext({ ...devices["iPhone 13"] });
+const qp = await quadroCtx.newPage();
+await qp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await qp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await qp.reload({ waitUntil: "networkidle" });
+await qp.fill("#name-input", "Ana");
+await qp.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await qp.click("#create-room-btn");
+await qp.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const codigoQuadro = (await qp.locator("#lobby-code").textContent()).trim();
+await qp.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/players`, {
+    p2: { name: "Beto", score: 0, connected: true },
+    p3: { name: "Carla", score: 0, connected: true },
+  });
+  window.__testDb.update(`rooms/${c}/config`, { bonusGames: ["hangman"] });
+}, codigoQuadro);
+const rondasQuadro = await qp.evaluate((c) => window.__testDb.get(`rooms/${c}`).config.numRounds, codigoQuadro);
+await qp.evaluate(({ c, n }) => window.__testDb.update(`rooms/${c}`, { round: n, state: "roundScore" }), { c: codigoQuadro, n: rondasQuadro });
+await qp.waitForSelector('[data-screen="roundscore"].active', { timeout: 5000 });
+await qp.click("#round-next-btn");
+await qp.waitForSelector('[data-screen="hangman"].active', { timeout: 5000 });
+const naForca = await qp.evaluate(() => {
+  const scr = document.querySelector('[data-screen="hangman"]');
+  const maus = [];
+  let vistos = 0;
+  scr.querySelectorAll("button, label").forEach((el) => {
+    if (el.offsetParent === null) return;
+    const r = el.getBoundingClientRect();
+    if (r.height === 0 || r.width === 0) return;
+    vistos += 1;
+    if (r.height < 44 || r.width < 44) {
+      maus.push(`${(el.textContent || "").trim().slice(0, 14) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
+    }
+  });
+  return { vistos, maus };
+});
+console.log(`   ${naForca.vistos} controlos visíveis, abaixo de 44px: ${naForca.maus.length} ${naForca.maus.slice(0, 4).join(", ")}`);
+if (naForca.vistos < 15) {
+  console.log("   FALHOU: cheguei ao quadro sem a barra toda — a medição não diz nada");
+  process.exitCode = 1;
+}
+if (naForca.maus.length > 0) {
+  console.log("   FALHOU: alvos pequenos demais na barra do quadro");
+  process.exitCode = 1;
+}
+await quadroCtx.close();
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));
