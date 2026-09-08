@@ -329,6 +329,53 @@ if (naForca.maus.length > 0) {
 }
 await quadroCtx.close();
 
+console.log("11) E os ecrãs de ecrã inteiro que se abrem sem sala: quadro solo e mapa...");
+// O passo 10 mede um ecrã. Este mede os outros dois que vivem fora do cartão
+// da app, porque o erro que se repete aqui não é uma regra errada — é uma
+// regra que só cobriu metade do que dizia cobrir. A barra do mapa dizia em
+// comentário que os alvos ficavam "nos 44 px do costume" e punha só a altura:
+// o botão do mundo, que é só o 🌍, media 38px de largura.
+const cheiaCtx = await browser.newContext({ ...devices["iPhone 13"] });
+const cp = await cheiaCtx.newPage();
+await cp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await cp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await cp.reload({ waitUntil: "networkidle" });
+const medirEcra = () => cp.evaluate(() => {
+  const maus = [];
+  let vistos = 0;
+  document.querySelectorAll("button, label, [role=button], select").forEach((el) => {
+    if (el.offsetParent === null) return;
+    const b = el.getBoundingClientRect();
+    if (b.height === 0 || b.width === 0) return;
+    vistos += 1;
+    if (b.height < 44 || b.width < 44) {
+      maus.push(`${(el.textContent || "").trim().slice(0, 12) || el.id} (${Math.round(b.height)}x${Math.round(b.width)})`);
+    }
+  });
+  return { ecra: document.querySelector(".screen.active")?.dataset.screen, vistos, maus };
+});
+await cp.click("[data-open-board]");
+await cp.waitForSelector('[data-screen="board"].active', { timeout: 8000 });
+const noQuadro = await medirEcra();
+console.log(`   quadro solo: ${noQuadro.vistos} controlos, abaixo de 44px: ${noQuadro.maus.length} ${noQuadro.maus.slice(0, 4).join(", ")}`);
+await cp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await cp.click('[data-screen="home"] [data-open-mapa]');
+await cp.waitForSelector('[data-screen="mapa"].active', { timeout: 8000 });
+await cp.waitForFunction(async () => (await import("./js/mapa.js")).mapa.paises.length > 0, { timeout: 15000 });
+const noMapa = await medirEcra();
+console.log(`   mapa: ${noMapa.vistos} controlos, abaixo de 44px: ${noMapa.maus.length} ${noMapa.maus.slice(0, 4).join(", ")}`);
+for (const m of [noQuadro, noMapa]) {
+  if (m.vistos < 5) {
+    console.log(`   FALHOU: só ${m.vistos} controlos visíveis em "${m.ecra}" — não cheguei lá, a medição não diz nada`);
+    process.exitCode = 1;
+  }
+  if (m.maus.length > 0) {
+    console.log(`   FALHOU: alvos pequenos demais em "${m.ecra}"`);
+    process.exitCode = 1;
+  }
+}
+await cheiaCtx.close();
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));

@@ -136,6 +136,12 @@ and forgot the tools, while the comment above the desktop rule claimed both
 were handled. Static markup is all this catches, so overlays and in-game HUDs
 still need real navigation; but the sweep tells you where to go and look.
 
+Measure BOTH sides. The map bar's mobile rule set `min-height: 44px` and left
+the width to padding, so the globe button — which is only the 🌍 — came out
+44 high and 38 wide, under a comment promising "os 44 px do costume". Two
+rules in a row that covered half of what their comment claimed; assume the
+next one does too until you have the number.
+
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the
 whole lobby), and the arena games differ on purpose — Labirinto and Mini-Golfe

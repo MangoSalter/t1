@@ -1215,7 +1215,10 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
    que sobra é tudo mapa. Os alvos ficam nos 44 px do costume. */
 @media (max-width: 720px) {
   .mapa-toolbar { padding: 6px 8px; gap: 6px; }
-  .mapa-toolbar button { min-height: 44px; padding: 6px 10px; }
+  /* min-width tanto como min-height: o botão do mundo é só o 🌍, e com a
+     largura entregue ao padding media 38px — alto que chegue, estreito de
+     mais. Um botão que reenquadra o mapa inteiro não se pode falhar. */
+  .mapa-toolbar button { min-height: 44px; min-width: 44px; padding: 6px 10px; }
   .mapa-form { order: 3; flex: 1 0 100%; }
   .mapa-form input { min-height: 44px; }
   /* Os dois seletores partilham uma linha e encolhem: com cada um a ocupar a
