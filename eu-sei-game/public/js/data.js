@@ -73,11 +73,59 @@ export function catIndexFromKey(key) {
 
 export const MIN_ENABLED_CATEGORIES = 4;
 
+// --- CATEGORIAS DA CASA ---
+//
+// O jogo traz 40, mas cada grupo tem as suas: "marcas de carro", "coisas na
+// mala da avó", "personagens da Disney". Escrever as próprias é a coisa que
+// mais se pede neste género — o "Stop" de papel joga-se assim desde sempre, e
+// é o que falta às aplicações que existem (deixam ESCOLHER da lista, não
+// ACRESCENTAR).
+//
+// Vivem num espaço de índices próprio, a partir do 100. Podia ser
+// CATEGORIES.length, mas então acrescentar uma categoria de origem mudava o
+// significado dos índices já guardados numa sala a meio de uma partida — as
+// respostas ficam gravadas por índice (`answers/{uid}/c7`).
+export const CUSTOM_CAT_OFFSET = 100;
+export const MAX_CUSTOM_CATEGORIES = 8;
+export const MAX_CUSTOM_CATEGORY_LEN = 28;
+
+export function ehCategoriaPropria(indice) {
+  return indice >= CUSTOM_CAT_OFFSET;
+}
+
+// Uma lista escrita à mão chega sempre suja: espaços, vazios, repetidos, e
+// alguém a escrever "Comida" que já lá está. Limpa-se num sítio só, e tanto
+// quem escreve como quem lê passa por aqui.
+export function limparCategoriasProprias(lista) {
+  const vistas = new Set(CATEGORIES.map((c) => c.toLowerCase()));
+  const saida = [];
+  for (const bruta of Array.isArray(lista) ? lista : []) {
+    const nome = String(bruta || "").replace(/\s+/g, " ").trim().slice(0, MAX_CUSTOM_CATEGORY_LEN);
+    if (!nome) continue;
+    const chave = nome.toLowerCase();
+    if (vistas.has(chave)) continue;
+    vistas.add(chave);
+    saida.push(nome);
+    if (saida.length >= MAX_CUSTOM_CATEGORIES) break;
+  }
+  return saida;
+}
+
+// O nome a mostrar, venha ele da lista de origem ou da casa. Nunca devolve
+// vazio: um índice que já não existe (a sala guardou uma categoria que
+// entretanto foi apagada) mostra-se como categoria sem nome em vez de deixar
+// um "undefined" no ecrã a meio de uma ronda.
+export function nomeDaCategoria(indice, proprias = []) {
+  if (ehCategoriaPropria(indice)) return proprias[indice - CUSTOM_CAT_OFFSET] || "Categoria da casa";
+  return CATEGORIES[indice] || "Categoria";
+}
+
 // `enabledIndexes`: Set opcional de índices permitidos (categorias ativadas
-// pelo jogador/anfitrião). Omitido ou vazio = todas as 40 estão disponíveis.
+// pelo jogador/anfitrião), já com as da casa lá dentro se as houver. Omitido
+// ou vazio = todas as 40 de origem estão disponíveis.
 export function pickCategories(count, usedIndexes, enabledIndexes) {
   const pool = enabledIndexes && enabledIndexes.size > 0
-    ? CATEGORIES.map((_, i) => i).filter((i) => enabledIndexes.has(i))
+    ? [...enabledIndexes]
     : CATEGORIES.map((_, i) => i);
   const wanted = Math.min(count, pool.length);
   let available = pool.filter((i) => !usedIndexes.has(i));

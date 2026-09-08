@@ -712,6 +712,25 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 .cat-picker-grid label { min-height: 40px; }
 
+/* As categorias da casa. A caixa de escrever e o botão ficam na mesma linha
+   enquanto couberem; num telemóvel a caixa passa a ocupar a linha toda em vez
+   de encolher até não se conseguir ler o que se escreveu. */
+.cat-propria-form { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.cat-propria-form input { flex: 1 1 180px; min-width: 0; min-height: 44px; }
+.cat-propria-form button { flex: 0 0 auto; width: auto; margin: 0; min-height: 44px; }
+.cat-propria-lista { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 4px 0; }
+.cat-propria-chip {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--accent-soft); border: 2px solid var(--ink); border-radius: 999px;
+  padding: 2px 4px 2px 12px; font-weight: 600;
+}
+/* O ✕ é um alvo de dedo como qualquer outro: 44px, redondo, dentro da bolha. */
+.cat-propria-chip button {
+  width: 44px; min-height: 44px; margin: 0; padding: 0;
+  border-radius: 50%; font-size: 0.9rem; line-height: 1;
+}
+.cat-picker-grid label.cat-propria { font-weight: 700; }
+
 /* ---------- QUADRO BRANCO SOLO ----------
    Mesma ideia do quadro de sala (ecrã inteiro, fora do cartão da app), mas
    com barra de ferramentas própria. A barra encolhe e passa a linhas no

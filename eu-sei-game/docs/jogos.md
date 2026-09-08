@@ -160,6 +160,34 @@ Adivinha, **Onde Fica Isto?** (a versão desenhada, que voltou depois de
 refeita), Fuga da Infeção, Labirinto: Batalha, Mini-Golfe, Conquistar o Mapa
 (países, e capitais a sozinho), Forca solo, Palavra Relâmpago, Memória.
 
+## O que os jogos do mesmo género têm (e este não tinha)
+
+Fui ver o que se diz dos jogos vizinhos — Jackbox, skribbl.io, Gartic Phone,
+e sobretudo as aplicações de "Stop"/Scattergories, que são as que fazem o
+mesmo que o teu jogo faz. Não interessa o que eles anunciam; interessa aquilo
+de que as pessoas se queixam, porque é aí que se vê o que falta.
+
+**Feito agora: as categorias da casa.** Nas críticas das aplicações de Stop, o
+pedido que se repete é escolher as categorias — e as que deixam escolher de
+uma lista fixa continuam a não deixar ACRESCENTAR. O jogo de papel joga-se
+assim desde sempre: cada grupo tem as suas ("marcas de carro", "coisas da
+avó"). O anfitrião escreve até oito, toda a gente as vê antes de entrar, e
+sorteiam-se como as outras. Guardado em `config.customCategories`, com índices
+a partir de 100 para não mexer no significado dos que já estão gravados nas
+respostas de uma sala a meio.
+
+**O resto do que encontrei, por ordem do que me parece valer mais:**
+
+| O que se queixam por aí | Como estamos | O que faria |
+|---|---|---|
+| "Pontuação pouco clara, dá para fazer batota" — é a queixa que mais se repete no StopotS | A votação decide por maioria e o ecrã mostra os pontos de cada resposta | Dizer PORQUÊ: "única: 10", "repetida: 5", "chumbada pela maioria: 0". Os números já lá estão, falta a razão |
+| "Fiquei à espera sem perceber o que fazer, sem instruções" (StopotS) | Cada mini-jogo tem um "como se joga" no ecrã do "pronto?" | A ronda clássica não tem nenhum. Quem entra a meio de um grupo que já joga há anos fica a adivinhar |
+| "Estar à espera da vez" — a queixa nº1 do skribbl | Em Desenha e Adivinha quem não desenha escreve palpites, por isso não está parado; na Forca quem não tem a caneta vota letras | Sem dívida aqui, mas é o que estragaria estes dois jogos se um dia se lhes mexesse |
+| Salas grandes (o StopotS deixa 50 a jogar ao mesmo tempo) | Máximo 10 | **Decisão tua.** 10 foi escolhido no primeiro build "até indicares outro valor"; a votação com 20 pessoas é outra experiência, não a mesma maior |
+| O álbum do Gartic Phone (ver no fim tudo o que se desenhou) | Dá para descarregar o quadro como imagem, em sala e sozinho | Um painel no fim da partida com os desenhos todos da noite. É o que faz as pessoas mandarem print aos amigos |
+| Voltar a entrar depois de o telemóvel bloquear | Já funciona (`rejoinRoom`) e o lugar e os pontos ficam | Nada a fazer |
+| Entrar a meio | Fechado de propósito, menos no quadro | Nada a fazer — entrar a meio de uma partida pontuada estraga a classificação |
+
 ## A escala dos pontos
 
 Os jogos bónus são o extra da partida, não a partida. A regra: um bónus vale,

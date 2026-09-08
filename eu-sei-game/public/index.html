@@ -481,11 +481,22 @@
         </form>
 
         <details class="cat-picker">
-          <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/40)</summary>
+          <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/<span id="cfg-cat-total">40</span>)</summary>
           <div class="cat-picker-actions">
             <button type="button" id="cfg-cat-selectall" class="ghost">Selecionar todas</button>
             <button type="button" id="cfg-cat-clear" class="ghost">Limpar</button>
           </div>
+          <!-- As categorias da casa: as vossas, escritas aqui. Só o anfitrião
+               as escreve; toda a gente as vê, porque saber com que categorias
+               se joga faz parte de decidir se se entra. -->
+          <p class="hint small">As vossas categorias (★) jogam-se como as outras.</p>
+          <form id="cfg-cat-propria-form" class="cat-propria-form">
+            <input id="cfg-cat-propria-input" type="text" autocomplete="off"
+                   placeholder="Ex.: Marcas de carro" aria-label="Nova categoria da casa" />
+            <button type="submit" class="ghost">Acrescentar</button>
+          </form>
+          <p id="cfg-cat-propria-aviso" class="hint small hidden" role="status"></p>
+          <ul id="cfg-cat-propria-lista" class="cat-propria-lista hidden"></ul>
           <div id="cfg-cat-grid" class="cat-picker-grid"></div>
         </details>
 

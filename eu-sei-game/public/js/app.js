@@ -7,6 +7,8 @@ import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import { sfx } from "./sfx.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES,
+  CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
+  limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
   MAP_BACKGROUND_SVG, LANDMARKS,
 } from "./data.js";
 import {
@@ -388,6 +390,11 @@ const lobbyEls = {
   catGrid: document.getElementById("cfg-cat-grid"),
   catSelectAll: document.getElementById("cfg-cat-selectall"),
   catClear: document.getElementById("cfg-cat-clear"),
+  catTotal: document.getElementById("cfg-cat-total"),
+  catPropriaForm: document.getElementById("cfg-cat-propria-form"),
+  catPropriaInput: document.getElementById("cfg-cat-propria-input"),
+  catPropriaLista: document.getElementById("cfg-cat-propria-lista"),
+  catPropriaAviso: document.getElementById("cfg-cat-propria-aviso"),
   minigamesHint: document.getElementById("lobby-minigames-hint"),
 };
 
@@ -424,22 +431,46 @@ bonusGameCheckboxes.forEach((cb) => {
   });
 });
 
-const catCheckboxes = CATEGORIES.map((name, i) => {
-  const label = document.createElement("label");
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.checked = true;
-  input.dataset.catIndex = String(i);
-  label.appendChild(input);
-  label.appendChild(document.createTextNode(name));
-  lobbyEls.catGrid.appendChild(label);
-  return input;
-});
+// Índice -> caixa. Era um array (posição = índice), o que chegava enquanto as
+// categorias eram só as 40 de origem; as da casa vivem a partir do 100, e um
+// array com um buraco de sessenta lugares não é forma de guardar isto.
+let catCheckboxes = new Map();
+let propriasDesenhadas = null; // para não redesenhar a grelha a cada atualização da sala
+
+function desenharGrelhaDeCategorias(proprias) {
+  lobbyEls.catGrid.innerHTML = "";
+  catCheckboxes = new Map();
+  const cria = (indice, nome, daCasa) => {
+    const label = document.createElement("label");
+    if (daCasa) label.className = "cat-propria";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = true;
+    input.dataset.catIndex = String(indice);
+    input.addEventListener("change", () => {
+      if (!state.room || !isHost(state.room)) return;
+      if (!input.checked && getSelectedCategoryIndexes().length < MIN_ENABLED_CATEGORIES) {
+        input.checked = true; // não deixa descer abaixo do mínimo
+        return;
+      }
+      sendCategoryUpdate();
+    });
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(daCasa ? `★ ${nome}` : nome));
+    lobbyEls.catGrid.appendChild(label);
+    catCheckboxes.set(indice, input);
+  };
+  CATEGORIES.forEach((nome, i) => cria(i, nome, false));
+  proprias.forEach((nome, i) => cria(CUSTOM_CAT_OFFSET + i, nome, true));
+  propriasDesenhadas = proprias.join("\u0000");
+}
+desenharGrelhaDeCategorias([]);
+lobbyEls.catPropriaInput.maxLength = MAX_CUSTOM_CATEGORY_LEN;
 
 function getSelectedCategoryIndexes() {
-  return catCheckboxes
-    .map((cb, i) => (cb.checked ? i : -1))
-    .filter((i) => i !== -1);
+  const out = [];
+  catCheckboxes.forEach((cb, i) => { if (cb.checked) out.push(i); });
+  return out;
 }
 
 function sendCategoryUpdate() {
@@ -448,21 +479,103 @@ function sendCategoryUpdate() {
   updateConfig(state.code, { enabledCategories: selected });
 }
 
-catCheckboxes.forEach((cb) => {
-  cb.addEventListener("change", () => {
-    if (!state.room || !isHost(state.room)) return;
-    if (!cb.checked && getSelectedCategoryIndexes().length < MIN_ENABLED_CATEGORIES) {
-      cb.checked = true; // não deixa descer abaixo do mínimo
-      return;
+// --- As categorias da casa, escritas pelo anfitrião ---
+//
+// Só o anfitrião escreve; toda a gente vê a lista, porque saber com que
+// categorias se vai jogar faz parte de decidir se se entra na sala.
+function categoriasPropriasDaSala() {
+  return limparCategoriasProprias(state.room?.config?.customCategories);
+}
+
+function desenharListaDeProprias(proprias, amHost) {
+  lobbyEls.catPropriaLista.innerHTML = "";
+  proprias.forEach((nome, i) => {
+    const li = document.createElement("li");
+    li.className = "cat-propria-chip";
+    const span = document.createElement("span");
+    span.textContent = nome;
+    li.appendChild(span);
+    if (amHost) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ghost";
+      btn.textContent = "✕";
+      btn.setAttribute("aria-label", `Apagar a categoria ${nome}`);
+      btn.addEventListener("click", () => apagarCategoriaPropria(i));
+      li.appendChild(btn);
     }
-    sendCategoryUpdate();
+    lobbyEls.catPropriaLista.appendChild(li);
   });
-});
+  lobbyEls.catPropriaForm.classList.toggle("hidden", !amHost);
+  lobbyEls.catPropriaLista.classList.toggle("hidden", proprias.length === 0);
+}
+
+function avisarSobreProprias(texto) {
+  lobbyEls.catPropriaAviso.textContent = texto || "";
+  lobbyEls.catPropriaAviso.classList.toggle("hidden", !texto);
+}
+
+// Apagar uma categoria da casa tem de tirá-la TAMBÉM da lista de ativas: se
+// ficasse lá, a ronda seguinte podia sortear um índice sem nome nenhum.
+// E as que estão depois dela mudam de índice — é por isso que se reescrevem
+// as ativas a partir dos nomes, e não dos números.
+function apagarCategoriaPropria(posicao) {
+  if (!state.room || !isHost(state.room)) return;
+  const antes = categoriasPropriasDaSala();
+  const nomeApagado = antes[posicao];
+  if (!nomeApagado) return;
+  const depois = antes.filter((_, i) => i !== posicao);
+  const ativasAntes = new Set(state.room?.config?.enabledCategories || []);
+  const ativas = [];
+  if (ativasAntes.size > 0) {
+    ativasAntes.forEach((indice) => {
+      if (!ehCategoriaPropria(indice)) { ativas.push(indice); return; }
+      const nome = antes[indice - CUSTOM_CAT_OFFSET];
+      const novaPos = depois.indexOf(nome);
+      if (novaPos >= 0) ativas.push(CUSTOM_CAT_OFFSET + novaPos);
+    });
+  }
+  const patch = { customCategories: depois };
+  if (ativasAntes.size > 0) patch.enabledCategories = ativas;
+  updateConfig(state.code, patch);
+  avisarSobreProprias("");
+}
+
+function acrescentarCategoriaPropria(nomeBruto) {
+  if (!state.room || !isHost(state.room)) return;
+  const antes = categoriasPropriasDaSala();
+  if (antes.length >= MAX_CUSTOM_CATEGORIES) {
+    avisarSobreProprias(`Já são ${MAX_CUSTOM_CATEGORIES} — apaga uma para pôr outra.`);
+    return;
+  }
+  const depois = limparCategoriasProprias([...antes, nomeBruto]);
+  if (depois.length === antes.length) {
+    avisarSobreProprias("Essa categoria já existe (ou está vazia).");
+    return;
+  }
+  // Uma categoria acabada de escrever entra LIGADA. O contrário — escrevê-la
+  // e ela não sair na ronda seguinte — lê-se como defeito.
+  const ativasAntes = state.room?.config?.enabledCategories || [];
+  const patch = { customCategories: depois };
+  if (ativasAntes.length > 0) {
+    patch.enabledCategories = [...ativasAntes, CUSTOM_CAT_OFFSET + depois.length - 1];
+  }
+  updateConfig(state.code, patch);
+  avisarSobreProprias("");
+}
 
 lobbyEls.catSelectAll.addEventListener("click", () => {
   if (!state.room || !isHost(state.room)) return;
   catCheckboxes.forEach((cb) => { cb.checked = true; });
   sendCategoryUpdate();
+});
+
+lobbyEls.catPropriaForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const nome = lobbyEls.catPropriaInput.value;
+  acrescentarCategoriaPropria(nome);
+  lobbyEls.catPropriaInput.value = "";
+  lobbyEls.catPropriaInput.focus();
 });
 
 lobbyEls.catClear.addEventListener("click", () => {
@@ -516,13 +629,19 @@ function renderLobby(room) {
   if (document.activeElement !== lobbyEls.numRounds) lobbyEls.numRounds.value = cfg.numRounds;
   lobbyEls.excludeHard.checked = !!cfg.excludeHardLetters;
 
+  const proprias = limparCategoriasProprias(room.config?.customCategories);
+  if (proprias.join("\u0000") !== propriasDesenhadas) {
+    desenharGrelhaDeCategorias(proprias);
+    desenharListaDeProprias(proprias, isHost(room));
+  }
   const enabledCats = room.config?.enabledCategories;
   const hasCustomSelection = Array.isArray(enabledCats) && enabledCats.length > 0;
   const enabledSet = hasCustomSelection ? new Set(enabledCats) : null;
   catCheckboxes.forEach((cb, i) => {
     cb.checked = enabledSet ? enabledSet.has(i) : true;
   });
-  lobbyEls.catCount.textContent = hasCustomSelection ? enabledCats.length : CATEGORIES.length;
+  lobbyEls.catCount.textContent = hasCustomSelection ? enabledCats.length : catCheckboxes.size;
+  lobbyEls.catTotal.textContent = catCheckboxes.size;
 
   const enabledBonusGames = room.config?.bonusGames?.length ? room.config.bonusGames : ["hangman"];
   bonusGameCheckboxes.forEach((cb) => {
@@ -684,7 +803,7 @@ function renderCategories(room) {
     const wrapper = document.createElement("label");
     wrapper.className = "cat-item";
     const title = document.createElement("span");
-    title.textContent = CATEGORIES[ci];
+    title.textContent = nomeDaCategoria(ci, categoriasPropriasDaSala());
     const input = document.createElement("input");
     input.type = "text";
     input.autocomplete = "off";
@@ -754,7 +873,7 @@ function renderVoting(room) {
   cr.categoryIndexes.forEach((ci) => {
     const text = room.answers?.[state.uid]?.[catKey(ci)] || "";
     const p = document.createElement("p");
-    p.textContent = `${CATEGORIES[ci]}: ${text || "(sem resposta)"}`;
+    p.textContent = `${nomeDaCategoria(ci, categoriasPropriasDaSala())}: ${text || "(sem resposta)"}`;
     voteEls.myAnswers.appendChild(p);
   });
 
@@ -765,7 +884,7 @@ function renderVoting(room) {
     const section = document.createElement("div");
     section.className = "vote-category";
     const h = document.createElement("h4");
-    h.textContent = CATEGORIES[ci];
+    h.textContent = nomeDaCategoria(ci, categoriasPropriasDaSala());
     section.appendChild(h);
 
     others.forEach((uid) => {

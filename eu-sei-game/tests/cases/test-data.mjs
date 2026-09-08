@@ -8,6 +8,8 @@ const publicDir = process.env.EU_SEI_PUBLIC;
 const {
   CATEGORIES, ALPHABET, HARD_LETTERS, pickLetters, pickCategories, catKey, catIndexFromKey,
   LANDMARKS, pickLandmark,
+  CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
+  limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
 } = await import(pathToFileURL(path.join(publicDir, "js", "data.js")).href);
 
 function assert(cond, label) {
@@ -109,3 +111,43 @@ assert(ALPHABET.length === 26, "alfabeto tem 26 letras");
 }
 
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");
+
+// --- Categorias da casa ---
+//
+// A limpeza é o que separa "escrever uma categoria" de "estragar a sala":
+// espaços a mais, a mesma escrita de outra maneira, uma repetida da lista de
+// origem, ou trinta de uma vez.
+{
+  const limpas = limparCategoriasProprias([
+    "  Marcas   de carro ", "marcas de carro", "MARCAS DE CARRO",
+    "Comida", "", "   ", "x".repeat(80),
+    "A", "B", "C", "D", "E", "F", "G", "H", "I",
+  ]);
+  assert(limpas[0] === "Marcas de carro", `junta os espaços e corta as pontas (${limpas[0]})`);
+  assert(!limpas.includes("marcas de carro"), "não deixa entrar a mesma escrita de outra maneira");
+  assert(!limpas.includes("Comida"), "não deixa repetir uma categoria de origem");
+  assert(limpas.every((c) => c.length <= MAX_CUSTOM_CATEGORY_LEN), "corta as compridas de mais");
+  assert(limpas.length === MAX_CUSTOM_CATEGORIES, `nunca passa de ${MAX_CUSTOM_CATEGORIES} (tem ${limpas.length})`);
+  assert(limparCategoriasProprias(undefined).length === 0, "sem lista nenhuma devolve vazio, não rebenta");
+}
+
+{
+  assert(nomeDaCategoria(0) === CATEGORIES[0], "índice normal vem da lista de origem");
+  assert(nomeDaCategoria(CUSTOM_CAT_OFFSET, ["Coisas da avó"]) === "Coisas da avó", "índice da casa vem da lista da casa");
+  // Uma sala pode ter guardado um índice cuja categoria já foi apagada: o
+  // ecrã tem de mostrar alguma coisa em vez de "undefined" a meio da ronda.
+  assert(nomeDaCategoria(CUSTOM_CAT_OFFSET + 5, ["Só uma"]) === "Categoria da casa", "índice da casa que já não existe tem nome de recurso");
+  // 45 é menor do que o 100 das da casa, e maior do que a lista de origem.
+  assert(nomeDaCategoria(45) === "Categoria", "índice de origem que não existe também tem nome de recurso");
+  assert(ehCategoriaPropria(CUSTOM_CAT_OFFSET) && !ehCategoriaPropria(39), "a fronteira entre as duas famílias de índices");
+}
+
+{
+  // O sorteio tem de saber sortear as da casa, senão escrevê-las não servia
+  // para nada.
+  const sorteadas = pickCategories(3, new Set(), new Set([CUSTOM_CAT_OFFSET, CUSTOM_CAT_OFFSET + 1, 4]));
+  assert(sorteadas.length === 3, "sorteia as três pedidas");
+  assert(sorteadas.includes(CUSTOM_CAT_OFFSET) && sorteadas.includes(CUSTOM_CAT_OFFSET + 1), "e as da casa estão lá");
+  const soDaCasa = pickCategories(5, new Set(), new Set([CUSTOM_CAT_OFFSET]));
+  assert(soDaCasa.length === 1 && soDaCasa[0] === CUSTOM_CAT_OFFSET, "com uma só, sorteia essa e não inventa mais");
+}
