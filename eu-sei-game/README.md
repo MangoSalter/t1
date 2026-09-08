@@ -10,6 +10,15 @@ configurável) e **solo** (runs com dificuldade crescente, totalmente
 offline). Ainda não inclui: Electron/Steamworks, cosméticos/DLC. Ver secção
 "O que falta" no fundo.
 
+O jogo do "Stop" deixou de estar sozinho: no fim de cada partida entra um
+jogo de bónus, e há um menu de jogos para sozinho. O que está no site, hoje:
+**Quadro branco** (de sala e de sozinho), **Eu sei clássico**, **Desenha e
+Adivinha**, **Fuga da Infeção**, **Labirinto: Batalha**, **Mini-Golfe**,
+**Conquistar o Mapa** (países e capitais), **Forca**, **Palavra Relâmpago** e
+**Memória**. Há mais oito guardados na oficina (`?oficina=1`), fora do site
+até merecerem voltar — ver [`docs/jogos.md`](docs/jogos.md), que é o
+documento onde as decisões sobre jogos ficam escritas.
+
 ## Como pôr isto a funcionar (sem programar)
 
 Precisas de criar um projeto Firebase gratuito — é a "sala de máquinas" que
@@ -57,7 +66,9 @@ definitivo (`eu-sei` ou parecido):
 ## Arquitetura (para quem pegar nisto depois)
 
 - **Sem passo de build.** HTML/CSS/JS puro com módulos ES (`<script type="module">`),
-  Firebase importado por URL a partir da CDN da Google. Não há `npm install`.
+  Firebase importado por URL a partir da CDN da Google. Para JOGAR não é
+  preciso instalar nada; o `package.json` existe só para os testes (ver
+  "Correr os testes").
 - **Firebase Realtime Database** guarda o estado de cada sala em
   `rooms/{CÓDIGO}` — jogadores, configuração, ronda atual, respostas, votos,
   pontuações. Todos os clientes ligados a uma sala ouvem esse nó e
@@ -99,17 +110,54 @@ definitivo (`eu-sei` ou parecido):
 ```
 eu-sei-game/
 ├── database.rules.json      # regras de segurança da Realtime Database
-├── public/
-│   ├── index.html            # os 7 ecrãs do jogo (lobby, bola, letra, ...)
-│   ├── style.css
-│   ├── firebase-config.js    # credenciais do TEU projeto Firebase (não secreto)
-│   └── js/
-│       ├── data.js           # pool de 40 categorias, alfabeto, letras difíceis, limites de configuração
-│       ├── firebase-init.js  # ligação ao Firebase, autenticação anónima, relógio do servidor
-│       ├── room.js           # todas as leituras/escritas na sala (única camada que fala com o Firebase)
-│       ├── app.js            # máquina de estados da UI multiplayer, um ecrã por fase do jogo
-│       └── solo.js           # modo single-player, offline, independente do resto
+├── package.json             # só para os testes: o jogo não tem build
+├── docs/                    # jogos.md (o que existe e o que falta decidir — lê-se
+│                            #   primeiro), eu-sei-spec.md, quadro-branco.md
+├── tests/                   # 85 casos; ver "Correr os testes"
+├── tools/                   # dados do mapa (nomes, capitais, continentes) e o
+│                            #   gerar-mapa.mjs que os transforma; corre à mão
+└── public/
+    ├── index.html            # os 41 ecrãs do jogo
+    ├── style.css
+    ├── firebase-config.js    # credenciais do TEU projeto Firebase (não secreto)
+    ├── data/paises.json      # 177 países desenhados, só carregado ao abrir o mapa
+    └── js/                   # 21 módulos, divididos por quem pode importar quem
+        ├── data.js           # categorias, palavras, marcos — SEM DOM, importável no Node
+        ├── firebase-init.js  # ligação, identidade anónima, relógio do servidor
+        ├── identity.js       # quem sou eu nesta sala (partilhado com o stub dos testes)
+        ├── room.js           # todas as leituras/escritas na sala (a única camada que fala com o Firebase)
+        ├── app.js            # máquina de estados da UI de sala, um ecrã por fase
+        ├── app-state.js      # o estado que app.js e os jogos de sala partilham
+        ├── solo.js           # o modo de jogar sozinho, offline
+        ├── board.js / board-room.js       # quadro branco: sozinho / em sala
+        ├── mapa.js / mapa-ecra.js / mapa-sala.js  # motor do mapa / ecrã / sala
+        ├── caos.js           # a Dona Manga a roubar países (nunca em sala)
+        ├── paleta.js         # a paleta de 68 cores dos quadros
+        ├── voice.js          # a voz do modo guiado (sintetizador do browser)
+        ├── i18n.js / i18n-ecra.js  # PT/EN/ES
+        ├── oficina.js        # o que está escondido do site e como se abre
+        ├── sfx.js, ui-utils.js, touch-controls.js
 ```
+
+A regra que mantém isto arrumado: **o que é lógica pura não pode tocar no
+`document`**. É por isso que há pares (`mapa.js`/`mapa-ecra.js`,
+`board.js`/`board-room.js`) — a metade pura é importável no Node e é onde os
+testes rápidos batem.
+
+## Correr os testes
+
+```
+npm install                      # traz o Playwright
+npx playwright install chromium  # e o browser que ele usa
+node tests/run.mjs               # os 85 casos, ~14 min
+node tests/run.mjs mapa          # só os que têm "mapa" no nome
+node tests/run.mjs --jobs 1 --ver mapa   # um de cada vez, com o output todo
+```
+
+Os casos de browser correm sem janela nenhuma. Os de lógica pura correm no
+Node contra uma cópia da app onde o Firebase é substituído por um stub local
+(`tests/stub/firebase-init.js`) — nenhum teste liga à internet, e nenhum
+precisa de um projeto Firebase configurado.
 
 ## Decisões tomadas neste build (a confirmar)
 
@@ -128,7 +176,7 @@ eu-sei-game/
 
 - Wrap em Electron/Tauri e integração Steamworks (achievements, lobbies via
   Steam em vez de código de sala, etc.).
-- Mini-jogos extra / easter eggs do modo multiplayer "de variedade".
+- Decidir quais dos oito jogos da oficina voltam ao site (`docs/jogos.md`).
 - Se isto for para uma audiência grande/pública: mover a lógica do
   anfitrião e a validação de pontuação para Cloud Functions, para não
   depender de confiar no cliente de um jogador.
