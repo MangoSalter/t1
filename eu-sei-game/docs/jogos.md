@@ -264,8 +264,13 @@ Não é urgente — não faz mal a ninguém e os testes continuam verdes —, ma
 número que faltava para a conversa ser sobre factos. Dois jogos, o Descartando
 Juntos e o Kota Corre!, são metade disso sozinhos.
 
-(O Mapa-Múndi antigo em SALA nem sequer tem teste próprio; o `mp-mapa-test.mjs`
-é do mapa novo. Se voltasse, voltava sem rede.)
+(Correção do que escrevi aqui primeiro: eu disse que o Mapa-Múndi antigo em
+SALA não tinha teste nenhum. Tem — procurei por NOME de ficheiro e não por
+conteúdo, e nenhum se chama "map-trivia". Quem o testa é o
+`mp-bonus-queue-test.mjs`, e a sério: joga as rondas pela interface, escreve
+respostas certas e erradas, e passa pela votação. As linhas dele não estão na
+coluna dos testes acima porque o ficheiro serve a fila de bónus inteira, não
+este jogo.)
 
 O que sei sobre cada um, para a resposta ser mais fácil:
 
