@@ -241,6 +241,32 @@ dos seis mini-jogos pequenos disseste "escolhe dois ou três" — ficaram dois.
 Pôr os outros quatro em condições é trabalho que pode ir todo ao lixo se a
 resposta for "esses não". Prefiro perguntar a gastar.
 
+**O que custa mantê-los**, medido e não estimado. As linhas de código são as
+do bloco de cada jogo no `solo.js`, contadas entre os comentários de secção do
+próprio ficheiro (é assim que está arrumado); os testes são os ficheiros que
+existem só por causa daquele jogo:
+
+| Na oficina | linhas no solo.js | ficheiros de teste | linhas de teste |
+|---|---|---|---|
+| Descartando Juntos | 413 | 3 | 298 |
+| Kota Corre! | 399 | 1 | 119 |
+| Estrada Maluca (solo + sala) | 183 | 3 | 350 |
+| Cada Macaco | 164 | 2 | 208 |
+| Olho de Lince | 141 | 1 | 130 |
+| Onde Fica Isto? (solo) | 108 | 1 | 84 |
+| Mapa-Múndi antigo | 104 | 1 | 95 |
+| Mata o Inseto | 96 | 1 | 113 |
+| **Total** | **1608 (43% do solo.js)** | **13** | **1397** |
+
+Ou seja: quase metade do ficheiro dos jogos a sozinho, e treze dos oitenta e
+seis casos de teste, existem hoje para jogos que ninguém no site pode jogar.
+Não é urgente — não faz mal a ninguém e os testes continuam verdes —, mas é o
+número que faltava para a conversa ser sobre factos. Dois jogos, o Descartando
+Juntos e o Kota Corre!, são metade disso sozinhos.
+
+(O Mapa-Múndi antigo em SALA nem sequer tem teste próprio; o `mp-mapa-test.mjs`
+é do mapa novo. Se voltasse, voltava sem rede.)
+
 O que sei sobre cada um, para a resposta ser mais fácil:
 
 | Na oficina | O que lhe falta, em concreto |
