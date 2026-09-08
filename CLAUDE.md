@@ -46,6 +46,20 @@ Pure logic must be importable in Node without a browser. A module that touches
 `data.js` (no DOM), `room.js` (network), `board.js` / `board-room.js`,
 `mapa.js` (engine) / `mapa-ecra.js` (screen).
 
+## Nothing in tests/cases may name this machine
+Two kinds of hard-coded path were in there, and both meant "this suite only
+runs here":
+
+- the 69 browser cases each passed `executablePath: "/opt/pw-browsers/chromium"`;
+- two pure cases imported the app by absolute path (below).
+
+Now the runner decides: it exports `EU_SEI_CHROMIUM` when that folder exists
+and an empty string otherwise, and the cases pass
+`process.env.EU_SEI_CHROMIUM || undefined` — which is the same as not asking,
+so Playwright uses the browser it installed itself. Checked by pointing the
+runner at a folder that does not exist and watching the cases go red on the
+default lookup. When you add a case, copy the launch line from a neighbour.
+
 ## A pure test with a hard-coded path tests the wrong files
 `test-data.mjs` and `test-linguas.mjs` imported
 `/home/user/.../public/js/data.js` by absolute path. That is not only

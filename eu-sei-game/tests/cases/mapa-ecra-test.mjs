@@ -5,7 +5,7 @@
 // tranca-o, e quem se engana percebe porquê.
 import { chromium, devices } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

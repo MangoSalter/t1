@@ -41,7 +41,7 @@ async function solveHangman() {
 }
 
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (err) => errors.push(err.message));

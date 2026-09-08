@@ -1,7 +1,7 @@
 // Com 8 jogos bónus, o risco passou a ser de integração: o menu tem de os
 // mostrar todos e a fila tem de conseguir percorrê-los sem encravar.
 import { chromium } from "playwright";
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const b = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const ctx = await b.newContext({ viewport: { width: 1000, height: 1000 } });
 const page = await ctx.newPage();
 const errors = [];

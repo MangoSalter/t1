@@ -4,7 +4,7 @@
 // tempo real — as duas coisas ao mesmo tempo é que fazem isto valer a pena.
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

@@ -6,7 +6,7 @@
 // suite inteira passava e o site mostrava tudo à mesma.
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 
 // Os jogos que o utilizador mandou tirar do site. Se um deles voltar a ser

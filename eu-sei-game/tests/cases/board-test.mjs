@@ -8,7 +8,7 @@
 //    modo de composição, senão rebenta no redesenho.
 import { chromium, devices } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

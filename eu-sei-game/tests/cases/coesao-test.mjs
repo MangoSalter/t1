@@ -11,7 +11,7 @@
 // ele veio calado.
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 const page = await browser.newPage();
 const erros = [];

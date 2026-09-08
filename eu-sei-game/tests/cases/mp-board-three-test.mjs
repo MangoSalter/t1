@@ -6,7 +6,7 @@
 //  - e o que acontece quando alguém SAI a meio.
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const context = await browser.newContext();
 const errors = [];
 const ana = await context.newPage();

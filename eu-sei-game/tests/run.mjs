@@ -25,6 +25,7 @@
 // node_modules, e a partir do /tmp não há nenhum para encontrar.
 import { spawn } from "node:child_process";
 import { cp, mkdtemp, readdir, readFile, writeFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +34,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, "..", "public");
 const casesDir = path.join(here, "cases");
 const stub = path.join(here, "stub", "firebase-init.js");
+// O Chromium: nesta máquina de trabalho vive numa pasta própria e o
+// "headless shell" que o Playwright procura por omissão não está instalado —
+// daí o caminho explícito. Noutra máquina qualquer (a do dono, por exemplo)
+// esse caminho não existe, e então não se diz nada: o Playwright vai buscar o
+// browser que ele próprio instalou. Estava escrito à mão nos 69 casos, o que
+// era o mesmo que dizer "esta suite só corre aqui".
+const CHROMIUM_DA_CAIXA = "/opt/pw-browsers/chromium";
+const chromiumPath = existsSync(CHROMIUM_DA_CAIXA) ? CHROMIUM_DA_CAIXA : "";
 const PORTAS_BASE = [8936, 8937];
 
 const args = process.argv.slice(2);
@@ -135,7 +144,7 @@ try {
     // difere do real, os testes que passam não provam nada.
     const p = spawn(process.execPath, [path.join(from, file)], {
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, EU_SEI_PUBLIC: publicDir, EU_SEI_STUB: stub },
+      env: { ...process.env, EU_SEI_PUBLIC: publicDir, EU_SEI_STUB: stub, EU_SEI_CHROMIUM: chromiumPath },
     });
     let out = "";
     p.stdout.on("data", (d) => { out += d; });

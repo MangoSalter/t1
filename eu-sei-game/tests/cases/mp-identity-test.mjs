@@ -13,7 +13,7 @@
 // falarem uns com os outros pelo BroadcastChannel.
 import { chromium } from "playwright";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const context = await browser.newContext();
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 const URL = "http://localhost:8936/index.html";
