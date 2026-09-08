@@ -12,7 +12,7 @@ coluna da direita é uma recomendação, não um veredito.
 
 | Jogo | Estado | O que eu recomendo |
 |---|---|---|
-| **Quadro branco** (livre, Forca, Desenha e Adivinha) | 17 ficheiros de teste, auditado de ponta a ponta, 9 defeitos reais corrigidos, pontos ligados ao placar, ajuda do Brasa, telemóvel medido. Tem agora vigia ao custo de repintar: uma mudança na sala custa uma cópia de tela e zero traços, com o quadro cheio ou vazio | **Fica.** É a joia da coroa e é onde está o trabalho todo |
+| **Quadro branco** (livre, Forca, Desenha e Adivinha) | 14 ficheiros de teste (13 que abrem os ecrãs do quadro, mais o test-board-votes que é lógica pura da votação dele), auditado de ponta a ponta, 9 defeitos reais corrigidos, pontos ligados ao placar, ajuda do Brasa, telemóvel medido. Tem agora vigia ao custo de repintar: uma mudança na sala custa uma cópia de tela e zero traços, com o quadro cheio ou vazio | **Fica.** É a joia da coroa e é onde está o trabalho todo |
 | **Eu sei clássico** (letra + categorias + votação) | É o jogo que dá o nome à app; tem testes de fluxo e da votação | **Fica.** Sem ele a app perde a identidade |
 | **Desenha e Adivinha** (bónus de fim de partida) | Ecrã próprio, o juiz escolhe o vencedor à mão. Ganhou um segundo baralho — o dos monumentos, que é o "Onde Fica Isto?" refeito — e a saída para quando quem desenha fecha o separador a meio | **Fica.** A recomendação anterior era cortá-lo por o modo novo do quadro fazer o mesmo e melhor; mantenho que se sobrepõem, mas agora ele carrega o "Onde Fica Isto?" às costas, e isso é razão para ficar |
 | **Mapa-Múndi em equipa** | 32 países como PONTOS num fundo estilizado, não como territórios | **Substituído**, feito: o mapa novo ocupou-lhe o lugar e este foi para a oficina |
