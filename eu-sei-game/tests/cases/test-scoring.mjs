@@ -1,68 +1,17 @@
-// Cópia isolada de computeRoundResults (room.js) só para testar a lógica de
-// pontuação sem precisar do SDK do Firebase (que não corre em Node puro).
-// Mantida em sincronia manual com room.js sempre que a lógica de pontuação
-// muda — ver a nota igual no início de test-hangman-logic.mjs etc.
-const ROUND_GLORIA_BONUS = 5;
+// A PONTUAÇÃO DO JOGO CLÁSSICO — a de verdade, não uma cópia dela.
+//
+// Este ficheiro tinha aqui dentro uma cópia do computeRoundResults do
+// room.js, "mantida em sincronia manual". Não estava: o room.js já devolvia
+// gloriaVotes e engracadaVotes em cada resposta e a cópia não devolvia nada
+// disso. Uma cópia que se atrasa é pior do que não ter teste, porque continua
+// a dizer OK enquanto a pontuação a sério muda por baixo.
+//
+// Agora importa a função verdadeira. É possível porque os casos puros correm
+// dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
+// test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
+import { computeRoundResults, ROUND_GLORIA_BONUS } from "./js/room.js";
+
 function catKey(i) { return "c" + i; }
-
-function computeRoundResults(room) {
-  const players = Object.keys(room.players || {});
-  const N = players.length;
-  const catIndexes = room.categoriesRound?.categoryIndexes || [];
-  const letter = (room.categoriesRound?.letter || "").toUpperCase();
-  const results = {};
-  const roundPoints = {};
-  players.forEach((uid) => { roundPoints[uid] = 0; results[uid] = {}; });
-
-  catIndexes.forEach((ci) => {
-    const entries = players.map((uid) => {
-      const text = (room.answers?.[uid]?.[catKey(ci)] || "").trim();
-      return { uid, text };
-    });
-    const othersCount = Math.max(N - 1, 0);
-    entries.forEach((e) => {
-      e.startsOk = e.text.length > 0 && e.text[0].toUpperCase() === letter;
-      const voteKey = `${e.uid}_${ci}`;
-      const kinds = Object.values(room.votes?.[voteKey] || {});
-      const invalidCount = kinds.filter((k) => k === "invalid").length;
-      const gloriaCount = kinds.filter((k) => k === "gloria").length;
-      const engracadaCount = kinds.filter((k) => k === "engracada").length;
-      e.invalidByVote = othersCount > 0 && invalidCount > Math.floor(othersCount / 2);
-      e.gloriaByVote = othersCount > 0 && gloriaCount > Math.floor(othersCount / 2);
-      e.gloriaCount = gloriaCount;
-      e.engracadaCount = engracadaCount;
-      e.isValid = e.text.length > 0 && (e.gloriaByVote || (e.startsOk && !e.invalidByVote));
-    });
-
-    const validEntries = entries.filter((e) => e.isValid);
-    const counts = {};
-    validEntries.forEach((e) => {
-      const key = e.text.toLowerCase();
-      counts[key] = (counts[key] || 0) + 1;
-    });
-
-    entries.forEach((e) => {
-      let status, points;
-      if (!e.text) {
-        status = "vazia"; points = 0;
-      } else if (!e.isValid) {
-        if (e.engracadaCount > 0) { status = "engracada"; points = 2; }
-        else { status = "invalida"; points = 0; }
-      } else {
-        const key = e.text.toLowerCase();
-        const repeated = counts[key] > 1;
-        const base = repeated ? 5 : 10;
-        const bonus = e.gloriaByVote ? ROUND_GLORIA_BONUS : 0;
-        status = repeated ? "valida-repetida" : "valida-unica";
-        points = base + bonus;
-      }
-      results[e.uid][catKey(ci)] = { text: e.text, status, points };
-      roundPoints[e.uid] += points;
-    });
-  });
-
-  return { results, roundPoints };
-}
 
 function assertEqual(actual, expected, label) {
   if (actual !== expected) {
