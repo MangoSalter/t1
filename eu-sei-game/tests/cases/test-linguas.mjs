@@ -8,8 +8,14 @@
 // Nenhum teste apanhava isto, e o mapa é o jogo em que a casa mais investiu.
 //
 // Puro de propósito: não precisa de browser e corre em menos de um segundo.
-import { LINGUAS, definirLingua, t } from "/home/user/desktop-tutorial/eu-sei-game/public/js/i18n.js";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+// O caminho vem do runner (EU_SEI_PUBLIC), como em test-mapa.mjs: escrito à
+// mão ficava preso à máquina onde foi escrito.
+const i18nPath = path.join(process.env.EU_SEI_PUBLIC, "js", "i18n.js");
+const { LINGUAS, definirLingua, t } = await import(pathToFileURL(i18nPath).href);
 
 function assert(cond, label) {
   if (!cond) { console.error(`FALHOU: ${label}`); process.exitCode = 1; }
@@ -19,7 +25,7 @@ function assert(cond, label) {
 // As tabelas não são exportadas (e não devem ser: quem lê textos usa o t()),
 // por isso as chaves saem do ficheiro. É frágil o suficiente para avisar se
 // alguém mudar a forma da tabela, que é justamente quando se quer olhar.
-const fonte = readFileSync("/home/user/desktop-tutorial/eu-sei-game/public/js/i18n.js", "utf8");
+const fonte = readFileSync(i18nPath, "utf8");
 const tabelas = {};
 for (const { chave } of LINGUAS) {
   const m = fonte.match(new RegExp(`\\n  ${chave}: \\{(.*?)\\n  \\},`, "s"));

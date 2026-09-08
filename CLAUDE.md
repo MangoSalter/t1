@@ -46,6 +46,14 @@ Pure logic must be importable in Node without a browser. A module that touches
 `data.js` (no DOM), `room.js` (network), `board.js` / `board-room.js`,
 `mapa.js` (engine) / `mapa-ecra.js` (screen).
 
+## A pure test with a hard-coded path tests the wrong files
+`test-data.mjs` and `test-linguas.mjs` imported
+`/home/user/.../public/js/data.js` by absolute path. That is not only
+unportable — it PASSES on a second checkout while reading the first one. I
+proved it: broke `CATEGORIES` in a copy of the repo, and the absolute-path
+version still said "todos os testes passaram". The runner hands every pure
+case `EU_SEI_PUBLIC`; use it (see `test-mapa.mjs`) and nothing else.
+
 ## The stub must not lie
 `tests/stub/firebase-init.js` stands in for Firebase. Every divergence found so
 far caused a real bug to pass the tests. When you touch identity or writes,
@@ -141,6 +149,11 @@ the width to padding, so the globe button — which is only the 🌍 — came ou
 44 high and 38 wide, under a comment promising "os 44 px do costume". Two
 rules in a row that covered half of what their comment claimed; assume the
 next one does too until you have the number.
+
+Also measured clean, so don't re-sweep: every room game's screen (Desenha e
+Adivinha, Fuga da Infeção, Labirinto, Mini-Golfe, mapa em sala, marcos) on an
+iPhone 13, and first load — 868 KB raw across 23 files in 4 import waves, with
+`paises.json` (191 KB) correctly deferred until the map opens.
 
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the

@@ -1,7 +1,14 @@
-import {
+// O caminho vem do runner (EU_SEI_PUBLIC), como em test-mapa.mjs: escrito à
+// mão ficava preso à máquina onde foi escrito, e a suite não corria em mais
+// lado nenhum.
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const publicDir = process.env.EU_SEI_PUBLIC;
+const {
   CATEGORIES, ALPHABET, HARD_LETTERS, pickLetters, pickCategories, catKey, catIndexFromKey,
   LANDMARKS, pickLandmark,
-} from "/home/user/desktop-tutorial/eu-sei-game/public/js/data.js";
+} = await import(pathToFileURL(path.join(publicDir, "js", "data.js")).href);
 
 function assert(cond, label) {
   if (!cond) { console.error(`FALHOU: ${label}`); process.exitCode = 1; }
