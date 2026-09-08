@@ -62,6 +62,27 @@ not estimated — it said ~11 minutes for a while and had quietly grown past
 it). The serial figure in here used to say ~25 minutes; I have not re-measured
 it, so treat it as folklore. If you need a number, measure it.
 
+## A guard is not a guard until you have watched it fail
+Write the check, then BREAK what it guards and confirm it goes red. Two checks
+of mine passed on deliberately broken input the same hour I wrote them:
+
+- the whiteboard's "reveal card" check counted *shapes with area*, and called
+  the Torre Eiffel blank (it is one compound path plus a zero-height ground
+  line);
+- its replacement counted pixels differing from the card's corner — but the
+  corner is the frame, so the whole interior read as ink, and it passed with a
+  monument drawn entirely outside the viewBox.
+
+Only the third version — dark pixels inside the card, inset past the frame —
+actually failed on a blank card. Nothing about the first two looked wrong.
+
+The good news, checked by breaking each on purpose in September: the
+load-bearing guards here are real. `test-equilibrio` goes red both for a payout
+outside the 15-40 band and for the board damper swapped for a flat cap;
+`test-stub-fidelity` catches the stub mirroring identity instead of importing
+it; `oficina-test` catches the hiding being switched off. Spot-check others the
+same way rather than trusting a green tick.
+
 ## New UI is not done until it has been measured on a phone
 This is a party game: everyone joins from their own phone, so the phone is the
 device, not the edge case. Two defects in one day came from checking new UI
