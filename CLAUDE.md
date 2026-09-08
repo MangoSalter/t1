@@ -62,6 +62,22 @@ not estimated — it said ~11 minutes for a while and had quietly grown past
 it). The serial figure in here used to say ~25 minutes; I have not re-measured
 it, so treat it as folklore. If you need a number, measure it.
 
+## Counting tests per game: do not grep, and do not trust a tool either
+I got this wrong three times in one session, always the same way — matching by
+FILE NAME. `car` matched `cards`; `board` matched `leaderboard`; and the old
+room map looked untested because no file is named after it (it is
+`mp-bonus-queue-test.mjs` that plays it, thoroughly). A name grep always
+returns a plausible number and never says what it over- or under-caught.
+
+I then tried to fix this with a tool that attributes tests by CONTENT, and
+threw it away: `solo-bug-test.mjs` names its game nowhere — it goes in through
+`solo-letterpick`/`solo-round`, like several others. So markers can't do it
+either, and a tool that is 70% over (it said 24 whiteboard cases where the true
+answer is 14) is worse than no tool, because it looks authoritative.
+
+There is no shortcut here. If a number of tests per game matters, open the
+files. If it does not matter, do not put a number in the document.
+
 ## A guard is not a guard until you have watched it fail
 Write the check, then BREAK what it guards and confirm it goes red. Two checks
 of mine passed on deliberately broken input the same hour I wrote them:
