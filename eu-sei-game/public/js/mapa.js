@@ -59,6 +59,11 @@ export const mapa = {
   // Os países cuja bandeira já foi revelada como pista. Some quando o país é
   // conquistado: a pista deixou de ser pista.
   pistas: [],
+  // Países EM CAUSA: alguém falhou neles agora mesmo e valem a dobrar a quem
+  // souber, durante uns segundos. A regra existia e não se via em lado
+  // nenhum — só se soubesse quem falhou é que se sabia onde estava a
+  // oportunidade. Nome do país -> instante em que deixa de valer.
+  emCausa: {},
   panning: false,
   panFrom: null,
 };
@@ -828,10 +833,54 @@ export function desenhar(ctx) {
     ctx.stroke();
   });
 
+  // Os países EM CAUSA, por cima do desenho normal: contorno a tracejado e um
+  // "x2" no meio. Nem cor nem preenchimento — quem não distingue cores tem de
+  // ver isto na mesma, e a forma do traço vê-se sempre.
+  const agoraEmCausa = Date.now();
+  const emCausaAgora = Object.entries(mapa.emCausa || {})
+    .filter(([, ate]) => ate > agoraEmCausa)
+    .map(([nome]) => nome);
+  if (emCausaAgora.length > 0) {
+    ctx.save();
+    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#3a3126";
+    emCausaAgora.forEach((nome) => {
+      const p = mapa.porNome.get(nome);
+      if (!p || mapa.donos[nome]) return;
+      ctx.beginPath();
+      p.aneis.forEach((anel) => {
+        anel.forEach(([x, y], i) => {
+          const e = ecraDoMundo(x, y);
+          if (i === 0) ctx.moveTo(e.x, e.y);
+          else ctx.lineTo(e.x, e.y);
+        });
+        ctx.closePath();
+      });
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   // As pistas por cima de tudo: a bandeira pousada dentro do país a que
   // pertence. Desenhadas no fim para nenhum país as tapar.
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+
+  // O "x2" de quem está em causa, já com o alinhamento de texto ligado.
+  emCausaAgora.forEach((nome) => {
+    const p = mapa.porNome.get(nome);
+    if (!p || mapa.donos[nome]) return;
+    const c = centroDe(p);
+    const e = ecraDoMundo(c.x, c.y);
+    const tamanho = Math.max(11, Math.min(30, mapa.zoom * 0.038));
+    ctx.font = `bold ${tamanho}px "Patrick Hand", cursive, sans-serif`;
+    ctx.lineWidth = Math.max(2, tamanho * 0.22);
+    ctx.strokeStyle = "#fffdf7";
+    ctx.strokeText("x2", e.x, e.y);
+    ctx.fillStyle = "#3a3126";
+    ctx.fillText("x2", e.x, e.y);
+  });
 
   // A bandeira de cada país CONQUISTADO, dentro dele: mostra de quem é sem se
   // ter de decorar cores, e de caminho ensina a bandeira a quem não a sabia.

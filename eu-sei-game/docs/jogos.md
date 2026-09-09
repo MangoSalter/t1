@@ -239,6 +239,13 @@ que não são deste jogo — dez cores distinguíveis por toda a gente sobre pap
 não cabe sem estragar o aspeto. Ficam melhor as cores de sempre, agora que
 ninguém fica sem a sua.
 
+**E o mapa passa a mostrar onde vale a dobrar.** O "roubar de volta" já
+existia — quem falha um país deixa-o em causa uns segundos, e quem o souber a
+seguir leva o dobro — mas não se via em lado nenhum: só sabia da oportunidade
+quem tivesse visto a outra pessoa falhar. Agora o país fica com o contorno a
+tracejado e um "x2" no meio, e a marca apaga-se sozinha quando o prazo acaba.
+Tracejado e texto de propósito, não cor: é a mesma lição das cores acima.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

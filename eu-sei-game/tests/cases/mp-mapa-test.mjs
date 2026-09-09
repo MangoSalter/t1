@@ -118,6 +118,24 @@ const pontosDe = async (p, quem) => {
   return n ? Number(n[1]) : 0;
 };
 
+// A comparação é feita DENTRO da página: passar a tela inteira para fora
+// (1280x584, três milhões de números) demorava segundos e comia a janela de
+// oito em que o país vale a dobrar — o passo seguinte deste teste passou a
+// falhar por causa da medição, não do jogo.
+const guardarTela = (p) => p.evaluate(() => {
+  const cv = document.getElementById("mapa-canvas");
+  window.__telaAntes = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data.slice();
+});
+const mudancasNaTela = (p) => p.evaluate(() => {
+  const cv = document.getElementById("mapa-canvas");
+  const agora = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+  const antes = window.__telaAntes;
+  let n = 0;
+  for (let i = 0; i < agora.length; i += 4) {
+    if (agora[i] !== antes[i] || agora[i + 1] !== antes[i + 1] || agora[i + 2] !== antes[i + 2]) n += 1;
+  }
+  return n;
+});
 // Argentina, e não o Chile: precisa-se de um país largo o suficiente para um
 // clique cair lá dentro sem margem para dúvidas.
 const argentina = await noEcra(beto, -64, -34);
@@ -128,8 +146,27 @@ const apontado = await beto.evaluate(async () => {
 });
 console.log(`   o Beto apontou: ${apontado}`);
 if (apontado !== "Argentina") fail(`o clique devia cair na Argentina, caiu em ${apontado}`);
+await guardarTela(ana); // a fotografia é ANTES do erro: depois já traz a marca
 await escrever(beto, "gronelandia");
 await beto.waitForTimeout(800);
+
+// E a Ana tem de VER onde está a oportunidade. A regra existia e não se via:
+// só quem tivesse visto o outro falhar é que sabia onde valia a dobrar. A
+// marca é um contorno a tracejado e um "x2" — nem cor nem preenchimento, para
+// quem não distingue cores a ver na mesma.
+//
+// Compara-se a TELA INTEIRA, píxel a píxel. A primeira versão contava píxeis
+// escuros à volta do país e não acusava nada: o "x2" traz um halo branco por
+// baixo que apaga tantos píxeis escuros do contorno como os que a letra
+// acrescenta. O número mexia zero e a marca estava lá.
+await ana.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.emCausa || {}).includes("Argentina");
+}, { timeout: 10000 });
+await ana.waitForTimeout(300);
+const mudou = await mudancasNaTela(ana);
+console.log(`   píxeis mudados no mapa quando a Argentina fica em causa: ${mudou}`);
+if (mudou < 200) fail("o país em causa tinha de ficar marcado no desenho, não só no estado da sala");
 
 const antes = await pontosDe(ana, "Ana");
 await escrever(ana, "argentina");

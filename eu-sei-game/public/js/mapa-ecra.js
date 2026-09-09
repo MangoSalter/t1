@@ -117,12 +117,37 @@ export function aplicarEstadoDaSala(estado, corDe) {
   });
   mapa.donos = donos;
   mapa.pistas = estado.pistas || [];
+  // Quem está em causa (alguém falhou lá agora e vale a dobrar). Vem da sala
+  // em chaves de país; o desenho só precisa de nome -> até quando.
+  const emCausa = {};
+  Object.values(estado.abertos || {}).forEach((aberto) => {
+    if (aberto?.pais && aberto?.ate) emCausa[aberto.pais] = aberto.ate;
+  });
+  mapa.emCausa = emCausa;
+  // A marca tem hora para acabar, e o mapa só se redesenha quando a sala
+  // muda: sem isto o "x2" ficava no ecrã depois de já não valer nada.
+  agendarFimDoEmCausa();
   if (estado.modo && estado.modo !== mapa.modo) {
     mapa.modo = estado.modo;
     if (els.modo) els.modo.value = estado.modo;
   }
   if (estado.dificuldade) mapa.dificuldade = estado.dificuldade;
   if (jogo.ligado) redesenhar();
+}
+
+let temporizadorEmCausa = null;
+function agendarFimDoEmCausa() {
+  if (temporizadorEmCausa) { clearTimeout(temporizadorEmCausa); temporizadorEmCausa = null; }
+  const agora = Date.now();
+  const proximo = Object.values(mapa.emCausa || {})
+    .filter((ate) => ate > agora)
+    .sort((a, b) => a - b)[0];
+  if (!proximo) return;
+  temporizadorEmCausa = setTimeout(() => {
+    temporizadorEmCausa = null;
+    if (jogo.ligado) redesenhar();
+    agendarFimDoEmCausa();
+  }, Math.max(50, proximo - agora + 30));
 }
 
 function haEcra() {

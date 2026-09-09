@@ -3531,7 +3531,10 @@ export async function mapaErrar(code, uid, nomePais, agora = Date.now()) {
     [`mapa/marcadores/${uid}/cadeia`]: 0,
   };
   if (nomePais && !mapaDono(room, nomePais)) {
-    updates[`mapa/abertos/${chaveDePais(nomePais)}`] = { ate: agora + MAPA_ROUBO_MS, porCausaDe: uid };
+    // Guarda-se também o NOME: a chave é normalizada (sem acentos, sem
+    // espaços) e o ecrã precisa do nome tal e qual para marcar o país no
+    // desenho. Salas antigas sem este campo simplesmente não mostram a marca.
+    updates[`mapa/abertos/${chaveDePais(nomePais)}`] = { ate: agora + MAPA_ROUBO_MS, porCausaDe: uid, pais: nomePais };
   }
   await update(roomRef(code), updates);
 }
