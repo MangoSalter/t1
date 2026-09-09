@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m42s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **14m12s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -299,6 +299,24 @@ whole of Conquistar o Mapa now arrives only when someone opens it:
 in both directions — no file matching `mapa` at first load, and those same
 files present after the map opens. Falsified by putting one static import back:
 918 KB with `mapa-sala.js, mapa-ecra.js, mapa.js` named in the failure.
+
+The solo whiteboard went the same way in the same session — 43 KB, one leaf
+module nobody imports, entered only by `[data-open-board]` — so the load is
+**804 KB across 19 files**. It needed one new export (`abrirQuadro`, which is
+what the old inline listener did) because the loader has to open the screen
+itself for the click that triggered the import.
+
+What is left, measured and NOT done: `solo.js` is 143 KB — 18% of what remains
+— and is also a leaf entry module. It is not the same easy case, for two
+reasons worth knowing before anyone tries. It paints the home screen at load
+(`mostrarEstadoDoDesafio` writes the daily challenge's status and streak into
+the home screen as well as the solo menu), so deferring it blanks the very
+thing that is meant to bring people back; the honest fix is to pull
+`lerDesafio` + the status text into a small shared module that both app.js and
+solo.js import, not to duplicate the text in two places. And several solo
+cases reach those screens by toggling `[data-screen].active` rather than by
+clicking the entry buttons, so they would find an inert screen. Neither is a
+blocker, both are more than a six-line loader.
 
 Two things that deferral needed, and would be easy to get wrong:
 

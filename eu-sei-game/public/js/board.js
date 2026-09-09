@@ -1172,5 +1172,14 @@ if (boardAvailable) {
   window.addEventListener("beforeunload", saveDrawingNow);
 }
 
+// A porta de entrada do quadro solo, para quem o carrega tarde: o módulo tem
+// 43 KB e só serve a quem carrega em "Quadro branco". O index.html traz um
+// carregador que trata do PRIMEIRO clique e chama isto; a partir daí são os
+// ouvintes daqui de dentro que respondem (ver carga-inicial-test).
+export function abrirQuadro() {
+  showBoardScreen();
+  falaDaCasaNoQuadro();
+}
+
 // Exposto para os testes conseguirem montar um quadro sem passar pelo rato.
 export const __board = board;
