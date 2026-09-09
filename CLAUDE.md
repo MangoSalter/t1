@@ -208,6 +208,32 @@ visible instead of silently green. What it found: the seven colours you draw
 your own avatar with, at 26px, with no phone rule anywhere — the very first
 screen, before anyone joins a room.
 
+## The accessible name is not the textContent
+Both sweeps also check that a screen reader has something to announce, and the
+first version of that check was wrong in a way that looked right: it asked
+whether the element's text contained a letter. I tore the `aria-label` off the
+language `<select>` to watch it fail, and it stayed green — a `<select>`
+carries its options inside it, so its `textContent` is "Português English
+Español" and every select on earth passes. What a reader actually announces is
+the label: `aria-label`, `title`, or the wrapping `<label>` with the control's
+own text removed. Under that rule the language selector is still named (its
+`<label>` says "Língua", so my "break" was not a break), and stripping `title`
+from the palette's 🎨 button — which really is emoji and nothing else — turns
+it red.
+
+So it is measured, not assumed: **every static control on all 41 screens and
+all 16 overlays has a name**, and the avatar's seven colours were the only
+ones that did not — pure colour buttons, no label, in the overlay nobody had
+ever opened. They now announce "Amarelo-mostarda #e3a53d" and carry
+`aria-pressed`.
+
+Also: the avatar's colours had never been CLICKED by any test either — the
+whole picker was markup nobody exercised. `avatar-preview-polish-test` step 5
+picks one and reads the painted pixel back off the canvas. Don't assert on a
+pixel COORDINATE there: the canvas is 224px wide with a 2px border, so a click
+at 25% of the bounding box lands on pixel 3, not 4. Count pixels of the chosen
+colour instead.
+
 A comment claiming something is "the only one" is a to-do list, not a fact.
 `.tag-player-me` carried a note saying it was *the only* ring that doesn't
 shrink with the arena — and the shield and speed rings beside it sat at 4px

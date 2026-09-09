@@ -116,7 +116,19 @@ els.joinBtn.addEventListener("click", async () => {
 
 const AVATAR_SIZE = 16;
 const AVATAR_KEY = "euSei_avatar";
-const AVATAR_PALETTE = ["#3a3126", "#c65d4a", "#e3a53d", "#6c8a4f", "#5c7e91", "#8a6bb0", "#ffffff"];
+// Com nome: sete botões que só têm cor não dizem nada a quem usa leitor de
+// ecrã, e a paleta grande dos quadros já anuncia a dela desde sempre. Estavam
+// mudos porque vivem numa sobreposição que varrimento nenhum abria (ver
+// a11y-test, passo 12).
+const AVATAR_PALETTE = [
+  { cor: "#3a3126", nome: "Castanho-escuro" },
+  { cor: "#c65d4a", nome: "Vermelho-telha" },
+  { cor: "#e3a53d", nome: "Amarelo-mostarda" },
+  { cor: "#6c8a4f", nome: "Verde-musgo" },
+  { cor: "#5c7e91", nome: "Azul-acinzentado" },
+  { cor: "#8a6bb0", nome: "Roxo" },
+  { cor: "#ffffff", nome: "Branco" },
+];
 const AVATAR_BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
 
 const avatarEls = {
@@ -133,7 +145,7 @@ const avatarEls = {
   cancelBtn: document.getElementById("avatar-cancel-btn"),
 };
 
-const avatarState = { tool: "pencil", color: AVATAR_PALETTE[0], drawing: false };
+const avatarState = { tool: "pencil", color: AVATAR_PALETTE[0].cor, drawing: false };
 const avatarCtx = avatarEls.canvas.getContext("2d", { willReadFrequently: true });
 avatarCtx.imageSmoothingEnabled = false;
 
@@ -159,18 +171,26 @@ function updateAvatarPreview(dataUrl) {
 }
 updateAvatarPreview(loadAvatar());
 
-AVATAR_PALETTE.forEach((color) => {
+AVATAR_PALETTE.forEach(({ cor, nome }) => {
   const swatch = document.createElement("button");
   swatch.type = "button";
   swatch.className = "avatar-swatch";
-  swatch.style.background = color;
-  swatch.classList.toggle("active", color === avatarState.color);
+  swatch.style.background = cor;
+  swatch.setAttribute("aria-label", `${nome} ${cor}`);
+  const marcar = (ligado) => {
+    swatch.classList.toggle("active", ligado);
+    swatch.setAttribute("aria-pressed", ligado ? "true" : "false");
+  };
+  marcar(cor === avatarState.color);
   swatch.addEventListener("click", () => {
-    avatarState.color = color;
+    avatarState.color = cor;
     avatarState.tool = "pencil";
     avatarEls.toolPencil.classList.add("active");
     avatarEls.toolEraser.classList.remove("active");
-    avatarEls.palette.querySelectorAll(".avatar-swatch").forEach((s) => s.classList.toggle("active", s === swatch));
+    avatarEls.palette.querySelectorAll(".avatar-swatch").forEach((s) => {
+      s.classList.toggle("active", s === swatch);
+      s.setAttribute("aria-pressed", s === swatch ? "true" : "false");
+    });
   });
   avatarEls.palette.appendChild(swatch);
 });

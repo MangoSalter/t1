@@ -376,6 +376,82 @@ for (const m of [noQuadro, noMapa]) {
 }
 await cheiaCtx.close();
 
+// Corre DENTRO da página, e serve os dois passos que se seguem. Recebe o que
+// varrer ("sobreposicoes" ou "ecras") e devolve, por cada raiz, os controlos
+// visíveis, os que não cabem no dedo e os que um leitor de ecrã não sabe
+// anunciar.
+//
+// O nome acessível não é o textContent. Um <select> tem as opções lá dentro,
+// por isso "o texto tem letras" dava-o sempre por nomeado — e a primeira
+// versão desta verificação PASSOU depois de eu tirar de propósito o
+// aria-label ao selector de língua. O que conta é a etiqueta: aria-label,
+// title, ou o <label> à volta sem o texto do próprio controlo.
+function varrerControlos(modo) {
+  const nomeDe = (el) => {
+    const direto = (el.getAttribute("aria-label") || el.getAttribute("title") || "").trim();
+    if (direto) return direto;
+    const semControlos = (raiz) => {
+      const copia = raiz.cloneNode(true);
+      copia.querySelectorAll("select, input, textarea").forEach((c) => c.remove());
+      return copia.textContent.trim();
+    };
+    if (el.tagName === "LABEL") return semControlos(el);
+    if (["SELECT", "INPUT", "TEXTAREA"].includes(el.tagName)) {
+      const rotulo = el.closest("label") || (el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null);
+      return rotulo ? semControlos(rotulo) : "";
+    }
+    return (el.textContent || "").trim();
+  };
+  const medir = (raiz) => {
+    const maus = [];
+    const semNome = [];
+    let vistos = 0;
+    raiz.querySelectorAll("button, label, [role=button], select").forEach((el) => {
+      if (el.offsetParent === null) return;
+      const r = el.getBoundingClientRect();
+      if (r.height === 0 || r.width === 0) return;
+      vistos += 1;
+      const nome = nomeDe(el);
+      if (r.height < 44 || r.width < 44) {
+        maus.push(`${nome.slice(0, 12) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
+      }
+      if (!/\p{L}/u.test(nome)) semNome.push(`${el.id || el.className} "${nome}"`);
+    });
+    return { vistos, maus, semNome };
+  };
+
+  if (modo === "sobreposicoes") {
+    return [...document.querySelectorAll(".pause-overlay, .minigame-end-overlay")].map((ov) => {
+      const escondida = ov.classList.contains("hidden");
+      ov.classList.remove("hidden");
+      const medida = medir(ov);
+      // E se o cartão não cabe no ecrã do telemóvel, o que está no fundo não
+      // se alcança — medir os botões não chega se metade deles ficar fora.
+      const cartao = ov.querySelector(".card, .minigame-end-card");
+      const transborda = cartao ? cartao.getBoundingClientRect().height > window.innerHeight : false;
+      if (escondida) ov.classList.add("hidden");
+      return { onde: ov.id || "(sem id)", ...medida, transborda };
+    });
+  }
+
+  const ecras = [...document.querySelectorAll("[data-screen]")];
+  const antes = ecras.map((e) => e.classList.contains("active"));
+  const resultado = ecras.map((alvo) => {
+    ecras.forEach((e) => e.classList.toggle("active", e === alvo));
+    return { onde: alvo.dataset.screen, ...medir(alvo), transborda: false };
+  });
+  ecras.forEach((e, i) => e.classList.toggle("active", antes[i]));
+  return resultado;
+}
+
+// Uma queixa por família, com a lista à frente, para não imprimir um ecrã de
+// texto quando alguma coisa se parte em cinquenta sítios ao mesmo tempo.
+function queixar(titulo, linhas) {
+  console.log(`   ${titulo}: ${linhas.length}`);
+  linhas.slice(0, 8).forEach((l) => console.log(`      ${l}`));
+  if (linhas.length > 0) process.exitCode = 1;
+}
+
 console.log("12) E as sobreposições, que se abrem por cima de tudo e nunca foram medidas...");
 // O passo 8 mede UMA sobreposição — a paleta. Há dezasseis, e as outras
 // quinze nunca passaram por aqui por duas razões que se somam: vivem fora
@@ -384,61 +460,29 @@ console.log("12) E as sobreposições, que se abrem por cima de tudo e nunca for
 // também não. Abre-se uma de cada vez e mede-se o que lá está.
 //
 // Quem isto apanhou: o editor do avatar. As sete cores com que se desenha a
-// cara mediam 26px de lado, sem regra de telemóvel nenhuma — e o avatar
-// desenha-se no telemóvel, no primeiro ecrã, antes de entrar em sala.
+// cara mediam 26px de lado, sem regra de telemóvel nenhuma, e não tinham
+// nome nenhum para quem usa leitor de ecrã — e o avatar desenha-se no
+// telemóvel, no primeiro ecrã, antes de entrar em sala.
 //
 // O que isto NÃO apanha: as sobreposições cujo conteúdo só é construído
-// quando se abrem a sério (as cores da Forca, o histórico de palavras). Por
-// isso conta-se quantos controlos se viu em cada uma e imprime-se — uma
-// sobreposição vazia fica à vista em vez de passar calada.
+// quando se abrem a sério (as cores da Forca). Por isso conta-se quantos
+// controlos se viu em cada uma e imprime-se — uma sobreposição vazia fica à
+// vista em vez de passar calada.
 const sobCtx = await browser.newContext({ ...devices["iPhone 13"] });
 const sp = await sobCtx.newPage();
 await sp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
 await sp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
 await sp.reload({ waitUntil: "networkidle" });
-const sobreposicoes = await sp.evaluate(() => {
-  const todas = [...document.querySelectorAll(".pause-overlay, .minigame-end-overlay")];
-  return todas.map((ov) => {
-    const escondida = ov.classList.contains("hidden");
-    ov.classList.remove("hidden");
-    const maus = [];
-    let vistos = 0;
-    ov.querySelectorAll("button, label, [role=button], select").forEach((el) => {
-      if (el.offsetParent === null) return;
-      const r = el.getBoundingClientRect();
-      if (r.height === 0 || r.width === 0) return;
-      vistos += 1;
-      if (r.height < 44 || r.width < 44) {
-        maus.push(`${(el.textContent || "").trim().slice(0, 12) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
-      }
-    });
-    // E se o cartão não cabe no ecrã do telemóvel, o que está no fundo não se
-    // alcança — medir os botões não chega se metade deles ficar fora.
-    const cartao = ov.querySelector(".card, .minigame-end-card");
-    const transborda = cartao ? cartao.getBoundingClientRect().height > window.innerHeight : false;
-    if (escondida) ov.classList.add("hidden");
-    return { id: ov.id || "(sem id)", vistos, maus, transborda };
-  });
-});
+const sobreposicoes = await sp.evaluate(varrerControlos, "sobreposicoes");
 console.log(`   ${sobreposicoes.length} sobreposições medidas`);
-for (const ov of sobreposicoes) {
-  if (ov.maus.length > 0 || ov.transborda) {
-    console.log(`   ${ov.id}: ${ov.vistos} controlos, abaixo de 44px: ${ov.maus.length} ${ov.maus.slice(0, 4).join(", ")}${ov.transborda ? " [não cabe no ecrã]" : ""}`);
-  }
-}
-console.log(`   vazias (conteúdo só nasce ao abrir a sério): ${sobreposicoes.filter((o) => o.vistos === 0).map((o) => o.id).join(", ") || "nenhuma"}`);
+console.log(`   vazias (conteúdo só nasce ao abrir a sério): ${sobreposicoes.filter((o) => o.vistos === 0).map((o) => o.onde).join(", ") || "nenhuma"}`);
 if (sobreposicoes.length < 15) {
   console.log(`   FALHOU: só encontrei ${sobreposicoes.length} sobreposições — o seletor deixou de as apanhar`);
   process.exitCode = 1;
 }
-if (sobreposicoes.some((o) => o.maus.length > 0)) {
-  console.log("   FALHOU: alvos pequenos demais numa sobreposição");
-  process.exitCode = 1;
-}
-if (sobreposicoes.some((o) => o.transborda)) {
-  console.log("   FALHOU: uma sobreposição mais alta do que o ecrã do telemóvel");
-  process.exitCode = 1;
-}
+queixar("alvos abaixo de 44px", sobreposicoes.flatMap((o) => o.maus.map((m) => `${o.onde}: ${m}`)));
+queixar("sem nome para leitor de ecrã", sobreposicoes.flatMap((o) => o.semNome.map((n) => `${o.onde}: ${n}`)));
+queixar("mais altas do que o ecrã do telemóvel", sobreposicoes.filter((o) => o.transborda).map((o) => o.onde));
 await sobCtx.close();
 
 console.log("13) E os 41 ecrãs, todos, sem navegar até nenhum...");
@@ -456,42 +500,14 @@ const vp = await varreCtx.newPage();
 await vp.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
 await vp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
 await vp.reload({ waitUntil: "networkidle" });
-const varrimento = await vp.evaluate(() => {
-  const ecras = [...document.querySelectorAll("[data-screen]")];
-  const antes = ecras.map((e) => e.classList.contains("active"));
-  const resultado = [];
-  for (const alvo of ecras) {
-    ecras.forEach((e) => e.classList.toggle("active", e === alvo));
-    const maus = [];
-    let vistos = 0;
-    alvo.querySelectorAll("button, label, [role=button], select").forEach((el) => {
-      if (el.offsetParent === null) return;
-      const r = el.getBoundingClientRect();
-      if (r.height === 0 || r.width === 0) return;
-      vistos += 1;
-      if (r.height < 44 || r.width < 44) {
-        maus.push(`${(el.textContent || "").trim().slice(0, 12) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
-      }
-    });
-    resultado.push({ ecra: alvo.dataset.screen, vistos, maus });
-  }
-  ecras.forEach((e, i) => e.classList.toggle("active", antes[i]));
-  return resultado;
-});
-const comControlos = varrimento.filter((e) => e.vistos > 0);
-const maus13 = varrimento.filter((e) => e.maus.length > 0);
-console.log(`   ${varrimento.length} ecrãs, ${comControlos.length} com controlos no index.html, ${maus13.length} com alvos pequenos`);
-for (const e of maus13) {
-  console.log(`   ${e.ecra}: ${e.maus.length} de ${e.vistos} — ${e.maus.slice(0, 4).join(", ")}`);
-}
+const varrimento = await vp.evaluate(varrerControlos, "ecras");
+console.log(`   ${varrimento.length} ecrãs, ${varrimento.filter((e) => e.vistos > 0).length} com controlos no index.html`);
 if (varrimento.length < 35) {
   console.log(`   FALHOU: só encontrei ${varrimento.length} ecrãs — o seletor deixou de os apanhar`);
   process.exitCode = 1;
 }
-if (maus13.length > 0) {
-  console.log("   FALHOU: alvos pequenos demais em ecrãs que ninguém mede a sério");
-  process.exitCode = 1;
-}
+queixar("alvos abaixo de 44px", varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
+queixar("sem nome para leitor de ecrã", varrimento.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)));
 await varreCtx.close();
 
 await browser.close();
