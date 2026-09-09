@@ -22,7 +22,7 @@ const ctx = await browser.newContext({ ...devices["iPhone 13"] });
 const page = await ctx.newPage();
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 
-const TETO_KB = 1100;
+const TETO_KB = 1000;
 const TETO_FICHEIROS = 32;
 
 const pedidos = [];
@@ -49,13 +49,16 @@ console.log(`   os maiores: ${maiores.join(", ")}`);
 if (kb > TETO_KB) fail(`a primeira abertura pesa ${kb} KB`);
 if (pedidos.length > TETO_FICHEIROS) fail(`a primeira abertura faz ${pedidos.length} pedidos`);
 
-console.log("2) E o mapa não pode vir junto: são 191 KB que a maioria não abre...");
-// paises.json é o ficheiro mais pesado do projeto e só serve a Conquistar o
-// Mapa. Se aparecer aqui, é porque alguém pôs um "import" do mapa num módulo
-// que a página carrega de início — e paga-o toda a gente, jogue ou não.
+console.log("2) E o mapa não pode vir junto: são 262 KB que a maioria não abre...");
+// O Conquistar o Mapa custa 191 KB de paises.json e 71 KB dos seus três
+// módulos, e não serve a quem nunca o abre. O paises.json sempre foi pedido
+// só ao abrir; os módulos viajavam na primeira abertura de toda a gente,
+// porque o app.js importava o mapa-sala e o index.html carregava o mapa-ecra.
+// Agora chegam os dois tarde — e é isto que impede alguém de voltar a pôr um
+// "import" do mapa num módulo que a página carrega de início.
 const mapaCedo = pedidos.filter((p) => /paises\.json|mapa/.test(p.nome));
 console.log(`   ficheiros do mapa na primeira abertura: ${mapaCedo.length ? mapaCedo.map((p) => p.nome).join(", ") : "nenhum"}`);
-if (mapaCedo.some((p) => p.nome === "paises.json")) fail("paises.json veio na primeira abertura");
+if (mapaCedo.length > 0) fail(`o mapa veio na primeira abertura: ${mapaCedo.map((p) => p.nome).join(", ")}`);
 
 console.log("3) E ao abrir o mapa é que ele chega...");
 const antes = pedidos.length;
@@ -64,8 +67,10 @@ await page.waitForSelector('[data-screen="mapa"].active', { timeout: 8000 });
 await page.waitForFunction(async () => (await import("./js/mapa.js")).mapa.paises.length > 0, { timeout: 20000 });
 const depois = pedidos.slice(antes);
 const trouxePaises = depois.some((p) => p.nome === "paises.json");
-console.log(`   mais ${depois.length} ficheiros ao abrir o mapa, paises.json entre eles: ${trouxePaises}`);
+const trouxeModulos = depois.some((p) => /mapa.*\.js/.test(p.nome));
+console.log(`   mais ${depois.length} ficheiros ao abrir o mapa: ${depois.map((p) => p.nome).join(", ")}`);
 if (!trouxePaises) fail("paises.json não foi pedido ao abrir o mapa — a medição não diz nada");
+if (!trouxeModulos) fail("os módulos do mapa não foram pedidos ao abrir o mapa — a medição não diz nada");
 
 await browser.close();
 console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: OK");

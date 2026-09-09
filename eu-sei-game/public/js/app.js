@@ -47,7 +47,18 @@ import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
 import { renderHangman, esquecerNarracao } from "./board-room.js";
 // O mapa de sala, pelo mesmo motivo: o motor e o ecrã do mapa já existem para
 // o modo sozinho, e este módulo só os liga à sala.
-import { renderMapaSala, esquecerMapaDaSala } from "./mapa-sala.js";
+// O mapa em sala chega TARDE, de propósito. O mapa-sala arrasta o mapa-ecra e
+// o mapa-ecra arrasta o mapa.js: 71 KB que iam em todas as primeiras aberturas
+// do site, incluindo as de quem nunca abre o Conquistar o Mapa (o paises.json,
+// 191 KB, já era pedido só ao abrir — isto é a outra metade). Medido pelo
+// carga-inicial-test, que também é quem impede isto de voltar atrás.
+let mapaSalaMod = null;
+let mapaSalaAPedir = null;
+function comMapaSala() {
+  if (mapaSalaMod) return Promise.resolve(mapaSalaMod);
+  mapaSalaAPedir = mapaSalaAPedir || import("./mapa-sala.js").then((m) => { mapaSalaMod = m; return m; });
+  return mapaSalaAPedir;
+}
 // Os jogos que ainda não estão para se mostrar saem do ecrã aqui — o menu de
 // jogos da sala vive neste ficheiro.
 import { esconderAOficina } from "./oficina.js";
@@ -370,7 +381,8 @@ function onRoomUpdate(room) {
   if (room.state !== "hangman") esquecerNarracao();
   // Sair do mapa desliga-o da sala. Sem isto, o ecrã do mapa continuava a
   // escrever conquistas numa sala que já ia noutro jogo.
-  if (room.state !== "mapa") esquecerMapaDaSala();
+  // Só há o que esquecer se o mapa chegou a ser carregado.
+  if (room.state !== "mapa" && mapaSalaMod) mapaSalaMod.esquecerMapaDaSala();
   if (room.state !== "tag" && tagState.active) tagExit();
   if (room.state !== "battle" && battleState.active) battleExit();
   if (room.state !== "race" && raceState.active) raceExit();
@@ -390,7 +402,15 @@ function onRoomUpdate(room) {
     case "battle": renderBattle(room); showScreen("battle"); break;
     case "race": renderRace(room); showScreen("race"); break;
     case "golf": renderGolfMp(room); showScreen("golf"); break;
-    case "mapa": renderMapaSala(room); showScreen("mapa"); break;
+    // O ecrã aparece já; o desenho vem quando o módulo chegar. Lê-se o
+    // state.room de então, e não esta sala, porque entre o pedido e a
+    // resposta pode ter chegado outra atualização — e a que vale é a última.
+    case "mapa":
+      showScreen("mapa");
+      comMapaSala().then((m) => {
+        if (state.room?.state === "mapa") m.renderMapaSala(state.room);
+      });
+      break;
     case "final": renderFinal(room); showScreen("final"); break;
     default: showScreen("lobby");
   }

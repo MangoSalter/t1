@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m21s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **14m42s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -290,13 +290,27 @@ them noise), with ceilings at 1100 KB and 32 files — the point where something
 changed by an order of magnitude, not a target to chase. Falsified by making
 `app.js` fetch `paises.json` at the top: 1104 KB, red.
 
-`paises.json` (191 KB) is correctly deferred until the map opens, and the test
-proves both halves — absent at first load, present after opening the map. What
-it also showed, and what is NOT fixed: the map's three JS modules travel in the
-first load anyway (`mapa.js` 36 KB, `mapa-ecra.js` 31 KB, `mapa-sala.js` 4 KB),
-because `app.js` imports `mapa-sala.js` and `index.html` loads `mapa-ecra.js`
-as a module script. That is 71 KB — 8% of the load — paid by everyone who never
-opens Conquistar o Mapa.
+What the guard showed on its first run: `paises.json` (191 KB) was deferred
+until the map opens, but the map's three JS modules travelled in everyone's
+first load anyway — `app.js` imported `mapa-sala.js`, and `index.html` loaded
+`mapa-ecra.js` as a module script, and each drags `mapa.js` behind it. So the
+whole of Conquistar o Mapa now arrives only when someone opens it:
+**913 KB / 23 files down to 847 KB / 20**, and the test asserts the invariant
+in both directions — no file matching `mapa` at first load, and those same
+files present after the map opens. Falsified by putting one static import back:
+918 KB with `mapa-sala.js, mapa-ecra.js, mapa.js` named in the failure.
+
+Two things that deferral needed, and would be easy to get wrong:
+
+- `index.html` carries a six-line loader that handles the FIRST click on
+  `[data-open-mapa]` and calls `__mapa.abrirMapa()` itself. After that the
+  module's own listener is attached and the loader stands down on a flag —
+  without the flag, the second open button would import again and open twice.
+- `onRoomUpdate`'s `case "mapa"` shows the screen first and renders when the
+  module lands, reading `state.room` at THAT moment rather than the room it
+  was called with: an update can arrive between the request and the response,
+  and the one that counts is the last. `esquecerMapaDaSala` is only called if
+  the module was ever loaded — there is nothing to forget otherwise.
 
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the

@@ -1224,6 +1224,19 @@
   <script type="module" src="js/solo.js"></script>
   <script type="module" src="js/board.js"></script>
   <script type="module" src="js/i18n-ecra.js"></script>
-  <script type="module" src="js/mapa-ecra.js"></script>
+  <!-- O mapa carrega-se ao abrir, não à entrada: são 71 KB de JavaScript que
+       só servem a quem joga o Conquistar o Mapa. Este carregador trata do
+       PRIMEIRO clique; a partir daí é o próprio módulo que ouve os botões. -->
+  <script type="module">
+    let aCarregar = false;
+    const abrirOMapa = async (ev) => {
+      if (aCarregar) return; // já foi: quem trata do clique agora é o módulo
+      aCarregar = true;
+      ev.preventDefault();
+      const m = await import("./js/mapa-ecra.js");
+      m.__mapa.abrirMapa();
+    };
+    document.querySelectorAll("[data-open-mapa]").forEach((b) => b.addEventListener("click", abrirOMapa));
+  </script>
 </body>
 </html>
