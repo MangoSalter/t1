@@ -238,6 +238,66 @@ console.log("Num telemóvel e num computador, o anel do \"és tu\" mede o mesmo.
   }
 }
 
+console.log("N) Os anéis dos power-ups no telemóvel, onde a arena inteira encolhe...");
+// A arena da Fuga da Infeção cabe toda no ecrã, e num telemóvel isso é 0,282
+// de escala. Tudo o que esteja DENTRO do mundo encolhe com ele — foi assim
+// que o anel do "este és tu" ficou a 0,85px, e os anéis dos power-ups
+// ficaram a 1,1px pela mesma razão, meses depois daquela correção.
+//
+// Mede-se o CSS, que é onde o defeito vive: montam-se os pontos como a app os
+// monta, com a escala de um telemóvel, e lê-se a espessura que sai.
+const telemovel = await browser.newContext({ ...devices["iPhone 13"] });
+const pt = await telemovel.newPage();
+await pt.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+const aneis = await pt.evaluate(() => {
+  const ESCALA = 0.282; // medido: a arena inteira num iPhone 13
+  const arena = document.createElement("div");
+  arena.className = "tag-arena";
+  const world = document.createElement("div");
+  world.className = "tag-world";
+  world.style.width = "1200px";
+  world.style.height = "800px";
+  world.style.setProperty("--escala-arena", String(ESCALA));
+  world.style.transform = `scale(${ESCALA})`;
+  const faz = (cls) => { const d = document.createElement("div"); d.className = cls; world.appendChild(d); return d; };
+  const casos = {
+    eu: faz("tag-player tag-player-survivor tag-player-me"),
+    euComEscudo: faz("tag-player tag-player-survivor tag-player-me tag-player-shield"),
+    euVeloz: faz("tag-player tag-player-infected tag-player-me tag-player-speed"),
+    outroComEscudo: faz("tag-player tag-player-survivor tag-player-shield"),
+  };
+  arena.appendChild(world);
+  document.body.appendChild(arena);
+  // "0px 0px 0px 10.6383px" -> 10.6383; cada anel é uma sombra da lista.
+  const espessuras = (el) => [...getComputedStyle(el).boxShadow.matchAll(/0px 0px 0px ([\d.]+)px/g)]
+    .map((m) => parseFloat(m[1]) * ESCALA);
+  const cores = (el) => [...getComputedStyle(el).boxShadow.matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1]);
+  const out = {};
+  for (const [nome, el] of Object.entries(casos)) out[nome] = { px: espessuras(el), cores: cores(el) };
+  arena.remove();
+  return out;
+});
+for (const [nome, v] of Object.entries(aneis)) {
+  console.log(`   ${nome}: ${v.px.map((n) => n.toFixed(1)).join(", ")} px no ecrã`);
+}
+for (const [nome, v] of Object.entries(aneis)) {
+  if (v.px.length === 0 || Math.max(...v.px) < 3) {
+    console.log(`   FALHOU: ${nome} não tem anel nenhum visível (${v.px.join(", ")}px) — no telemóvel não se vê`);
+    process.exitCode = 1;
+  }
+}
+// E o "este és tu" tem de sobreviver a apanhar um power-up: o box-shadow
+// substitui em vez de somar, e sem uma regra para as duas classes juntas
+// quem apanhava um escudo deixava de saber qual dos pontos era o seu.
+const acento = aneis.eu.cores[0];
+for (const nome of ["euComEscudo", "euVeloz"]) {
+  if (!aneis[nome].cores.includes(acento)) {
+    console.log(`   FALHOU: ${nome} perdeu a cor do "este és tu" (${acento}) — ficou ${aneis[nome].cores.join(" / ")}`);
+    process.exitCode = 1;
+  }
+}
+await telemovel.close();
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));

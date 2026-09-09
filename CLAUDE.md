@@ -162,6 +162,15 @@ and forgot the tools, while the comment above the desktop rule claimed both
 were handled. Static markup is all this catches, so overlays and in-game HUDs
 still need real navigation; but the sweep tells you where to go and look.
 
+A comment claiming something is "the only one" is a to-do list, not a fact.
+`.tag-player-me` carried a note saying it was *the only* ring that doesn't
+shrink with the arena — and the shield and speed rings beside it sat at 4px
+inside a world scaled to 0.282, so 1.1px on a phone, for months after that
+note was written. Worse, `box-shadow` replaces rather than stacks, so picking
+up a shield erased which dot was you. Both measured, both fixed, both now
+guarded in `mp-tag-test` by building the dots at phone scale and reading the
+computed thickness.
+
 Measure BOTH sides. The map bar's mobile rule set `min-height: 44px` and left
 the width to padding, so the globe button — which is only the 🌍 — came out
 44 high and 38 wide, under a comment promising "os 44 px do costume". Two

@@ -281,8 +281,28 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .tag-player-me {
   box-shadow: 0 0 0 calc(3px / var(--escala-arena, 1)) var(--accent), 1px 1px 0 rgba(58,49,38,0.3);
 }
-.tag-player-shield { box-shadow: 0 0 0 4px var(--success), 1px 1px 0 rgba(58,49,38,0.3); }
-.tag-player-speed { box-shadow: 0 0 0 4px var(--accent), 1px 1px 0 rgba(58,49,38,0.3); animation: tag-speed-pulse 0.5s ease-in-out infinite; }
+/* Os anéis dos power-ups tinham 4px fixos — e como vivem DENTRO do mundo que
+   encolhe, davam 1,1px num telemóvel (medido a 0,282). É o mesmo defeito que
+   o anel do "este és tu" já tinha tido; ficou por corrigir nestes dois porque
+   o comentário acima diz "o único que não encolhe" e ninguém foi ver os
+   outros. Dividir pela escala dá sempre a mesma espessura no ecrã. */
+.tag-player-shield { box-shadow: 0 0 0 calc(4px / var(--escala-arena, 1)) var(--success), 1px 1px 0 rgba(58,49,38,0.3); }
+.tag-player-speed { box-shadow: 0 0 0 calc(4px / var(--escala-arena, 1)) var(--accent), 1px 1px 0 rgba(58,49,38,0.3); animation: tag-speed-pulse 0.5s ease-in-out infinite; }
+/* E apanhar um power-up NÃO pode apagar o "este és tu": box-shadow substitui,
+   não acumula, e as duas regras acima vinham depois da do "me" com a mesma
+   força. Quem apanhasse um escudo deixava de saber qual dos pontos era.
+   Aqui ficam os dois anéis, o de dentro do power-up e o de fora a dizer que
+   és tu. */
+.tag-player-me.tag-player-shield {
+  box-shadow: 0 0 0 calc(4px / var(--escala-arena, 1)) var(--success),
+              0 0 0 calc(7px / var(--escala-arena, 1)) var(--accent),
+              1px 1px 0 rgba(58,49,38,0.3);
+}
+.tag-player-me.tag-player-speed {
+  box-shadow: 0 0 0 calc(4px / var(--escala-arena, 1)) var(--paper),
+              0 0 0 calc(7px / var(--escala-arena, 1)) var(--accent),
+              1px 1px 0 rgba(58,49,38,0.3);
+}
 @keyframes tag-speed-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 .tag-player-name { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; font-weight: 700; color: var(--ink); background: var(--paper); padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
 .tag-powerup { position: absolute; width: 22px; height: 22px; margin: -11px; border-radius: 6px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
