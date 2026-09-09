@@ -192,6 +192,11 @@ cor e a espessura viajam no primeiro ponto de cada traço (uma vez por traço,
 não por ponto), e um traço antigo sem elas continua a sair com a tinta de
 sempre — uma sala a meio de uma partida não muda de aspeto.
 
+**E anular o último traço**, que é o pedido seguinte em qualquer jogo de
+desenho: sem isso um risco enganado só se desfazia limpando a folha toda, com
+o tempo a correr. Usa o mesmo `lastStrokeKeys` do quadro de sala — o que é um
+"traço" tem de ser a mesma coisa nos dois sítios.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

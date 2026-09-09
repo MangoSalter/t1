@@ -2301,6 +2301,21 @@ export async function clearDrawDoodle(code, room, uid) {
   await set(ref(db, `rooms/${code}/draw/doodle/points`), null);
 }
 
+// Anular o último traço, como no quadro de sala e pela mesma razão: sem isto
+// um risco enganado só se desfazia limpando a folha inteira, com o tempo a
+// correr e a mesa à espera. Reusa o lastStrokeKeys — o que é um "traço" tem
+// de ser a mesma coisa nos dois sítios.
+export async function undoLastDrawStroke(code, room, uid) {
+  const draw = room?.draw;
+  if (!draw || draw.drawerId !== uid || draw.resolved) return false;
+  const chaves = lastStrokeKeys(draw.doodle?.points);
+  if (chaves.length === 0) return false;
+  const updates = {};
+  chaves.forEach((k) => { updates[k] = null; });
+  await update(ref(db, `rooms/${code}/draw/doodle/points`), updates);
+  return true;
+}
+
 // Quem desenha escolhe quem acertou primeiro (é o único que sabe a
 // resposta) — atribui pontos ao vencedor e um bónus a quem desenhou.
 export async function selectDrawWinner(code, room, judgeUid, winnerUid) {

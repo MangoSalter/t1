@@ -124,6 +124,29 @@ else console.log("   OK: a desenhadora vê a palavra no estado");
     process.exitCode = 1;
   }
 
+  console.log("4c) Anular tira o último traço e deixa o anterior de pé...");
+  // Sem isto, um risco enganado só se desfazia limpando a folha toda — com o
+  // tempo a correr e a mesa à espera, é uma diferença enorme.
+  const antesDeAnular = await page.evaluate((code) => {
+    const p = window.__testDb.get(`rooms/${code}`).draw.doodle.points || {};
+    return { total: Object.keys(p).length, inicios: Object.values(p).filter((x) => x.newStroke).length };
+  }, code);
+  await page.click("#draw-undo-btn");
+  await page.waitForTimeout(400);
+  const depoisDeAnular = await page.evaluate((code) => {
+    const p = window.__testDb.get(`rooms/${code}`).draw.doodle.points || {};
+    return { total: Object.keys(p).length, inicios: Object.values(p).filter((x) => x.newStroke).length };
+  }, code);
+  console.log(`   antes: ${antesDeAnular.total} pontos / ${antesDeAnular.inicios} traços; depois: ${depoisDeAnular.total} / ${depoisDeAnular.inicios}`);
+  if (depoisDeAnular.inicios !== antesDeAnular.inicios - 1) {
+    console.log("   FALHOU: devia ter desaparecido UM traço, nem nenhum nem todos");
+    process.exitCode = 1;
+  }
+  if (depoisDeAnular.total === 0) {
+    console.log("   FALHOU: anular não pode limpar a folha inteira");
+    process.exitCode = 1;
+  }
+
   console.log("5) Outro jogador (p2) tenta desenhar — não deve ter efeito (não é a vez dele)...");
   // A contagem tem de ser lida AGORA: o passo 4b desenhou outro traço, e a
   // que estava guardada era de antes dele.

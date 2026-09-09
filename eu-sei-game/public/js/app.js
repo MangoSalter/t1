@@ -18,7 +18,7 @@ import {
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray,
-  pushDrawDoodlePoints, clearDrawDoodle, selectDrawWinner, skipDrawRound, advanceDrawRound,
+  pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
   spawnTagPowerup, resolveTagRound, finishTagRound, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
@@ -1057,6 +1057,7 @@ const drawEls = {
   doodleCanvas: document.getElementById("draw-doodle-canvas"),
   corBtn: document.getElementById("draw-cor-btn"),
   espessuras: document.getElementById("draw-espessuras"),
+  undoBtn: document.getElementById("draw-undo-btn"),
   clearBtn: document.getElementById("draw-clear-btn"),
   selectWinnerBtn: document.getElementById("draw-select-winner-btn"),
   skipBtn: document.getElementById("draw-skip-btn"),
@@ -1191,6 +1192,14 @@ drawEls.clearBtn.addEventListener("click", () => {
   clearDrawDoodle(state.code, state.room, state.uid);
 });
 
+drawEls.undoBtn.addEventListener("click", () => {
+  // O que ainda não foi enviado desaparece primeiro: senão anulava-se o traço
+  // guardado na sala e o que estava a caminho voltava a aparecer logo a
+  // seguir.
+  drawDoodleState.pending = [];
+  undoLastDrawStroke(state.code, state.room, state.uid);
+});
+
 function drawMostraCor() {
   drawEls.corBtn.style.background = drawDoodleState.cor;
   drawEls.espessuras.querySelectorAll("[data-espessura]").forEach((b) => {
@@ -1273,6 +1282,7 @@ function renderDraw(room) {
         : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`);
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.undoBtn.classList.toggle("hidden", !amDrawer);
     drawEls.corBtn.classList.toggle("hidden", !amDrawer);
     drawEls.espessuras.classList.toggle("hidden", !amDrawer);
     drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
@@ -1282,6 +1292,7 @@ function renderDraw(room) {
   } else {
     drawEls.doodleCanvas.classList.remove("hangman-doodle-canvas-active");
     drawEls.clearBtn.classList.add("hidden");
+    drawEls.undoBtn.classList.add("hidden");
     drawEls.corBtn.classList.add("hidden");
     drawEls.espessuras.classList.add("hidden");
     drawEls.selectWinnerBtn.classList.add("hidden");
