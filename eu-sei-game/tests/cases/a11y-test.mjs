@@ -420,6 +420,16 @@ function varrerControlos(modo) {
     return { vistos, maus, semNome };
   };
 
+  // O ecrã que está ligado agora, com tudo o que o jogo lhe pôs lá dentro, e
+  // as sobreposições que estiverem abertas por cima dele.
+  if (modo === "ativo") {
+    const raizes = [
+      document.querySelector(".screen.active"),
+      ...document.querySelectorAll(".pause-overlay:not(.hidden), .minigame-end-overlay:not(.hidden)"),
+    ].filter(Boolean);
+    return raizes.map((raiz) => ({ onde: raiz.dataset.screen || raiz.id, ...medir(raiz), transborda: false }));
+  }
+
   if (modo === "sobreposicoes") {
     return [...document.querySelectorAll(".pause-overlay, .minigame-end-overlay")].map((ov) => {
       const escondida = ov.classList.contains("hidden");
@@ -509,6 +519,76 @@ if (varrimento.length < 35) {
 queixar("alvos abaixo de 44px", varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
 queixar("sem nome para leitor de ecrã", varrimento.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)));
 await varreCtx.close();
+
+console.log("14) E o jogo clássico a sério, com os botões que só nascem a jogar...");
+// O passo 13 chega aos 41 ecrãs mas só vê o que está escrito no index.html.
+// Estes quatro ecrãs enchem-se de botões feitos em JavaScript — as letras
+// para votar, as linhas do "porquê estes pontos", o álbum da noite — e
+// nenhum deles tinha sido medido num telemóvel. É o jogo principal: se
+// alguma coisa aqui não se acerta com o dedo, não se acerta no jogo todo.
+const classicoCtx = await browser.newContext({ ...devices["iPhone 13"] });
+const jp = await classicoCtx.newPage();
+await jp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await jp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await jp.reload({ waitUntil: "networkidle" });
+await jp.fill("#name-input", "Ana");
+await jp.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await jp.click("#create-room-btn");
+await jp.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const codigoClassico = (await jp.locator("#lobby-code").textContent()).trim();
+await jp.evaluate((c) => window.__testDb.update(`rooms/${c}/players`, {
+  p2: { name: "Beto", score: 12, connected: true },
+  p3: { name: "Carla", score: 7, connected: true },
+}), codigoClassico);
+await jp.waitForTimeout(300);
+
+const passarPor = async (nome, ecraEsperado, patch) => {
+  await jp.evaluate(({ c, p }) => {
+    const r = window.__testDb.get(`rooms/${c}`);
+    window.__testDb.update(`rooms/${c}`, typeof p === "string" ? JSON.parse(p.replace(/__HOST__/g, r.hostId)) : p);
+  }, { c: codigoClassico, p: patch });
+  await jp.waitForSelector(`[data-screen="${ecraEsperado}"].active`, { timeout: 6000 });
+  await jp.waitForTimeout(250);
+  const medidas = await jp.evaluate(varrerControlos, "ativo");
+  const vistos = medidas.reduce((n, m) => n + m.vistos, 0);
+  console.log(`   ${nome}: ${vistos} controlos`);
+  return { nome, vistos, medidas };
+};
+
+const agora = Date.now();
+const etapas = [];
+etapas.push(await passarPor("escolha da letra", "letterpick", JSON.stringify({
+  state: "letterPick", round: 1,
+  ball: { winnerId: "__HOST__" },
+  letterPick: { candidates: ["M", "P", "T"], votes: { p2: "M", p3: "P" }, endAt: agora + 60000 },
+})));
+etapas.push(await passarPor("a escrever respostas", "categories", {
+  state: "categories",
+  categoriesRound: { letter: "M", categoryIndexes: [0, 1, 2, 3], endAt: agora + 90000 },
+}));
+etapas.push(await passarPor("porquê estes pontos", "roundscore", JSON.stringify({
+  state: "roundScore",
+  roundResults: {
+    roundPoints: { __HOST__: 20, p2: 10, p3: 0 },
+    byPlayer: {
+      __HOST__: { c0: { text: "Maria", points: 10, unique: true }, c1: { text: "Marrocos", points: 10, unique: true } },
+      p2: { c0: { text: "Maria", points: 5, unique: false }, c1: { text: "", points: 0 } },
+      p3: { c0: { text: "Ana", points: 0, invalid: true }, c1: { text: "Malta", points: 10, unique: true } },
+    },
+  },
+})));
+etapas.push(await passarPor("fim da partida", "final", { state: "final" }));
+
+// Sem esta conta, um ecrã que não chegou a encher-se passava calado.
+for (const e of etapas) {
+  if (e.vistos < 2) {
+    console.log(`   FALHOU: "${e.nome}" só tinha ${e.vistos} controlos — não cheguei lá, a medição não diz nada`);
+    process.exitCode = 1;
+  }
+}
+queixar("alvos abaixo de 44px", etapas.flatMap((e) => e.medidas.flatMap((m) => m.maus.map((x) => `${e.nome}/${m.onde}: ${x}`))));
+queixar("sem nome para leitor de ecrã", etapas.flatMap((e) => e.medidas.flatMap((m) => m.semNome.map((x) => `${e.nome}/${m.onde}: ${x}`))));
+await classicoCtx.close();
 
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));

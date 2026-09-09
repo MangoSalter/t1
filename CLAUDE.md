@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 88 cases and takes **13m48s at 4 jobs** (measured
+rooms. The full suite is 89 cases and takes **14m06s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -257,8 +257,29 @@ world" family of bugs can only appear in the tag arena — checked, not assumed.
 
 Also measured clean, so don't re-sweep: every room game's screen (Desenha e
 Adivinha, Fuga da Infeção, Labirinto, Mini-Golfe, mapa em sala, marcos) on an
-iPhone 13, and first load — 868 KB raw across 23 files in 4 import waves, with
-`paises.json` (191 KB) correctly deferred until the map opens.
+iPhone 13; and the classic game's four dynamic screens — the letter vote, the
+answer sheet, "porquê estes pontos" and the end of the match — which `a11y-test`
+step 14 now drives on a phone through the stub, because step 13 only ever sees
+what is written in `index.html` and every button on those four is built in
+JavaScript.
+
+## First load has a budget now, not a note
+The old note here said 868 KB across 23 files. Measured again in September:
+**913 KB across 23 files** — it had grown 45 KB while the number in this
+document stayed still, which is what a measurement does when nothing guards it.
+`carga-inicial-test` is that guard: it counts BYTES and FILES, never seconds
+(this container's seconds are not a phone's, and four jobs in parallel make
+them noise), with ceilings at 1100 KB and 32 files — the point where something
+changed by an order of magnitude, not a target to chase. Falsified by making
+`app.js` fetch `paises.json` at the top: 1104 KB, red.
+
+`paises.json` (191 KB) is correctly deferred until the map opens, and the test
+proves both halves — absent at first load, present after opening the map. What
+it also showed, and what is NOT fixed: the map's three JS modules travel in the
+first load anyway (`mapa.js` 36 KB, `mapa-ecra.js` 31 KB, `mapa-sala.js` 4 KB),
+because `app.js` imports `mapa-sala.js` and `index.html` loads `mapa-ecra.js`
+as a module script. That is 71 KB — 8% of the load — paid by everyone who never
+opens Conquistar o Mapa.
 
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the
