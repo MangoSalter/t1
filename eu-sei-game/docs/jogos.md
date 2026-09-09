@@ -167,92 +167,31 @@ e sobretudo as aplicações de "Stop"/Scattergories, que são as que fazem o
 mesmo que o teu jogo faz. Não interessa o que eles anunciam; interessa aquilo
 de que as pessoas se queixam, porque é aí que se vê o que falta.
 
-**Feito agora: as categorias da casa.** Nas críticas das aplicações de Stop, o
-pedido que se repete é escolher as categorias — e as que deixam escolher de
-uma lista fixa continuam a não deixar ACRESCENTAR. O jogo de papel joga-se
-assim desde sempre: cada grupo tem as suas ("marcas de carro", "coisas da
-avó"). O anfitrião escreve até oito, toda a gente as vê antes de entrar, e
-sorteiam-se como as outras. Guardado em `config.customCategories`, com índices
-a partir de 100 para não mexer no significado dos que já estão gravados nas
-respostas de uma sala a meio.
+**O que mudou no jogo, para poderes cortar o que não gostares.** Está tudo
+publicado e testado; cada linha é um commit próprio, por isso qualquer uma
+sai sozinha se disseres.
 
-**Feito também: dizer porquê os pontos.** "Pontuação pouco clara, dá para
-fazer batota" é a queixa que mais se repete nas críticas do StopotS. O ecrã de
-fim de ronda mostrava o total e mais nada. Agora cada resposta tem a razão ao
-lado do número — "só tu · 10 pts", "alguém escreveu o mesmo · 5 pts", "não
-começa por P · 0 pts", "chumbada pela maioria · 0 pts" — e as duas maneiras de
-chumbar aparecem separadas, porque uma é a regra do jogo e a outra é a mesa a
-decidir. A tua conta abre sozinha; as dos outros abrem-se se quiseres conferir.
+| O que mudou | Onde | Porquê |
+|---|---|---|
+| **As categorias da casa**: o anfitrião escreve até oito, toda a gente as vê, sorteiam-se como as outras | Eu sei clássico, na sala | O pedido que se repete nas críticas das aplicações de "Stop": deixam escolher da lista, não deixam acrescentar |
+| **Porquê estes pontos**: cada resposta com a razão ao lado ("só tu · 10", "não começa por P · 0") | Fim de ronda, na sala | "Pontuação pouco clara, dá para fazer batota" é a queixa nº1 do StopotS |
+| **A regra da ronda**, com a letra do dia, e o resumo do jogo no ecrã da bola | Eu sei clássico | "Fiquei à espera sem perceber o que fazer" |
+| **Cor, espessura e anular** para quem desenha | Desenha e Adivinha | O quadro ao lado tem 68 cores; aqui havia uma caneta só |
+| **O álbum da noite**: os desenhos da partida no ecrã final, com um toque para guardar | Fim de partida | É o que faz as pessoas mandarem print aos amigos (o álbum do Gartic Phone) |
+| **O desafio do dia**: uma ronda por dia, igual para toda a gente, com dias seguidos e texto para colar | Sozinho, e à entrada | "Não encontro ninguém para jogar" — um jogo de festa depende de haver mais gente acordada |
+| **Cores que se distinguem** (medidas, incluindo daltonismo) e cada jogador com a sua sem ter de a pedir | Mapa em sala; quadro | A cor era a única coisa a dizer de quem é o quê, e havia pares iguais |
+| **Onde vale a dobrar** (tracejado e "x2") e **quanto valeu cada país** (+10, +17 do mesmo continente, metade com pista) | Conquistar o Mapa | Duas regras que existiam e não se viam em lado nenhum |
 
-**Feito também: cor e espessura no Desenha e Adivinha.** Quem desenhava tinha
-uma caneta só, de uma cor só, enquanto o quadro branco ao lado tem 68 cores e
-dez ferramentas — e nos jogos de desenho do género escolher a cor é o mínimo
-que se espera. Agora abre a mesma paleta dos quadros e tem três espessuras. A
-cor e a espessura viajam no primeiro ponto de cada traço (uma vez por traço,
-não por ponto), e um traço antigo sem elas continua a sair com a tinta de
-sempre — uma sala a meio de uma partida não muda de aspeto.
+**Duas coisas que medi e NÃO mexi, para não decidir por ti:**
 
-**E anular o último traço**, que é o pedido seguinte em qualquer jogo de
-desenho: sem isso um risco enganado só se desfazia limpando a folha toda, com
-o tempo a correr. Usa o mesmo `lastStrokeKeys` do quadro de sala — o que é um
-"traço" tem de ser a mesma coisa nos dois sítios.
-
-**Feito também: o desafio do dia.** Nas críticas das aplicações do género
-repete-se "não encontro ninguém para jogar" — o jogo depende de haver mais
-gente acordada. O desafio é a resposta que os jogos diários deram a isso: uma
-ronda por dia, a MESMA para toda a gente, sorteada a partir da data (sem
-servidor: a data é a semente, e a mesma data dá sempre a mesma letra e as
-mesmas categorias em qualquer telemóvel). Uma vez por dia — jogar outra vez
-mostra o resultado mas não conta, senão não haveria nada para comparar. Conta
-dias seguidos e dá um texto para colar numa conversa (🟩⬜ como os jogos que
-as pessoas partilham).
-
-**Feito também: as cores de quem conquista o quê.** No mapa em sala a cor é a
-única coisa que diz de quem é cada país — a bandeira desenhada lá dentro é a
-bandeira DO PAÍS, não a de quem o ganhou. Medi a lista antiga e havia pares
-que ninguém distingue: dois verdes a 12,5 de ΔE em visão normal, e para quem
-não distingue vermelho de verde (uma pessoa em cada doze) o vermelho e o
-castanho ficavam a 4,0 — iguais. A lista nova foi escolhida a medir: todos os
-pares acima de 20 nas três visões, com contraste que chegue para o contorno a
-tinta se ver. As primeiras cinco cores continuam praticamente as tuas; as
-últimas tiveram de se afastar, porque dez cores distinguíveis por toda a gente
-é quase o limite do que cabe.
-
-**E uma pergunta que fica para ti sobre o mesmo ecrã:** o preenchimento do país
-é a cor do dono misturada com 72% de branco (`corClara`), para a bandeira se
-ler por cima. Isso deixa os preenchimentos quase iguais uns aos outros — 3,4
-de ΔE na lista antiga, 6,2 na nova, quando 20 é o que se distingue à vontade.
-Quem carrega a informação é o contorno de 2,2px. Baixar a mistura para uns 55%
-duplicava a diferença entre países de donos diferentes, mas escurece o fundo
-por baixo das bandeiras, que foi uma escolha tua. Diz-me se queres que mexa.
-
-**E no quadro, cada um passa a ter a sua cor sem a pedir.** Por omissão toda a
-gente desenhava com a tinta da casa: quem não abrisse o seletor ficava igual a
-quem também não o abriu, e a cor — que é a única coisa que diz de quem é cada
-traço — não dizia nada. Agora sai da ordem de chegada, como no mapa, e o
-seletor passa a ser uma troca em vez de uma obrigação.
-
-Medi também a paleta do quadro e NÃO lhe mexi: o pior par é 17,0 em visão
-normal e 6,0 em deuteranopia (o do mapa era 12,5 e 4,0). Tentei encontrar dez
-cores seguras para uma folha branca e o que sai são rosas-choque e quase-pretos
-que não são deste jogo — dez cores distinguíveis por toda a gente sobre papel
-não cabe sem estragar o aspeto. Ficam melhor as cores de sempre, agora que
-ninguém fica sem a sua.
-
-**E o mapa passa a mostrar onde vale a dobrar.** O "roubar de volta" já
-existia — quem falha um país deixa-o em causa uns segundos, e quem o souber a
-seguir leva o dobro — mas não se via em lado nenhum: só sabia da oportunidade
-quem tivesse visto a outra pessoa falhar. Agora o país fica com o contorno a
-tracejado e um "x2" no meio, e a marca apaga-se sozinha quando o prazo acaba.
-Tracejado e texto de propósito, não cor: é a mesma lição das cores acima.
-
-**E o mapa passa a dizer quanto valeu cada país.** Dizia "Brasil, certo.
-Faltam 176" e mais nada. Os pontos sobem com os acertos seguidos (+2 cada, até
-20) e sobem mais dentro do mesmo continente (+5 cada, até 25) — é essa conta
-que faz o jogo passar de "clicar no que me lembro" para "vou arrumar a África
-toda", e não aparecia em lado nenhum. Agora diz "+10 pontos", ou "+17 — estás
-a arrumar América do Sul!", ou "+8 (metade, tinhas a bandeira)". Vale para o
-mapa sozinho e para o de sala, que partilham o ecrã.
+- O preenchimento de cada país é a cor do dono com 72% de branco por cima
+  (`corClara`), para as bandeiras se lerem. Isso deixa os preenchimentos quase
+  iguais uns aos outros — 6,2 de ΔE entre os mais parecidos, quando 20 é o que
+  se distingue à vontade; quem carrega a informação é o contorno de 2,2px.
+  Baixar para uns 55% duplicava a diferença e escurecia o fundo das bandeiras.
+- A paleta do quadro (as canetas) fica como estava: o pior par é 17,0 em visão
+  normal e 6,0 em deuteranopia. Procurei dez cores seguras para uma folha
+  branca e o que sai são rosas-choque e quase-pretos que não são deste jogo.
 
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
