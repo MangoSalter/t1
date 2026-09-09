@@ -19,6 +19,18 @@ await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" }
 await page.evaluate(() => { localStorage.setItem("euSei_lingua", "pt"); localStorage.removeItem("euSei_desafio"); });
 await page.reload({ waitUntil: "networkidle" });
 
+console.log("0) O desafio está logo à entrada, sem ter de procurar...");
+// É o que faz voltar amanhã; escondido dentro do menu de jogar sozinho
+// ninguém dava com ele.
+if (!(await page.locator("#home-desafio-btn").isVisible())) falhar("o desafio devia estar no ecrã de entrada");
+const naEntrada = (await page.locator("#home-desafio-estado").textContent()).trim();
+console.log(`   à entrada diz: "${naEntrada}"`);
+if (!naEntrada) falhar("e devia dizer em que pé está");
+await page.click("#home-desafio-btn");
+await page.waitForSelector('[data-screen="solo-round"].active', { timeout: 5000 });
+console.log("   OK: da entrada vai direto ao desafio");
+await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+
 console.log("1) O desafio está no menu de jogar sozinho...");
 await page.click("#solo-menu-btn");
 await page.waitForSelector('[data-screen="solo-menu"].active', { timeout: 5000 });

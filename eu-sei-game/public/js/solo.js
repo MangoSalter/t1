@@ -723,6 +723,8 @@ const els = {
   classicBtn: document.getElementById("solo-classic-btn"),
   desafioBtn: document.getElementById("solo-desafio-btn"),
   desafioEstado: document.getElementById("solo-desafio-estado"),
+  desafioBtnCasa: document.getElementById("home-desafio-btn"),
+  desafioEstadoCasa: document.getElementById("home-desafio-estado"),
   desafioCopiarBtn: document.getElementById("solo-desafio-copiar-btn"),
   setupStartBtn: document.getElementById("solo-setup-start-btn"),
   marathonMenuBtn: document.getElementById("solo-marathon-menu-btn"),
@@ -1224,10 +1226,16 @@ function mostrarEstadoDoDesafio() {
   const hoje = diaDoDesafio();
   const jogadoHoje = guardado.dia === hoje;
   const sequencia = guardado.sequencia > 0 ? ` · ${guardado.sequencia} dia(s) seguidos` : "";
-  els.desafioEstado.textContent = jogadoHoje
+  const texto = jogadoHoje
     ? `Hoje já foi: ${guardado.pontos} pts (${guardado.corretas}/${guardado.total})${sequencia}`
     : `Uma ronda, igual para toda a gente${sequencia}`;
-  els.desafioBtn.textContent = jogadoHoje ? "📅 Ver o desafio de hoje" : "📅 Desafio do dia";
+  const rotulo = jogadoHoje ? "📅 Ver o desafio de hoje" : "📅 Desafio do dia";
+  els.desafioEstado.textContent = texto;
+  els.desafioBtn.textContent = rotulo;
+  // O mesmo à entrada: quem abre o site vê logo se já jogou hoje e quantos
+  // dias seguidos leva.
+  if (els.desafioEstadoCasa) els.desafioEstadoCasa.textContent = texto;
+  if (els.desafioBtnCasa) els.desafioBtnCasa.textContent = rotulo;
 }
 mostrarEstadoDoDesafio();
 
@@ -1247,6 +1255,7 @@ function comecarDesafio() {
 }
 
 els.desafioBtn.addEventListener("click", comecarDesafio);
+els.desafioBtnCasa?.addEventListener("click", comecarDesafio);
 
 // O resultado em texto, para se poder colar numa conversa. Sem link nem
 // serviço nenhum: é uma frase e uma fila de certos e errados, como os jogos
