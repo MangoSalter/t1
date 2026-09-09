@@ -1349,7 +1349,13 @@ function launchStandalone(startFn, gameKey) {
   solo.round = Math.max(solo.round, 1);
   gated();
 }
-function returnToSoloMenu() { showScreen("solo-menu"); }
+// Voltar ao menu é largar o que estava a jogar — incluindo o desafio do dia.
+// Sem isto, a ronda clássica jogada a seguir ainda se julgava o desafio:
+// cabeçalho errado e, pior, o resultado dessa ronda ia parar ao dia de hoje.
+function returnToSoloMenu() {
+  solo.desafio = null;
+  showScreen("solo-menu");
+}
 
 els.playReflexBtn.addEventListener("click", () => {
   els.reflexThemeSelect.value = solo.reflexTheme;
@@ -1498,6 +1504,7 @@ els.soloHangmanWordGuessInput.addEventListener("keydown", (e) => {
 });
 
 function startRun() {
+  solo.desafio = null; // uma run clássica nunca é o desafio do dia
   solo.round = 0;
   solo.runScore = 0;
   solo.usedLetters = new Set();
