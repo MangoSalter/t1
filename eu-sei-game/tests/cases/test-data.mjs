@@ -2,6 +2,7 @@
 // mão ficava preso à máquina onde foi escrito, e a suite não corria em mais
 // lado nenhum.
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const publicDir = process.env.EU_SEI_PUBLIC;
@@ -11,6 +12,7 @@ const {
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
   limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
   desafioDoDia, diaDoDesafio, DESAFIO_CATEGORIAS,
+  CHAOS_EVENTS, pickChaosEvent,
 } = await import(pathToFileURL(path.join(publicDir, "js", "data.js")).href);
 
 function assert(cond, label) {
@@ -188,4 +190,37 @@ console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes 
   assert(diaDoDesafio(meiaNoiteLocal) === "2026-01-01", `dia local (deu ${diaDoDesafio(meiaNoiteLocal)})`);
   const fimDoDiaLocal = new Date(2026, 11, 31, 23, 30);
   assert(diaDoDesafio(fimDoDiaLocal) === "2026-12-31", `fim do ano local (deu ${diaDoDesafio(fimDoDiaLocal)})`);
+}
+
+// --- As travessuras da Dona Manga ---
+//
+// São três feitios (pata no ecrã, abanão, ajuda do Brasa) com falas
+// diferentes. O que interessa guardar não é o número de falas: é que cada uma
+// tenha um FEITIO que o caos.js saiba fazer — uma escrita à mão com um erro
+// de letra não daria erro nenhum, só um estorvo que não acontece — e que os
+// bónus valham todos o mesmo, porque o equilíbrio dos pontos conta com isso.
+{
+  const fonteDoCaos = readFileSync(path.join(publicDir, "js", "caos.js"), "utf8");
+  const feitiosQueOCodigoSabe = new Set(
+    [...fonteDoCaos.matchAll(/kind === "(\w+)"/g)].map((m) => m[1]),
+  );
+  assert(feitiosQueOCodigoSabe.size >= 3, `o caos.js trata de ${feitiosQueOCodigoSabe.size} feitios`);
+  for (const ev of CHAOS_EVENTS) {
+    assert(!!ev.id && !!ev.who && !!ev.text, `cada travessura tem id, quem e o que diz (${ev.id})`);
+    assert(feitiosQueOCodigoSabe.has(ev.kind), `"${ev.id}" é do feitio ${ev.kind}, que o caos.js sabe fazer`);
+  }
+  assert(new Set(CHAOS_EVENTS.map((e) => e.id)).size === CHAOS_EVENTS.length, "sem ids repetidos");
+  const bonus = CHAOS_EVENTS.filter((e) => e.kind === "bonus").map((e) => e.bonus);
+  assert(new Set(bonus).size === 1, `os bónus valem todos o mesmo (${[...new Set(bonus)].join("/")})`);
+
+  // E nunca a mesma duas vezes seguidas: com poucas falas, repetir logo a
+  // seguir é o que faz parecer que são menos do que são.
+  let repetidas = 0;
+  let anterior = null;
+  for (let i = 0; i < 500; i += 1) {
+    const e = pickChaosEvent(anterior);
+    if (e.id === anterior) repetidas += 1;
+    anterior = e.id;
+  }
+  assert(repetidas === 0, `nenhuma repetida de seguida em 500 sorteios (foram ${repetidas})`);
 }

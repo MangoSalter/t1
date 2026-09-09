@@ -85,12 +85,17 @@ export function dispararCaos(ev, ecra = document.querySelector(".screen.active")
 //
 // `continuaAJogar` é perguntado NA HORA de disparar, não agora: um temporizador
 // que dispara sobre um jogo que já acabou põe a gata a miar num ecrã vazio.
+// A última travessura, para não sair a mesma duas vezes seguidas.
+let ultimoCaos = null;
+
 export function armarCaos({ continuaAJogar, ecra, aoDisparar }) {
   if (!caosLigado()) return null;
   const espera = 6000 + Math.random() * 8000;
   return setTimeout(() => {
     if (!continuaAJogar()) return;
-    const bonus = dispararCaos(pickChaosEvent(), typeof ecra === "function" ? ecra() : ecra);
+    const evento = pickChaosEvent(ultimoCaos);
+    ultimoCaos = evento.id;
+    const bonus = dispararCaos(evento, typeof ecra === "function" ? ecra() : ecra);
     aoDisparar?.(bonus);
   }, espera);
 }

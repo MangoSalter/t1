@@ -965,10 +965,42 @@ export const CHAOS_EVENTS = [
     id: "brasa", kind: "bonus", ms: 2600, bonus: 5,
     who: "Brasa", text: "Distraí-a com um novelo! Toma uns pontos por baixo da mesa.",
   },
+  // Mais falas para os MESMOS três estorvos (pata, abanão, ajuda do Brasa).
+  // Nenhum feitio novo: o que muda é só o que eles dizem. Com três frases, uma
+  // maratona de mini-jogos repetia-as em minutos, que é a queixa que se lê nas
+  // críticas dos jogos deste género — a piada gasta-se à terceira vez.
+  {
+    id: "pataVista", kind: "paw", ms: 4000,
+    who: "Dona Manga", text: "Sentou-se em cima do ecrã. Diz que a vista é melhor daqui.",
+  },
+  {
+    id: "pataProva", kind: "paw", ms: 4000,
+    who: "Dona Manga", text: "Pata no vidro. Está a ver se isto se come.",
+  },
+  {
+    id: "salto", kind: "wobble", ms: 4000,
+    who: "Dona Manga", text: "Saltou para a mesa sem avisar. Está tudo a tremer.",
+  },
+  {
+    id: "banho", kind: "wobble", ms: 4000,
+    who: "Dona Manga", text: "Decidiu lavar-se aqui mesmo. A mesa que aguente.",
+  },
+  {
+    id: "brasaTampa", kind: "bonus", ms: 2600, bonus: 5,
+    who: "Brasa", text: "Levei-lhe uma tampa de garrafa para o corredor. Aproveita.",
+  },
+  {
+    id: "brasaSono", kind: "bonus", ms: 2600, bonus: 5,
+    who: "Brasa", text: "Está a dormir em cima do comando. Empurro-te uns pontos.",
+  },
 ];
 
-export function pickChaosEvent() {
-  return CHAOS_EVENTS[Math.floor(Math.random() * CHAOS_EVENTS.length)];
+// Nunca duas vezes a mesma de seguida: com poucas falas, ver a mesma coisa
+// duas vezes seguidas é o que faz parecer que são só três.
+export function pickChaosEvent(anterior = null) {
+  const possiveis = CHAOS_EVENTS.filter((e) => e.id !== anterior);
+  const pool = possiveis.length > 0 ? possiveis : CHAOS_EVENTS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // Como se joga cada mini-jogo, numa frase. Existe para o MODO GUIADO poder
