@@ -188,10 +188,10 @@ decidir. A tua conta abre sozinha; as dos outros abrem-se se quiseres conferir.
 
 | O que se queixam por aí | Como estamos | O que faria |
 |---|---|---|
-| "Fiquei à espera sem perceber o que fazer, sem instruções" (StopotS) | Cada mini-jogo tem um "como se joga" no ecrã do "pronto?" | A ronda clássica não tem nenhum. Quem entra a meio de um grupo que já joga há anos fica a adivinhar |
+| "Fiquei à espera sem perceber o que fazer, sem instruções" (StopotS) | **Feito.** A ronda diz a regra com a letra desta ronda ("Todas as respostas começam por M. Uma resposta que mais ninguém escreva vale a dobrar"), e o ecrã da bola resume o jogo todo | Faltava só aqui: os mini-jogos já se explicavam no "pronto?" |
 | "Estar à espera da vez" — a queixa nº1 do skribbl | Em Desenha e Adivinha quem não desenha escreve palpites, por isso não está parado; na Forca quem não tem a caneta vota letras | Sem dívida aqui, mas é o que estragaria estes dois jogos se um dia se lhes mexesse |
 | Salas grandes (o StopotS deixa 50 a jogar ao mesmo tempo) | Máximo 10 | **Decisão tua.** 10 foi escolhido no primeiro build "até indicares outro valor"; a votação com 20 pessoas é outra experiência, não a mesma maior |
-| O álbum do Gartic Phone (ver no fim tudo o que se desenhou) | Dá para descarregar o quadro como imagem, em sala e sozinho | Um painel no fim da partida com os desenhos todos da noite. É o que faz as pessoas mandarem print aos amigos |
+| O álbum do Gartic Phone (ver no fim tudo o que se desenhou) | **Feito.** Os resultados finais mostram os desenhos da noite, com quem desenhou e quem acertou; toca-se num para o guardar | Vive no browser de cada um (cada cliente já recebeu os traços), por isso a sala não engorda com imagens. O preço: quem recarregar a página a meio perde o que veio antes |
 | Voltar a entrar depois de o telemóvel bloquear | Já funciona (`rejoinRoom`) e o lugar e os pontos ficam | Nada a fazer |
 | Entrar a meio | Fechado de propósito, menos no quadro | Nada a fazer — entrar a meio de uma partida pontuada estraga a classificação |
 

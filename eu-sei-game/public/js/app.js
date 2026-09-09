@@ -781,6 +781,7 @@ const catEls = {
   letter: document.getElementById("cat-letter"),
   timer: document.getElementById("cat-timer"),
   list: document.getElementById("cat-list"),
+  regras: document.getElementById("cat-regras"),
   finishBtn: document.getElementById("cat-finish-btn"),
 };
 let catRAF = null;
@@ -794,6 +795,12 @@ function renderCategories(room) {
   const cr = room.categoriesRound;
   if (!cr) return;
   catEls.letter.textContent = cr.letter;
+  // Com a letra lá dentro, em vez de uma regra genérica: é a letra desta
+  // ronda que se está a esquecer quando se escreve depressa.
+  if (catEls.regras) {
+    catEls.regras.textContent = `Todas as respostas começam por ${cr.letter}. `
+      + "Uma resposta que mais ninguém escreva vale a dobrar (10 pontos); repetida vale 5.";
+  }
 
   if (catRenderedKey === cr.endAt) return; // mesma ronda; não recriar os inputs enquanto o jogador escreve
   catRenderedKey = cr.endAt;
@@ -1262,6 +1269,78 @@ function renderDraw(room) {
     }
   }
   drawDoodleRedraw();
+  if (draw.resolved) guardarNoAlbum(room, draw, marco);
+}
+
+// --- O ÁLBUM DA NOITE ---
+//
+// O que faz as pessoas mandarem print aos amigos no dia seguinte não é a
+// classificação, é o desenho. Os jogos vizinhos que têm isto (o "álbum" do
+// Gartic Phone) fazem dele o fim da partida.
+//
+// Vive no browser de cada um, não na sala: cada cliente já recebeu os traços
+// enquanto eram feitos, por isso a fotografia sai de graça e a sala não
+// engorda com imagens. O preço honesto: quem recarregar a página a meio perde
+// o que veio antes, e quem chegou tarde só tem de onde chegou.
+const albumDaNoite = [];
+const albumJaVistos = new Set();
+const ALBUM_LARGURA = 320;
+
+function guardarNoAlbum(room, draw, marco) {
+  const chave = `${draw.turnIndex}:${draw.drawerId}:${draw.secretWord || draw.landmarkId || ""}`;
+  if (albumJaVistos.has(chave)) return;
+  const origem = drawEls.doodleCanvas;
+  if (!origem || !origem.width || !origem.height) return;
+  albumJaVistos.add(chave);
+  const escala = ALBUM_LARGURA / origem.width;
+  const mini = document.createElement("canvas");
+  mini.width = ALBUM_LARGURA;
+  mini.height = Math.max(1, Math.round(origem.height * escala));
+  const ctx = mini.getContext("2d");
+  // Fundo branco: o quadro é transparente, e um PNG transparente guardado no
+  // telemóvel aparece como um borrão preto na galeria.
+  ctx.fillStyle = "#fffdf7";
+  ctx.fillRect(0, 0, mini.width, mini.height);
+  ctx.drawImage(origem, 0, 0, mini.width, mini.height);
+  albumDaNoite.push({
+    imagem: mini.toDataURL("image/png"),
+    palavra: marco ? marco.name : (draw.secretWord || ""),
+    autor: room.players?.[draw.drawerId]?.name || "Alguém",
+    acertou: draw.roundWinnerId ? (room.players?.[draw.roundWinnerId]?.name || null) : null,
+  });
+}
+
+function desenharAlbum() {
+  if (!finalEls.album || !finalEls.albumGrid) return;
+  finalEls.album.classList.toggle("hidden", albumDaNoite.length === 0);
+  if (albumDaNoite.length === 0) return;
+  finalEls.albumGrid.innerHTML = "";
+  albumDaNoite.forEach((f, i) => {
+    const fig = document.createElement("figure");
+    fig.className = "album-item";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "album-guardar";
+    btn.title = `Guardar o desenho de ${f.autor}`;
+    const img = document.createElement("img");
+    img.src = f.imagem;
+    img.alt = f.palavra ? `Desenho de ${f.palavra}, por ${f.autor}` : `Desenho de ${f.autor}`;
+    btn.appendChild(img);
+    btn.addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.download = `eu-sei-${(f.palavra || "desenho").toLowerCase().replace(/[^a-z0-9]+/gi, "-")}.png`;
+      a.href = f.imagem;
+      a.click();
+    });
+    const cap = document.createElement("figcaption");
+    cap.textContent = f.acertou
+      ? `${f.palavra || "?"} — ${f.autor} desenhou, ${f.acertou} acertou`
+      : `${f.palavra || "?"} — ${f.autor} desenhou, ninguém acertou`;
+    fig.appendChild(btn);
+    fig.appendChild(cap);
+    finalEls.albumGrid.appendChild(fig);
+    if (i === 0) fig.classList.add("album-primeiro");
+  });
 }
 
 // ---------- MAPA-MÚNDI EM EQUIPA ----------
@@ -2670,6 +2749,8 @@ function renderGolfMp(room) {
 const finalEls = {
   ranking: document.getElementById("final-ranking"),
   rematchBtn: document.getElementById("final-rematch-btn"),
+  album: document.getElementById("final-album"),
+  albumGrid: document.getElementById("final-album-grid"),
 };
 
 finalEls.rematchBtn.addEventListener("click", () => {
@@ -2692,6 +2773,7 @@ function renderFinal(room) {
     finalEls.ranking.appendChild(row);
   });
   finalEls.rematchBtn.classList.toggle("hidden", !isHost(room));
+  desenharAlbum();
 }
 
 // ---------- OPÇÕES (classificação + rabisco coletivo) ----------

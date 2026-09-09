@@ -86,6 +86,15 @@ if (!titulos.some((t) => t.includes("Marcas de carro"))) {
   falhar("a categoria da casa tinha de aparecer com o nome que lhe deram");
 }
 
+console.log("4b) E a ronda diz como se ganham pontos, com a letra desta ronda...");
+// A queixa "fiquei à espera sem saber o que fazer" é das que mais se repetem
+// nas críticas dos jogos deste género. Este jogo explicava as regras na
+// votação — depois de a ronda já estar perdida para quem não sabia.
+const regras = (await anfitria.locator("#cat-regras").textContent()).trim();
+console.log(`   "${regras}"`);
+if (!regras.includes("M")) falhar("a regra tem de nomear a letra desta ronda");
+if (!/dobrar|10/.test(regras)) falhar("tem de dizer que uma resposta única vale mais");
+
 console.log("5) Responder e pontuar como qualquer outra categoria...");
 await anfitria.evaluate((c) => {
   const sala = window.__testDb.get(`rooms/${c}`);

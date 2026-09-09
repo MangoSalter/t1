@@ -728,6 +728,24 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 .score-porque-resp { flex: 1 1 auto; min-width: 0; }
 .score-porque-pts { opacity: 0.8; white-space: nowrap; }
 
+/* O álbum da noite, no fim da partida. Grelha que se ajusta sozinha: dois por
+   linha num telemóvel, mais num ecrã grande, sem número fixo nenhum. */
+.final-album { margin: 16px 0 8px; }
+.final-album-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.album-item { margin: 0; text-align: center; }
+/* O desenho inteiro é o botão de guardar: num telemóvel um ícone pequeno ao
+   canto não se acerta, e aqui não há nada a proteger de um toque a mais. */
+.album-guardar {
+  width: 100%; margin: 0; padding: 0; min-height: 44px;
+  background: #fffdf7; border: 2px solid var(--ink); border-radius: 10px;
+  overflow: hidden; cursor: pointer;
+}
+.album-guardar img { display: block; width: 100%; height: auto; }
+.album-item figcaption { font-size: 0.85rem; margin-top: 4px; opacity: 0.85; }
+
 /* As categorias da casa. A caixa de escrever e o botão ficam na mesma linha
    enquanto couberem; num telemóvel a caixa passa a ocupar a linha toda em vez
    de encolher até não se conseguir ler o que se escreveu. */

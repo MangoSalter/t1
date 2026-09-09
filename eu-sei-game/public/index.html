@@ -529,6 +529,9 @@
       <p id="ball-status" class="hint">Prepara-te...</p>
       <div id="ball-circle" class="ball-circle"></div>
       <p class="hint small">Clica na bola assim que ela ficar vermelha.</p>
+      <p class="hint small">Quem for mais rápido escolhe a letra. Depois toda a
+        gente escreve, ao mesmo tempo, uma resposta por categoria — e no fim
+        vota-se o que vale e o que não vale.</p>
     </div>
   </section>
 
@@ -548,6 +551,10 @@
         <div class="round-letter">Letra: <span id="cat-letter"></span></div>
         <div class="round-timer" id="cat-timer"></div>
       </div>
+      <!-- A regra que interessa enquanto se escreve. O jogo explicava tudo na
+           votação e nada aqui: quem joga pela primeira vez só descobria como
+           se ganham pontos depois de já ter perdido a ronda. -->
+      <p id="cat-regras" class="hint small"></p>
       <div id="cat-list" class="cat-list"></div>
       <button id="cat-finish-btn" class="primary">Acabei!</button>
     </div>
@@ -930,6 +937,15 @@
     <div class="card wide center">
       <h2>Resultados finais</h2>
       <div id="final-ranking" class="final-ranking"></div>
+      <!-- O álbum da noite: os desenhos que apareceram nesta sala. É a parte
+           que as pessoas mandam aos amigos no dia seguinte. Vive no browser
+           de cada um (cada cliente vê os traços enquanto são feitos), por
+           isso não custa nada à sala. -->
+      <section id="final-album" class="final-album hidden">
+        <h3>O álbum da noite</h3>
+        <p class="hint small">Toca num desenho para o guardares.</p>
+        <div id="final-album-grid" class="final-album-grid"></div>
+      </section>
       <button id="final-rematch-btn" class="primary hidden">Jogar outra vez</button>
       <button data-leave class="ghost">Sair da sala</button>
     </div>
