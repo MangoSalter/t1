@@ -119,6 +119,25 @@ const alvo = await page.evaluate(() => {
 console.log(`   botão de guardar: ${alvo.h}x${alvo.w}`);
 if (alvo.h < 44 || alvo.w < 44) falhar("o botão de guardar tem de se acertar com o dedo");
 
+console.log("6) Sair da sala leva o álbum: noutra sala não aparecem desenhos de gente que não está lá...");
+await page.click('[data-screen="final"] [data-leave]');
+await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
+await page.fill("#name-input", "Ana");
+await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await page.click("#create-room-btn");
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const outraSala = (await page.locator("#lobby-code").textContent()).trim();
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "final" }), outraSala);
+await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+const naSalaNova = await page.evaluate(() => ({
+  escondido: document.getElementById("final-album").classList.contains("hidden"),
+  quantos: document.querySelectorAll("#final-album-grid img").length,
+}));
+console.log(`   álbum na sala nova: escondido ${naSalaNova.escondido}, desenhos ${naSalaNova.quantos}`);
+if (!naSalaNova.escondido || naSalaNova.quantos !== 0) {
+  falhar("o álbum de uma sala não pode aparecer na seguinte");
+}
+
 await browser.close();
 const reais = erros.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(reais.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + reais.join("\n"));

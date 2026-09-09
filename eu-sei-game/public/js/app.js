@@ -351,6 +351,13 @@ function leaveToHome() {
   // Sair é sair: apaga a sala guardada, senão o recarregamento seguinte
   // arrastava a pessoa de volta para uma sala que ela deixou de propósito.
   esquecerSala();
+  // E leva o álbum com ela. Sem isto, entrar noutra sala a seguir mostrava no
+  // fim os desenhos da sala anterior, feitos por gente que nem lá está — e a
+  // chave de "já vi este" podia até bater certo entre salas e engolir um
+  // desenho novo. Numa revanche na MESMA sala ficam: é a mesma noite e a
+  // mesma gente, que é o que o álbum diz ser.
+  albumDaNoite.length = 0;
+  albumJaVistos.clear();
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = null;
   state.code = null;
@@ -1363,8 +1370,11 @@ function guardarNoAlbum(room, draw, marco) {
 function desenharAlbum() {
   if (!finalEls.album || !finalEls.albumGrid) return;
   finalEls.album.classList.toggle("hidden", albumDaNoite.length === 0);
-  if (albumDaNoite.length === 0) return;
+  // Esvaziar SEMPRE, e não só quando há desenhos novos para pôr: escondido
+  // não é o mesmo que vazio, e os desenhos da sala anterior ficavam ali
+  // dentro à espera de alguém abrir a secção.
   finalEls.albumGrid.innerHTML = "";
+  if (albumDaNoite.length === 0) return;
   albumDaNoite.forEach((f, i) => {
     const fig = document.createElement("figure");
     fig.className = "album-item";
