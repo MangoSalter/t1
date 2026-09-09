@@ -1447,6 +1447,13 @@ hangmanEls.backToFreeBtn.addEventListener("click", () => setBoardMode(state.code
 // fosse guardado na sala era legível por qualquer jogador que abrisse as
 // ferramentas do browser, e o jogo acabava antes de começar.
 let hangmanSecretWord = "";
+// E a sala onde ela foi escrita. Sem isto a variável atravessava a saída da
+// sala: quem tivesse a caneta na sala A e saísse a meio chegava à sala B com
+// a palavra da partida anterior na mão. O ecrã nem lhe pedia para a
+// reescrever — dava-a por sabida — e arbitrava tudo (letras certas, palpites,
+// a ajuda do Brasa, a etiqueta "Palavra: ...") contra a palavra errada, com
+// toda a confiança. Ver validarPalavraDaFolha.
+let salaDaPalavra = null;
 // Guardados entre desenhos de ecrã só para se poder distinguir "a vez é tua"
 // de "acertaste e a vez continua a ser tua" — que é a diferença entre uma
 // informação e uma resposta ao que se acabou de fazer.
@@ -1498,17 +1505,34 @@ function clearSecretWord() {
 // Só devolve a palavra se ela ainda corresponder à forma que está na sala:
 // uma palavra de uma partida anterior daria respostas erradas com toda a
 // confiança, que é pior do que não dar nenhuma.
+// A prova de que uma palavra é a DESTA folha: a mesma forma, e as letras já
+// reveladas a baterem certo. Uma palavra de outra partida daria respostas
+// erradas com toda a confiança, que é pior do que não dar nenhuma.
+function palavraDestaFolha(palavra, mask) {
+  if (!palavra || !mask) return false;
+  if (maskWord(palavra) !== maskWord(mask)) return false;
+  return [...mask].every((ch, i) => ch === "_" || ch === palavra[i]);
+}
+
 function recoverSecretWord(code, mask) {
   try {
     const guardado = JSON.parse(sessionStorage.getItem(SECRET_WORD_KEY) || "null");
     if (!guardado || guardado.code !== code || !guardado.word) return "";
-    if (maskWord(guardado.word) !== maskWord(mask)) return "";
-    // E as letras já reveladas têm de bater certo com ela.
-    const bate = [...mask].every((ch, i) => ch === "_" || ch === guardado.word[i]);
-    return bate ? guardado.word : "";
+    return palavraDestaFolha(guardado.word, mask) ? guardado.word : "";
   } catch {
     return "";
   }
+}
+
+// O mesmo exame, mas à palavra que está na memória. O recoverSecretWord já
+// fazia isto ao que vinha do sessionStorage e ninguém o fazia à variável — e
+// era a variável que sobrevivia a mudar de sala.
+function validarPalavraDaFolha(mask) {
+  if (!hangmanSecretWord) return;
+  if (salaDaPalavra !== state.code) { hangmanSecretWord = ""; return; }
+  // Sem folha ainda não há nada a comparar: é o instante entre escrever a
+  // palavra e a sala responder com a forma dela.
+  if (mask && !palavraDestaFolha(hangmanSecretWord, mask)) hangmanSecretWord = "";
 }
 
 hangmanEls.wordForm.addEventListener("submit", async (e) => {
@@ -1527,6 +1551,7 @@ hangmanEls.wordForm.addEventListener("submit", async (e) => {
   // A partir daqui trabalha-se sempre com as palavras JUNTAS: é assim que
   // uma letra certa revela em todas de uma vez, sem lógica nova.
   hangmanSecretWord = juntas;
+  salaDaPalavra = state.code;
   saveSecretWord(state.code, juntas);
   const pista = hangmanEls.hintInput.value.trim();
   hangmanEls.wordInput.value = "";
@@ -1592,6 +1617,7 @@ hangmanEls.winnerCancelBtn?.addEventListener("click", () => {
 hangmanEls.missBtn.addEventListener("click", () => addHangmanMiss(state.code, state.room, state.uid));
 hangmanEls.newWordBtn.addEventListener("click", () => {
   hangmanSecretWord = "";
+  salaDaPalavra = null;
   clearSecretWord();
   clearHangmanPuzzle(state.code, state.room, state.uid);
 });
@@ -1991,8 +2017,10 @@ export function renderHangman(room) {
   // Se a palavra se perdeu (um F5 de quem tem a caneta), tenta recuperá-la do
   // browser antes de qualquer outra coisa — senão o resto do ecrã desenha-se
   // com o jogo já morto sem ninguém saber.
+  validarPalavraDaFolha(mask);
   if (comPalavra && amLeader && mask && !hangmanSecretWord) {
     hangmanSecretWord = recoverSecretWord(state.code, mask);
+    salaDaPalavra = hangmanSecretWord ? state.code : null;
   }
   const perdiAPalavra = comPalavra && amLeader && !!mask && !hangmanSecretWord;
   const temPalavra = comPalavra && !!mask;
@@ -2192,7 +2220,11 @@ export function renderHangman(room) {
   }
   if (perdiAPalavra) {
     hangmanEls.status.textContent =
-      "Perdi a palavra ao recarregar a página. Escreve-a outra vez (ou começa outra) para continuar a arbitrar.";
+      // Não se diz mais a CAUSA: recarregar a página era a única quando esta
+      // frase se escreveu, e hoje também aparece quando a folha à frente é de
+      // outra palavra (sala nova, partida nova). Dizer "ao recarregar" a quem
+      // não recarregou manda-o procurar um problema que não teve.
+      "Não tenho a palavra desta folha. Escreve-a outra vez (ou começa outra) para continuar a arbitrar.";
   }
   if (amLeader && mask) {
     // Só quem tem a caneta vê a palavra, e vê-a sempre — depois de a escrever

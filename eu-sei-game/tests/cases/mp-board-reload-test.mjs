@@ -94,7 +94,7 @@ console.log("5) Se a palavra guardada não servir, o quadro DIZ que se perdeu...
 await host.evaluate(() => sessionStorage.removeItem("euSei_hangmanSecret"));
 await host.reload({ waitUntil: "networkidle" });
 await host.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
-await host.waitForFunction(() => document.getElementById("hangman-status").textContent.includes("Perdi a palavra"), { timeout: 10000 });
+await host.waitForFunction(() => document.getElementById("hangman-status").textContent.includes("Não tenho a palavra"), { timeout: 10000 });
 const aviso = await host.locator("#hangman-status").textContent();
 console.log(`   a Ana lê: "${aviso.trim()}"`);
 if (!(await host.locator("#hangman-word-form").isVisible())) {
@@ -119,6 +119,91 @@ const estadoDepois = await host.evaluate((c) => {
 console.log(`   antes: ${JSON.stringify(estadoAntes)}, depois: ${JSON.stringify(estadoDepois)}`);
 if (estadoDepois.mask !== estadoAntes.mask) {
   fail("reescrever a mesma palavra apagou as letras já reveladas");
+}
+
+console.log("7) E quem sai da sala com a palavra na mão não a leva para a sala seguinte...");
+// A palavra vive numa variável do módulo, e uma variável de módulo não sabe
+// quando acaba a sala. Saindo pelo lobby — sem F5, que é o que a limpava por
+// acidente — chegava-se à sala seguinte com a palavra da partida anterior na
+// mão: o ecrã dava-a por sabida, nem pedia para a reescrever, e arbitrava as
+// tentativas de toda a gente contra a palavra errada.
+//
+// Cena nova em vez de continuar a de cima: depois de dois F5 a Ana já não é
+// a anfitriã (a sala guarda o uid de antes), e sair para o lobby é de quem
+// manda.
+const carla = await context.newPage();
+const dinis = await context.newPage();
+for (const [nome, p] of [["Carla", carla], ["Dinis", dinis]]) {
+  p.on("pageerror", (e) => errors.push(`${nome}: ${e.message}`));
+  p.on("console", (m) => { if (m.type() === "error" && !m.text().includes("net::ERR_")) errors.push(`${nome}: ${m.text()}`); });
+}
+await carla.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await carla.fill("#name-input", "Carla");
+await carla.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await carla.click("#create-room-btn");
+await carla.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+const salaA = (await carla.locator("#lobby-code").textContent()).trim();
+await dinis.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await dinis.fill("#name-input", "Dinis");
+await dinis.fill("#join-code-input", salaA);
+await dinis.waitForFunction(() => !document.getElementById("join-room-btn").disabled, { timeout: 5000 });
+await dinis.click("#join-room-btn");
+await dinis.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+await carla.click('[data-mp-game="hangman"]');
+await carla.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
+await dinis.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
+await carla.click("#hangman-mode-btn");
+await carla.click('[data-mode-choice="forca"]');
+await carla.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 8000 });
+await carla.click('[data-color-choice="#b24b38"]');
+await dinis.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 8000 });
+await dinis.click('[data-color-choice="#5c7e91"]');
+const carlaId = await carla.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  return Object.keys(r.players).find((u) => r.players[u].name === "Carla");
+}, salaA);
+await carla.waitForSelector("#hangman-penvote-overlay:not(.hidden)", { timeout: 8000 });
+await carla.click(`[data-pen-vote-choice="${carlaId}"]`);
+await carla.waitForFunction((args) => window.__testDb.get(`rooms/${args[0]}`).hangman?.leaderId === args[1], [salaA, carlaId], { timeout: 8000 });
+await carla.fill("#hangman-word-input", "banana");
+await carla.click("#hangman-word-form button[type=submit]");
+await carla.waitForFunction((c) => !!window.__testDb.get(`rooms/${c}`).hangman?.mask, salaA, { timeout: 8000 });
+
+// Sai para o lobby e depois da sala, sem nunca recarregar a página.
+await carla.click("#options-fab");
+await carla.waitForSelector("#options-overlay:not(.hidden)", { timeout: 5000 });
+await carla.click("#options-back-btn");
+await carla.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+await carla.click('[data-screen="lobby"] [data-leave]');
+await carla.waitForSelector('[data-screen="home"].active', { timeout: 8000 });
+await carla.fill("#name-input", "Carla");
+await carla.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+await carla.click("#create-room-btn");
+await carla.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+const salaB = (await carla.locator("#lobby-code").textContent()).trim();
+await carla.click('[data-mp-game="hangman"]');
+await carla.waitForSelector('[data-screen="hangman"].active', { timeout: 8000 });
+// A folha da sala nova é de OUTRA palavra, com o mesmo número de letras que
+// "banana" para o engano ser o mais parecido possível com o verdadeiro.
+await carla.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  const eu = r.hostId;
+  window.__testDb.update(`rooms/${c}/hangman`, {
+    mode: "forca", leaderId: eu, mask: "______", colors: { [eu]: "#b24b38" },
+  });
+}, salaB);
+await carla.waitForTimeout(600);
+const naSalaNova = await carla.evaluate(() => ({
+  aviso: document.getElementById("hangman-status").textContent.trim(),
+  etiqueta: document.getElementById("hangman-secret").textContent.trim(),
+  pedeAPalavra: !document.getElementById("hangman-word-form").classList.contains("hidden"),
+}));
+console.log(`   a Carla lê: "${naSalaNova.aviso}" · etiqueta: "${naSalaNova.etiqueta}" · pede a palavra: ${naSalaNova.pedeAPalavra}`);
+if (/banana/i.test(naSalaNova.etiqueta)) {
+  fail("a palavra da sala anterior seguiu a Carla para a sala nova");
+}
+if (!naSalaNova.pedeAPalavra) {
+  fail("a folha é de outra palavra: o quadro tinha de pedir a palavra outra vez");
 }
 
 if (errors.length > 0) {

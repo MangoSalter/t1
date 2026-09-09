@@ -155,6 +155,23 @@ games that exist. Anything OUTSIDE it (module variables in `app.js`,
 in the same commit where it gets cleared, and prefer one shared function over
 a fourth hand-written list — that is how `limparTabuleiro` came to exist.
 
+A fourth, found in September by reading `board-room.js` for this shape: the
+Forca's secret word. It lives only in the pen-holder's browser (never in the
+room — with no server, anything stored there is readable by every player), and
+`recoverSecretWord` already refused a word from an earlier match when reading
+it back from `sessionStorage`: same room code, same mask shape, revealed
+letters matching. **That exam was never applied to the live variable.** Leave a
+room mid-word through the lobby — no F5, which is what cleared it by accident
+— and the next room's board greeted you as if you knew its word: no prompt to
+retype it, "Palavra: banana" on screen, and every guess in the new room judged
+against the old word. Both paths share `palavraDestaFolha` now, and
+`mp-board-reload` step 7 walks Carla out of one room and into another to watch
+it. Falsified by removing the call: "Palavra: banana", on a sheet that spells
+something else.
+
+Two things that check out, so don't re-audit them: `pagoNestaSala` keys itself
+by room code, and `hangmanJudging` is released in a `finally`.
+
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with
 `if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that
