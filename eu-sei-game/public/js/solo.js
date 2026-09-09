@@ -6,6 +6,7 @@
 
 import {
   CATEGORIES, pickLetters, pickCategories, MIN_ENABLED_CATEGORIES,
+  desafioDoDia, diaDoDesafio, DESAFIO_SEGUNDOS,
   MAP_BACKGROUND_SVG, pickMapCriteria, normalizeCountryName, pickLandmarkRound,
   ACHIEVEMENTS, pickMascotIntro, gameHowTo,
 } from "./data.js";
@@ -579,6 +580,8 @@ function addXP(gainedPoints, favoriteKey) {
 const solo = {
   round: 0,
   runScore: 0,
+  // Fora de null enquanto se joga o desafio do dia: { dia, repetido }.
+  desafio: null,
   usedLetters: new Set(),
   usedCategories: new Set(),
   letter: "",
@@ -718,6 +721,9 @@ const solo = {
 const els = {
   menuBtn: document.getElementById("solo-menu-btn"),
   classicBtn: document.getElementById("solo-classic-btn"),
+  desafioBtn: document.getElementById("solo-desafio-btn"),
+  desafioEstado: document.getElementById("solo-desafio-estado"),
+  desafioCopiarBtn: document.getElementById("solo-desafio-copiar-btn"),
   setupStartBtn: document.getElementById("solo-setup-start-btn"),
   marathonMenuBtn: document.getElementById("solo-marathon-menu-btn"),
   marathonStartBtn: document.getElementById("solo-marathon-start-btn"),
@@ -1177,6 +1183,118 @@ document.querySelectorAll("[data-solo-leave]").forEach((btn) => {
   });
 });
 
+// --- O DESAFIO DO DIA ---
+//
+// Uma ronda por dia, a mesma para toda a gente (ver desafioDoDia no data.js).
+// Guarda-se só o dia, os pontos e a sequência: é uma linha de localStorage,
+// não uma conta nem um servidor.
+const DESAFIO_KEY = "euSei_desafio";
+
+function lerDesafio() {
+  try {
+    const bruto = JSON.parse(localStorage.getItem(DESAFIO_KEY) || "{}");
+    return {
+      dia: typeof bruto.dia === "string" ? bruto.dia : null,
+      pontos: Number(bruto.pontos) || 0,
+      corretas: Number(bruto.corretas) || 0,
+      total: Number(bruto.total) || 0,
+      sequencia: Number(bruto.sequencia) || 0,
+    };
+  } catch {
+    return { dia: null, pontos: 0, corretas: 0, total: 0, sequencia: 0 };
+  }
+}
+
+function guardarDesafio(dados) {
+  try { localStorage.setItem(DESAFIO_KEY, JSON.stringify(dados)); } catch { /* sem drama */ }
+}
+
+// Ontem em relação a um dia dado, para saber se a sequência continua ou
+// recomeça. Feito com Date para os fins de mês e os anos bissextos não serem
+// um caso especial escrito à mão.
+function diaAnterior(diaISO) {
+  const [a, m, d] = diaISO.split("-").map(Number);
+  const data = new Date(a, m - 1, d);
+  data.setDate(data.getDate() - 1);
+  return diaDoDesafio(data);
+}
+
+function mostrarEstadoDoDesafio() {
+  const guardado = lerDesafio();
+  const hoje = diaDoDesafio();
+  const jogadoHoje = guardado.dia === hoje;
+  const sequencia = guardado.sequencia > 0 ? ` · ${guardado.sequencia} dia(s) seguidos` : "";
+  els.desafioEstado.textContent = jogadoHoje
+    ? `Hoje já foi: ${guardado.pontos} pts (${guardado.corretas}/${guardado.total})${sequencia}`
+    : `Uma ronda, igual para toda a gente${sequencia}`;
+  els.desafioBtn.textContent = jogadoHoje ? "📅 Ver o desafio de hoje" : "📅 Desafio do dia";
+}
+mostrarEstadoDoDesafio();
+
+function comecarDesafio() {
+  const hoje = diaDoDesafio();
+  const { letra, categorias } = desafioDoDia(hoje);
+  solo.desafio = { dia: hoje, repetido: lerDesafio().dia === hoje };
+  solo.round = 1;
+  solo.runScore = 0;
+  solo.letter = letra;
+  solo.categoryIndexes = categorias;
+  solo.answers = {};
+  solo.endAt = Date.now() + DESAFIO_SEGUNDOS * 1000;
+  solo.inRound = true;
+  renderRound();
+  showScreen("solo-round");
+}
+
+els.desafioBtn.addEventListener("click", comecarDesafio);
+
+// O resultado em texto, para se poder colar numa conversa. Sem link nem
+// serviço nenhum: é uma frase e uma fila de certos e errados, como os jogos
+// diários que as pessoas partilham.
+function textoDoDesafio(rows, corretas, pontos, sequencia) {
+  const fila = rows.map((r) => (r.valid ? "🟩" : "⬜")).join("");
+  const dia = solo.desafio?.dia || diaDoDesafio();
+  return `Eu sei! — desafio de ${dia}\nLetra ${solo.letter} · ${corretas}/${rows.length} · ${pontos} pts\n${fila}`
+    + (sequencia > 1 ? `\n${sequencia} dias seguidos` : "");
+}
+
+function terminarDesafio(rows, corretas, pontos) {
+  const hoje = solo.desafio.dia;
+  const guardado = lerDesafio();
+  let sequencia = guardado.sequencia;
+  // Repetir o mesmo dia não conta outra vez, nem para a sequência nem para os
+  // pontos: o desafio é um por dia, e um resultado que se pode melhorar
+  // tentando outra vez não é comparável com o de mais ninguém.
+  if (!solo.desafio.repetido) {
+    sequencia = guardado.dia === diaAnterior(hoje) ? guardado.sequencia + 1 : 1;
+    guardarDesafio({ dia: hoje, pontos, corretas, total: rows.length, sequencia });
+    addScoreHistoryEntry({ score: pontos, mode: "Desafio do dia", detail: `${corretas}/${rows.length}`, date: Date.now() });
+    addXP(pontos, null);
+  }
+  mostrarEstadoDoDesafio();
+
+  els.resultTitle.textContent = solo.desafio.repetido
+    ? `Desafio de hoje, outra vez: ${corretas}/${rows.length}`
+    : `Desafio do dia: ${corretas}/${rows.length} corretas`;
+  els.resultSummary.textContent = solo.desafio.repetido
+    ? "Esta não conta — o desafio de hoje já estava jogado."
+    : `${pontos} pts · ${sequencia} dia(s) seguidos. Volta amanhã para outro.`;
+  els.continueBtn.classList.add("hidden");
+  els.restartBtn.classList.add("hidden");
+  els.desafioCopiarBtn.classList.remove("hidden");
+  els.desafioCopiarBtn.onclick = async () => {
+    const texto = textoDoDesafio(rows, corretas, pontos, sequencia);
+    try {
+      await navigator.clipboard.writeText(texto);
+      els.desafioCopiarBtn.textContent = "✅ Copiado";
+    } catch {
+      // Sem permissão para a área de transferência (acontece), mostra-se o
+      // texto para se poder copiar à mão em vez de não acontecer nada.
+      els.resultSummary.textContent = texto;
+    }
+  };
+}
+
 els.classicBtn.addEventListener("click", () => showScreen("solo-setup"));
 els.setupStartBtn.addEventListener("click", () => {
   solo.afterMinigame = nextRound;
@@ -1480,16 +1598,28 @@ function finishRound() {
     return { ci, text, valid };
   });
 
+  const roundScore = correctCount * 10;
+
+  // O desafio do dia é UMA ronda, não uma run: não há "próxima ronda" nem
+  // recorde de run para bater, há o dia de hoje e a sequência.
+  if (solo.desafio) {
+    renderResult(rows, correctCount, 0, true, roundScore, true);
+    terminarDesafio(rows, correctCount, roundScore);
+    showScreen("solo-result");
+    solo.desafio = null;
+    return;
+  }
+
   const needed = minCorrectNeeded(solo.categoryIndexes.length);
   const passed = correctCount >= needed;
-  const roundScore = correctCount * 10;
   solo.runScore += roundScore;
 
   renderResult(rows, correctCount, needed, passed, roundScore);
   showScreen("solo-result");
 }
 
-function renderResult(rows, correctCount, needed, passed, roundScore) {
+function renderResult(rows, correctCount, needed, passed, roundScore, soTabela = false) {
+  els.desafioCopiarBtn.classList.add("hidden");
   els.resultTable.innerHTML = "";
   rows.forEach(({ ci, text, valid }) => {
     const row = document.createElement("div");
@@ -1499,6 +1629,8 @@ function renderResult(rows, correctCount, needed, passed, roundScore) {
       <span class="score-total">${valid ? "✓ 10 pts" : "✕ 0 pts"}</span>`;
     els.resultTable.appendChild(row);
   });
+
+  if (soTabela) return;
 
   if (passed) {
     els.resultTitle.textContent = `Passaste! ${correctCount}/${rows.length} corretas`;

@@ -197,6 +197,16 @@ desenho: sem isso um risco enganado só se desfazia limpando a folha toda, com
 o tempo a correr. Usa o mesmo `lastStrokeKeys` do quadro de sala — o que é um
 "traço" tem de ser a mesma coisa nos dois sítios.
 
+**Feito também: o desafio do dia.** Nas críticas das aplicações do género
+repete-se "não encontro ninguém para jogar" — o jogo depende de haver mais
+gente acordada. O desafio é a resposta que os jogos diários deram a isso: uma
+ronda por dia, a MESMA para toda a gente, sorteada a partir da data (sem
+servidor: a data é a semente, e a mesma data dá sempre a mesma letra e as
+mesmas categorias em qualquer telemóvel). Uma vez por dia — jogar outra vez
+mostra o resultado mas não conta, senão não haveria nada para comparar. Conta
+dias seguidos e dá um texto para colar numa conversa (🟩⬜ como os jogos que
+as pessoas partilham).
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

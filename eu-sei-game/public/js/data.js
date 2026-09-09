@@ -120,6 +120,70 @@ export function nomeDaCategoria(indice, proprias = []) {
   return CATEGORIES[indice] || "Categoria";
 }
 
+// --- O DESAFIO DO DIA ---
+//
+// Uma ronda por dia, igual para toda a gente, sorteada a partir da data. É o
+// que faz voltar a um jogo destes sem ter de haver ninguém do outro lado —
+// e o que as pessoas comparam entre si sem precisarem de estar na mesma sala.
+//
+// Determinístico de propósito e sem servidor: a mesma data dá sempre a mesma
+// letra e as mesmas categorias, em qualquer telemóvel. Um sorteio normal aqui
+// não servia — cada pessoa jogava um desafio diferente e não haveria nada
+// para comparar.
+export const DESAFIO_CATEGORIAS = 6;
+export const DESAFIO_SEGUNDOS = 90;
+
+// Dia em hora LOCAL, não UTC: o desafio muda à meia-noite de quem joga, que é
+// quando se espera que mude.
+export function diaDoDesafio(quando = new Date()) {
+  const ano = quando.getFullYear();
+  const mes = String(quando.getMonth() + 1).padStart(2, "0");
+  const dia = String(quando.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+// Hash simples e estável (FNV-1a de 32 bits). Não precisa de ser bom em
+// criptografia; precisa de dar sempre o mesmo número para o mesmo texto, em
+// qualquer browser, hoje e daqui a um ano.
+function semente(texto) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < texto.length; i += 1) {
+    h ^= texto.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function proximo(estado) {
+  // xorshift32: um número a seguir ao outro, sempre os mesmos.
+  let x = estado;
+  x ^= x << 13; x >>>= 0;
+  x ^= x >> 17;
+  x ^= x << 5; x >>>= 0;
+  return x >>> 0;
+}
+
+export function desafioDoDia(dia = diaDoDesafio(), quantas = DESAFIO_CATEGORIAS) {
+  let estado = semente(`eu-sei:${dia}`) || 1;
+  const tira = (limite) => {
+    estado = proximo(estado);
+    return estado % limite;
+  };
+  // As letras difíceis ficam de fora: um desafio único do dia em K ou W é uma
+  // maneira de gastar o dia de toda a gente ao mesmo tempo.
+  const letras = ALPHABET.filter((l) => !HARD_LETTERS.has(l));
+  const letra = letras[tira(letras.length)];
+  // Categorias da lista de origem apenas: o desafio é o mesmo para todos, e
+  // as categorias da casa são de cada sala.
+  const restantes = CATEGORIES.map((_, i) => i);
+  const categorias = [];
+  const quantasReais = Math.min(quantas, restantes.length);
+  for (let i = 0; i < quantasReais; i += 1) {
+    categorias.push(restantes.splice(tira(restantes.length), 1)[0]);
+  }
+  return { letra, categorias };
+}
+
 // `enabledIndexes`: Set opcional de índices permitidos (categorias ativadas
 // pelo jogador/anfitrião), já com as da casa lá dentro se as houver. Omitido
 // ou vazio = todas as 40 de origem estão disponíveis.

@@ -10,6 +10,7 @@ const {
   LANDMARKS, pickLandmark,
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
   limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
+  desafioDoDia, diaDoDesafio, DESAFIO_CATEGORIAS,
 } = await import(pathToFileURL(path.join(publicDir, "js", "data.js")).href);
 
 function assert(cond, label) {
@@ -150,4 +151,41 @@ console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes 
   assert(sorteadas.includes(CUSTOM_CAT_OFFSET) && sorteadas.includes(CUSTOM_CAT_OFFSET + 1), "e as da casa estão lá");
   const soDaCasa = pickCategories(5, new Set(), new Set([CUSTOM_CAT_OFFSET]));
   assert(soDaCasa.length === 1 && soDaCasa[0] === CUSTOM_CAT_OFFSET, "com uma só, sorteia essa e não inventa mais");
+}
+
+// --- O desafio do dia ---
+//
+// Só serve para alguma coisa se for MESMO igual para toda a gente: a mesma
+// data tem de dar sempre a mesma letra e as mesmas categorias, em qualquer
+// telemóvel e daqui a um ano. Um sorteio normal aqui dava a cada pessoa um
+// desafio diferente e não haveria nada para comparar.
+{
+  const a = desafioDoDia("2026-09-09");
+  const b = desafioDoDia("2026-09-09");
+  assert(JSON.stringify(a) === JSON.stringify(b), "o mesmo dia dá sempre o mesmo desafio");
+  assert(a.categorias.length === DESAFIO_CATEGORIAS, `${DESAFIO_CATEGORIAS} categorias`);
+  assert(new Set(a.categorias).size === a.categorias.length, "sem categorias repetidas");
+  assert(a.categorias.every((i) => i >= 0 && i < CATEGORIES.length), "todas da lista de origem");
+  assert(!HARD_LETTERS.has(a.letra), `a letra do dia não é difícil (saiu ${a.letra})`);
+
+  // Dias diferentes têm de dar desafios diferentes quase sempre — senão a
+  // "novidade do dia" era a mesma ronda semana após semana.
+  const vistos = new Set();
+  const letras = new Set();
+  for (let d = 1; d <= 28; d += 1) {
+    const r = desafioDoDia(`2026-10-${String(d).padStart(2, "0")}`);
+    vistos.add(`${r.letra}|${r.categorias.join(",")}`);
+    letras.add(r.letra);
+    assert(new Set(r.categorias).size === DESAFIO_CATEGORIAS, `dia ${d}: ${DESAFIO_CATEGORIAS} categorias sem repetir`);
+  }
+  assert(vistos.size === 28, `28 dias, 28 desafios diferentes (foram ${vistos.size})`);
+  assert(letras.size >= 8, `e letras variadas ao longo do mês (foram ${letras.size})`);
+}
+
+{
+  // O dia é o LOCAL, não o UTC: o desafio muda à meia-noite de quem joga.
+  const meiaNoiteLocal = new Date(2026, 0, 1, 0, 30);
+  assert(diaDoDesafio(meiaNoiteLocal) === "2026-01-01", `dia local (deu ${diaDoDesafio(meiaNoiteLocal)})`);
+  const fimDoDiaLocal = new Date(2026, 11, 31, 23, 30);
+  assert(diaDoDesafio(fimDoDiaLocal) === "2026-12-31", `fim do ano local (deu ${diaDoDesafio(fimDoDiaLocal)})`);
 }

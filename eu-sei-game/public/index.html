@@ -57,6 +57,10 @@
       <h2>Jogar sozinho</h2>
       <p class="hint">Escolhe o que queres jogar.</p>
       <p id="solo-account-xp" class="hint small account-xp"></p>
+      <!-- Uma ronda por dia, igual para toda a gente. É o que faz voltar
+           amanhã sem ter de haver mais alguém do outro lado. -->
+      <button id="solo-desafio-btn" class="ghost-primary">📅 Desafio do dia</button>
+      <p id="solo-desafio-estado" class="hint small"></p>
       <button id="solo-classic-btn" class="primary">Eu sei — modo clássico</button>
       <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
       <div class="divider">jogar avulso</div>
@@ -427,6 +431,7 @@
       <h2 id="solo-result-title"></h2>
       <p id="solo-result-summary" class="hint"></p>
       <div id="solo-result-table" class="score-table"></div>
+      <button id="solo-desafio-copiar-btn" class="ghost hidden">📋 Copiar o resultado</button>
       <button id="solo-continue-btn" class="primary hidden">Próxima ronda</button>
       <button id="solo-restart-btn" class="primary hidden">Jogar outra vez</button>
       <button data-solo-leave class="ghost">Sair</button>
