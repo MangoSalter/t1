@@ -1214,6 +1214,26 @@ export function maskKey(room, uid) {
 // Cada jogador escolhe a sua ao entrar no modo. Serve para as tentativas
 // erradas no topo do quadro dizerem QUEM as disse sem ter de escrever o nome
 // ao lado de cada letra.
+// AS CORES DE QUEM CONQUISTA O QUÊ.
+//
+// No mapa em sala a cor é a única coisa que diz de quem é cada país (a
+// bandeira desenhada lá dentro é a bandeira DO PAÍS, não a de quem o ganhou).
+// A lista antiga tinha pares que ninguém distingue: dois verdes a 12,5 de ΔE
+// em visão normal, e — para quem não distingue o vermelho do verde, que é uma
+// pessoa em cada doze — o vermelho e o castanho ficavam a 4,0, ou seja
+// iguais. Num jogo que é só "de quem é este país", isso não é um pormenor.
+//
+// Esta lista foi escolhida a medir, não a olho: todos os pares acima de 20 de
+// ΔE em visão normal, em deuteranopia e em protanopia, e cada cor com
+// contraste suficiente para o contorno a tinta se ver por cima. As primeiras
+// cinco continuam a ser praticamente as de sempre; as últimas tiveram de se
+// afastar porque dez cores distinguíveis por toda a gente é quase o limite do
+// que cabe. O test-mapa-sala.mjs volta a medir isto e chumba se descer.
+export const CORES_DO_MAPA = [
+  "#bb5544", "#447799", "#66aa77", "#6666bb", "#bb8833",
+  "#339988", "#ff99cc", "#77aaee", "#bbcc77", "#bbbb22",
+];
+
 export const HANGMAN_PLAYER_COLORS = [
   "#b24b38", "#5c7e91", "#5b7442", "#e3a53d", "#7a4fb5",
   "#2f7d6e", "#d1691f", "#c2569b", "#3a3126", "#8a8a8a",

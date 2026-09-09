@@ -14,6 +14,7 @@ import {
 } from "./mapa-ecra.js";
 import {
   mapaConquistar, mapaErrar, mapaRevelarPista, mapaClassificacao, finishMapaRound,
+  CORES_DO_MAPA,
 } from "./room.js";
 import { state, isHost } from "./app-state.js";
 import { t } from "./i18n.js";
@@ -22,10 +23,6 @@ import { escapeHtml } from "./ui-utils.js";
 // As cores dos jogadores no mapa. Escolhidas para se distinguirem quando
 // ficam CLARAS — é assim que aparecem preenchidas — e para nenhuma passar por
 // outra a preto e branco.
-export const CORES_DO_MAPA = [
-  "#b24b38", "#3f6f8f", "#5f8a45", "#8a5fa8", "#c08a2e",
-  "#2f8a80", "#a8506f", "#6b6f8a", "#8a6a3a", "#4a7a4a",
-];
 
 // A cor sai da ORDEM DE CHEGADA à sala, não do uid ordenado. Parece um
 // pormenor e não é: por uid, bastava alguém entrar a meio do jogo para as

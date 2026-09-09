@@ -7,6 +7,7 @@ import {
   chaveDePais, mapaEstadoInicial, mapaDono, mapaEmCausa, mapaPodeConquistar,
   mapaPontosNaSala, mapaClassificacao, mapaEscolhaDaManga, computeMapaPayout,
   MAPA_ROUBO_MS, MAPA_ROUBO_FATOR, MAPA_PODIO, MAPA_PODIO_MIN,
+  CORES_DO_MAPA,
 } from "./js/room.js";
 
 let falhas = 0;
@@ -124,6 +125,76 @@ check("e a dificuldade", nova.dificuldade, "apontado");
 check("sem donos", Object.keys(nova.donos).length, 0);
 check("sem países em causa", Object.keys(nova.abertos).length, 0);
 check("e a classificação de uma sala vazia é vazia", mapaClassificacao(sala({})), []);
+
+
+
+
+// --- AS CORES TÊM DE SE DISTINGUIR, E NÃO SÓ PARA QUEM AS VÊ TODAS ---
+//
+// No mapa em sala a cor é a única coisa que diz de quem é cada país: a
+// bandeira desenhada dentro dele é a bandeira DO PAÍS. Uma pessoa em cada
+// doze não distingue o vermelho do verde, e a lista antiga punha o vermelho e
+// o castanho a 4,0 de ΔE em deuteranopia — iguais — e dois verdes a 12,5 em
+// visão NORMAL.
+//
+// Mede-se aqui em vez de se confiar no olho de quem escolheu: converte-se
+// cada cor para Lab, simula-se a visão de quem não distingue vermelho/verde
+// (Viénot-Brettel-Mollon, em espaço LMS) e exige-se distância em todos os
+// pares. Assim ninguém pode "arranjar" a paleta a olho e piorá-la em
+// silêncio.
+console.log("24) As cores do mapa distinguem-se umas das outras, em três visões...");
+{
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const delin = (c) => {
+    const v = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
+    return Math.min(1, Math.max(0, v));
+  };
+  const doHex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const paraLab = ([r, g, b]) => {
+    const R = lin(r), G = lin(g), B = lin(b);
+    let x = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047;
+    let y = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+    let z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+    const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+    x = f(x); y = f(y); z = f(z);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  };
+  const simula = ([r, g, b], tipo) => {
+    if (tipo === "normal") return [r, g, b];
+    const R = lin(r), G = lin(g), B = lin(b);
+    const L = 17.8824 * R + 43.5161 * G + 4.11935 * B;
+    const M = 3.45565 * R + 27.1554 * G + 3.86714 * B;
+    const S = 0.0299566 * R + 0.184309 * G + 1.46709 * B;
+    let L2 = L, M2 = M;
+    if (tipo === "deuteranopia") M2 = 0.494207 * L + 1.24827 * S;
+    if (tipo === "protanopia") L2 = 2.02344 * M - 2.52581 * S;
+    return [
+      delin(0.080944 * L2 - 0.130504 * M2 + 0.116721 * S),
+      delin(-0.0102485 * L2 + 0.0540194 * M2 - 0.113615 * S),
+      delin(-0.000365294 * L2 - 0.00412163 * M2 + 0.693513 * S),
+    ];
+  };
+  const distancia = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const MINIMO = 20;
+
+  check("dez cores, uma por jogador", CORES_DO_MAPA.length, 10);
+  check("todas escritas em #rrggbb", CORES_DO_MAPA.every((c) => /^#[0-9a-f]{6}$/i.test(c)), true);
+  check("nenhuma repetida", new Set(CORES_DO_MAPA.map((c) => c.toLowerCase())).size, 10);
+
+  for (const visao of ["normal", "deuteranopia", "protanopia"]) {
+    const labs = CORES_DO_MAPA.map((c) => paraLab(simula(doHex(c), visao)));
+    let pior = Infinity;
+    let quais = "";
+    for (let i = 0; i < labs.length; i += 1) {
+      for (let j = i + 1; j < labs.length; j += 1) {
+        const d = distancia(labs[i], labs[j]);
+        if (d < pior) { pior = d; quais = `${CORES_DO_MAPA[i]}~${CORES_DO_MAPA[j]}`; }
+      }
+    }
+    console.log(`   ${visao}: pior par ${pior.toFixed(1)} (${quais})`);
+    check(`${visao}: o par mais parecido está acima de ${MINIMO}`, pior >= MINIMO, true);
+  }
+}
 
 if (falhas > 0) { console.log(`=> mapa-sala FALHOU (${falhas})`); process.exit(1); }
 console.log("=> mapa-sala ok");

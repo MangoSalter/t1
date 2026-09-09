@@ -207,6 +207,25 @@ mostra o resultado mas não conta, senão não haveria nada para comparar. Conta
 dias seguidos e dá um texto para colar numa conversa (🟩⬜ como os jogos que
 as pessoas partilham).
 
+**Feito também: as cores de quem conquista o quê.** No mapa em sala a cor é a
+única coisa que diz de quem é cada país — a bandeira desenhada lá dentro é a
+bandeira DO PAÍS, não a de quem o ganhou. Medi a lista antiga e havia pares
+que ninguém distingue: dois verdes a 12,5 de ΔE em visão normal, e para quem
+não distingue vermelho de verde (uma pessoa em cada doze) o vermelho e o
+castanho ficavam a 4,0 — iguais. A lista nova foi escolhida a medir: todos os
+pares acima de 20 nas três visões, com contraste que chegue para o contorno a
+tinta se ver. As primeiras cinco cores continuam praticamente as tuas; as
+últimas tiveram de se afastar, porque dez cores distinguíveis por toda a gente
+é quase o limite do que cabe.
+
+**E uma pergunta que fica para ti sobre o mesmo ecrã:** o preenchimento do país
+é a cor do dono misturada com 72% de branco (`corClara`), para a bandeira se
+ler por cima. Isso deixa os preenchimentos quase iguais uns aos outros — 3,4
+de ΔE na lista antiga, 6,2 na nova, quando 20 é o que se distingue à vontade.
+Quem carrega a informação é o contorno de 2,2px. Baixar a mistura para uns 55%
+duplicava a diferença entre países de donos diferentes, mas escurece o fundo
+por baixo das bandeiras, que foi uma escolha tua. Diz-me se queres que mexa.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

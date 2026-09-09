@@ -136,6 +136,15 @@ same hour, which is exactly when you already believe the thing works and the
 check agreeing feels like confirmation. Spot-check others the same way rather
 than trusting a green tick.
 
+## A check after the file's failure summary is not a check
+`test-mapa-sala.mjs` ends with
+`if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that
+line, and it ran, printed, counted its failures — and the process had already
+decided its exit code, so the case passed with the old broken palette in
+place. Found only by falsifying. When you add to a pure case, put the new
+block BEFORE the summary line, or move the summary to the end (which is what
+I did here).
+
 ## New UI is not done until it has been measured on a phone
 This is a party game: everyone joins from their own phone, so the phone is the
 device, not the edge case. Two defects in one day came from checking new UI
