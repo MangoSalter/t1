@@ -430,11 +430,21 @@ function encherCamadas() {
 
 // Trocar de camada é começar outra partida: o que se conquistou a nomear
 // países não conta a nomear capitais, e o marcador tem de recomeçar com ele.
-function trocarCamada(chave) {
-  mapa.camada = chave;
+// Começar de novo é limpar TUDO o que era da partida anterior. Estava escrito
+// à mão em três sítios, e o "x2" dos países em causa — que só existe em sala —
+// ficou de fora dos três: saía de uma sala, abria-se o mapa sozinho e lá
+// estava a marca, num jogo onde a regra do roubo nem existe. É o mesmo que
+// aconteceu ao álbum e a razão de isto passar a ser uma função só.
+function limparTabuleiro() {
   mapa.donos = {};
   mapa.pistas = [];
+  mapa.emCausa = {};
   mapa.selecionado = null;
+}
+
+function trocarCamada(chave) {
+  mapa.camada = chave;
+  limparTabuleiro();
   jogo.jaSugeridos = [];
   jogo.hipotesesLivreEm = 0;
   reiniciarMarcador();
@@ -462,9 +472,7 @@ function encherModos() {
 
 function trocarModo(chave) {
   mapa.modo = chave;
-  mapa.donos = {};
-  mapa.pistas = [];
-  mapa.selecionado = null;
+  limparTabuleiro();
   jogo.jaSugeridos = [];
   // Trocar de modo é começar outra partida: o ritmo e a sequência da Europa
   // não podem ser levados para a África.
@@ -664,9 +672,7 @@ if (haEcra()) {
   });
 
   els.recomecarBtn.addEventListener("click", () => {
-    mapa.donos = {};
-    mapa.pistas = [];
-    mapa.selecionado = null;
+    limparTabuleiro();
     jogo.jaSugeridos = [];
     reiniciarMarcador();
     esconderFim();

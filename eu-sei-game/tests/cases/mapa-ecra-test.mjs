@@ -155,6 +155,23 @@ const temBandeira = await page.evaluate(async () => {
 console.log(`   pixels da bandeira no centro do Brasil: ${temBandeira}`);
 if (temBandeira < 50) fail("a bandeira do país conquistado não foi desenhada");
 
+console.log("5b) E a marca de \"em causa\" não sobrevive a recomeçar...");
+// Só existe em sala (alguém falhou ali, vale a dobrar). O mapa é o mesmo
+// módulo nos dois modos, por isso uma marca deixada por uma sala aparecia num
+// jogo sozinho, onde essa regra nem existe.
+await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  m.mapa.emCausa = { Brasil: Date.now() + 60000 };
+});
+await page.click("#mapa-recomecar-btn");
+await page.waitForTimeout(200);
+const sobrouEmCausa = await page.evaluate(async () => {
+  const m = await import("./js/mapa.js");
+  return Object.keys(m.mapa.emCausa || {});
+});
+console.log(`   em causa depois de recomeçar: ${JSON.stringify(sobrouEmCausa)}`);
+if (sobrouEmCausa.length > 0) fail("recomeçar tinha de levar as marcas de em causa");
+
 console.log("6) Recomeçar limpa o mapa...");
 await page.click("#mapa-recomecar-btn");
 if (!/0 de 177/.test(await progresso())) fail("recomeçar devia limpar tudo");
