@@ -1,7 +1,8 @@
 // Votações do quadro: a regra é MAIORIA DOS LIGADOS, não maioria de quem
 // votou. A diferença não é teórica — com "maioria de quem votou", o primeiro
 // a carregar no botão decidia por todos antes de os outros abrirem o menu.
-import { voteWinner, tallyVotes, votesNeeded, sameWord, connectedPlayerIds, BOARD_MODES }
+import { voteWinner, tallyVotes, votesNeeded, sameWord, connectedPlayerIds, BOARD_MODES,
+  playerColor, corPorOmissaoDoQuadro, HANGMAN_PLAYER_COLORS }
   from "./js/room.js";
 
 let falhas = 0;
@@ -73,6 +74,44 @@ const maus = Object.entries(BOARD_MODES).filter(([, m]) => !m.label || !m.hint);
 check("modos completos", maus.map(([k]) => k), []);
 
 console.log(falhas === 0 ? "\n=> test-board-votes ok" : `\n=> test-board-votes FALHOU (${falhas})`);
+
+// --- A cor de cada um no quadro ---
+//
+// A cor é a única coisa que diz de quem é cada traço. Por omissão eram todos
+// a tinta da casa: dois jogadores que não abrissem o seletor desenhavam
+// exatamente igual.
+console.log("N) Cada jogador tem a sua cor no quadro sem ter de a escolher...");
+{
+  const sala = (n) => ({
+    players: Object.fromEntries(Array.from({ length: n }, (_, i) => [`u${i}`, { connected: true, joinedAt: 1000 + i }])),
+    hangman: { colors: {} },
+  });
+  const r = sala(4);
+  const cores = ["u0", "u1", "u2", "u3"].map((u) => playerColor(r, u));
+  check("quatro jogadores, quatro cores diferentes", new Set(cores).size, 4);
+  check("nenhum fica sem cor", cores.every((c) => HANGMAN_PLAYER_COLORS.includes(c)), true);
+  check("a cor não muda entre leituras", playerColor(r, "u2"), cores[2]);
+
+  // Quem escolhe à mão ganha, e quem estava a usar essa por omissão anda para
+  // a seguinte em vez de ficarem os dois iguais.
+  const r2 = sala(4);
+  r2.hangman.colors.u3 = cores[1];
+  const depois = ["u0", "u1", "u2", "u3"].map((u) => playerColor(r2, u));
+  check("a escolha explícita fica com a cor", depois[3], cores[1]);
+  check("e continuam todos diferentes", new Set(depois).size, 4);
+
+  // A ordem é a de CHEGADA: alguém entrar a meio não pode trocar as cores de
+  // quem já lá estava (é a mesma razão que está escrita no mapa).
+  const r3 = sala(3);
+  const antes = ["u0", "u1", "u2"].map((u) => playerColor(r3, u));
+  r3.players.novo = { connected: true, joinedAt: 9999 };
+  const comNovo = ["u0", "u1", "u2"].map((u) => playerColor(r3, u));
+  check("quem já lá estava mantém a cor quando alguém entra", JSON.stringify(comNovo), JSON.stringify(antes));
+  check("e o que chegou não repete nenhuma", antes.includes(playerColor(r3, "novo")), false);
+
+  check("uma sala vazia não rebenta", typeof corPorOmissaoDoQuadro({}, "x"), "string");
+}
+
 if (falhas > 0) process.exitCode = 1;
 
 console.log("9) A forma da palavra mostra o que deve e esconde o que deve...");

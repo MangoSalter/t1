@@ -226,6 +226,19 @@ Quem carrega a informação é o contorno de 2,2px. Baixar a mistura para uns 55
 duplicava a diferença entre países de donos diferentes, mas escurece o fundo
 por baixo das bandeiras, que foi uma escolha tua. Diz-me se queres que mexa.
 
+**E no quadro, cada um passa a ter a sua cor sem a pedir.** Por omissão toda a
+gente desenhava com a tinta da casa: quem não abrisse o seletor ficava igual a
+quem também não o abriu, e a cor — que é a única coisa que diz de quem é cada
+traço — não dizia nada. Agora sai da ordem de chegada, como no mapa, e o
+seletor passa a ser uma troca em vez de uma obrigação.
+
+Medi também a paleta do quadro e NÃO lhe mexi: o pior par é 17,0 em visão
+normal e 6,0 em deuteranopia (o do mapa era 12,5 e 4,0). Tentei encontrar dez
+cores seguras para uma folha branca e o que sai são rosas-choque e quase-pretos
+que não são deste jogo — dez cores distinguíveis por toda a gente sobre papel
+não cabe sem estragar o aspeto. Ficam melhor as cores de sempre, agora que
+ninguém fica sem a sua.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

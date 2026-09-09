@@ -1256,8 +1256,43 @@ export async function pickHangmanColor(code, room, uid, color) {
   return true;
 }
 
+// A COR DE CADA UM NO QUADRO, sem ser preciso escolher.
+//
+// Por omissão toda a gente desenhava com a tinta da casa: quem não abrisse o
+// seletor ficava igual a quem também não o abriu, e a cor — que é a única
+// coisa que diz de quem é cada traço, como diz o comentário do
+// pickHangmanColor — não dizia nada. Agora a cor sai da ordem de chegada,
+// como no mapa, e o seletor passa a ser uma troca em vez de uma obrigação.
+//
+// Calculado em cada cliente a partir do estado da sala, sem escritas: todos
+// veem a mesma coisa porque todos partem dos mesmos dados. Se alguém escolher
+// à mão a cor que estava a servir de omissão a outra pessoa, essa anda para a
+// seguinte da lista — a escolha explícita ganha sempre.
+export function corPorOmissaoDoQuadro(room, uid) {
+  const ordem = Object.entries(room?.players || {})
+    .sort((a, b) => (a[1]?.joinedAt || 0) - (b[1]?.joinedAt || 0) || (a[0] < b[0] ? -1 : 1))
+    .map(([id]) => id);
+  const explicitas = room?.hangman?.colors || {};
+  // Reparte-se a lista TODA de uma vez, e não só para quem se está a
+  // perguntar: dar a cada um a primeira cor livre olhando apenas para as
+  // escolhas explícitas punha dois jogadores sem escolha na mesma cor (foi
+  // exatamente o que o teste apanhou).
+  const usadas = new Set(ordem.map((id) => explicitas[id]).filter(Boolean));
+  const atribuidas = {};
+  for (const id of ordem) {
+    if (explicitas[id]) { atribuidas[id] = explicitas[id]; continue; }
+    const livre = HANGMAN_PLAYER_COLORS.find((cor) => !usadas.has(cor));
+    // Acima de dez pessoas acabam-se as cores: repete-se pela ordem de
+    // chegada, que é melhor do que ficar sem nenhuma.
+    const cor = livre || HANGMAN_PLAYER_COLORS[ordem.indexOf(id) % HANGMAN_PLAYER_COLORS.length];
+    atribuidas[id] = cor;
+    usadas.add(cor);
+  }
+  return atribuidas[uid] || HANGMAN_PLAYER_COLORS[0];
+}
+
 export function playerColor(room, uid) {
-  return room?.hangman?.colors?.[uid] || "#3a3126";
+  return room?.hangman?.colors?.[uid] || corPorOmissaoDoQuadro(room, uid);
 }
 
 // --- Tentativas de letra ---
