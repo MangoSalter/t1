@@ -189,7 +189,13 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
 .avatar-tools { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
 .avatar-tool-btn.active { background: var(--accent); }
 .avatar-palette { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
-.avatar-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); padding: 0; cursor: pointer; }
+/* 44px, como tudo o que se toca. Estavam a 26 — em todos os tamanhos de ecrã,
+   sem regra de telemóvel nenhuma — e o avatar desenha-se no telemóvel, no
+   primeiro ecrã, antes de se entrar na primeira sala. Sete cores a 44 com 6 de
+   intervalo dão 344px: passam para duas linhas num ecrã de 390, que é o preço
+   certo a pagar. Ninguém tinha medido isto porque a sobreposição nasce
+   escondida e vive fora dos [data-screen] — ver a11y-test, passo 12. */
+.avatar-swatch { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--ink); padding: 0; cursor: pointer; }
 .avatar-swatch.active { box-shadow: 0 0 0 3px var(--accent); }
 
 /* Onde Fica Isto? */
@@ -447,9 +453,7 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .config-form { display: flex; flex-direction: column; gap: 10px; text-align: left; margin: 8px 0; }
 .config-form label { font-size: 0.95rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 /* 44px, como o resto do que se toca com o dedo. Mediam 42 — dois píxeis a
-   menos, e são linhas de largura inteira, por isso esticá-las não custa nada
-   (ao contrário das quarenta caixas das categorias, que ficam a 40 de
-   propósito: alongá-las mudava a altura de uma lista de quarenta). */
+   menos, e são linhas de largura inteira, por isso esticá-las não custa nada. */
 .checkbox-label { flex-direction: row !important; align-items: center; gap: 8px !important; min-height: 44px; }
 
 .cat-picker { text-align: left; margin: 4px 0 12px; font-size: 0.95rem; }
@@ -736,14 +740,16 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
    fazem-se errar — e errar aqui muda a configuração do jogo sem se dar por
    isso. O <label> é que recebe o toque (não a caixa de 18px), por isso é ele
    que tem de crescer. Nas grelhas de categorias, onde há dezenas de
-   entradas, 40px é o compromisso entre acertar e não obrigar a rolar sem
-   fim. */
+   entradas, chegaram a ficar a 40px por se julgar que alongá-las obrigava a
+   rolar sem fim — não obriga: a grelha já tem "max-height: 240px" e já rola,
+   por isso os 4px que faltavam custavam 10% de rolar e valiam não trocar de
+   categoria sem dar por isso. Medido no passo 13 do a11y-test. */
 .marathon-picker label,
 .chaos-toggle {
   min-height: 44px;
   padding: 4px 2px;
 }
-.cat-picker-grid label { min-height: 40px; }
+.cat-picker-grid label { min-height: 44px; }
 
 /* Porquê estes pontos (ecrã de fim de ronda). Uma linha por categoria, com a
    razão ao lado do número — é a diferença entre "ganhaste 25" e "ganhaste 25
@@ -1411,8 +1417,10 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 .paleta-cor:hover { transform: scale(1.12); }
 .paleta-cor.escolhida { outline: 3px solid var(--ink); outline-offset: 1px; }
-.paleta-exata-linha { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 12px; }
-.paleta-exata-linha input { width: 56px; height: 32px; padding: 0; border: 1px solid var(--ink); border-radius: 6px; }
+.paleta-exata-linha { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 12px; min-height: 44px; }
+/* O quadrado da cor exata media 32 de altura, ao lado de 68 quadrados que já
+   estavam nos 44. O <label> inteiro é o alvo, e é ele que abre o selector. */
+.paleta-exata-linha input { width: 56px; height: 44px; padding: 0; border: 1px solid var(--ink); border-radius: 6px; }
 /* 44px de lado: o mínimo para um dedo. A primeira versão saiu 43x33 e foi o
    teste do telemóvel que a apanhou — um botão que só se acerta com o rato não
    serve num jogo que se joga com o telemóvel na mão. */

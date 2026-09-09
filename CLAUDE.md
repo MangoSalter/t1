@@ -83,10 +83,11 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 85 cases and takes **13m36s at 4 jobs** (measured,
-not estimated — it said ~11 minutes for a while and had quietly grown past
-it). The serial figure in here used to say ~25 minutes; I have not re-measured
-it, so treat it as folklore. If you need a number, measure it.
+rooms. The full suite is 88 cases and takes **13m48s at 4 jobs** (measured
+September, not estimated — it said ~11 minutes for a while and had quietly
+grown past it, and the case count sat at 85 for three cases longer than that
+was true). The serial figure in here used to say ~25 minutes; I have not
+re-measured it, so treat it as folklore. If you need a number, measure it.
 
 ## Counting tests per game: do not grep, and do not trust a tool either
 I got this wrong three times in one session, always the same way — matching by
@@ -186,8 +187,26 @@ phone context, then walk `[data-screen]` toggling `active` and measure every
 visible `button, label` in each. It takes seconds and it found the hangman
 board's tools at 40px — the mobile block raised the colours beside them to 44
 and forgot the tools, while the comment above the desktop rule claimed both
-were handled. Static markup is all this catches, so overlays and in-game HUDs
-still need real navigation; but the sweep tells you where to go and look.
+were handled. Static markup is all this catches, so in-game HUDs still need
+real navigation; but the sweep tells you where to go and look.
+
+That sweep lived in my hands and nowhere on disk, so it only ever ran the day
+I wrote it. It is `a11y-test` step 13 now, and the run that put it there found
+the category checkboxes at 40px on three screens — the lobby included, where
+a mis-tap changes what the whole room is about to play. The CSS said 40 was
+"the compromise between hitting it and not scrolling for ever"; the grid has
+had `max-height: 240px` all along, so it already scrolled, and the compromise
+was paying for nothing.
+
+The same run's step 12 covers the sixteen overlays, which no sweep could ever
+have reached: they sit OUTSIDE `[data-screen]`, and they are born `hidden`, so
+a sweep that skips what it cannot see skips all of them. Open each one by hand
+(`classList.remove("hidden")`), measure, put it back. Fifteen of the sixteen
+carry controls at load; only the Forca's colours are built when it opens, and
+the step prints which came back empty so an overlay that measures nothing is
+visible instead of silently green. What it found: the seven colours you draw
+your own avatar with, at 26px, with no phone rule anywhere — the very first
+screen, before anyone joins a room.
 
 A comment claiming something is "the only one" is a to-do list, not a fact.
 `.tag-player-me` carried a note saying it was *the only* ring that doesn't

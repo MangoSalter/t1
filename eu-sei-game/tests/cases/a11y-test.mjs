@@ -376,6 +376,124 @@ for (const m of [noQuadro, noMapa]) {
 }
 await cheiaCtx.close();
 
+console.log("12) E as sobreposições, que se abrem por cima de tudo e nunca foram medidas...");
+// O passo 8 mede UMA sobreposição — a paleta. Há dezasseis, e as outras
+// quinze nunca passaram por aqui por duas razões que se somam: vivem fora
+// dos [data-screen], por isso o varrimento barato dos ecrãs não lhes toca, e
+// nascem com "hidden", por isso um varrimento que salte o que não se vê
+// também não. Abre-se uma de cada vez e mede-se o que lá está.
+//
+// Quem isto apanhou: o editor do avatar. As sete cores com que se desenha a
+// cara mediam 26px de lado, sem regra de telemóvel nenhuma — e o avatar
+// desenha-se no telemóvel, no primeiro ecrã, antes de entrar em sala.
+//
+// O que isto NÃO apanha: as sobreposições cujo conteúdo só é construído
+// quando se abrem a sério (as cores da Forca, o histórico de palavras). Por
+// isso conta-se quantos controlos se viu em cada uma e imprime-se — uma
+// sobreposição vazia fica à vista em vez de passar calada.
+const sobCtx = await browser.newContext({ ...devices["iPhone 13"] });
+const sp = await sobCtx.newPage();
+await sp.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await sp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await sp.reload({ waitUntil: "networkidle" });
+const sobreposicoes = await sp.evaluate(() => {
+  const todas = [...document.querySelectorAll(".pause-overlay, .minigame-end-overlay")];
+  return todas.map((ov) => {
+    const escondida = ov.classList.contains("hidden");
+    ov.classList.remove("hidden");
+    const maus = [];
+    let vistos = 0;
+    ov.querySelectorAll("button, label, [role=button], select").forEach((el) => {
+      if (el.offsetParent === null) return;
+      const r = el.getBoundingClientRect();
+      if (r.height === 0 || r.width === 0) return;
+      vistos += 1;
+      if (r.height < 44 || r.width < 44) {
+        maus.push(`${(el.textContent || "").trim().slice(0, 12) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
+      }
+    });
+    // E se o cartão não cabe no ecrã do telemóvel, o que está no fundo não se
+    // alcança — medir os botões não chega se metade deles ficar fora.
+    const cartao = ov.querySelector(".card, .minigame-end-card");
+    const transborda = cartao ? cartao.getBoundingClientRect().height > window.innerHeight : false;
+    if (escondida) ov.classList.add("hidden");
+    return { id: ov.id || "(sem id)", vistos, maus, transborda };
+  });
+});
+console.log(`   ${sobreposicoes.length} sobreposições medidas`);
+for (const ov of sobreposicoes) {
+  if (ov.maus.length > 0 || ov.transborda) {
+    console.log(`   ${ov.id}: ${ov.vistos} controlos, abaixo de 44px: ${ov.maus.length} ${ov.maus.slice(0, 4).join(", ")}${ov.transborda ? " [não cabe no ecrã]" : ""}`);
+  }
+}
+console.log(`   vazias (conteúdo só nasce ao abrir a sério): ${sobreposicoes.filter((o) => o.vistos === 0).map((o) => o.id).join(", ") || "nenhuma"}`);
+if (sobreposicoes.length < 15) {
+  console.log(`   FALHOU: só encontrei ${sobreposicoes.length} sobreposições — o seletor deixou de as apanhar`);
+  process.exitCode = 1;
+}
+if (sobreposicoes.some((o) => o.maus.length > 0)) {
+  console.log("   FALHOU: alvos pequenos demais numa sobreposição");
+  process.exitCode = 1;
+}
+if (sobreposicoes.some((o) => o.transborda)) {
+  console.log("   FALHOU: uma sobreposição mais alta do que o ecrã do telemóvel");
+  process.exitCode = 1;
+}
+await sobCtx.close();
+
+console.log("13) E os 41 ecrãs, todos, sem navegar até nenhum...");
+// Este varrimento existia como ferramenta de mão — abrir a página num
+// telemóvel, ligar cada [data-screen] à vez e medir o que aparece — e foi
+// assim que se apanhou a barra da Forca a 40px. Ficava por escrever no
+// disco: da próxima vez que alguém acrescente um ecrã, ninguém volta a
+// correr uma ferramenta que não está em lado nenhum. Agora corre sempre.
+//
+// Os passos 10 e 11 navegam até três ecrãs a sério e medem tudo o que lá
+// está, dinâmico incluído; este chega aos 41, mas só vê o que vem escrito no
+// index.html. Um não substitui o outro: este diz onde ir olhar.
+const varreCtx = await browser.newContext({ ...devices["iPhone 13"] });
+const vp = await varreCtx.newPage();
+await vp.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
+await vp.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await vp.reload({ waitUntil: "networkidle" });
+const varrimento = await vp.evaluate(() => {
+  const ecras = [...document.querySelectorAll("[data-screen]")];
+  const antes = ecras.map((e) => e.classList.contains("active"));
+  const resultado = [];
+  for (const alvo of ecras) {
+    ecras.forEach((e) => e.classList.toggle("active", e === alvo));
+    const maus = [];
+    let vistos = 0;
+    alvo.querySelectorAll("button, label, [role=button], select").forEach((el) => {
+      if (el.offsetParent === null) return;
+      const r = el.getBoundingClientRect();
+      if (r.height === 0 || r.width === 0) return;
+      vistos += 1;
+      if (r.height < 44 || r.width < 44) {
+        maus.push(`${(el.textContent || "").trim().slice(0, 12) || el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
+      }
+    });
+    resultado.push({ ecra: alvo.dataset.screen, vistos, maus });
+  }
+  ecras.forEach((e, i) => e.classList.toggle("active", antes[i]));
+  return resultado;
+});
+const comControlos = varrimento.filter((e) => e.vistos > 0);
+const maus13 = varrimento.filter((e) => e.maus.length > 0);
+console.log(`   ${varrimento.length} ecrãs, ${comControlos.length} com controlos no index.html, ${maus13.length} com alvos pequenos`);
+for (const e of maus13) {
+  console.log(`   ${e.ecra}: ${e.maus.length} de ${e.vistos} — ${e.maus.slice(0, 4).join(", ")}`);
+}
+if (varrimento.length < 35) {
+  console.log(`   FALHOU: só encontrei ${varrimento.length} ecrãs — o seletor deixou de os apanhar`);
+  process.exitCode = 1;
+}
+if (maus13.length > 0) {
+  console.log("   FALHOU: alvos pequenos demais em ecrãs que ninguém mede a sério");
+  process.exitCode = 1;
+}
+await varreCtx.close();
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));
