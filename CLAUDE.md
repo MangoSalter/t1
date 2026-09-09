@@ -136,6 +136,24 @@ same hour, which is exactly when you already believe the thing works and the
 check agreeing feels like confirmation. Spot-check others the same way rather
 than trusting a green tick.
 
+## State that lives outside the room needs an owner for its lifetime
+Three bugs in two days, all the same shape: something I added kept its value
+in a module variable, and nothing said when to throw it away.
+
+- the album of drawings followed you out of a room and showed up in the next
+  one, made by people who were not there;
+- `solo.desafio` was only cleared when a round FINISHED, so any future exit
+  mid-round would have written a classic round's score into today's daily;
+- the map's "x2" marks survived Recomeçar, and the map module is shared, so a
+  mark left by a room appeared in a solo game where that rule does not exist.
+
+The room document takes care of itself — `resetForRematch` and `backToLobby`
+wipe it, and `mp-options-test` step 8 compares those two lists against the
+games that exist. Anything OUTSIDE it (module variables in `app.js`,
+`solo.js`, the shared `mapa` object) has no such owner. When you add one, say
+in the same commit where it gets cleared, and prefer one shared function over
+a fourth hand-written list — that is how `limparTabuleiro` came to exist.
+
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with
 `if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that
