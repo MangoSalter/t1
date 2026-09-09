@@ -38,6 +38,7 @@
       <button id="create-room-btn" class="primary">Criar sala</button>
       <div class="divider">ou</div>
       <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
+      <p id="join-convite-hint" class="hint small hidden"></p>
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
       <label class="lingua-escolha">
@@ -447,6 +448,10 @@
     <div class="card">
       <h2>Sala <span id="lobby-code" class="room-code"></span></h2>
       <p class="hint">Partilha este código com os outros jogadores.</p>
+      <!-- Um jogo de festa joga-se muitas vezes com metade da sala noutra
+           casa, a ouvir por chamada. Ditar quatro letras ao telefone é onde
+           se perde gente; a ligação abre a app já com o código escrito. -->
+      <button id="lobby-convite-btn" type="button" class="ghost">🔗 Copiar convite</button>
       <ul id="lobby-players" class="player-list"></ul>
       <button id="lobby-avatar-edit-btn" type="button" class="ghost-primary">🎨 Desenhar o meu avatar</button>
       <p class="hint small">Aproveita a espera para desenhares o teu avatar!</p>

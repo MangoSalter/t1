@@ -68,7 +68,39 @@ const els = {
   joinCodeInput: document.getElementById("join-code-input"),
   joinBtn: document.getElementById("join-room-btn"),
   homeError: document.getElementById("home-error"),
+  conviteHint: document.getElementById("join-convite-hint"),
 };
+
+// --- Convite por ligação ---
+//
+// O código da sala tem quatro letras e diz-se ao telefone. Numa festa em que
+// metade da sala está noutra casa, é aí que se perde gente: quem ouve mal
+// tenta duas vezes e desiste. A ligação leva o código no endereço e a app
+// escreve-o sozinha — falta só o nome, que é a única coisa que a outra pessoa
+// tem mesmo de decidir.
+const PARAM_SALA = "sala";
+
+export function ligacaoDeConvite(code, href = window.location.href) {
+  const url = new URL(href);
+  // Só o código: quem recebe um convite entra no site público, mesmo que
+  // quem o mandou tivesse a oficina aberta.
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set(PARAM_SALA, code);
+  return url.toString();
+}
+
+// O código vem do endereço para a caixa, e o foco vai para o nome — que é o
+// que falta. Não se entra sozinho: entrar na sala com um nome vazio (ou com o
+// nome de outra pessoa que tenha usado este telemóvel) é pior do que pedir.
+(function lerConviteDoEndereco() {
+  const code = new URL(window.location.href).searchParams.get(PARAM_SALA);
+  if (!code) return;
+  els.joinCodeInput.value = code.trim().toUpperCase().slice(0, 4);
+  els.conviteHint.textContent = `Convite para a sala ${els.joinCodeInput.value} — escreve o teu nome e entra.`;
+  els.conviteHint.classList.remove("hidden");
+  els.nameInput.focus();
+}());
 
 els.createBtn.disabled = true;
 els.joinBtn.disabled = true;
@@ -406,6 +438,7 @@ document.querySelectorAll("[data-leave]").forEach((btn) => {
 
 const lobbyEls = {
   code: document.getElementById("lobby-code"),
+  conviteBtn: document.getElementById("lobby-convite-btn"),
   players: document.getElementById("lobby-players"),
   startBtn: document.getElementById("start-game-btn"),
   waiting: document.getElementById("lobby-waiting"),
@@ -425,6 +458,21 @@ const lobbyEls = {
   catPropriaAviso: document.getElementById("cfg-cat-propria-aviso"),
   minigamesHint: document.getElementById("lobby-minigames-hint"),
 };
+
+lobbyEls.conviteBtn.addEventListener("click", async () => {
+  if (!state.code) return;
+  const ligacao = ligacaoDeConvite(state.code);
+  try {
+    await navigator.clipboard.writeText(ligacao);
+    lobbyEls.conviteBtn.textContent = "✅ Convite copiado";
+  } catch {
+    // Sem permissão para a área de transferência (acontece em muitos
+    // telemóveis fora de https): mostra-se a ligação para se copiar à mão,
+    // em vez de o botão não fazer nada e parecer avariado.
+    lobbyEls.conviteBtn.textContent = ligacao;
+  }
+  setTimeout(() => { lobbyEls.conviteBtn.textContent = "🔗 Copiar convite"; }, 4000);
+});
 
 // Menu de escolha de jogo da sala, ao estilo do menu do modo sozinho: cada
 // botão salta as rondas clássicas e começa logo nesse mini-jogo.

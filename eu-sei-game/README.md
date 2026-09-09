@@ -113,7 +113,7 @@ eu-sei-game/
 ├── package.json             # só para os testes: o jogo não tem build
 ├── docs/                    # jogos.md (o que existe e o que falta decidir — lê-se
 │                            #   primeiro), eu-sei-spec.md, quadro-branco.md
-├── tests/                   # 89 casos; ver "Correr os testes"
+├── tests/                   # 90 casos; ver "Correr os testes"
 ├── tools/                   # dados do mapa (nomes, capitais, continentes) e o
 │                            #   gerar-mapa.mjs que os transforma; corre à mão
 └── public/
@@ -149,7 +149,7 @@ testes rápidos batem.
 ```
 npm install                      # traz o Playwright
 npx playwright install chromium  # e o browser que ele usa
-node tests/run.mjs               # os 89 casos, 14m06s a 4 trabalhos
+node tests/run.mjs               # os 90 casos, 14m21s a 4 trabalhos
 node tests/run.mjs mapa          # só os que têm "mapa" no nome
 node tests/run.mjs --jobs 1 --ver mapa   # um de cada vez, com o output todo
 ```

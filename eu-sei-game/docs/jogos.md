@@ -181,6 +181,7 @@ sai sozinha se disseres.
 | **O desafio do dia**: uma ronda por dia, igual para toda a gente, com dias seguidos e texto para colar | Sozinho, e à entrada | "Não encontro ninguém para jogar" — um jogo de festa depende de haver mais gente acordada |
 | **Cores que se distinguem** (medidas, incluindo daltonismo) e cada jogador com a sua sem ter de a pedir | Mapa em sala; quadro | A cor era a única coisa a dizer de quem é o quê, e havia pares iguais |
 | **Onde vale a dobrar** (tracejado e "x2") e **quanto valeu cada país** (+10, +17 do mesmo continente, metade com pista) | Conquistar o Mapa | Duas regras que existiam e não se viam em lado nenhum |
+| **Convite por ligação**: um botão no lobby copia um endereço que abre a app com o código já escrito | Lobby, e a entrada | Ditar quatro letras por chamada é onde se perde gente — o Jackbox e o skribbl partilham ligação, não código |
 
 **Duas coisas que medi e NÃO mexi, para não decidir por ti:**
 
