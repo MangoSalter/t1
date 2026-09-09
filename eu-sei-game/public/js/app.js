@@ -1547,7 +1547,11 @@ function tagPlayerEl(uid, name) {
   el.className = "tag-player";
   const label = document.createElement("span");
   label.className = "tag-player-name";
-  label.textContent = name;
+  // Cortado: com a letra do tamanho certo no ecrã, um nome comprido passa a
+  // ser uma tira maior do que o próprio jogador e tapa quem está ao lado.
+  // Oito letras chegam para se saber de quem se está a fugir.
+  label.textContent = name.length > 8 ? `${name.slice(0, 8)}…` : name;
+  label.title = name;
   el.appendChild(label);
   tagState.worldEl.appendChild(el);
   tagState.playerEls[uid] = el;

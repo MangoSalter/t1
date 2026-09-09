@@ -304,7 +304,20 @@ button.ghost-primary:hover:not(:disabled) { background: var(--accent-soft); }
               1px 1px 0 rgba(58,49,38,0.3);
 }
 @keyframes tag-speed-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
-.tag-player-name { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; font-weight: 700; color: var(--ink); background: var(--paper); padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
+/* O nome por cima do ponto também vive dentro do mundo que encolhe: a 0,282
+   saía a 2,9px, o que não é "pequeno", é ilegível — e num jogo em que se foge
+   de quem está infetado, saber quem é quem é metade do jogo. Tudo dividido
+   pela escala (letra, distância, respiro e cantos), para dar sempre o mesmo
+   tamanho no ecrã. */
+.tag-player-name {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(-18px / var(--escala-arena, 1));
+  font-size: calc(0.65rem / var(--escala-arena, 1));
+  padding: calc(1px / var(--escala-arena, 1)) calc(5px / var(--escala-arena, 1));
+  border-radius: calc(8px / var(--escala-arena, 1));
+  font-weight: 700; color: var(--ink); background: var(--paper);
+  white-space: nowrap; pointer-events: none;
+}
 .tag-powerup { position: absolute; width: 22px; height: 22px; margin: -11px; border-radius: 6px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
 .tag-powerup-shield { background: var(--success); }
 .tag-powerup-speed { background: var(--accent); }

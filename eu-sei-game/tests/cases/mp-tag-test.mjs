@@ -260,6 +260,14 @@ const aneis = await pt.evaluate(() => {
   world.style.setProperty("--escala-arena", String(ESCALA));
   world.style.transform = `scale(${ESCALA})`;
   const faz = (cls) => { const d = document.createElement("div"); d.className = cls; world.appendChild(d); return d; };
+  // O nome por cima do ponto vive no mesmo mundo encolhido: a 0,282 saía a
+  // 2,9px. Num jogo em que se foge de quem está infetado, saber quem é quem é
+  // metade do jogo.
+  const comNome = faz("tag-player tag-player-survivor");
+  const etiqueta = document.createElement("span");
+  etiqueta.className = "tag-player-name";
+  etiqueta.textContent = "Guilherme";
+  comNome.appendChild(etiqueta);
   const casos = {
     eu: faz("tag-player tag-player-survivor tag-player-me"),
     euComEscudo: faz("tag-player tag-player-survivor tag-player-me tag-player-shield"),
@@ -272,11 +280,18 @@ const aneis = await pt.evaluate(() => {
   const espessuras = (el) => [...getComputedStyle(el).boxShadow.matchAll(/0px 0px 0px ([\d.]+)px/g)]
     .map((m) => parseFloat(m[1]) * ESCALA);
   const cores = (el) => [...getComputedStyle(el).boxShadow.matchAll(/rgba?\(([^)]+)\)/g)].map((m) => m[1]);
-  const out = {};
+  const out = { __nome: { fonteNoEcra: parseFloat(getComputedStyle(etiqueta).fontSize) * ESCALA } };
   for (const [nome, el] of Object.entries(casos)) out[nome] = { px: espessuras(el), cores: cores(el) };
   arena.remove();
   return out;
 });
+const fonteDoNome = aneis.__nome.fonteNoEcra;
+delete aneis.__nome;
+console.log(`   nome do jogador: ${fonteDoNome.toFixed(2)}px no ecrã`);
+if (fonteDoNome < 8) {
+  console.log(`   FALHOU: um nome a ${fonteDoNome.toFixed(2)}px não se lê — e é preciso saber de quem se foge`);
+  process.exitCode = 1;
+}
 for (const [nome, v] of Object.entries(aneis)) {
   console.log(`   ${nome}: ${v.px.map((n) => n.toFixed(1)).join(", ")} px no ecrã`);
 }
