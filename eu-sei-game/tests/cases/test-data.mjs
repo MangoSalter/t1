@@ -12,7 +12,7 @@ const {
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
   limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
   desafioDoDia, diaDoDesafio, DESAFIO_CATEGORIAS,
-  CHAOS_EVENTS, pickChaosEvent,
+  CHAOS_EVENTS, pickChaosEvent, BOARD_CHAOS, pickBoardChaos,
 } = await import(pathToFileURL(path.join(publicDir, "js", "data.js")).href);
 
 function assert(cond, label) {
@@ -223,4 +223,29 @@ console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes 
     anterior = e.id;
   }
   assert(repetidas === 0, `nenhuma repetida de seguida em 500 sorteios (foram ${repetidas})`);
+}
+
+// E o mesmo para as travessuras do QUADRO, que têm o mesmo risco por outra
+// via: o room.js escolhe as possíveis com um filtro que devolve `false` para
+// qualquer feitio que não conheça. Um erro de letra ali não dá erro nenhum —
+// dá uma travessura que nunca acontece, e ninguém dá pela falta.
+{
+  const fonteDaSala = readFileSync(path.join(publicDir, "js", "room.js"), "utf8");
+  const feitiosDoQuadro = new Set(
+    [...fonteDaSala.matchAll(/e\.kind === "(\w+)"/g)].map((m) => m[1]),
+  );
+  assert(feitiosDoQuadro.size >= 4, `o room.js filtra ${feitiosDoQuadro.size} feitios de quadro`);
+  for (const ev of BOARD_CHAOS) {
+    assert(!!ev.id && !!ev.who && !!ev.text, `cada travessura do quadro tem id, quem e o que diz (${ev.id})`);
+    assert(feitiosDoQuadro.has(ev.kind), `"${ev.id}" é do feitio ${ev.kind}, que o room.js sabe escolher`);
+  }
+  assert(new Set(BOARD_CHAOS.map((e) => e.id)).size === BOARD_CHAOS.length, "sem ids repetidos no quadro");
+  let repetidas = 0;
+  let anterior = null;
+  for (let i = 0; i < 500; i += 1) {
+    const e = pickBoardChaos(anterior);
+    if (e.id === anterior) repetidas += 1;
+    anterior = e.id;
+  }
+  assert(repetidas === 0, `nem no quadro se repete de seguida (foram ${repetidas})`);
 }
