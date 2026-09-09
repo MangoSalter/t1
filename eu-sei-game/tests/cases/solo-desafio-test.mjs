@@ -46,6 +46,26 @@ if (JSON.stringify(doEcra.categorias) !== JSON.stringify(doModulo.categorias)) {
   falhar(`as categorias têm de ser as do dia (ecrã: ${doEcra.categorias.join(", ")})`);
 }
 
+// A ronda do desafio reusa o ecrã da run clássica, e esse ecrã diz "precisas
+// de X para continuar a run" — uma regra que aqui não existe.
+const cabecalho = (await page.locator("#solo-round-info").textContent()).trim();
+console.log(`   cabeçalho: "${cabecalho}"`);
+if (/run/i.test(cabecalho)) falhar("no desafio não há run nem mínimo para passar");
+if (!cabecalho.includes(doModulo.dia)) falhar("o cabeçalho devia dizer de que dia é o desafio");
+
+console.log("2b) E os botões novos dão-se com o dedo...");
+const pequenos = await page.evaluate(() => {
+  const maus = [];
+  document.querySelectorAll("#solo-desafio-btn, #solo-desafio-copiar-btn, #solo-finish-btn").forEach((el) => {
+    if (el.offsetParent === null) return;
+    const r = el.getBoundingClientRect();
+    if (r.height < 44 || r.width < 44) maus.push(`${el.id} (${Math.round(r.height)}x${Math.round(r.width)})`);
+  });
+  return maus;
+});
+console.log(`   abaixo de 44px: ${pequenos.length} ${pequenos.join(", ")}`);
+if (pequenos.length > 0) falhar("os botões do desafio também se tocam com o dedo");
+
 console.log("3) Responder três certas e três em branco...");
 await page.evaluate((letra) => {
   const inputs = [...document.querySelectorAll("#solo-cat-list input")];

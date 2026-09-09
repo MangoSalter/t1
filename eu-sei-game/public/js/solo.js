@@ -1537,8 +1537,15 @@ function minCorrectNeeded(numCategories) {
 
 function renderRound() {
   els.catLetter.textContent = solo.letter;
-  const needed = minCorrectNeeded(solo.categoryIndexes.length);
-  els.roundInfo.textContent = `Precisas de pelo menos ${needed} de ${solo.categoryIndexes.length} respostas válidas para continuar a run.`;
+  if (solo.desafio) {
+    // No desafio não há run nem mínimo para passar: há o dia de hoje. Dizer
+    // "precisas de 3 para continuar a run" era uma regra que não existe.
+    els.roundInfo.textContent = `Desafio de ${solo.desafio.dia} — ${solo.categoryIndexes.length} categorias, `
+      + `${DESAFIO_SEGUNDOS} segundos, 10 pts por resposta certa.`;
+  } else {
+    const needed = minCorrectNeeded(solo.categoryIndexes.length);
+    els.roundInfo.textContent = `Precisas de pelo menos ${needed} de ${solo.categoryIndexes.length} respostas válidas para continuar a run.`;
+  }
   els.catList.innerHTML = "";
   solo.categoryIndexes.forEach((ci) => {
     const wrapper = document.createElement("label");
