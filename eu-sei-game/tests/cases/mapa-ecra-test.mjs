@@ -75,6 +75,31 @@ await page.waitForFunction(async () => {
 }, { timeout: 5000 });
 console.log(`   contador: "${(await progresso()).trim()}"`);
 if (!/1 de 177/.test(await progresso())) fail("o contador devia subir");
+// E diz QUANTO valeu. Os pontos sobem com os seguidos e sobem mais dentro do
+// mesmo continente — é essa conta que faz o jogo passar de "clicar no que me
+// lembro" para "vou arrumar a África toda", e não aparecia em lado nenhum.
+const dissePeloBrasil = (await page.locator("#mapa-status").textContent()).trim();
+console.log(`   depois do Brasil: "${dissePeloBrasil}"`);
+if (!/\+\s*\d+/.test(dissePeloBrasil)) fail("devia dizer quantos pontos valeu");
+
+// Argentina a seguir ao Brasil: mesmo continente, e o bónus tem de aparecer
+// com o nome do continente.
+await page.fill("#mapa-input", "argentina");
+await page.click("#mapa-form button[type=submit]");
+await page.waitForFunction(async () => {
+  const m = await import("./js/mapa.js");
+  return !!m.mapa.donos.Argentina;
+}, { timeout: 5000 });
+const disseSeguido = (await page.locator("#mapa-status").textContent()).trim();
+console.log(`   e a seguir, no mesmo continente: "${disseSeguido}"`);
+if (!/América do Sul/i.test(disseSeguido)) {
+  fail("dois seguidos no mesmo continente deviam dizer que continente está a ser arrumado");
+}
+const pontosSeguidos = Number(/\+\s*(\d+)/.exec(disseSeguido)?.[1] || 0);
+const pontosPrimeiro = Number(/\+\s*(\d+)/.exec(dissePeloBrasil)?.[1] || 0);
+console.log(`   ${pontosPrimeiro} pontos no primeiro, ${pontosSeguidos} no segundo`);
+if (pontosSeguidos <= pontosPrimeiro) fail("o segundo do mesmo continente tinha de valer mais");
+
 // E clicar outra vez diz que já está — não deixa reescrever nem mudar de cor.
 await page.mouse.click(brasil.x, brasil.y);
 const jaEsta = await page.locator("#mapa-status").textContent();

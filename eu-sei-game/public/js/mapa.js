@@ -554,6 +554,11 @@ function registarAcerto(pais, agora = Date.now()) {
   const anterior = marcador.jogadas[marcador.jogadas.length - 1];
   const desde = anterior ? anterior.quando : marcador.inicio;
   const pontos = pontosDe(pais);
+  // Guardado ANTES de os contadores andarem: é a mesma condição que o
+  // pontosDe usa para dar (ou não) o bónus do continente, e é o que deixa a
+  // mensagem dizer porque é que este país valeu mais do que o anterior.
+  const noMesmoContinente = marcador.seguidosNoContinente > 0
+    && ultimoContinente() === pais.cont;
   marcador.seguidosNoContinente = ultimoContinente() === pais.cont
     ? marcador.seguidosNoContinente + 1
     : 1;
@@ -568,6 +573,7 @@ function registarAcerto(pais, agora = Date.now()) {
     pontos,
     cadeia: marcador.cadeia,
     compista: mapa.pistas.includes(pais.nome),
+    noMesmoContinente,
   });
 }
 

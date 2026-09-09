@@ -356,13 +356,19 @@ function esconderFim() {
   els.fim?.classList.add("hidden");
 }
 
+// O que se diz depois de acertar. Dizia só "certo, faltam N" — e os pontos,
+// que sobem com os seguidos e sobem mais ainda dentro do mesmo continente,
+// não apareciam em lado nenhum. É essa conta que faz o jogo passar de "clicar
+// no que me lembro" para "vou arrumar a África toda", e ninguém a via.
 function mensagemDeAcerto(pais) {
   if (estaCompleto()) { mostrarFim(); return t("mapaAcabou"); }
   const ultima = marcador.jogadas[marcador.jogadas.length - 1];
-  if (marcador.cadeia >= 3 && ultima) {
-    return t("mapaCadeia", marcador.cadeia, ultima.pontos);
-  }
-  return t("mapaCerto", pais.nome, porConquistar().length);
+  const pontos = ultima ? ultima.pontos : 0;
+  const faltam = porConquistar().length;
+  if (ultima?.compista) return t("mapaCertoComPista", pais.nome, pontos, faltam);
+  if (marcador.cadeia >= 3 && ultima) return t("mapaCadeia", marcador.cadeia, pontos);
+  if (ultima?.noMesmoContinente) return t("mapaCertoContinente", pais.nome, pontos, pais.cont, faltam);
+  return t("mapaCerto", pais.nome, pontos, faltam);
 }
 
 // Avisa a sala de uma conquista — e trata do caso que só existe em sala: dois

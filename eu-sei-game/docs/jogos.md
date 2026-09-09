@@ -246,6 +246,14 @@ quem tivesse visto a outra pessoa falhar. Agora o país fica com o contorno a
 tracejado e um "x2" no meio, e a marca apaga-se sozinha quando o prazo acaba.
 Tracejado e texto de propósito, não cor: é a mesma lição das cores acima.
 
+**E o mapa passa a dizer quanto valeu cada país.** Dizia "Brasil, certo.
+Faltam 176" e mais nada. Os pontos sobem com os acertos seguidos (+2 cada, até
+20) e sobem mais dentro do mesmo continente (+5 cada, até 25) — é essa conta
+que faz o jogo passar de "clicar no que me lembro" para "vou arrumar a África
+toda", e não aparecia em lado nenhum. Agora diz "+10 pontos", ou "+17 — estás
+a arrumar América do Sul!", ou "+8 (metade, tinhas a bandeira)". Vale para o
+mapa sozinho e para o de sala, que partilham o ecrã.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |
