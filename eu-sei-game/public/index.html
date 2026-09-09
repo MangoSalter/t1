@@ -842,6 +842,15 @@
     <div class="hangman-toolbar">
       <span id="draw-title" class="hangman-title">Desenha e Adivinha</span>
       <span id="draw-status" class="hint small"></span>
+      <!-- Quem desenha tinha uma caneta só, de uma cor só, enquanto o quadro
+           branco ao lado tem 68 cores e dez ferramentas. Nos jogos do género
+           a cor e a espessura são o mínimo. -->
+      <button id="draw-cor-btn" type="button" class="board-color draw-cor hidden" aria-label="Escolher a cor"></button>
+      <div id="draw-espessuras" class="draw-espessuras hidden" role="group" aria-label="Espessura do traço">
+        <button type="button" class="board-width" data-espessura="2" aria-label="Traço fino"><span class="board-width-dot" style="width:4px;height:4px"></span></button>
+        <button type="button" class="board-width" data-espessura="4" aria-label="Traço médio"><span class="board-width-dot" style="width:8px;height:8px"></span></button>
+        <button type="button" class="board-width" data-espessura="9" aria-label="Traço grosso"><span class="board-width-dot" style="width:14px;height:14px"></span></button>
+      </div>
       <button id="draw-clear-btn" type="button" class="ghost hidden">🧹 Limpar</button>
       <button id="draw-select-winner-btn" type="button" class="ghost-primary hidden">🏆 Alguém acertou!</button>
       <button id="draw-skip-btn" type="button" class="ghost hidden">🙈 Ninguém acertou</button>

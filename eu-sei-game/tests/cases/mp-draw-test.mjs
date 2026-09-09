@@ -70,7 +70,64 @@ else console.log("   OK: a desenhadora vê a palavra no estado");
   console.log(`   pontos desenhados: ${Object.keys(room.draw.doodle.points || {}).length}`);
   if (Object.keys(room.draw.doodle.points || {}).length === 0) { console.log("   FALHOU"); process.exitCode = 1; }
 
+  console.log("4b) Cor e espessura: escolher e ver o traço sair com elas...");
+  // Quem desenhava tinha uma caneta só, de uma cor só, enquanto o quadro
+  // branco ao lado tem 68 cores. Nos jogos do género a cor e a espessura são
+  // o mínimo, e sem elas metade das palavras não se desenha.
+  await page.click("#draw-espessuras [data-espessura=\"9\"]");
+  await page.click("#draw-cor-btn");
+  await page.waitForSelector("#paleta-overlay:not(.hidden)", { timeout: 5000 });
+  // Uma cor bem longe da tinta castanha do costume, para se poder procurar
+  // nos píxeis sem confusão possível.
+  const corEscolhida = await page.evaluate(() => {
+    const botoes = [...document.querySelectorAll(".paleta-cor")];
+    const azul = botoes.find((b) => {
+      const c = getComputedStyle(b).backgroundColor.match(/\d+/g).map(Number);
+      return c[2] > 140 && c[2] > c[0] + 60 && c[2] > c[1] + 40;
+    }) || botoes[botoes.length - 1];
+    azul.click();
+    return getComputedStyle(azul).backgroundColor;
+  });
+  await page.waitForTimeout(300);
+  console.log(`   cor escolhida: ${corEscolhida}`);
+  await page.mouse.move(canvasBox.x + 120, canvasBox.y + 260);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + 340, canvasBox.y + 265, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const comCor = await page.evaluate((code) => {
+    const pontos = Object.values(window.__testDb.get(`rooms/${code}`).draw.doodle.points || {});
+    const inicios = pontos.filter((p) => p.newStroke);
+    return { inicios: inicios.length, ultimo: inicios[inicios.length - 1] || null };
+  }, code);
+  console.log(`   inícios de traço na sala: ${comCor.inicios}, o último: ${JSON.stringify(comCor.ultimo)}`);
+  if (!comCor.ultimo || !comCor.ultimo.c || comCor.ultimo.w !== 9) {
+    console.log("   FALHOU: a cor e a espessura deviam viajar no início do traço");
+    process.exitCode = 1;
+  }
+  // E têm de chegar à TELA, não só à sala: sem isto passava com o desenho
+  // todo castanho na mesma.
+  const pintado = await page.evaluate((alvo) => {
+    const [r, g, b] = alvo.match(/\d+/g).map(Number);
+    const cv = document.getElementById("draw-doodle-canvas");
+    const ctx = cv.getContext("2d");
+    const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    let iguais = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] > 100 && Math.abs(d[i] - r) < 24 && Math.abs(d[i + 1] - g) < 24 && Math.abs(d[i + 2] - b) < 24) iguais += 1;
+    }
+    return iguais;
+  }, corEscolhida);
+  console.log(`   píxeis dessa cor na tela: ${pintado}`);
+  if (pintado < 50) {
+    console.log("   FALHOU: o traço novo não foi pintado com a cor escolhida");
+    process.exitCode = 1;
+  }
+
   console.log("5) Outro jogador (p2) tenta desenhar — não deve ter efeito (não é a vez dele)...");
+  // A contagem tem de ser lida AGORA: o passo 4b desenhou outro traço, e a
+  // que estava guardada era de antes dele.
+  room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
   const pointsBefore = Object.keys(room.draw.doodle.points || {}).length;
   await page.evaluate(async ({ code }) => {
     const roomModule = await import("./js/room.js");

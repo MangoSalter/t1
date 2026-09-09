@@ -184,6 +184,14 @@ começa por P · 0 pts", "chumbada pela maioria · 0 pts" — e as duas maneiras
 chumbar aparecem separadas, porque uma é a regra do jogo e a outra é a mesa a
 decidir. A tua conta abre sozinha; as dos outros abrem-se se quiseres conferir.
 
+**Feito também: cor e espessura no Desenha e Adivinha.** Quem desenhava tinha
+uma caneta só, de uma cor só, enquanto o quadro branco ao lado tem 68 cores e
+dez ferramentas — e nos jogos de desenho do género escolher a cor é o mínimo
+que se espera. Agora abre a mesma paleta dos quadros e tem três espessuras. A
+cor e a espessura viajam no primeiro ponto de cada traço (uma vez por traço,
+não por ponto), e um traço antigo sem elas continua a sair com a tinta de
+sempre — uma sala a meio de uma partida não muda de aspeto.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |

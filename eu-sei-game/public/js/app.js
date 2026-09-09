@@ -5,6 +5,7 @@ import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 // desenha diferente conforme o ecrã em que se está. Vivem no data.js, que não
 // toca no DOM — assim o módulo da rede e os testes puros também lhes chegam.
 import { sfx } from "./sfx.js";
+import { abrirPaleta } from "./paleta.js";
 import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES,
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
@@ -1054,6 +1055,8 @@ const drawEls = {
   status: document.getElementById("draw-status"),
   reveal: document.getElementById("draw-reveal"),
   doodleCanvas: document.getElementById("draw-doodle-canvas"),
+  corBtn: document.getElementById("draw-cor-btn"),
+  espessuras: document.getElementById("draw-espessuras"),
   clearBtn: document.getElementById("draw-clear-btn"),
   selectWinnerBtn: document.getElementById("draw-select-winner-btn"),
   skipBtn: document.getElementById("draw-skip-btn"),
@@ -1065,6 +1068,8 @@ const drawEls = {
 };
 
 const drawDoodleState = {
+  cor: DRAW_DOODLE_INK,
+  espessura: 4,
   drawing: false,
   lastPoint: null,
   pending: [],
@@ -1104,18 +1109,26 @@ function drawDoodleRedraw() {
   ctx.clearRect(0, 0, rectW, rectH);
   const room = state.room;
   const points = [...pointsObjectToArray(room?.draw?.doodle?.points), ...drawDoodleState.pending];
-  ctx.strokeStyle = DRAW_DOODLE_INK;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 4;
+  // A cor e a espessura viajam no PRIMEIRO ponto de cada traço, não em todos:
+  // é uma vez por traço em vez de uma vez por ponto, e um traço a sério tem
+  // dezenas. Pontos antigos não trazem nada e ficam com a tinta de sempre —
+  // uma sala a meio de uma partida não pode mudar de aspeto por causa disto.
+  let corAtual = DRAW_DOODLE_INK;
+  let espessuraAtual = 4;
   let prev = null;
   points.forEach((p) => {
     const x = p.x * rectW;
     const y = p.y * rectH;
     if (p.newStroke || !prev) {
+      corAtual = p.c || DRAW_DOODLE_INK;
+      espessuraAtual = p.w || 4;
       prev = { x, y };
       return;
     }
+    ctx.strokeStyle = corAtual;
+    ctx.lineWidth = espessuraAtual;
     ctx.beginPath();
     ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(x, y);
@@ -1146,7 +1159,7 @@ drawEls.doodleCanvas.addEventListener("pointerdown", (e) => {
   drawDoodleState.drawing = true;
   const p = drawDoodlePointFromEvent(e);
   drawDoodleState.lastPoint = p;
-  drawDoodleState.pending.push({ x: p.x, y: p.y, newStroke: true });
+  drawDoodleState.pending.push({ x: p.x, y: p.y, newStroke: true, c: drawDoodleState.cor, w: drawDoodleState.espessura });
   drawDoodleRedraw();
 });
 
@@ -1176,6 +1189,28 @@ drawEls.doodleCanvas.addEventListener("pointerleave", drawDoodleEndStroke);
 
 drawEls.clearBtn.addEventListener("click", () => {
   clearDrawDoodle(state.code, state.room, state.uid);
+});
+
+function drawMostraCor() {
+  drawEls.corBtn.style.background = drawDoodleState.cor;
+  drawEls.espessuras.querySelectorAll("[data-espessura]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(Number(b.dataset.espessura) === drawDoodleState.espessura));
+  });
+}
+drawMostraCor();
+
+drawEls.corBtn.addEventListener("click", () => {
+  abrirPaleta(drawDoodleState.cor, (cor) => {
+    drawDoodleState.cor = cor;
+    drawMostraCor();
+  });
+});
+
+drawEls.espessuras.querySelectorAll("[data-espessura]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    drawDoodleState.espessura = Number(btn.dataset.espessura) || 4;
+    drawMostraCor();
+  });
 });
 
 drawEls.selectWinnerBtn.addEventListener("click", () => {
@@ -1238,6 +1273,8 @@ function renderDraw(room) {
         : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`);
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.corBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.espessuras.classList.toggle("hidden", !amDrawer);
     drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
     drawEls.skipBtn.classList.toggle("hidden", !amDrawer);
     drawEls.continueBtn.classList.add("hidden");
@@ -1245,6 +1282,8 @@ function renderDraw(room) {
   } else {
     drawEls.doodleCanvas.classList.remove("hangman-doodle-canvas-active");
     drawEls.clearBtn.classList.add("hidden");
+    drawEls.corBtn.classList.add("hidden");
+    drawEls.espessuras.classList.add("hidden");
     drawEls.selectWinnerBtn.classList.add("hidden");
     drawEls.skipBtn.classList.add("hidden");
     drawEls.continueBtn.classList.toggle("hidden", !isHost(room));

@@ -859,6 +859,13 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 .board-width-dot { display: block; background: var(--ink); border-radius: 50%; }
 
+/* Cor e espessura no Desenha e Adivinha. O botão da cor mostra a cor
+   escolhida e abre a mesma paleta dos quadros — a mesma que já se conhece.
+   44px porque isto joga-se no telemóvel com o dedo. */
+.draw-cor { width: 44px; height: 44px; border-radius: 10px; }
+.draw-espessuras { display: flex; gap: 4px; }
+.draw-espessuras .board-width[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--ink); }
+
 .board-toolbar button.ghost { width: auto; min-height: 44px; margin: 0; padding: 4px 10px; font-size: 0.9rem; }
 /* O caminho de volta é o primeiro botão da barra e o único com cor: estava no
    fim de uma fila comprida, igual a todos os outros, e não se encontrava. */

@@ -177,6 +177,12 @@ the width to padding, so the globe button — which is only the 🌍 — came ou
 rules in a row that covered half of what their comment claimed; assume the
 next one does too until you have the number.
 
+Only ONE of the arenas scales: Fuga da Infeção fits the whole map
+(`scale(escala)`, 0.282 on a phone). Labirinto and Mini-Golfe translate a
+camera at scale 1, and Estrada Maluca scales but has no fixed-px decoration
+inside its road (its floor is 0.45 anyway). So the "fixed px inside a shrunk
+world" family of bugs can only appear in the tag arena — checked, not assumed.
+
 Also measured clean, so don't re-sweep: every room game's screen (Desenha e
 Adivinha, Fuga da Infeção, Labirinto, Mini-Golfe, mapa em sala, marcos) on an
 iPhone 13, and first load — 868 KB raw across 23 files in 4 import waves, with
