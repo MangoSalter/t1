@@ -712,6 +712,22 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
 }
 .cat-picker-grid label { min-height: 40px; }
 
+/* Porquê estes pontos (ecrã de fim de ronda). Uma linha por categoria, com a
+   razão ao lado do número — é a diferença entre "ganhaste 25" e "ganhaste 25
+   e sabes de onde vieram". No telemóvel a razão passa para baixo em vez de
+   espremer a resposta. */
+.score-porque { margin: 0 0 8px; padding: 0 4px; }
+.score-porque > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 0.92rem; opacity: 0.85; }
+.score-porque-linha {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  margin: 2px 0; padding: 2px 0 2px 8px;
+  border-left: 3px solid var(--paper-line);
+  font-size: 0.92rem;
+}
+.score-porque-cat { font-weight: 700; }
+.score-porque-resp { flex: 1 1 auto; min-width: 0; }
+.score-porque-pts { opacity: 0.8; white-space: nowrap; }
+
 /* As categorias da casa. A caixa de escrever e o botão ficam na mesma linha
    enquanto couberem; num telemóvel a caixa passa a ocupar a linha toda em vez
    de encolher até não se conseguir ler o que se escreveu. */

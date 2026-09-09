@@ -176,11 +176,18 @@ sorteiam-se como as outras. Guardado em `config.customCategories`, com índices
 a partir de 100 para não mexer no significado dos que já estão gravados nas
 respostas de uma sala a meio.
 
+**Feito também: dizer porquê os pontos.** "Pontuação pouco clara, dá para
+fazer batota" é a queixa que mais se repete nas críticas do StopotS. O ecrã de
+fim de ronda mostrava o total e mais nada. Agora cada resposta tem a razão ao
+lado do número — "só tu · 10 pts", "alguém escreveu o mesmo · 5 pts", "não
+começa por P · 0 pts", "chumbada pela maioria · 0 pts" — e as duas maneiras de
+chumbar aparecem separadas, porque uma é a regra do jogo e a outra é a mesa a
+decidir. A tua conta abre sozinha; as dos outros abrem-se se quiseres conferir.
+
 **O resto do que encontrei, por ordem do que me parece valer mais:**
 
 | O que se queixam por aí | Como estamos | O que faria |
 |---|---|---|
-| "Pontuação pouco clara, dá para fazer batota" — é a queixa que mais se repete no StopotS | A votação decide por maioria e o ecrã mostra os pontos de cada resposta | Dizer PORQUÊ: "única: 10", "repetida: 5", "chumbada pela maioria: 0". Os números já lá estão, falta a razão |
 | "Fiquei à espera sem perceber o que fazer, sem instruções" (StopotS) | Cada mini-jogo tem um "como se joga" no ecrã do "pronto?" | A ronda clássica não tem nenhum. Quem entra a meio de um grupo que já joga há anos fica a adivinhar |
 | "Estar à espera da vez" — a queixa nº1 do skribbl | Em Desenha e Adivinha quem não desenha escreve palpites, por isso não está parado; na Forca quem não tem a caneta vota letras | Sem dívida aqui, mas é o que estragaria estes dois jogos se um dia se lhes mexesse |
 | Salas grandes (o StopotS deixa 50 a jogar ao mesmo tempo) | Máximo 10 | **Decisão tua.** 10 foi escolhido no primeiro build "até indicares outro valor"; a votação com 20 pessoas é outra experiência, não a mesma maior |

@@ -950,10 +950,39 @@ roundScoreEls.nextBtn.addEventListener("click", () => {
   nextRoundOrFinal(state.code, state.room);
 });
 
+// PORQUÊ estes pontos. A queixa que mais se repete nas críticas dos jogos
+// deste género é "pontuação pouco clara, dá para fazer batota": vê-se o
+// número e não se vê a razão, e o que sobra é desconfiança de quem votou.
+// Os dados já estavam todos guardados na ronda — faltava dizê-los.
+function razaoDaResposta(res, letra) {
+  const texto = (res?.text || "").trim();
+  if (!texto) return "em branco";
+  switch (res.status) {
+    case "valida-unica":
+      return res.gloriaVotes > 0 && res.points > 10 ? "só tu, e com Glória" : "só tu";
+    case "valida-repetida":
+      return "alguém escreveu o mesmo";
+    case "engracada":
+      return "não conta, mas fez rir";
+    case "invalida":
+      // Distinguir as duas maneiras de chumbar importa: uma é regra do jogo,
+      // a outra é a mesa a decidir, e quem perde os pontos merece saber qual
+      // das duas foi.
+      return letra && texto[0].toUpperCase() !== letra.toUpperCase()
+        ? `não começa por ${letra.toUpperCase()}`
+        : "chumbada pela maioria";
+    default:
+      return "";
+  }
+}
+
 function renderRoundScore(room) {
   const rr = room.roundResults;
   const players = Object.entries(room.players || {});
   players.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+  const letra = room.categoriesRound?.letter || "";
+  const indices = room.categoriesRound?.categoryIndexes || [];
+  const proprias = categoriasPropriasDaSala();
 
   roundScoreEls.table.innerHTML = "";
   players.forEach(([uid, p]) => {
@@ -964,6 +993,30 @@ function renderRoundScore(room) {
       <span class="score-round">+${roundPts} nesta ronda</span>
       <span class="score-total">${p.score || 0} pts</span>`;
     roundScoreEls.table.appendChild(row);
+
+    const respostas = rr?.byPlayer?.[uid];
+    if (!respostas || indices.length === 0) return;
+    const det = document.createElement("details");
+    det.className = "score-porque";
+    // A tua própria conta abre sozinha; as dos outros abrem-se se se quiser
+    // conferir. Abrir dez de uma vez num telemóvel dava um ecrã inteiro de
+    // texto e ninguém lia nenhum.
+    if (uid === state.uid) det.open = true;
+    const sum = document.createElement("summary");
+    sum.textContent = uid === state.uid ? "Porquê estes pontos" : `Ver as respostas de ${p.name}`;
+    det.appendChild(sum);
+    indices.forEach((ci) => {
+      const res = respostas[catKey(ci)];
+      if (!res) return;
+      const linha = document.createElement("p");
+      linha.className = "score-porque-linha";
+      const razao = razaoDaResposta(res, letra);
+      linha.innerHTML = `<span class="score-porque-cat">${escapeHtml(nomeDaCategoria(ci, proprias))}</span>`
+        + `<span class="score-porque-resp">${escapeHtml(res.text || "—")}</span>`
+        + `<span class="score-porque-pts">${razao} · ${res.points} pts</span>`;
+      det.appendChild(linha);
+    });
+    roundScoreEls.table.appendChild(det);
   });
 
   const amHost = isHost(room);

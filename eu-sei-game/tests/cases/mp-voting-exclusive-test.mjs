@@ -92,6 +92,61 @@ if (anaResult.status !== "valida-unica" || anaResult.points !== 10) {
   process.exitCode = 1;
 }
 
+console.log("7) O ecrã diz PORQUÊ cada resposta valeu o que valeu...");
+// "Pontuação pouco clara" é a queixa que mais se repete nos jogos deste
+// género. O número sozinho não chega: quem foi chumbado tem de ver se foi a
+// regra da letra ou a mesa a votar.
+const explicacoes = await page.locator(".score-porque-pts").allTextContents();
+console.log(`   linhas de explicação: ${explicacoes.length} — ${explicacoes.slice(0, 4).join(" | ")}`);
+if (explicacoes.length === 0) {
+  console.log("   FALHOU: o ecrã de fim de ronda não explica nenhum ponto");
+  process.exitCode = 1;
+}
+const minhaConta = await page.locator(".score-porque[open] .score-porque-pts").allTextContents();
+console.log(`   a minha conta abre sozinha: ${minhaConta.length > 0}`);
+if (minhaConta.length === 0) {
+  console.log("   FALHOU: a conta de quem está a ver devia estar aberta");
+  process.exitCode = 1;
+}
+if (!explicacoes.some((t) => /Glória/i.test(t))) {
+  console.log("   FALHOU: a resposta salva pela Glória devia dizer que foi a Glória");
+  process.exitCode = 1;
+}
+if (!explicacoes.some((t) => /15 pts/.test(t)) || !explicacoes.some((t) => /10 pts/.test(t))) {
+  console.log("   FALHOU: os pontos de cada resposta têm de aparecer ao lado da razão");
+  process.exitCode = 1;
+}
+
+console.log("7b) E distingue as duas maneiras de chumbar — a regra da letra e a mesa...");
+// São coisas diferentes e quem perde os pontos merece saber qual foi. A ronda
+// jogada acima não tem nenhuma resposta chumbada pela letra, por isso
+// escreve-se um resultado à mão e vê-se o que o ecrã diz dele.
+await page.evaluate(({ code, hostId }) => {
+  window.__testDb.update(`rooms/${code}`, {
+    roundResults: {
+      byPlayer: {
+        [hostId]: {
+          c0: { text: "Sardinha", status: "invalida", points: 0, gloriaVotes: 0, engracadaVotes: 0 },
+          c1: { text: "Porto", status: "invalida", points: 0, gloriaVotes: 0, engracadaVotes: 0 },
+        },
+      },
+      roundPoints: { [hostId]: 0 },
+    },
+    categoriesRound: { letter: "P", categoryIndexes: [0, 1] },
+  });
+}, { code, hostId });
+await page.waitForTimeout(400);
+const chumbos = await page.locator(".score-porque[open] .score-porque-pts").allTextContents();
+console.log(`   ${chumbos.join(" | ")}`);
+if (!chumbos.some((t) => /não começa por P/.test(t))) {
+  console.log("   FALHOU: uma resposta fora da letra tem de dizer que foi a letra");
+  process.exitCode = 1;
+}
+if (!chumbos.some((t) => /chumbada pela maioria/.test(t))) {
+  console.log("   FALHOU: uma resposta com a letra certa só pode ter sido chumbada pela mesa");
+  process.exitCode = 1;
+}
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));
