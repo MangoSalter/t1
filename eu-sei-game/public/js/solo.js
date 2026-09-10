@@ -12,7 +12,7 @@ import {
 } from "./data.js";
 import { estaNaOficina, esconderAOficina } from "./oficina.js";
 import { lerDesafio, guardarDesafio, diaAnterior, pintarDesafio } from "./desafio.js";
-import { aoMudarLingua } from "./i18n.js";
+import { aoMudarLingua, t } from "./i18n.js";
 import { armarCaos, limparCaos, caosLigado, guardarCaosLigado } from "./caos.js";
 import {
   PRESENTATION_MODES, presentationMode, setPresentationMode,
@@ -2175,7 +2175,7 @@ function startMemoryMinigame() {
   solo.memShownLabels = new Set(shown);
   const gridItems = shuffleArray([...shown, ...decoys]);
 
-  els.memInstructions.textContent = "Memoriza isto...";
+  els.memInstructions.textContent = t("memoriaMemorizaIsto");
   els.memGrid.innerHTML = "";
   shown.forEach((label) => {
     const card = document.createElement("div");
@@ -2186,7 +2186,7 @@ function startMemoryMinigame() {
 
   setTimeout(() => {
     if (!solo.memActive) return;
-    els.memInstructions.textContent = `Clica nas ${shownCount} que estavam lá antes.`;
+    els.memInstructions.textContent = t("memoriaClicaNas", shownCount);
     els.memGrid.innerHTML = "";
     gridItems.forEach((label) => {
       const card = document.createElement("div");

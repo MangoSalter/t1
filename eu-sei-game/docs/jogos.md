@@ -293,14 +293,26 @@ Isto não é uma opinião sobre prioridades: é uma promessa escrita no ecrã de
 entrada que não estava a ser cumprida, e num jogo de festa a pessoa que não lê
 a língua fecha a página antes de perguntar a alguém.
 
-**Feito agora — a porta de entrada**, que são os três ecrãs que decidem se
-alguém fica: o ecrã inicial, o menu de jogar sozinho e a sala de espera.
-Nomes dos jogos, descrições, definições da partida, os avisos do anfitrião, os
-erros ("escreve o teu nome primeiro"), os placeholders e os nomes que o leitor
-de ecrã anuncia — tudo nas três. Restam **141 textos** noutros ecrãs, com o
-número guardado num tecto (`linguas-ecra-test`) para não voltar a andar
-sozinho: o board (22), a Forca (16), a preparação da maratona (15) e os ecrãs
-de preparação dos jogos a sozinho são o grosso.
+**Feito agora: os 41 ecrãs e as 16 sobreposições, à conta de zero.** Começou
+pela porta de entrada — o ecrã inicial, o menu de jogar sozinho e a sala de
+espera, que são os três que decidem se alguém fica — e acabou por levar o
+resto: o jogo clássico (a bola, a letra, a folha, a votação, o porquê dos
+pontos, o fim), os dois quadros brancos, os ecrãs de todos os mini-jogos, os
+jogos de arena e as dezasseis sobreposições. Nomes dos jogos, descrições,
+definições, avisos do anfitrião, mensagens de erro, placeholders e os nomes
+que o leitor de ecrã anuncia.
+
+O guarda que conta o que falta (`linguas-ecra-test`) **está em zero**, e não
+conta olhando para a marcação: abre a app duas vezes, uma em português e
+outra em inglês, e compara ecrã a ecrã. O que sair igual nas duas línguas não
+passou pelo `t()` — venha do HTML ou de JavaScript. Foi assim que apareceram
+os nomes das ferramentas do quadro, que nenhuma marcação apanhava.
+
+**O que ainda falta**, e é honesto dizê-lo: as frases que só nascem A MEIO
+de um jogo — o que a Dona Manga diz, os estados dos mini-jogos ("ganhaste por
+2 segundos"), as mensagens do quadro de sala enquanto se joga. Nenhum
+varrimento as vê, porque só existem depois de alguém jogar. São a fase
+seguinte.
 
 O que fica de fora de propósito, e porquê:
 

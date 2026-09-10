@@ -769,12 +769,16 @@ export async function leaveRoom(code, uid) {
 export const BOARD_MODES = {
   livre: {
     label: "Desenho livre",
+    chave: "modoLivre",
     hint: "A folha é de todos, escreve um de cada vez. As regras combinam-se por voz.",
+    chaveHint: "modoLivreHint",
     tools: null,
   },
   forca: {
     label: "Forca",
+    chave: "jogoForca",
     hint: "Um desenha a forca e a palavra escondida; os outros pedem a palavra para arriscar letras em voz alta.",
+    chaveHint: "modoForcaHint",
     tools: ["pen", "marker", "highlighter", "eraser", "line", "arrow", "rect", "ellipse"],
   },
   // Desenhar em vez de soletrar. Por baixo é a mesma maquinaria da Forca — a
@@ -784,7 +788,9 @@ export const BOARD_MODES = {
   // barato: o que ele precisava já cá estava quase todo.
   adivinha: {
     label: "Desenha e adivinha",
+    chave: "modoAdivinha",
     hint: "Um desenha a palavra (sem escrever letras!); os outros escrevem o palpite. Quem acertar primeiro leva a ronda.",
+    chaveHint: "modoAdivinhaHint",
     tools: ["pen", "marker", "highlighter", "eraser", "line", "arrow", "rect", "ellipse"],
   },
 };

@@ -20,6 +20,7 @@
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
 import { BOARD_TOOLS, pickMascotIntro, gameHowTo } from "./data.js";
+import { t } from "./i18n.js";
 import { say } from "./voice.js";
 import { sfx } from "./sfx.js";
 import { abrirPaleta } from "./paleta.js";
@@ -55,10 +56,10 @@ const ZOOM_STEP = 1.25;
 
 // Espessuras rápidas, em unidades de mundo.
 export const BOARD_WIDTHS = [
-  { label: "Fino", value: 2 },
-  { label: "Médio", value: 4 },
-  { label: "Grosso", value: 9 },
-  { label: "Muito grosso", value: 18 },
+  { label: "Fino", chave: "espessuraFino", value: 2 },
+  { label: "Médio", chave: "espessuraMedio", value: 4 },
+  { label: "Grosso", chave: "espessuraGrosso", value: 9 },
+  { label: "Muito grosso", chave: "espessuraMuitoGrosso", value: 18 },
 ];
 export const WIDTH_MIN = 1;
 export const WIDTH_MAX = 60;
@@ -75,12 +76,12 @@ export const BOARD_COLORS = [
 // preto é uma folha diferente, não um padrão diferente. Quando o papel é
 // escuro, a tinta por omissão passa a clara (ver applyBackground).
 export const BOARD_BACKGROUNDS = {
-  plain:  { label: "Liso",         paper: "#fffdf7", pattern: "none",   ink: "#3a3126" },
-  grid:   { label: "Quadriculado", paper: "#fffdf7", pattern: "grid",   ink: "#3a3126" },
-  lined:  { label: "Pautado",      paper: "#fffdf7", pattern: "lined",  ink: "#3a3126" },
-  dotted: { label: "Pontilhado",   paper: "#fffdf7", pattern: "dotted", ink: "#3a3126" },
-  chalk:  { label: "Quadro de giz", paper: "#28352c", pattern: "none",  ink: "#f2ead8" },
-  dark:   { label: "Quadro preto", paper: "#242019", pattern: "grid",   ink: "#f2ead8" },
+  plain:  { label: "Liso", chave: "fundoLiso",         paper: "#fffdf7", pattern: "none",   ink: "#3a3126" },
+  grid:   { label: "Quadriculado", chave: "fundoQuadriculado", paper: "#fffdf7", pattern: "grid",   ink: "#3a3126" },
+  lined:  { label: "Pautado", chave: "fundoPautado",      paper: "#fffdf7", pattern: "lined",  ink: "#3a3126" },
+  dotted: { label: "Pontilhado", chave: "fundoPontilhado",   paper: "#fffdf7", pattern: "dotted", ink: "#3a3126" },
+  chalk:  { label: "Quadro de giz", chave: "fundoGiz", paper: "#28352c", pattern: "none",  ink: "#f2ead8" },
+  dark:   { label: "Quadro preto", chave: "fundoPreto", paper: "#242019", pattern: "grid",   ink: "#f2ead8" },
 };
 
 // --- Estado ---
@@ -769,10 +770,10 @@ function buildToolbar() {
     btn.type = "button";
     btn.className = "board-tool";
     btn.dataset.boardTool = key;
-    btn.title = tool.label;
+    btn.title = t(tool.chave) || tool.label;
     // O nome vai junto do ícone: um emoji sozinho obriga a adivinhar, e o
     // pincel do fluorescente não se lê como ferramenta nenhuma.
-    btn.innerHTML = `<span aria-hidden="true">${tool.icon}</span><span class="board-tool-name">${tool.label}</span>`;
+    btn.innerHTML = `<span aria-hidden="true">${tool.icon}</span><span class="board-tool-name">${t(tool.chave) || tool.label}</span>`;
     btn.setAttribute("aria-pressed", String(key === board.tool));
     btn.addEventListener("click", () => selectTool(key));
     els.toolRow.appendChild(btn);
@@ -798,8 +799,9 @@ function buildToolbar() {
     btn.type = "button";
     btn.className = "board-width";
     btn.dataset.boardWidth = String(w.value);
-    btn.title = w.label;
-    btn.setAttribute("aria-label", `Espessura ${w.label}`);
+    const rotulo = t(w.chave) || w.label;
+    btn.title = rotulo;
+    btn.setAttribute("aria-label", t("espessuraAria", rotulo));
     btn.innerHTML = `<span class="board-width-dot" style="width:${Math.min(20, w.value + 3)}px;height:${Math.min(20, w.value + 3)}px"></span>`;
     btn.addEventListener("click", () => selectWidth(w.value));
     els.widthRow.appendChild(btn);
@@ -809,7 +811,7 @@ function buildToolbar() {
   Object.entries(BOARD_BACKGROUNDS).forEach(([key, bg]) => {
     const opt = document.createElement("option");
     opt.value = key;
-    opt.textContent = bg.label;
+    opt.textContent = t(bg.chave) || bg.label;
     els.bgSelect.appendChild(opt);
   });
   els.bgSelect.value = board.background;

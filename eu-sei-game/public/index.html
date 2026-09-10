@@ -38,7 +38,7 @@
       <button id="create-room-btn" class="primary" data-i18n="casaCriarSala">Criar sala</button>
       <div class="divider" data-i18n="ou">ou</div>
       <input id="join-code-input" aria-label="Código da sala, quatro letras" data-i18n-aria="casaCodigoAria" type="text" placeholder="Código da sala" data-i18n-placeholder="casaCodigo" maxlength="4" style="text-transform:uppercase" />
-      <p id="join-convite-hint" class="hint small hidden"></p>
+      <p id="join-convite-hint" class="hint small hidden" data-i18n-js="casaConviteHint"></p>
       <button id="join-room-btn" data-i18n="casaEntrarSala">Entrar na sala</button>
       <div class="divider" data-i18n="ou">ou</div>
       <label class="lingua-escolha">
@@ -104,108 +104,108 @@
   <!-- SOLO: RECORDES -->
   <section data-screen="solo-leaderboard" class="screen">
     <div class="card wide center">
-      <h2>🏆 Top 20 recordes</h2>
-      <p class="hint">As tuas melhores runs, clássico e maratona juntos.</p>
+      <h2 data-i18n="recordesTitulo">🏆 Top 20 recordes</h2>
+      <p class="hint" data-i18n="recordesHint">As tuas melhores runs, clássico e maratona juntos.</p>
       <div id="solo-leaderboard-stats" class="stat-chip-row"></div>
       <div id="solo-leaderboard-list" class="leaderboard-list"></div>
-      <button data-solo-leave class="ghost">Voltar</button>
+      <button data-solo-leave class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO: CONQUISTAS -->
   <section data-screen="solo-achievements" class="screen">
     <div class="card wide center">
-      <h2>🏅 Conquistas</h2>
+      <h2 data-i18n="menuConquistas">🏅 Conquistas</h2>
       <p id="solo-achievements-count" class="hint"></p>
       <p id="solo-achievements-hint" class="hint small"></p>
       <div id="solo-achievements-list" class="achievement-list"></div>
-      <button data-solo-leave class="ghost">Voltar</button>
+      <button data-solo-leave class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO: MARATONA — escolher que mini-jogos entram -->
   <section data-screen="solo-marathon-setup" class="screen">
     <div class="card">
-      <h2>Maratona de mini-jogos</h2>
-      <p class="hint">Escolhe quais entram — a ordem é sorteada, um de cada vez, até todos terem sido jogados.</p>
+      <h2 data-i18n="menuMaratona">Maratona de mini-jogos</h2>
+      <p class="hint" data-i18n="maratonaEscolhe">Escolhe quais entram — a ordem é sorteada, um de cada vez, até todos terem sido jogados.</p>
       <div class="marathon-picker">
-        <label data-oficina><input type="checkbox" data-marathon-game="reflex" checked /> Olho de Lince</label>
-        <label><input type="checkbox" data-marathon-game="word" checked /> Palavra Relâmpago</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="bug" checked /> Mata o Inseto</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="monkey" checked /> Cada Macaco no Seu Galho</label>
-        <label><input type="checkbox" data-marathon-game="memory" checked /> Memória</label>
-        <label><input type="checkbox" data-marathon-game="hangman" /> Forca</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="map" checked /> Mapa-Múndi</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="pacman" /> Kota Corre!</label>
-        <label><input type="checkbox" data-marathon-game="golf" /> Mini-Golfe</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="car" /> Estrada Maluca</label>
-        <label data-oficina><input type="checkbox" data-marathon-game="landmark" /> Onde Fica Isto?</label>
+        <label data-oficina><input type="checkbox" data-marathon-game="reflex" checked /> <span data-i18n="jogoReflex">Olho de Lince</span></label>
+        <label><input type="checkbox" data-marathon-game="word" checked /> <span data-i18n="jogoWordflash">Palavra Relâmpago</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="bug" checked /> <span data-i18n="jogoBug">Mata o Inseto</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="monkey" checked /> <span data-i18n="jogoMonkey">Cada Macaco no Seu Galho</span></label>
+        <label><input type="checkbox" data-marathon-game="memory" checked /> <span data-i18n="jogoMemoria">Memória</span></label>
+        <label><input type="checkbox" data-marathon-game="hangman" /> <span data-i18n="jogoForca">Forca</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="map" checked /> <span data-i18n="jogoMapaMundi">Mapa-Múndi</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="pacman" /> <span data-i18n="jogoPac">Kota Corre!</span></label>
+        <label><input type="checkbox" data-marathon-game="golf" /> <span data-i18n="jogoGolfe">Mini-Golfe</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="car" /> <span data-i18n="jogoCarro">Estrada Maluca</span></label>
+        <label data-oficina><input type="checkbox" data-marathon-game="landmark" /> <span data-i18n="jogoMarcos">Onde Fica Isto?</span></label>
       </div>
-      <button id="solo-marathon-start-btn" class="primary">Começar maratona</button>
-      <button data-solo-home class="ghost">Voltar</button>
+      <button id="solo-marathon-start-btn" class="primary" data-i18n="maratonaComecar">Começar maratona</button>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO: MARATONA — resultado final -->
   <section data-screen="solo-marathon-result" class="screen">
     <div class="card center">
-      <h2>Maratona terminada!</h2>
+      <h2 data-i18n="maratonaTerminada">Maratona terminada!</h2>
       <p id="marathon-result-summary" class="hint"></p>
-      <button id="marathon-restart-btn" class="primary">Jogar outra vez</button>
-      <button data-solo-home class="ghost">Voltar ao menu</button>
+      <button id="marathon-restart-btn" class="primary" data-i18n="fimOutraVez">Jogar outra vez</button>
+      <button data-solo-home class="ghost" data-i18n="voltarAoMenu">Voltar ao menu</button>
     </div>
   </section>
 
   <!-- SOLO: MEMÓRIA — escolher tema -->
   <section data-screen="solo-memory-setup" class="screen">
     <div class="card">
-      <h2>Memória — escolher tema</h2>
-      <p class="hint">Escolhe que tipo de palavras queres memorizar.</p>
-      <label class="config-form" style="margin:0">Tema
+      <h2 data-i18n="memoriaTitulo">Memória — escolher tema</h2>
+      <p class="hint" data-i18n="memoriaEscolhe">Escolhe que tipo de palavras queres memorizar.</p>
+      <label class="config-form" style="margin:0"><span data-i18n="tema">Tema</span>
         <select id="memory-theme-select">
-          <option value="Categorias do jogo">Categorias do jogo (país, cor, animal...)</option>
-          <option value="Animais">Animais</option>
-          <option value="Elementos Químicos">Elementos Químicos</option>
-          <option value="Campeões de LoL">Campeões de LoL</option>
+          <option value="Categorias do jogo" data-i18n="temaCategorias">Categorias do jogo (país, cor, animal...)</option>
+          <option value="Animais" data-i18n="temaAnimais">Animais</option>
+          <option value="Elementos Químicos" data-i18n="temaElementos">Elementos Químicos</option>
+          <option value="Campeões de LoL" data-i18n="temaLoL">Campeões de LoL</option>
           <option value="Harry Potter">Harry Potter</option>
-          <option value="Super-heróis">Super-heróis</option>
+          <option value="Super-heróis" data-i18n="temaSuperHerois">Super-heróis</option>
         </select>
       </label>
-      <button id="memory-setup-start-btn" class="primary">Começar</button>
-      <button data-solo-home class="ghost">Voltar</button>
+      <button id="memory-setup-start-btn" class="primary" data-i18n="comecar">Começar</button>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO: FORCA — preparar sequência -->
   <section data-screen="solo-hangman-setup" class="screen">
     <div class="card">
-      <h2>Forca — preparar</h2>
-      <p class="hint">Encadeia palavras certas em sequência — quanto mais acertares seguidas, mais valem os pontos!</p>
+      <h2 data-i18n="forcaPreparar">Forca — preparar</h2>
+      <p class="hint" data-i18n="forcaEncadeia">Encadeia palavras certas em sequência — quanto mais acertares seguidas, mais valem os pontos!</p>
       <details class="cat-picker" open>
-        <summary>Categorias (<span id="hangman-cat-count">7</span>/7)</summary>
+        <summary><span data-i18n="categorias">Categorias</span> (<span id="hangman-cat-count">7</span>/7)</summary>
         <div class="cat-picker-actions">
-          <button type="button" id="hangman-cat-selectall" class="ghost">Selecionar todas</button>
-          <button type="button" id="hangman-cat-clear" class="ghost">Limpar</button>
+          <button type="button" id="hangman-cat-selectall" class="ghost" data-i18n="cfgSelecionarTodas">Selecionar todas</button>
+          <button type="button" id="hangman-cat-clear" class="ghost" data-i18n="cfgLimpar">Limpar</button>
         </div>
         <div id="hangman-cat-grid" class="cat-picker-grid"></div>
       </details>
       <label class="checkbox-label">
         <input type="checkbox" id="hangman-include-own" checked />
-        Incluir as tuas próprias respostas desta sessão
+        <span data-i18n="forcaIncluirMinhas">Incluir as tuas próprias respostas desta sessão</span>
       </label>
       <label class="checkbox-label">
         <input type="checkbox" id="hangman-challenge-mode" />
-        Modo desafio (menos erros permitidos, +50% pontos)
+        <span data-i18n="forcaModoDesafio">Modo desafio (menos erros permitidos, +50% pontos)</span>
       </label>
-      <button id="hangman-solo-setup-start-btn" class="primary">Começar sequência</button>
-      <button data-solo-home class="ghost">Voltar</button>
+      <button id="hangman-solo-setup-start-btn" class="primary" data-i18n="forcaComecar">Começar sequência</button>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO MINIGAME: FORCA -->
   <section data-screen="solo-hangman" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Forca!</h2>
+      <h2 data-i18n="forcaTitulo">Forca!</h2>
       <p id="solo-hangman-streak-info" class="hint small"></p>
       <p id="solo-hangman-category" class="hint"></p>
       <div id="solo-hangman-word-display" class="hangman-word-display"></div>
@@ -213,41 +213,41 @@
       <p id="solo-hangman-lives" class="hint"></p>
 
       <div id="solo-hangman-guess-controls" class="hangman-guess-controls">
-        <input id="solo-hangman-letter-input" aria-label="Arriscar uma letra" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
-        <button id="solo-hangman-guess-letter-btn" class="primary">Adivinhar letra</button>
-        <input id="solo-hangman-word-guess-input" aria-label="Arriscar a palavra toda" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
-        <button id="solo-hangman-guess-word-btn" class="primary">Arriscar!</button>
+        <input id="solo-hangman-letter-input" aria-label="Arriscar uma letra" data-i18n-aria="forcaLetraAria" type="text" maxlength="1" autocomplete="off" placeholder="Letra" data-i18n-placeholder="forcaLetra" />
+        <button id="solo-hangman-guess-letter-btn" class="primary" data-i18n="forcaAdivinhar">Adivinhar letra</button>
+        <input id="solo-hangman-word-guess-input" aria-label="Arriscar a palavra toda" data-i18n-aria="forcaPalavraAria" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" data-i18n-placeholder="forcaPalavraAria" />
+        <button id="solo-hangman-guess-word-btn" class="primary" data-i18n="forcaArriscar">Arriscar!</button>
       </div>
       <p id="solo-hangman-status" class="hint"></p>
-      <button id="solo-hangman-giveup-btn" class="ghost">Desistir e ver a resposta</button>
-      <button data-solo-leave class="ghost">Sair</button>
+      <button id="solo-hangman-giveup-btn" class="ghost" data-i18n="forcaDesistir">Desistir e ver a resposta</button>
+      <button data-solo-leave class="ghost" data-i18n="sair">Sair</button>
     </div>
   </section>
 
   <!-- SOLO: SETUP (categorias do modo clássico) -->
   <section data-screen="solo-setup" class="screen">
     <div class="card">
-      <h2>Configurar o modo clássico</h2>
+      <h2 data-i18n="soloClassicoTitulo">Configurar o modo clássico</h2>
       <details class="cat-picker" open>
-        <summary>Categorias (<span id="solo-cat-count">40</span>/40)</summary>
+        <summary><span data-i18n="categorias">Categorias</span> (<span id="solo-cat-count">40</span>/40)</summary>
         <div class="cat-picker-actions">
-          <button type="button" id="solo-cat-selectall" class="ghost">Selecionar todas</button>
-          <button type="button" id="solo-cat-clear" class="ghost">Limpar</button>
+          <button type="button" id="solo-cat-selectall" class="ghost" data-i18n="cfgSelecionarTodas">Selecionar todas</button>
+          <button type="button" id="solo-cat-clear" class="ghost" data-i18n="cfgLimpar">Limpar</button>
         </div>
         <div id="solo-cat-grid" class="cat-picker-grid"></div>
       </details>
-      <button id="solo-setup-start-btn" class="primary">Começar</button>
-      <button data-solo-home class="ghost">Voltar</button>
+      <button id="solo-setup-start-btn" class="primary" data-i18n="comecar">Começar</button>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO: LETTER PICK -->
   <section data-screen="solo-letterpick" class="screen">
     <div class="card center">
-      <h2>Escolhe a letra</h2>
+      <h2 data-i18n="escolheALetra">Escolhe a letra</h2>
       <p id="solo-letter-info" class="hint"></p>
       <div id="solo-letter-buttons" class="letter-buttons"></div>
-      <button data-solo-leave class="ghost">Sair</button>
+      <button data-solo-leave class="ghost" data-i18n="sair">Sair</button>
     </div>
   </section>
 
@@ -255,37 +255,37 @@
   <section data-screen="solo-round" class="screen">
     <div class="card wide">
       <div class="round-header">
-        <div class="round-letter">Letra: <span id="solo-cat-letter"></span></div>
+        <div class="round-letter"><span data-i18n="rondaLetra">Letra:</span> <span id="solo-cat-letter"></span></div>
         <div class="round-timer" id="solo-cat-timer"></div>
       </div>
       <p class="hint" id="solo-round-info"></p>
       <div id="solo-cat-list" class="cat-list"></div>
-      <button id="solo-finish-btn" class="primary">Acabei!</button>
+      <button id="solo-finish-btn" class="primary" data-i18n="rondaAcabei">Acabei!</button>
     </div>
   </section>
 
   <!-- SOLO: OLHO DE LINCE — escolher tema -->
   <section data-screen="solo-reflex-setup" class="screen">
     <div class="card">
-      <h2>Olho de Lince — escolher tema</h2>
-      <p class="hint">Escolhe o cenário onde vais procurar os itens.</p>
-      <label class="config-form" style="margin:0">Tema
+      <h2 data-i18n="linceTema">Olho de Lince — escolher tema</h2>
+      <p class="hint" data-i18n="linceEscolhe">Escolhe o cenário onde vais procurar os itens.</p>
+      <label class="config-form" style="margin:0"><span data-i18n="tema">Tema</span>
         <select id="reflex-theme-select">
-          <option value="Aleatório">Aleatório (muda a cada ronda)</option>
-          <option value="Selva">Selva</option>
-          <option value="Mar">Mar</option>
-          <option value="Casa e Cozinha">Casa e Cozinha</option>
+          <option value="Aleatório" data-i18n="temaAleatorio">Aleatório (muda a cada ronda)</option>
+          <option value="Selva" data-i18n="temaSelva">Selva</option>
+          <option value="Mar" data-i18n="temaMar">Mar</option>
+          <option value="Casa e Cozinha" data-i18n="temaCasa">Casa e Cozinha</option>
         </select>
       </label>
-      <button id="reflex-setup-start-btn" class="primary">Começar</button>
-      <button data-solo-home class="ghost">Voltar</button>
+      <button id="reflex-setup-start-btn" class="primary" data-i18n="comecar">Começar</button>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
   <!-- SOLO MINIGAME: OLHO DE LINCE -->
   <section data-screen="solo-minigame" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Olho de Lince — <span id="reflex-theme-label"></span></h2>
+      <h2><span data-i18n="jogoReflex">Olho de Lince</span> — <span id="reflex-theme-label"></span></h2>
       <p id="reflex-prompt" class="hint"></p>
       <p id="reflex-round-info" class="hint small"></p>
       <div class="round-timer" id="reflex-timer"></div>
@@ -297,10 +297,10 @@
   <!-- SOLO MINIGAME: PALAVRA RELÂMPAGO -->
   <section data-screen="solo-minigame-word" class="screen fullscreen-game">
     <div class="card center">
-      <h2>Mini-jogo: Palavra Relâmpago!</h2>
-      <p class="hint">Escreve o máximo de palavras que conseguires que comecem por <span id="wf-letter" class="letter-big"></span>, antes do tempo acabar.</p>
+      <h2 data-i18n="miniWordflash">Mini-jogo: Palavra Relâmpago!</h2>
+      <p class="hint"><span data-i18n="wordflashAntes">Escreve o máximo de palavras que conseguires que comecem por</span> <span id="wf-letter" class="letter-big"></span><span data-i18n="wordflashDepois">, antes do tempo acabar.</span></p>
       <div class="round-timer" id="wf-timer"></div>
-      <input id="wf-input" aria-label="Escrever uma palavra" type="text" autocomplete="off" placeholder="Escreve uma palavra e carrega Enter" />
+      <input id="wf-input" aria-label="Escrever uma palavra" data-i18n-aria="wordflashAria" type="text" autocomplete="off" placeholder="Escreve uma palavra e carrega Enter" data-i18n-placeholder="wordflashPlaceholder" />
       <p id="wf-feedback" class="hint small"></p>
       <div id="wf-words" class="wf-words"></div>
       <p id="wf-status" class="hint"></p>
@@ -310,8 +310,8 @@
   <!-- SOLO MINIGAME: MATA O INSETO -->
   <section data-screen="solo-minigame-bug" class="screen fullscreen-game">
     <div class="card center">
-      <h2>Mini-jogo: Mata o Inseto!</h2>
-      <p class="hint">Apanha só o <span id="bug-target-label" class="letter-big"></span> — não cliques nos outros!</p>
+      <h2 data-i18n="miniBug">Mini-jogo: Mata o Inseto!</h2>
+      <p class="hint"><span data-i18n="bugAntes">Apanha só o</span> <span id="bug-target-label" class="letter-big"></span> <span data-i18n="bugDepois">— não cliques nos outros!</span></p>
       <div class="round-timer" id="bug-timer"></div>
       <div id="bug-arena" class="bug-arena"></div>
       <p id="bug-status" class="hint"></p>
@@ -321,8 +321,8 @@
   <!-- SOLO MINIGAME: CADA MACACO NO SEU GALHO -->
   <section data-screen="solo-minigame-monkey" class="screen fullscreen-game">
     <div class="card center">
-      <h2>Mini-jogo: Cada Macaco no Seu Galho!</h2>
-      <p class="hint">Os macacos caem das árvores — move o rato para os apanhares com o bombeiro-macaco! Clica no chão para deixares uma boia salva-vidas temporária.</p>
+      <h2 data-i18n="miniMonkey">Mini-jogo: Cada Macaco no Seu Galho!</h2>
+      <p class="hint" data-i18n="monkeyHint">Os macacos caem das árvores — move o rato para os apanhares com o bombeiro-macaco! Clica no chão para deixares uma boia salva-vidas temporária.</p>
       <div class="round-timer" id="monkey-timer"></div>
       <div id="monkey-arena" class="monkey-arena">
         <div id="monkey-catcher" class="monkey-catcher">🧑‍🚒</div>
@@ -334,10 +334,10 @@
   <!-- SOLO MINIGAME: MEMÓRIA DE CATEGORIAS -->
   <section data-screen="solo-minigame-memory" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Mini-jogo: Memória!</h2>
-      <p id="mem-instructions" class="hint">Memoriza estas categorias...</p>
+      <h2 data-i18n="miniMemoria">Mini-jogo: Memória!</h2>
+      <p id="mem-instructions" class="hint" data-i18n="memoriaMemoriza">Memoriza estas categorias...</p>
       <div id="mem-grid" class="mem-grid"></div>
-      <button id="mem-confirm-btn" class="primary hidden">Confirmar</button>
+      <button id="mem-confirm-btn" class="primary hidden" data-i18n="confirmar">Confirmar</button>
       <p id="mem-status" class="hint"></p>
     </div>
   </section>
@@ -345,14 +345,14 @@
   <!-- SOLO MINIGAME: MAPA-MÚNDI -->
   <section data-screen="solo-minigame-map" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Mini-jogo: Mapa-Múndi!</h2>
+      <h2 data-i18n="miniMapa">Mini-jogo: Mapa-Múndi!</h2>
       <p id="map-prompt" class="hint"></p>
       <p id="map-round-info" class="hint small"></p>
       <div class="round-timer" id="map-timer"></div>
       <div id="map-arena" class="map-arena"></div>
       <div class="map-answer-row">
-        <input id="map-answer-input" aria-label="Escrever o nome de um país" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
-        <button id="map-answer-submit-btn" class="primary">Responder</button>
+        <input id="map-answer-input" aria-label="Escrever o nome de um país" data-i18n-aria="mapaPaisAria" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." data-i18n-placeholder="mapaPaisPlaceholder" />
+        <button id="map-answer-submit-btn" class="primary" data-i18n="responder">Responder</button>
       </div>
       <p id="map-status" class="hint"></p>
     </div>
@@ -361,8 +361,8 @@
   <!-- SOLO MINIGAME: KOTA CORRE! -->
   <section data-screen="solo-pacman" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Kota Corre!</h2>
-      <p class="hint small">És a bandeira de Angola 🇦🇴 a fugir das forças estrangeiras da guerra civil. Setas ou WASD para andar — apanha as pastilhas grandes e por uns segundos são elas que fogem de ti!</p>
+      <h2 data-i18n="jogoPac">Kota Corre!</h2>
+      <p class="hint small" data-i18n="pacHint">És a bandeira de Angola 🇦🇴 a fugir das forças estrangeiras da guerra civil. Setas ou WASD para andar — apanha as pastilhas grandes e por uns segundos são elas que fogem de ti!</p>
       <p id="pac-lives" class="hint"></p>
       <div id="pac-maze" class="pac-maze"></div>
       <p id="pac-status" class="hint"></p>
@@ -372,8 +372,8 @@
   <!-- SOLO MINIGAME: MINI-GOLFE -->
   <section data-screen="solo-golf" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">
-      <h2>Mini-Golfe</h2>
-      <p class="hint small">Setas ou WASD para acelerar a bola — quanto mais depressa entrares no buraco, mais pontos!</p>
+      <h2 data-i18n="jogoGolfe">Mini-Golfe</h2>
+      <p class="hint small" data-i18n="golfeSoloHint">Setas ou WASD para acelerar a bola — quanto mais depressa entrares no buraco, mais pontos!</p>
       <p id="golf-hole-info" class="hint"></p>
       <div id="golf-course" class="golf-course"></div>
       <p id="golf-status" class="hint"></p>
@@ -383,8 +383,8 @@
   <!-- SOLO: DESCARTANDO JUNTOS (cartas) -->
   <section data-screen="solo-cards" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Descartando Juntos</h2>
-      <p class="hint small">Seleciona até 5 cartas e joga a melhor combinação de póquer que conseguires. Descarta para trocar cartas sem gastar uma jogada.</p>
+      <h2 data-i18n="jogoCartas">Descartando Juntos</h2>
+      <p class="hint small" data-i18n="cartasHint">Seleciona até 5 cartas e joga a melhor combinação de póquer que conseguires. Descarta para trocar cartas sem gastar uma jogada.</p>
       <p id="card-blind-info" class="hint"></p>
       <p id="card-stats" class="hint"></p>
       <div id="card-joker-row" class="joker-row hidden"></div>
@@ -393,16 +393,16 @@
         <p id="card-hand-type-preview" class="hint card-hand-type-preview"></p>
         <div id="card-hand-area" class="card-hand-area"></div>
         <div class="row-buttons">
-          <button id="card-play-btn" class="primary">Jogar</button>
-          <button id="card-discard-btn" class="ghost-primary">Descartar</button>
+          <button id="card-play-btn" class="primary" data-i18n="cartasJogar">Jogar</button>
+          <button id="card-discard-btn" class="ghost-primary" data-i18n="cartasDescartar">Descartar</button>
         </div>
       </div>
 
       <div id="card-shop-panel" class="card-shop-panel hidden">
-        <h3>Loja de coringas</h3>
+        <h3 data-i18n="cartasLoja">Loja de coringas</h3>
         <p id="card-shop-money" class="hint"></p>
         <div id="card-shop-offers" class="card-shop-offers"></div>
-        <button id="card-shop-continue-btn" class="primary">Continuar para o próximo blind</button>
+        <button id="card-shop-continue-btn" class="primary" data-i18n="cartasContinuar">Continuar para o próximo blind</button>
       </div>
     </div>
   </section>
@@ -410,8 +410,8 @@
   <!-- SOLO: ESTRADA MALUCA -->
   <section data-screen="solo-cargame" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Estrada Maluca</h2>
-      <p class="hint small">Setas ou WASD para mudar de faixa — desvia dos carros, a velocidade só aumenta!</p>
+      <h2 data-i18n="jogoCarro">Estrada Maluca</h2>
+      <p class="hint small" data-i18n="carroHint">Setas ou WASD para mudar de faixa — desvia dos carros, a velocidade só aumenta!</p>
       <p id="car-status" class="hint"></p>
       <div id="car-road" class="car-road"></div>
     </div>
@@ -420,8 +420,8 @@
   <!-- SOLO: ONDE FICA ISTO? -->
   <section data-screen="solo-landmark" class="screen fullscreen-game">
     <div class="card wide center">
-      <h2>Onde Fica Isto?</h2>
-      <p class="hint small">Que país é este marco famoso? Escolhe entre as opções antes do tempo acabar.</p>
+      <h2 data-i18n="jogoMarcos">Onde Fica Isto?</h2>
+      <p class="hint small" data-i18n="marcosHint">Que país é este marco famoso? Escolhe entre as opções antes do tempo acabar.</p>
       <p id="landmark-round-info" class="hint small"></p>
       <div class="round-timer" id="landmark-timer"></div>
       <div id="landmark-image" class="landmark-image"></div>
@@ -436,10 +436,10 @@
       <h2 id="solo-result-title"></h2>
       <p id="solo-result-summary" class="hint"></p>
       <div id="solo-result-table" class="score-table"></div>
-      <button id="solo-desafio-copiar-btn" class="ghost hidden">📋 Copiar o resultado</button>
-      <button id="solo-continue-btn" class="primary hidden">Próxima ronda</button>
-      <button id="solo-restart-btn" class="primary hidden">Jogar outra vez</button>
-      <button data-solo-leave class="ghost">Sair</button>
+      <button id="solo-desafio-copiar-btn" class="ghost hidden" data-i18n="copiarResultado">📋 Copiar o resultado</button>
+      <button id="solo-continue-btn" class="primary hidden" data-i18n="rondaProxima">Próxima ronda</button>
+      <button id="solo-restart-btn" class="primary hidden" data-i18n="fimOutraVez">Jogar outra vez</button>
+      <button data-solo-leave class="ghost" data-i18n="sair">Sair</button>
     </div>
   </section>
 
@@ -539,11 +539,11 @@
   <!-- BALL MINIGAME -->
   <section data-screen="ball" class="screen">
     <div class="card center">
-      <h2>Quem escolhe a letra?</h2>
-      <p id="ball-status" class="hint">Prepara-te...</p>
+      <h2 data-i18n="bolaTitulo">Quem escolhe a letra?</h2>
+      <p id="ball-status" class="hint" data-i18n="bolaPrepara">Prepara-te...</p>
       <div id="ball-circle" class="ball-circle"></div>
-      <p class="hint small">Clica na bola assim que ela ficar vermelha.</p>
-      <p class="hint small">Quem for mais rápido escolhe a letra. Depois toda a
+      <p class="hint small" data-i18n="bolaClica">Clica na bola assim que ela ficar vermelha.</p>
+      <p class="hint small" data-i18n="bolaExplica">Quem for mais rápido escolhe a letra. Depois toda a
         gente escreve, ao mesmo tempo, uma resposta por categoria — e no fim
         vota-se o que vale e o que não vale.</p>
     </div>
@@ -552,7 +552,7 @@
   <!-- LETTER PICK -->
   <section data-screen="letterpick" class="screen">
     <div class="card center">
-      <h2>Escolha da letra</h2>
+      <h2 data-i18n="letraTitulo">Escolha da letra</h2>
       <p id="letter-info" class="hint"></p>
       <div id="letter-buttons" class="letter-buttons"></div>
     </div>
@@ -562,15 +562,15 @@
   <section data-screen="categories" class="screen">
     <div class="card wide">
       <div class="round-header">
-        <div class="round-letter">Letra: <span id="cat-letter"></span></div>
+        <div class="round-letter"><span data-i18n="rondaLetra">Letra:</span> <span id="cat-letter"></span></div>
         <div class="round-timer" id="cat-timer"></div>
       </div>
       <!-- A regra que interessa enquanto se escreve. O jogo explicava tudo na
            votação e nada aqui: quem joga pela primeira vez só descobria como
            se ganham pontos depois de já ter perdido a ronda. -->
-      <p id="cat-regras" class="hint small"></p>
+      <p id="cat-regras" class="hint small" data-i18n-js="rondaRegras"></p>
       <div id="cat-list" class="cat-list"></div>
-      <button id="cat-finish-btn" class="primary">Acabei!</button>
+      <button id="cat-finish-btn" class="primary" data-i18n="rondaAcabei">Acabei!</button>
     </div>
   </section>
 
@@ -578,22 +578,22 @@
   <section data-screen="voting" class="screen">
     <div class="card wide">
       <div class="round-header">
-        <h2>Votação</h2>
+        <h2 data-i18n="votacaoTitulo">Votação</h2>
         <div class="round-timer" id="vote-timer"></div>
       </div>
       <div id="vote-my-answers" class="my-answers"></div>
-      <p class="hint small">Um voto por resposta (Inválida, Glória ou Engraçada não se acumulam). Mais de metade da equipa a votar Glória torna a resposta válida, mesmo que não cumprisse a letra.</p>
+      <p class="hint small" data-i18n="votacaoRegras">Um voto por resposta (Inválida, Glória ou Engraçada não se acumulam). Mais de metade da equipa a votar Glória torna a resposta válida, mesmo que não cumprisse a letra.</p>
       <div id="vote-list" class="vote-list"></div>
-      <button id="vote-end-btn" class="primary hidden">Terminar votação</button>
+      <button id="vote-end-btn" class="primary hidden" data-i18n="votacaoTerminar">Terminar votação</button>
     </div>
   </section>
 
   <!-- ROUND SCORE -->
   <section data-screen="roundscore" class="screen">
     <div class="card wide">
-      <h2>Pontuação da ronda</h2>
+      <h2 data-i18n="rondaPontuacao">Pontuação da ronda</h2>
       <div id="round-score-table" class="score-table"></div>
-      <button id="round-next-btn" class="primary hidden">Próxima ronda</button>
+      <button id="round-next-btn" class="primary hidden" data-i18n-js="rondaProxima">Próxima ronda</button>
       <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>
     </div>
   </section>
@@ -613,20 +613,20 @@
            no computador, e ganham RÓTULOS: três caixas sem legenda, mesmo no
            computador, não diziam a ninguém qual era qual. -->
       <button type="button" id="mapa-opcoes-btn" class="ghost mapa-opcoes-btn"
-              aria-expanded="false" aria-controls="mapa-opcoes" title="Escolhas da partida">⚙️</button>
+              aria-expanded="false" aria-controls="mapa-opcoes" title="Escolhas da partida" data-i18n-title="mapaEscolhasTitulo">⚙️</button>
       <div id="mapa-opcoes" class="mapa-opcoes">
         <label class="mapa-opcao"><span data-i18n="mapaOndeLabel">Onde</span>
-          <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo"></select></label>
+          <select id="mapa-modo" class="mapa-modo" aria-label="Que parte do mundo" data-i18n-aria="mapaOndeAria"></select></label>
         <label class="mapa-opcao"><span data-i18n="mapaComoLabel">Como</span>
-          <select id="mapa-dificuldade" class="mapa-modo" aria-label="Dificuldade"></select></label>
+          <select id="mapa-dificuldade" class="mapa-modo" aria-label="Dificuldade" data-i18n-aria="mapaComoAria"></select></label>
         <label class="mapa-opcao"><span data-i18n="mapaOQueLabel">O quê</span>
-          <select id="mapa-camada" class="mapa-modo" aria-label="O que nomear"></select></label>
+          <select id="mapa-camada" class="mapa-modo" aria-label="O que nomear" data-i18n-aria="mapaOQueAria"></select></label>
       </div>
       <span id="mapa-progresso" class="mapa-progresso"></span>
       <span id="mapa-marcador" class="mapa-progresso mapa-marcador"></span>
       <form id="mapa-form" class="mapa-form">
         <input id="mapa-input" type="text" autocomplete="off" spellcheck="false"
-               placeholder="Clica num país e escreve o nome" aria-label="Nome do país" />
+               placeholder="Clica num país e escreve o nome" data-i18n-placeholder="mapaCaixa" aria-label="Nome do país" data-i18n-aria="mapaNomePaisAria" />
         <button type="submit" class="primary" data-i18n="mapaEscrever">Escrever</button>
       </form>
       <button type="button" id="mapa-fit-btn" class="ghost" data-i18n-title="mapaVerMundo" title="Ver o mundo todo">🌍</button>
@@ -637,12 +637,12 @@
     <div class="mapa-zona">
       <canvas id="mapa-canvas"></canvas>
       <p id="mapa-status" class="mapa-status" role="status" aria-live="polite"></p>
-      <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses"></div>
+      <div id="mapa-hipoteses" class="mapa-hipoteses hidden" role="group" aria-label="Três hipóteses" data-i18n-aria="mapaTresHipotesesAria"></div>
       <!-- Só aparece em sala: sozinho não há classificação nenhuma para dar. -->
       <!-- Uma fala da casa ao abrir o mapa. Some sozinha: é para dar as boas
            vindas, não para ficar a ocupar o mapa. -->
       <p id="mapa-mascote" class="mapa-mascote hidden"></p>
-      <ol id="mapa-sala-tabela" class="mapa-sala-tabela hidden" aria-label="Classificação"></ol>
+      <ol id="mapa-sala-tabela" class="mapa-sala-tabela hidden" aria-label="Classificação" data-i18n-aria="classificacao"></ol>
       <!-- O retrato da partida. Vinha numa linha de estado com nove números
            separados por pontos, que ninguém lia. Aqui é um painel, aparece
            quando o mapa fica completo, e fecha-se para se ver o que se fez. -->
@@ -659,53 +659,53 @@
   </section>
   <section data-screen="board" class="screen board-screen">
     <div class="board-toolbar">
-      <button type="button" id="board-exit-btn" class="ghost board-back-btn">← Voltar</button>
+      <button type="button" id="board-exit-btn" class="ghost board-back-btn" data-i18n="mapaVoltar">← Voltar</button>
       <div class="board-toolbar-sep"></div>
-      <div class="board-tool-row" id="board-tool-row"></div>
+      <div class="board-tool-row" id="board-tool-row" data-i18n-js="ferramentaCaneta"></div>
       <div class="board-toolbar-sep"></div>
       <div class="board-color-row" id="board-color-row"></div>
-      <button type="button" id="board-paleta-btn" class="ghost board-paleta-btn" title="Mais cores">🎨</button>
+      <button type="button" id="board-paleta-btn" class="ghost board-paleta-btn" title="Mais cores" data-i18n-title="quadroMaisCores">🎨</button>
       <div class="board-toolbar-sep"></div>
-      <div class="board-width-row" id="board-width-row"></div>
+      <div class="board-width-row" id="board-width-row" data-i18n-js="ferramentaCaneta"></div>
       <div class="board-toolbar-sep"></div>
       <div class="board-zoom-row">
-        <button type="button" id="board-zoom-out-btn" class="ghost" title="Afastar (Ctrl+-)">➖</button>
-        <button type="button" id="board-zoom-reset-btn" class="ghost" title="Voltar a 100% (Ctrl+0)"><span id="board-zoom-label">100%</span></button>
-        <button type="button" id="board-zoom-in-btn" class="ghost" title="Aproximar (Ctrl++)">➕</button>
-        <button type="button" id="board-zoom-fit-btn" class="ghost" title="Enquadrar o desenho todo">🔍 Enquadrar</button>
+        <button type="button" id="board-zoom-out-btn" class="ghost" title="Afastar (Ctrl+-)" data-i18n-title="quadroAfastar">➖</button>
+        <button type="button" id="board-zoom-reset-btn" class="ghost" title="Voltar a 100% (Ctrl+0)" data-i18n-title="quadroCem"><span id="board-zoom-label">100%</span></button>
+        <button type="button" id="board-zoom-in-btn" class="ghost" title="Aproximar (Ctrl++)" data-i18n-title="quadroAproximar">➕</button>
+        <button type="button" id="board-zoom-fit-btn" class="ghost" title="Enquadrar o desenho todo" data-i18n-title="quadroEnquadrarTitulo" data-i18n="quadroEnquadrar">🔍 Enquadrar</button>
       </div>
       <div class="board-toolbar-sep"></div>
-      <button type="button" id="board-undo-btn" class="ghost" title="Anular (Ctrl+Z)">↩️</button>
-      <button type="button" id="board-redo-btn" class="ghost" title="Refazer (Ctrl+Shift+Z)">↪️</button>
-      <button type="button" id="board-clear-btn" class="ghost board-danger" title="Limpar tudo">🧹<span class="board-btn-name"> Limpar tudo</span></button>
+      <button type="button" id="board-undo-btn" class="ghost" title="Anular (Ctrl+Z)" data-i18n-title="quadroAnular">↩️</button>
+      <button type="button" id="board-redo-btn" class="ghost" title="Refazer (Ctrl+Shift+Z)" data-i18n-title="quadroRefazer">↪️</button>
+      <button type="button" id="board-clear-btn" class="ghost board-danger" title="Limpar tudo" data-i18n-title="quadroLimparTudo">🧹 <span class="board-btn-name" data-i18n="quadroLimparTudo">Limpar tudo</span></button>
 
       <details class="board-panel" id="board-panel">
-        <summary title="Mais opções">⚙️ Mais</summary>
+        <summary title="Mais opções" data-i18n-title="quadroMaisOpcoes" data-i18n="quadroMais">⚙️ Mais</summary>
         <div class="board-panel-body">
-          <p class="board-panel-title">Opções do quadro</p>
+          <p class="board-panel-title" data-i18n="quadroOpcoes">Opções do quadro</p>
           <label class="board-field">
-            <span>Espessura da linha <b id="board-width-value">4px</b></span>
+            <span><span data-i18n="quadroEspessura">Espessura da linha</span> <b id="board-width-value">4px</b></span>
             <input type="range" id="board-width-range" min="1" max="60" step="1" value="4" />
           </label>
           <label class="board-field">
-            <span>Transparência <b id="board-opacity-value">100%</b></span>
+            <span><span data-i18n="quadroTransparencia">Transparência</span> <b id="board-opacity-value">100%</b></span>
             <input type="range" id="board-opacity-range" min="5" max="100" step="5" value="100" />
           </label>
           <label class="board-field board-field-row">
             <input type="checkbox" id="board-fill-toggle" />
-            <span>Preencher as formas</span>
+            <span data-i18n="quadroPreencher">Preencher as formas</span>
           </label>
           <label class="board-field">
-            <span>Fundo da folha</span>
-            <select id="board-bg-select" aria-label="Estilo do fundo"></select>
+            <span data-i18n="quadroFundo">Fundo da folha</span>
+            <select id="board-bg-select" aria-label="Estilo do fundo" data-i18n-aria="quadroFundoAria"></select>
           </label>
           <div class="board-panel-sep"></div>
-          <button type="button" id="board-save-btn" class="ghost">💾 Guardar imagem (PNG)</button>
-          <button type="button" id="board-export-btn" class="ghost">📤 Exportar quadro</button>
-          <button type="button" id="board-import-btn" class="ghost">📥 Importar quadro</button>
+          <button type="button" id="board-save-btn" class="ghost" data-i18n="quadroGuardar">💾 Guardar imagem (PNG)</button>
+          <button type="button" id="board-export-btn" class="ghost" data-i18n="quadroExportar">📤 Exportar quadro</button>
+          <button type="button" id="board-import-btn" class="ghost" data-i18n="quadroImportar">📥 Importar quadro</button>
           <input type="file" id="board-import-input" accept="application/json,.json" hidden />
-          <button type="button" id="board-panel-close-btn" class="primary">Pronto</button>
-          <p class="hint small board-shortcuts">
+          <button type="button" id="board-panel-close-btn" class="primary" data-i18n="quadroPronto">Pronto</button>
+          <p class="hint small board-shortcuts" data-i18n-html="quadroAtalhos">
             Atalhos: <b>Ctrl+Z</b> anular · <b>B</b> caneta · <b>E</b> borracha ·
             <b>T</b> texto · <b>H</b> mover · <b>espaço</b> arrastar a folha ·
             <b>Ctrl+roda</b> afastar/aproximar · dois dedos para afastar no telemóvel.
@@ -733,33 +733,33 @@
        O modo escolhe-se por votação: ninguém manda sozinho no que se joga. -->
   <section data-screen="hangman" class="screen hangman-board">
     <div class="hangman-toolbar">
-      <span class="hangman-title" id="hangman-mode-title">Quadro branco</span>
+      <span class="hangman-title" id="hangman-mode-title" data-i18n="jogoQuadro">Quadro branco</span>
 
       <!-- zona 1: opções da caneta (só para quem desenha) -->
       <div class="board-tool-row hangman-pen-zone" id="hangman-pen-zone">
-        <div class="board-tool-row" id="hangman-tools-row"></div>
+        <div class="board-tool-row" id="hangman-tools-row" data-i18n-js="ferramentaCaneta"></div>
         <div class="board-color-row" id="hangman-color-row"></div>
-        <button type="button" id="hangman-paleta-btn" class="ghost board-paleta-btn" title="Mais cores">🎨</button>
+        <button type="button" id="hangman-paleta-btn" class="ghost board-paleta-btn" title="Mais cores" data-i18n-title="quadroMaisCores">🎨</button>
         <div class="board-width-row" id="hangman-width-row"></div>
-        <label class="hangman-fill-toggle" title="Preencher as formas">
-          <input type="checkbox" id="hangman-fill-toggle" /> <span>Preencher</span>
+        <label class="hangman-fill-toggle" title="Preencher as formas" data-i18n-title="quadroPreencher">
+          <input type="checkbox" id="hangman-fill-toggle" /> <span data-i18n="salaQuadroPreencher">Preencher</span>
         </label>
       </div>
 
       <!-- zona 2: opções do quadro -->
       <div class="hangman-board-zone" id="hangman-board-zone">
-        <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
-        <button id="hangman-settings-btn" type="button" class="ghost hidden">⚙️ Definições</button>
-        <button id="hangman-teams-btn" type="button" class="ghost">👥 Equipas</button>
-        <button id="hangman-history-btn" type="button" class="ghost hidden">📜 Palavras</button>
-        <button id="hangman-save-img-btn" type="button" class="ghost hidden">💾 Guardar imagem</button>
-        <button id="hangman-export-btn" type="button" class="ghost hidden">📤 Exportar</button>
-        <button id="hangman-import-btn" type="button" class="ghost hidden">📥 Importar</button>
+        <button id="hangman-mode-btn" type="button" class="ghost hangman-mode-btn" data-i18n="salaQuadroModo">🎲 Modo do quadro</button>
+        <button id="hangman-settings-btn" type="button" class="ghost hidden" data-i18n="salaQuadroDefinicoes">⚙️ Definições</button>
+        <button id="hangman-teams-btn" type="button" class="ghost" data-i18n="salaQuadroEquipas">👥 Equipas</button>
+        <button id="hangman-history-btn" type="button" class="ghost hidden" data-i18n="salaQuadroPalavras">📜 Palavras</button>
+        <button id="hangman-save-img-btn" type="button" class="ghost hidden" data-i18n="salaQuadroGuardar">💾 Guardar imagem</button>
+        <button id="hangman-export-btn" type="button" class="ghost hidden" data-i18n="salaQuadroExportar">📤 Exportar</button>
+        <button id="hangman-import-btn" type="button" class="ghost hidden" data-i18n="salaQuadroImportar">📥 Importar</button>
         <input type="file" id="hangman-import-input" accept="application/json,.json" hidden />
-        <button id="hangman-pass-pen-btn" type="button" class="ghost hidden">🖊️ Passar a caneta</button>
-        <button id="hangman-undo-btn" type="button" class="ghost" title="Anular o último traço (Ctrl+Z)">↩️</button>
-        <button id="hangman-doodle-clear-btn" type="button" class="ghost">🧹 Limpar</button>
-        <button id="hangman-continue-btn" type="button" class="primary hidden">Continuar</button>
+        <button id="hangman-pass-pen-btn" type="button" class="ghost hidden" data-i18n="salaQuadroPassarCaneta">🖊️ Passar a caneta</button>
+        <button id="hangman-undo-btn" type="button" class="ghost" title="Anular o último traço (Ctrl+Z)" data-i18n-title="salaQuadroAnularTitulo">↩️</button>
+        <button id="hangman-doodle-clear-btn" type="button" class="ghost" data-i18n="salaQuadroLimpar">🧹 Limpar</button>
+        <button id="hangman-continue-btn" type="button" class="primary hidden" data-i18n="salaQuadroContinuar">Continuar</button>
       </div>
 
       <span id="hangman-status" class="hint small"></span>
@@ -780,7 +780,7 @@
         <span class="hangman-quip-text" id="hangman-quip-text"></span>
       </div>
       <div class="hangman-wrong-strip hidden" id="hangman-wrong-strip">
-        <span class="hangman-wrong-label">Erradas:</span>
+        <span class="hangman-wrong-label" data-i18n="salaQuadroErradas">Erradas:</span>
         <span id="hangman-wrong-letters"></span>
         <span id="hangman-wrong-words"></span>
       </div>
@@ -804,46 +804,46 @@
       <!-- Só para quem tem a caneta, e só no modo Forca. -->
       <form class="hangman-word-form hidden" id="hangman-word-form">
         <input id="hangman-word-input" type="text" maxlength="40" autocomplete="off"
-               placeholder="Palavra(s) a adivinhar, separadas por vírgula (só tu as vês)" aria-label="Palavra a adivinhar" />
+               placeholder="Palavra(s) a adivinhar, separadas por vírgula (só tu as vês)" data-i18n-placeholder="forcaPalavraPlaceholder" aria-label="Palavra a adivinhar" data-i18n-aria="forcaPalavraSecretaAria" />
         <input id="hangman-hint-input" type="text" maxlength="40" autocomplete="off"
-               placeholder="Tema ou pista (todos veem)" aria-label="Categoria ou pista" />
-        <button type="submit" class="primary">Definir</button>
+               placeholder="Tema ou pista (todos veem)" data-i18n-placeholder="forcaPistaPlaceholder" aria-label="Categoria ou pista" data-i18n-aria="forcaPistaAria" />
+        <button type="submit" class="primary" data-i18n="forcaDefinir">Definir</button>
       </form>
       <div class="hangman-word-tools hidden" id="hangman-word-tools">
         <span class="hangman-secret" id="hangman-secret"></span>
         <input id="hangman-letter-input" type="text" maxlength="1" autocomplete="off"
-               placeholder="Letra" aria-label="Revelar uma letra" />
-        <button type="button" id="hangman-reveal-btn" class="ghost">✅ Acertaram</button>
-        <button type="button" id="hangman-miss-btn" class="ghost">❌ Errou</button>
-        <button type="button" id="hangman-passturn-btn" class="ghost">⏭️ Saltar a vez</button>
-        <button type="button" id="hangman-newword-btn" class="ghost">🔁 Outra palavra</button>
+               placeholder="Letra" data-i18n-placeholder="forcaLetra" aria-label="Revelar uma letra" data-i18n-aria="forcaRevelarAria" />
+        <button type="button" id="hangman-reveal-btn" class="ghost" data-i18n="forcaAcertaram">✅ Acertaram</button>
+        <button type="button" id="hangman-miss-btn" class="ghost" data-i18n="forcaErrou">❌ Errou</button>
+        <button type="button" id="hangman-passturn-btn" class="ghost" data-i18n="forcaSaltarVez">⏭️ Saltar a vez</button>
+        <button type="button" id="hangman-newword-btn" class="ghost" data-i18n="forcaOutraPalavra">🔁 Outra palavra</button>
       </div>
-      <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn">🎲 Modo do quadro</button>
-      <button id="hangman-settings-btn-viewer" type="button" class="ghost hidden">⚙️ Definições</button>
-      <button id="hangman-teams-btn-viewer" type="button" class="ghost">👥 Equipas</button>
-      <button id="hangman-history-btn-viewer" type="button" class="ghost hidden">📜 Palavras</button>
-      <button id="hangman-save-img-btn-viewer" type="button" class="ghost hidden">💾 Guardar imagem</button>
+      <button id="hangman-mode-btn-viewer" type="button" class="ghost hangman-mode-btn" data-i18n="salaQuadroModo">🎲 Modo do quadro</button>
+      <button id="hangman-settings-btn-viewer" type="button" class="ghost hidden" data-i18n="salaQuadroDefinicoes">⚙️ Definições</button>
+      <button id="hangman-teams-btn-viewer" type="button" class="ghost" data-i18n="salaQuadroEquipas">👥 Equipas</button>
+      <button id="hangman-history-btn-viewer" type="button" class="ghost hidden" data-i18n="salaQuadroPalavras">📜 Palavras</button>
+      <button id="hangman-save-img-btn-viewer" type="button" class="ghost hidden" data-i18n="salaQuadroGuardar">💾 Guardar imagem</button>
       <form class="hangman-guess-form hidden" id="hangman-guess-form">
         <input id="hangman-guess-input" type="text" maxlength="1" autocomplete="off"
-               placeholder="Letra" aria-label="Arriscar uma letra" />
-        <button type="submit" class="primary">Arriscar</button>
+               placeholder="Letra" data-i18n-placeholder="forcaLetra" aria-label="Arriscar uma letra" data-i18n-aria="forcaLetraAria" />
+        <button type="submit" class="primary" data-i18n="forcaArriscarCurto">Arriscar</button>
       </form>
-      <button id="hangman-help-btn" type="button" class="ghost hidden">🐈‍⬛ Pedir ajuda ao Brasa</button>
+      <button id="hangman-help-btn" type="button" class="ghost hidden" data-i18n="forcaPedirBrasa">🐈‍⬛ Pedir ajuda ao Brasa</button>
       <span id="hangman-turn-label" class="hint small"></span>
       <div class="hangman-personal-tools hidden" id="hangman-personal-tools">
         <label class="hangman-personal-toggle">
-          <input type="checkbox" id="hangman-personal-toggle" /> <span>✏️ Rascunho meu</span>
+          <input type="checkbox" id="hangman-personal-toggle" /> <span data-i18n="forcaRascunho">✏️ Rascunho meu</span>
         </label>
         <div class="board-color-row" id="hangman-personal-colors"></div>
-        <button type="button" id="hangman-personal-eraser" class="board-tool" aria-pressed="false" title="Borracha do rascunho">
+        <button type="button" id="hangman-personal-eraser" class="board-tool" aria-pressed="false" title="Borracha do rascunho" data-i18n-title="forcaBorrachaRascunho">
           <span aria-hidden="true">🧽</span>
         </button>
-        <button type="button" id="hangman-personal-clear" class="ghost">🧹 Limpar o meu</button>
+        <button type="button" id="hangman-personal-clear" class="ghost" data-i18n="forcaLimparMeu">🧹 Limpar o meu</button>
       </div>
       <form class="hangman-guess-form hangman-wordguess-form hidden" id="hangman-wordguess-form">
         <input id="hangman-wordguess-input" type="text" maxlength="40" autocomplete="off"
-               placeholder="Arriscar a palavra toda" aria-label="Arriscar a palavra toda" />
-        <button type="submit" class="ghost-primary">Arriscar palavra</button>
+               placeholder="Arriscar a palavra toda" data-i18n-placeholder="forcaPalavraAria" aria-label="Arriscar a palavra toda" data-i18n-aria="forcaPalavraAria" />
+        <button type="submit" class="ghost-primary" data-i18n="forcaArriscarPalavra">Arriscar palavra</button>
       </form>
       <span id="hangman-mode-hint" class="hint small"></span>
     </div>
@@ -854,22 +854,22 @@
        desenhar roda por todos, um por ronda; quem desenha é o juiz. -->
   <section data-screen="draw" class="screen hangman-board">
     <div class="hangman-toolbar">
-      <span id="draw-title" class="hangman-title">Desenha e Adivinha</span>
+      <span id="draw-title" class="hangman-title" data-i18n="jogoDesenha">Desenha e Adivinha</span>
       <span id="draw-status" class="hint small"></span>
       <!-- Quem desenha tinha uma caneta só, de uma cor só, enquanto o quadro
            branco ao lado tem 68 cores e dez ferramentas. Nos jogos do género
            a cor e a espessura são o mínimo. -->
-      <button id="draw-cor-btn" type="button" class="board-color draw-cor hidden" aria-label="Escolher a cor"></button>
-      <div id="draw-espessuras" class="draw-espessuras hidden" role="group" aria-label="Espessura do traço">
-        <button type="button" class="board-width" data-espessura="2" aria-label="Traço fino"><span class="board-width-dot" style="width:4px;height:4px"></span></button>
-        <button type="button" class="board-width" data-espessura="4" aria-label="Traço médio"><span class="board-width-dot" style="width:8px;height:8px"></span></button>
-        <button type="button" class="board-width" data-espessura="9" aria-label="Traço grosso"><span class="board-width-dot" style="width:14px;height:14px"></span></button>
+      <button id="draw-cor-btn" type="button" class="board-color draw-cor hidden" aria-label="Escolher a cor" data-i18n-aria="desenhaCorAria"></button>
+      <div id="draw-espessuras" class="draw-espessuras hidden" role="group" aria-label="Espessura do traço" data-i18n-aria="desenhaEspessuraAria">
+        <button type="button" class="board-width" data-espessura="2" aria-label="Traço fino" data-i18n-aria="desenhaFino"><span class="board-width-dot" style="width:4px;height:4px"></span></button>
+        <button type="button" class="board-width" data-espessura="4" aria-label="Traço médio" data-i18n-aria="desenhaMedio"><span class="board-width-dot" style="width:8px;height:8px"></span></button>
+        <button type="button" class="board-width" data-espessura="9" aria-label="Traço grosso" data-i18n-aria="desenhaGrosso"><span class="board-width-dot" style="width:14px;height:14px"></span></button>
       </div>
-      <button id="draw-undo-btn" type="button" class="ghost hidden">↩️ Anular</button>
-      <button id="draw-clear-btn" type="button" class="ghost hidden">🧹 Limpar</button>
-      <button id="draw-select-winner-btn" type="button" class="ghost-primary hidden">🏆 Alguém acertou!</button>
-      <button id="draw-skip-btn" type="button" class="ghost hidden">🙈 Ninguém acertou</button>
-      <button id="draw-continue-btn" type="button" class="primary hidden">Próxima ronda</button>
+      <button id="draw-undo-btn" type="button" class="ghost hidden" data-i18n="desenhaAnular">↩️ Anular</button>
+      <button id="draw-clear-btn" type="button" class="ghost hidden" data-i18n="salaQuadroLimpar">🧹 Limpar</button>
+      <button id="draw-select-winner-btn" type="button" class="ghost-primary hidden" data-i18n="desenhaAlguemAcertou">🏆 Alguém acertou!</button>
+      <button id="draw-skip-btn" type="button" class="ghost hidden" data-i18n="desenhaNinguemAcertou">🙈 Ninguém acertou</button>
+      <button id="draw-continue-btn" type="button" class="primary hidden" data-i18n="rondaProxima">Próxima ronda</button>
     </div>
     <canvas id="draw-doodle-canvas" class="hangman-doodle-canvas"></canvas>
     <!-- O desenho de referência e a frase do resultado empilham-se numa
@@ -885,60 +885,60 @@
   <!-- MAPA-MÚNDI EM EQUIPA -->
   <section data-screen="map-trivia" class="screen">
     <div class="card wide center">
-      <h2>Mapa-Múndi em equipa!</h2>
+      <h2 data-i18n="mapTriviaTitulo">Mapa-Múndi em equipa!</h2>
       <p id="map-trivia-round-info" class="hint small"></p>
       <p id="map-trivia-prompt" class="hint"></p>
       <div class="round-timer" id="map-trivia-timer"></div>
       <div id="map-trivia-arena" class="map-arena"></div>
       <div id="map-trivia-answer-row" class="map-answer-row">
         <input id="map-trivia-answer-input" aria-label="Escrever o nome de um país" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
-        <button id="map-trivia-answer-submit-btn" class="primary">Responder</button>
+        <button id="map-trivia-answer-submit-btn" class="primary" data-i18n="responder">Responder</button>
       </div>
       <p id="map-trivia-answered" class="hint small"></p>
       <div id="map-trivia-results" class="score-table hidden"></div>
-      <p id="map-trivia-vote-hint" class="hint small hidden">Uma resposta errada pode ser aceite se a maioria da equipa votar que sim.</p>
-      <button id="map-trivia-continue-btn" class="primary hidden">Continuar</button>
+      <p id="map-trivia-vote-hint" class="hint small hidden" data-i18n="mapTriviaVoto">Uma resposta errada pode ser aceite se a maioria da equipa votar que sim.</p>
+      <button id="map-trivia-continue-btn" class="primary hidden" data-i18n="continuar">Continuar</button>
     </div>
   </section>
 
   <!-- FUGA DA INFEÇÃO EM EQUIPA -->
   <section data-screen="tag" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">
-      <h2>Fuga da Infeção!</h2>
-      <p class="hint small">Setas ou WASD para fugir/apanhar. Quem está infetado tem de encostar aos outros para os infetar também — sobrevive quem escapar até ao fim.</p>
+      <h2 data-i18n="tagTitulo">Fuga da Infeção!</h2>
+      <p class="hint small" data-i18n="tagHint">Setas ou WASD para fugir/apanhar. Quem está infetado tem de encostar aos outros para os infetar também — sobrevive quem escapar até ao fim.</p>
       <p id="tag-status-line" class="hint"></p>
       <div class="round-timer" id="tag-timer"></div>
       <div id="tag-arena" class="tag-arena"></div>
       <div id="tag-results" class="score-table hidden"></div>
-      <button id="tag-continue-btn" class="primary hidden">Continuar</button>
+      <button id="tag-continue-btn" class="primary hidden" data-i18n="continuar">Continuar</button>
     </div>
   </section>
 
   <!-- LABIRINTO: BATALHA EM EQUIPA -->
   <section data-screen="battle" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">
-      <h2>Labirinto: Batalha!</h2>
-      <p class="hint small">Setas ou WASD para andar. Sem arma não se consegue atacar — apanha uma no chão (🗡️) e usa Espaço para golpear quem estiver perto. 3 vidas cada, sobrevive quem ficar de pé.</p>
+      <h2 data-i18n="battleTitulo">Labirinto: Batalha!</h2>
+      <p class="hint small" data-i18n="battleHint">Setas ou WASD para andar. Sem arma não se consegue atacar — apanha uma no chão (🗡️) e usa Espaço para golpear quem estiver perto. 3 vidas cada, sobrevive quem ficar de pé.</p>
       <p id="battle-status-line" class="hint"></p>
       <div class="round-timer" id="battle-timer"></div>
       <div id="battle-arena" class="battle-arena"></div>
       <div id="battle-results" class="score-table hidden"></div>
-      <button id="battle-continue-btn" class="primary hidden">Continuar</button>
+      <button id="battle-continue-btn" class="primary hidden" data-i18n="continuar">Continuar</button>
     </div>
   </section>
 
   <!-- ESTRADA MALUCA EM EQUIPA -->
   <section data-screen="race" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">
-      <h2>Estrada Maluca — Corrida!</h2>
-      <p class="hint small">Setas &larr;/&rarr; ou A/D para mudar de faixa. Todos apanham exatamente os mesmos carros, ao mesmo tempo: ganha quem aguentar mais tempo sem bater.</p>
+      <h2 data-i18n="raceTitulo">Estrada Maluca — Corrida!</h2>
+      <p class="hint small" data-i18n-html="raceHint">Setas &larr;/&rarr; ou A/D para mudar de faixa. Todos apanham exatamente os mesmos carros, ao mesmo tempo: ganha quem aguentar mais tempo sem bater.</p>
       <p id="race-status-line" class="hint"></p>
       <div class="race-layout">
         <div class="race-road-wrap"><div id="race-road" class="car-road"></div></div>
         <div id="race-standings" class="race-standings"></div>
       </div>
       <div id="race-results" class="score-table hidden"></div>
-      <button id="race-continue-btn" class="primary hidden">Continuar</button>
+      <button id="race-continue-btn" class="primary hidden" data-i18n="continuar">Continuar</button>
     </div>
   </section>
 
@@ -946,42 +946,42 @@
   <!-- MINI-GOLFE EM EQUIPA -->
   <section data-screen="golf" class="screen fullscreen-game">
     <div class="card wide center golf-wide-card">
-      <h2>Mini-Golfe em equipa</h2>
-      <p class="hint small">Setas ou WASD para empurrar a bola. Todos jogam o mesmo buraco ao mesmo tempo — apanha um power-up e usa-o com Espaço: 🧱 larga uma parede onde estás, 🔌 desliga os comandos de toda a gente menos os teus.</p>
+      <h2 data-i18n="golfeSalaTitulo">Mini-Golfe em equipa</h2>
+      <p class="hint small" data-i18n="golfeSalaHint">Setas ou WASD para empurrar a bola. Todos jogam o mesmo buraco ao mesmo tempo — apanha um power-up e usa-o com Espaço: 🧱 larga uma parede onde estás, 🔌 desliga os comandos de toda a gente menos os teus.</p>
       <p id="golf-mp-status-line" class="hint"></p>
       <div class="round-timer" id="golf-mp-timer"></div>
       <div id="golf-mp-arena" class="golf-arena"></div>
       <div id="golf-mp-results" class="score-table hidden"></div>
-      <button id="golf-mp-continue-btn" class="primary hidden">Continuar</button>
+      <button id="golf-mp-continue-btn" class="primary hidden" data-i18n="continuar">Continuar</button>
     </div>
   </section>
 
   <!-- FINAL -->
   <section data-screen="final" class="screen">
     <div class="card wide center">
-      <h2>Resultados finais</h2>
+      <h2 data-i18n="fimTitulo">Resultados finais</h2>
       <div id="final-ranking" class="final-ranking"></div>
       <!-- O álbum da noite: os desenhos que apareceram nesta sala. É a parte
            que as pessoas mandam aos amigos no dia seguinte. Vive no browser
            de cada um (cada cliente vê os traços enquanto são feitos), por
            isso não custa nada à sala. -->
       <section id="final-album" class="final-album hidden">
-        <h3>O álbum da noite</h3>
-        <p class="hint small">Toca num desenho para o guardares.</p>
+        <h3 data-i18n="fimAlbum">O álbum da noite</h3>
+        <p class="hint small" data-i18n="fimAlbumHint">Toca num desenho para o guardares.</p>
         <div id="final-album-grid" class="final-album-grid"></div>
       </section>
-      <button id="final-rematch-btn" class="primary hidden">Jogar outra vez</button>
+      <button id="final-rematch-btn" class="primary hidden" data-i18n="fimOutraVez">Jogar outra vez</button>
       <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>
     </div>
   </section>
 
   <!-- HUD partilhado por todos os mini-jogos solo: pontos em tempo real + pausar/saltar -->
   <div id="game-hud" class="game-hud hidden">
-    <div class="game-hud-score"><svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 L17 4 L16 12 Q16 16 12 17 Q8 16 8 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 6 C3 6 3 11 8 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M17 6 C21 6 21 11 16 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 17 L12 20 M9 20.5 L15 20.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <span id="game-hud-score-value">0</span> pts</div>
-    <button type="button" id="game-hud-pause-btn" class="hud-btn" title="Pausar">
+    <div class="game-hud-score"><svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 L17 4 L16 12 Q16 16 12 17 Q8 16 8 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 6 C3 6 3 11 8 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M17 6 C21 6 21 11 16 11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 17 L12 20 M9 20.5 L15 20.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> <span id="game-hud-score-value">0</span> <span data-i18n="pts">pts</span></div>
+    <button type="button" id="game-hud-pause-btn" class="hud-btn" title="Pausar" data-i18n-title="hudPausar">
       <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 C7 5 7 6 7 7 L7 17 C7 18 7 19 8 19 C9 19 9.5 18 9.5 17 L9.5 7 C9.5 6 9 5 8 5 Z" fill="currentColor"/><path d="M16 5 C15 5 15 6 15 7 L15 17 C15 18 15 19 16 19 C17 19 17.5 18 17.5 17 L17.5 7 C17.5 6 17 5 16 5 Z" fill="currentColor"/></svg>
     </button>
-    <button type="button" id="game-hud-skip-btn" class="hud-btn" title="Saltar mini-jogo">
+    <button type="button" id="game-hud-skip-btn" class="hud-btn" title="Saltar mini-jogo" data-i18n-title="hudSaltar">
       <svg class="icon-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 L13 12 L5 19 Z" fill="currentColor"/><path d="M12 5 L20 12 L12 19 Z" fill="currentColor"/></svg>
     </button>
   </div>
@@ -989,28 +989,28 @@
   <!-- Ecrã de pausa -->
   <div id="pause-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2><svg class="icon-inline icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 C7 5 7 6 7 7 L7 17 C7 18 7 19 8 19 C9 19 9.5 18 9.5 17 L9.5 7 C9.5 6 9 5 8 5 Z" fill="currentColor"/><path d="M16 5 C15 5 15 6 15 7 L15 17 C15 18 15 19 16 19 C17 19 17.5 18 17.5 17 L17.5 7 C17.5 6 17 5 16 5 Z" fill="currentColor"/></svg> Pausa</h2>
-      <p class="hint">O jogo está parado — ninguém a ver.</p>
-      <button type="button" id="pause-resume-btn" class="primary">Continuar</button>
-      <button type="button" id="pause-exit-btn" class="ghost">Sair para o menu</button>
+      <h2><svg class="icon-inline icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 C7 5 7 6 7 7 L7 17 C7 18 7 19 8 19 C9 19 9.5 18 9.5 17 L9.5 7 C9.5 6 9 5 8 5 Z" fill="currentColor"/><path d="M16 5 C15 5 15 6 15 7 L15 17 C15 18 15 19 16 19 C17 19 17.5 18 17.5 17 L17.5 7 C17.5 6 17 5 16 5 Z" fill="currentColor"/></svg> <span data-i18n="pausa">Pausa</span></h2>
+      <p class="hint" data-i18n="pausaHint">O jogo está parado — ninguém a ver.</p>
+      <button type="button" id="pause-resume-btn" class="primary" data-i18n="continuar">Continuar</button>
+      <button type="button" id="pause-exit-btn" class="ghost" data-i18n="sairParaMenu">Sair para o menu</button>
     </div>
   </div>
 
   <!-- Editor do avatar (desenho em pixels) -->
   <div id="avatar-editor-overlay" class="pause-overlay hidden">
     <div class="card center avatar-editor-card">
-      <h2>Desenha o teu avatar</h2>
-      <p class="hint small">Aparece ao lado do teu nome nas salas multijogador.</p>
+      <h2 data-i18n="avatarTitulo">Desenha o teu avatar</h2>
+      <p class="hint small" data-i18n="avatarHint">Aparece ao lado do teu nome nas salas multijogador.</p>
       <canvas id="avatar-canvas" width="16" height="16" class="avatar-canvas"></canvas>
       <div class="avatar-tools">
-        <button type="button" id="avatar-tool-pencil" class="avatar-tool-btn active" title="Lápis">Lápis</button>
-        <button type="button" id="avatar-tool-eraser" class="avatar-tool-btn" title="Borracha">Borracha</button>
-        <button type="button" id="avatar-clear-btn" class="ghost" title="Limpar tudo">Limpar</button>
+        <button type="button" id="avatar-tool-pencil" class="avatar-tool-btn active" title="Lápis" data-i18n-title="avatarLapis" data-i18n="avatarLapis">Lápis</button>
+        <button type="button" id="avatar-tool-eraser" class="avatar-tool-btn" title="Borracha" data-i18n-title="avatarBorracha" data-i18n="avatarBorracha">Borracha</button>
+        <button type="button" id="avatar-clear-btn" class="ghost" title="Limpar tudo" data-i18n-title="quadroLimparTudo" data-i18n="cfgLimpar">Limpar</button>
       </div>
       <div id="avatar-palette" class="avatar-palette"></div>
       <div class="row-buttons">
-        <button type="button" id="avatar-save-btn" class="primary">Guardar</button>
-        <button type="button" id="avatar-cancel-btn" class="ghost">Fechar sem guardar</button>
+        <button type="button" id="avatar-save-btn" class="primary" data-i18n="avatarGuardar">Guardar</button>
+        <button type="button" id="avatar-cancel-btn" class="ghost" data-i18n="avatarFechar">Fechar sem guardar</button>
       </div>
     </div>
   </div>
@@ -1037,8 +1037,8 @@
     <div class="card center">
       <h2 id="ready-title"></h2>
       <p id="ready-mascot" class="ready-mascot hidden"></p>
-      <p class="hint">Prepara-te — o cronómetro só começa depois de clicares em Começar.</p>
-      <button type="button" id="ready-start-btn" class="primary">Começar!</button>
+      <p class="hint" data-i18n="prontoHint">Prepara-te — o cronómetro só começa depois de clicares em Começar.</p>
+      <button type="button" id="ready-start-btn" class="primary" data-i18n="comecarJa">Começar!</button>
     </div>
   </div>
 
@@ -1047,21 +1047,21 @@
        regras do jogo em si combinam-se por voz entre os jogadores. -->
   <div id="hangman-pen-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Quem escreve a seguir?</h2>
-      <p class="hint small">Escolhe alguém, ou deixa a sorte decidir.</p>
-      <button type="button" id="hangman-pen-random-btn" class="primary">🎲 Aleatório</button>
+      <h2 data-i18n="canetaQuemTitulo">Quem escreve a seguir?</h2>
+      <p class="hint small" data-i18n="canetaQuemHint">Escolhe alguém, ou deixa a sorte decidir.</p>
+      <button type="button" id="hangman-pen-random-btn" class="primary" data-i18n="aleatorio">🎲 Aleatório</button>
       <div id="hangman-pen-list" class="draw-winner-list"></div>
-      <button type="button" id="hangman-pen-cancel-btn" class="ghost">Cancelar</button>
+      <button type="button" id="hangman-pen-cancel-btn" class="ghost" data-i18n="cancelar">Cancelar</button>
     </div>
   </div>
 
   <!-- Votação do modo do quadro: o grupo escolhe, não uma pessoa. -->
   <div id="hangman-mode-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Selecionar modo</h2>
-      <p class="hint small">Muda já para toda a gente. Se mudarem de ideias, é voltar aqui.</p>
+      <h2 data-i18n="modoTitulo">Selecionar modo</h2>
+      <p class="hint small" data-i18n="modoHint">Muda já para toda a gente. Se mudarem de ideias, é voltar aqui.</p>
       <div id="hangman-mode-list" class="draw-winner-list"></div>
-      <button type="button" id="hangman-mode-cancel-btn" class="ghost">Fechar</button>
+      <button type="button" id="hangman-mode-cancel-btn" class="ghost" data-i18n="fechar">Fechar</button>
     </div>
   </div>
 
@@ -1069,8 +1069,8 @@
        de quem foi cada letra errada, sem escrever nomes ao lado das letras. -->
   <div id="hangman-color-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Escolhe a tua cor</h2>
-      <p class="hint small">É a cor com que as tuas tentativas vão aparecer no quadro.</p>
+      <h2 data-i18n="corTitulo">Escolhe a tua cor</h2>
+      <p class="hint small" data-i18n="corHint">É a cor com que as tuas tentativas vão aparecer no quadro.</p>
       <div id="hangman-color-choices" class="hangman-color-choices"></div>
       <p id="hangman-color-waiting" class="hint small"></p>
     </div>
@@ -1081,12 +1081,12 @@
        vencedor e ninguém levava nada. -->
   <div id="hangman-winner-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Quem acertou?</h2>
-      <p class="hint small">Leva os pontos da palavra. Se ninguém acertou, revela-se na mesma.</p>
+      <h2 data-i18n="vencedorTitulo">Quem acertou?</h2>
+      <p class="hint small" data-i18n="vencedorHint">Leva os pontos da palavra. Se ninguém acertou, revela-se na mesma.</p>
       <div id="hangman-winner-choices" class="hangman-color-choices"></div>
       <div class="options-actions">
-        <button type="button" id="hangman-winner-none-btn" class="ghost">Ninguém acertou</button>
-        <button type="button" id="hangman-winner-cancel-btn" class="ghost">Cancelar</button>
+        <button type="button" id="hangman-winner-none-btn" class="ghost" data-i18n="ninguemAcertou">Ninguém acertou</button>
+        <button type="button" id="hangman-winner-cancel-btn" class="ghost" data-i18n="cancelar">Cancelar</button>
       </div>
     </div>
   </div>
@@ -1094,20 +1094,20 @@
   <!-- Histórico das palavras da sessão. -->
   <div id="hangman-history-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Palavras desta partida</h2>
+      <h2 data-i18n="palavrasDaPartida">Palavras desta partida</h2>
       <div id="hangman-history-list" class="hangman-history-list"></div>
-      <button type="button" id="hangman-history-close-btn" class="primary">Fechar</button>
+      <button type="button" id="hangman-history-close-btn" class="primary" data-i18n="fechar">Fechar</button>
     </div>
   </div>
 
   <!-- Fim da partida: ao fim das palavras combinadas, quem ganhou. -->
   <div id="hangman-match-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2 id="hangman-match-title">Fim da partida!</h2>
+      <h2 id="hangman-match-title" data-i18n-js="fimDaPartida">Fim da partida!</h2>
       <p id="hangman-match-sub" class="hint small"></p>
       <div id="hangman-match-ranking" class="hangman-match-ranking"></div>
-      <button type="button" id="hangman-match-history-btn" class="ghost">📜 Ver as palavras</button>
-      <button type="button" id="hangman-match-again-btn" class="primary hidden">🔁 Nova partida</button>
+      <button type="button" id="hangman-match-history-btn" class="ghost" data-i18n="verAsPalavras">📜 Ver as palavras</button>
+      <button type="button" id="hangman-match-again-btn" class="primary hidden" data-i18n="novaPartida">🔁 Nova partida</button>
       <p id="hangman-match-wait" class="hint small"></p>
     </div>
   </div>
@@ -1115,46 +1115,46 @@
   <!-- Solo ou equipas: monta-se antes de a palavra ser definida. -->
   <div id="hangman-teams-overlay" class="pause-overlay hidden">
     <div class="card center wide">
-      <h2>Como se joga</h2>
+      <h2 data-i18n="comoSeJoga">Como se joga</h2>
       <div class="hangman-play-toggle" id="hangman-play-toggle"></div>
       <div id="hangman-team-count-row" class="hangman-team-count hidden">
-        <span>Quantas equipas?</span>
+        <span data-i18n="quantasEquipas">Quantas equipas?</span>
         <div id="hangman-team-count-btns" class="hangman-setting-options"></div>
       </div>
       <div id="hangman-team-boxes" class="hangman-team-boxes"></div>
       <p id="hangman-teams-hint" class="hint small"></p>
-      <button type="button" id="hangman-teams-close-btn" class="primary">Pronto</button>
+      <button type="button" id="hangman-teams-close-btn" class="primary" data-i18n="quadroPronto">Pronto</button>
     </div>
   </div>
 
   <!-- Definições do jogo: definem-se antes de começar e ficam na sala. -->
   <div id="hangman-settings-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Definições do jogo</h2>
-      <p class="hint small">Valem para a sala toda e para as palavras seguintes.</p>
+      <h2 data-i18n="definicoesDoJogo">Definições do jogo</h2>
+      <p class="hint small" data-i18n="definicoesHint">Valem para a sala toda e para as palavras seguintes.</p>
       <div id="hangman-settings-list" class="hangman-settings-list"></div>
-      <button type="button" id="hangman-settings-close-btn" class="primary">Pronto</button>
+      <button type="button" id="hangman-settings-close-btn" class="primary" data-i18n="quadroPronto">Pronto</button>
     </div>
   </div>
 
   <!-- Votação de quem fica com a caneta (modo Forca). -->
   <div id="hangman-penvote-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Quem fica com a caneta?</h2>
-      <p class="hint small">Escolhe uma pessoa. Quando a maioria votar na mesma, é ela que desenha.</p>
+      <h2 data-i18n="canetaVotoTitulo">Quem fica com a caneta?</h2>
+      <p class="hint small" data-i18n="canetaVotoHint">Escolhe uma pessoa. Quando a maioria votar na mesma, é ela que desenha.</p>
       <div id="hangman-penvote-list" class="draw-winner-list"></div>
       <!-- Saída para quem manda no quadro: entrar na Forca sem querer deixava-o
            preso atrás desta votação e da escolha de cor, sem caminho de volta. -->
-      <button type="button" id="hangman-backtofree-btn" class="ghost hidden">↩️ Voltar ao desenho livre</button>
-      <button type="button" id="hangman-penvote-cancel-btn" class="ghost">Fechar</button>
+      <button type="button" id="hangman-backtofree-btn" class="ghost hidden" data-i18n="voltarDesenhoLivre">↩️ Voltar ao desenho livre</button>
+      <button type="button" id="hangman-penvote-cancel-btn" class="ghost" data-i18n="fechar">Fechar</button>
     </div>
   </div>
 
   <div id="draw-winner-overlay" class="pause-overlay hidden">
     <div class="card center">
-      <h2>Quem acertou primeiro?</h2>
+      <h2 data-i18n="quemAcertouPrimeiro">Quem acertou primeiro?</h2>
       <div id="draw-winner-list" class="draw-winner-list"></div>
-      <button type="button" id="draw-winner-cancel-btn" class="ghost">Cancelar</button>
+      <button type="button" id="draw-winner-cancel-btn" class="ghost" data-i18n="cancelar">Cancelar</button>
     </div>
   </div>
 
@@ -1162,12 +1162,12 @@
        sintéticos, por isso os jogos não precisam de saber que existem. -->
   <div id="touch-controls" class="touch-controls hidden">
     <div class="touch-dpad">
-      <button type="button" class="touch-btn touch-up" data-touch-key="ArrowUp" aria-label="Cima">▲</button>
-      <button type="button" class="touch-btn touch-left" data-touch-key="ArrowLeft" aria-label="Esquerda">◀</button>
-      <button type="button" class="touch-btn touch-right" data-touch-key="ArrowRight" aria-label="Direita">▶</button>
-      <button type="button" class="touch-btn touch-down" data-touch-key="ArrowDown" aria-label="Baixo">▼</button>
+      <button type="button" class="touch-btn touch-up" data-touch-key="ArrowUp" aria-label="Cima" data-i18n-aria="toqueCima">▲</button>
+      <button type="button" class="touch-btn touch-left" data-touch-key="ArrowLeft" aria-label="Esquerda" data-i18n-aria="toqueEsquerda">◀</button>
+      <button type="button" class="touch-btn touch-right" data-touch-key="ArrowRight" aria-label="Direita" data-i18n-aria="toqueDireita">▶</button>
+      <button type="button" class="touch-btn touch-down" data-touch-key="ArrowDown" aria-label="Baixo" data-i18n-aria="toqueBaixo">▼</button>
     </div>
-    <button type="button" id="touch-action-btn" class="touch-btn touch-action hidden" data-touch-key=" ">Atacar</button>
+    <button type="button" id="touch-action-btn" class="touch-btn touch-action hidden" data-touch-key=" " data-i18n="toqueAtacar">Atacar</button>
   </div>
 
   <!-- Botão flutuante de Opções, visível em qualquer ecrã dentro de uma sala.
@@ -1177,17 +1177,17 @@
        o que se vai lá fazer. O que faltava era a saída: de dentro de um jogo
        não havia maneira de voltar ao lobby sem sair da sala e ter de pôr o
        código outra vez. -->
-  <button id="options-fab" type="button" class="options-fab hidden" title="Classificação e opções da sala">⚙️</button>
+  <button id="options-fab" type="button" class="options-fab hidden" title="Classificação e opções da sala" data-i18n-title="opcoesFab">⚙️</button>
   <div id="options-overlay" class="pause-overlay hidden">
     <div class="card center options-card">
-      <h2>Opções</h2>
+      <h2 data-i18n="opcoes">Opções</h2>
       <div id="options-panel-leaderboard" class="options-panel">
         <div id="options-leaderboard-list" class="score-table"></div>
       </div>
       <p id="options-back-hint" class="hint small hidden"></p>
       <div class="options-actions">
-        <button type="button" id="options-back-btn" class="ghost hidden">← Voltar ao lobby</button>
-        <button type="button" id="options-close-btn" class="primary">Fechar</button>
+        <button type="button" id="options-back-btn" class="ghost hidden" data-i18n="voltarAoLobby">← Voltar ao lobby</button>
+        <button type="button" id="options-close-btn" class="primary" data-i18n="fechar">Fechar</button>
       </div>
     </div>
   </div>
@@ -1196,13 +1196,13 @@
        Dez cores chegam para escrever, não chegam para desenhar. -->
   <div id="paleta-overlay" class="pause-overlay hidden">
     <div class="card center paleta-card">
-      <h2>Cores</h2>
+      <h2 data-i18n="cores">Cores</h2>
       <div id="paleta-grelha" class="paleta-grelha"></div>
       <label class="paleta-exata-linha">
-        <span>Cor exata</span>
-        <input type="color" id="paleta-exata" value="#3a3126" aria-label="Escolher uma cor exata" />
+        <span data-i18n="corExata">Cor exata</span>
+        <input type="color" id="paleta-exata" value="#3a3126" aria-label="Escolher uma cor exata" data-i18n-aria="corExataAria" />
       </label>
-      <button type="button" id="paleta-fechar-btn" class="primary">Fechar</button>
+      <button type="button" id="paleta-fechar-btn" class="primary" data-i18n="fechar">Fechar</button>
     </div>
   </div>
 
@@ -1214,8 +1214,8 @@
       <p id="mge-xp" class="hint small"></p>
       <p id="mge-quip" class="hint small mascot-quip hidden"></p>
       <div class="minigame-end-actions">
-        <button type="button" id="mge-continue-btn" class="primary">Continuar</button>
-        <button type="button" id="mge-exit-btn" class="ghost">Sair para o menu</button>
+        <button type="button" id="mge-continue-btn" class="primary" data-i18n="continuar">Continuar</button>
+        <button type="button" id="mge-exit-btn" class="ghost" data-i18n="sairParaMenu">Sair para o menu</button>
       </div>
     </div>
   </div>

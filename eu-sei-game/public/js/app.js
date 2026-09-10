@@ -129,7 +129,7 @@ aoMudarLingua(pintarDesafioDaEntrada);
   const code = new URL(window.location.href).searchParams.get(PARAM_SALA);
   if (!code) return;
   els.joinCodeInput.value = code.trim().toUpperCase().slice(0, 4);
-  els.conviteHint.textContent = `Convite para a sala ${els.joinCodeInput.value} — escreve o teu nome e entra.`;
+  els.conviteHint.textContent = t("casaConviteHint", els.joinCodeInput.value);
   els.conviteHint.classList.remove("hidden");
   els.nameInput.focus();
 }());
@@ -505,14 +505,14 @@ lobbyEls.conviteBtn.addEventListener("click", async () => {
   const ligacao = ligacaoDeConvite(state.code);
   try {
     await navigator.clipboard.writeText(ligacao);
-    lobbyEls.conviteBtn.textContent = "✅ Convite copiado";
+    lobbyEls.conviteBtn.textContent = t("salaConviteFeito");
   } catch {
     // Sem permissão para a área de transferência (acontece em muitos
     // telemóveis fora de https): mostra-se a ligação para se copiar à mão,
     // em vez de o botão não fazer nada e parecer avariado.
     lobbyEls.conviteBtn.textContent = ligacao;
   }
-  setTimeout(() => { lobbyEls.conviteBtn.textContent = "🔗 Copiar convite"; }, 4000);
+  setTimeout(() => { lobbyEls.conviteBtn.textContent = t("salaConvite"); }, 4000);
 });
 
 // Menu de escolha de jogo da sala, ao estilo do menu do modo sozinho: cada
@@ -829,7 +829,7 @@ function flashBallStatus(msg) {
   ballEls.status.textContent = msg;
   setTimeout(() => {
     if (state.room?.state === "ball" && !state.room.ball?.winnerId) {
-      ballEls.status.textContent = "Prepara-te...";
+      ballEls.status.textContent = t("bolaPrepara");
     }
   }, 1200);
 }
@@ -841,7 +841,7 @@ function renderBall(room) {
 
   ballClicked = false;
   ballEls.circle.classList.remove("visible");
-  ballEls.status.textContent = "Prepara-te...";
+  ballEls.status.textContent = t("bolaPrepara");
   cancelAnimationFrame(ballRAF);
 
   function tick() {
@@ -884,7 +884,7 @@ function renderLetterPick(room) {
     const count = Object.values(votes).filter((v) => v === letter).length;
     const btn = document.createElement("button");
     btn.className = "letter-btn";
-    btn.innerHTML = `<span class="letter-big">${letter}</span><span class="letter-votes">${count} voto(s)</span>`;
+    btn.innerHTML = `<span class="letter-big">${letter}</span><span class="letter-votes">${t("letraVotos", count)}</span>`;
     btn.disabled = !amWinner && !!room.letterPick?.chosen;
     if (letter === room.letterPick?.chosen) btn.classList.add("chosen");
     btn.addEventListener("click", () => {
@@ -921,8 +921,7 @@ function renderCategories(room) {
   // Com a letra lá dentro, em vez de uma regra genérica: é a letra desta
   // ronda que se está a esquecer quando se escreve depressa.
   if (catEls.regras) {
-    catEls.regras.textContent = `Todas as respostas começam por ${cr.letter}. `
-      + "Uma resposta que mais ninguém escreva vale a dobrar (10 pontos); repetida vale 5.";
+    catEls.regras.textContent = t("rondaRegras", cr.letter);
   }
 
   if (catRenderedKey === cr.endAt) return; // mesma ronda; não recriar os inputs enquanto o jogador escreve
@@ -1003,7 +1002,7 @@ function renderVoting(room) {
   cr.categoryIndexes.forEach((ci) => {
     const text = room.answers?.[state.uid]?.[catKey(ci)] || "";
     const p = document.createElement("p");
-    p.textContent = `${nomeDaCategoria(ci, categoriasPropriasDaSala())}: ${text || "(sem resposta)"}`;
+    p.textContent = `${nomeDaCategoria(ci, categoriasPropriasDaSala())}: ${text || t("semResposta")}`;
     voteEls.myAnswers.appendChild(p);
   });
 
@@ -1023,15 +1022,15 @@ function renderVoting(room) {
       row.className = "vote-row";
       const label = document.createElement("span");
       label.className = "vote-answer";
-      label.textContent = `${room.players[uid]?.name}: ${text || "(sem resposta)"}`;
+      label.textContent = `${room.players[uid]?.name}: ${text || t("semResposta")}`;
       row.appendChild(label);
 
       if (text) {
         const voteKey = `${uid}_${ci}`;
         const votesForAnswer = room.votes?.[voteKey] || {};
-        row.appendChild(voteToggleBtn("✕ Inválida", votesForAnswer, uid, ci, "invalid"));
-        row.appendChild(voteToggleBtn("👑 Glória", votesForAnswer, uid, ci, "gloria"));
-        row.appendChild(voteToggleBtn("😂 Engraçada", votesForAnswer, uid, ci, "engracada"));
+        row.appendChild(voteToggleBtn(t("votoInvalida"), votesForAnswer, uid, ci, "invalid"));
+        row.appendChild(voteToggleBtn(t("votoGloria"), votesForAnswer, uid, ci, "gloria"));
+        row.appendChild(voteToggleBtn(t("votoEngracada"), votesForAnswer, uid, ci, "engracada"));
       }
       section.appendChild(row);
     });
@@ -1059,7 +1058,7 @@ function voteToggleBtn(label, votesForAnswer, targetUid, ci, kind) {
   btn.className = "vote-btn";
   const active = (votesForAnswer || {})[state.uid] === kind;
   btn.classList.toggle("active", active);
-  btn.textContent = `${label} (${count})`;
+  btn.textContent = t("votoContagem", label, count);
   btn.addEventListener("click", () => {
     castVote(state.code, state.room, targetUid, ci, state.uid, kind);
   });
@@ -1086,21 +1085,21 @@ roundScoreEls.nextBtn.addEventListener("click", () => {
 // Os dados já estavam todos guardados na ronda — faltava dizê-los.
 function razaoDaResposta(res, letra) {
   const texto = (res?.text || "").trim();
-  if (!texto) return "em branco";
+  if (!texto) return t("razaoEmBranco");
   switch (res.status) {
     case "valida-unica":
-      return res.gloriaVotes > 0 && res.points > 10 ? "só tu, e com Glória" : "só tu";
+      return res.gloriaVotes > 0 && res.points > 10 ? t("razaoSoTuGloria") : t("razaoSoTu");
     case "valida-repetida":
-      return "alguém escreveu o mesmo";
+      return t("razaoRepetida");
     case "engracada":
-      return "não conta, mas fez rir";
+      return t("razaoEngracada");
     case "invalida":
       // Distinguir as duas maneiras de chumbar importa: uma é regra do jogo,
       // a outra é a mesa a decidir, e quem perde os pontos merece saber qual
       // das duas foi.
       return letra && texto[0].toUpperCase() !== letra.toUpperCase()
-        ? `não começa por ${letra.toUpperCase()}`
-        : "chumbada pela maioria";
+        ? t("razaoLetraErrada", letra.toUpperCase())
+        : t("razaoChumbada");
     default:
       return "";
   }
@@ -1120,8 +1119,8 @@ function renderRoundScore(room) {
     row.className = "score-row";
     const roundPts = rr?.roundPoints?.[uid] || 0;
     row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
-      <span class="score-round">+${roundPts} nesta ronda</span>
-      <span class="score-total">${p.score || 0} pts</span>`;
+      <span class="score-round">${t("rondaNesta", roundPts)}</span>
+      <span class="score-total">${t("pontos", p.score || 0)}</span>`;
     roundScoreEls.table.appendChild(row);
 
     const respostas = rr?.byPlayer?.[uid];
@@ -1133,7 +1132,7 @@ function renderRoundScore(room) {
     // texto e ninguém lia nenhum.
     if (uid === state.uid) det.open = true;
     const sum = document.createElement("summary");
-    sum.textContent = uid === state.uid ? "Porquê estes pontos" : `Ver as respostas de ${p.name}`;
+    sum.textContent = uid === state.uid ? t("porqueEstesPontos") : t("verRespostasDe", p.name);
     det.appendChild(sum);
     indices.forEach((ci) => {
       const res = respostas[catKey(ci)];
@@ -1155,8 +1154,8 @@ function renderRoundScore(room) {
   const isLastRound = room.round >= numRounds;
   const playerCount = Object.keys(room.players || {}).length;
   roundScoreEls.nextBtn.textContent = isLastRound
-    ? (playerCount >= 3 ? "Quadro branco (bónus)" : "Ver resultados finais")
-    : "Próxima ronda";
+    ? (playerCount >= 3 ? t("rondaQuadroBonus") : t("rondaVerFinais"))
+    : t("rondaProxima");
 }
 
 

@@ -47,6 +47,14 @@ function aplicar() {
     const texto = t(el.dataset.i18nAlt);
     if (texto) el.alt = texto;
   });
+  // A linha dos atalhos do quadro leva <b> pelo meio ("Ctrl+Z anular · B
+  // caneta · ..."), e o textContent apagava-os. As frases vêm todas da tabela
+  // aqui do lado — nunca de quem joga —, por isso o innerHTML é seguro; se
+  // algum dia alguma vier de fora, isto passa a ser a porta.
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    const texto = t(el.dataset.i18nHtml);
+    if (texto) el.innerHTML = texto;
+  });
 }
 
 aplicar();

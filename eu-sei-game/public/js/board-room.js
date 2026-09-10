@@ -8,6 +8,7 @@
 // esquecer a narração ao sair). Se um dia isto precisar de mais nada do
 // app.js, é sinal de que a fronteira está a ser furada.
 import { serverNow } from "./firebase-init.js";
+import { t } from "./i18n.js";
 import { say as narrar } from "./voice.js";
 import { BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS } from "./data.js";
 import {
@@ -650,8 +651,8 @@ function buildHangmanPenZone() {
     btn.type = "button";
     btn.className = "board-tool";
     btn.dataset.hangmanTool = key;
-    btn.title = tool.label;
-    btn.innerHTML = `<span aria-hidden="true">${tool.icon}</span><span class="board-tool-name">${tool.label}</span>`;
+    btn.title = t(tool.chave) || tool.label;
+    btn.innerHTML = `<span aria-hidden="true">${tool.icon}</span><span class="board-tool-name">${t(tool.chave) || tool.label}</span>`;
     btn.addEventListener("click", () => selectHangmanTool(key));
     hangmanEls.toolsRow.appendChild(btn);
   });
@@ -1900,7 +1901,7 @@ export function renderHangman(room) {
   hangmanEls.screen.classList.toggle("hangman-role-drawer", amLeader);
   hangmanEls.screen.classList.toggle("hangman-role-viewer", !amLeader);
   hangmanEls.penZone.classList.toggle("hidden", !possoEscrever);
-  hangmanEls.modeTitle.textContent = `Quadro — ${BOARD_MODES[mode].label}`;
+  hangmanEls.modeTitle.textContent = t("quadroModoTitulo", t(BOARD_MODES[mode].chave) || BOARD_MODES[mode].label);
   hangmanEls.modeHint.textContent = BOARD_MODES[mode].hint;
 
   // No modo Forca ninguém tem a caneta até a sala votar. Enquanto isso, o

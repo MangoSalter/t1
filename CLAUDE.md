@@ -484,10 +484,42 @@ three languages:
   `index.html` against the table (110 attributes today). Falsified by renaming
   one.
 
+### Count what reaches the screen, not what is marked up
+
+The first version of the sweep counted visible text with no `data-i18n` on
+it. That measures the MARKUP, and the markup is the half I could see. It
+went to zero while ten tool names — Caneta, Marcador, Fluorescente — sat in
+English-less Portuguese on the room whiteboard, built by `board-room.js` from
+a table in `data.js`. I then made it worse by marking their container
+`data-i18n-js` to quiet the count: a marker that says "handled elsewhere"
+is worth exactly as much as the care of whoever wrote it, and I had just
+proved mine was not enough. Falsifying caught it — I reverted the `t()` call
+and the sweep stayed green.
+
+What it does now: **open the app twice, once in `pt` and once in `en`, walk
+the same tree, and compare position by position.** Text that comes out
+identical in both did not pass through `t()`, wherever it was born. No
+annotation to forget, and it reaches the JavaScript-built half that no
+attribute scan ever could. The allow-list is short and each entry is a
+deliberate renunciation (proper names, the language names inside the
+selector, and the handful of words that genuinely coincide). Falsified both
+ways: remove a `data-i18n`, red; revert one `t()` call inside a module, red.
+
+That sweep found four more real gaps in one run: the ball screen, the memory
+prompt, and both board titles were `data-i18n-js` — painted by JavaScript —
+but their INITIAL markup was Portuguese, so an English visitor saw
+Portuguese until the game got round to repainting. `data-i18n-js` is only for
+elements that start EMPTY; anything with text in the HTML needs `data-i18n`
+too, and the two live together fine.
+
 The remaining count is a ceiling in `linguas-ecra-test`, not a note in this
 file, for the reason the first-load section gives: numbers written down go
-stale, numbers that fail a test do not. It stood at **141** when the front
-door was done.
+stale, numbers that fail a test do not. It is **zero** now — 285 to nothing —
+so anything that appears there is text somebody added without translating it.
+
+What zero does NOT cover, and the doc says so: sentences that only exist
+mid-game — Dona Manga's lines, mini-game status text, the room whiteboard's
+running commentary. No sweep of a freshly loaded page can see them.
 
 ### The suite had never said which language it was testing
 

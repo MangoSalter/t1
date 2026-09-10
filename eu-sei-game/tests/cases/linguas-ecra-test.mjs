@@ -32,62 +32,104 @@ function check(label, cond, extra = "") {
 //   vivem no data.js. Traduzi-las decide em que língua se RESPONDE, que é
 //   coisa do dono e não arrumação; ficam listadas aqui para o tecto não as
 //   contar como trabalho por fazer.
-const PROPRIOS = ["Eu sei!", "Português", "English", "Español"];
+// O que sobra em português não é tudo defeito. Três famílias ficam de fora
+// de propósito, e a lista é curta porque cada entrada é uma renúncia:
+//
+// - os nomes próprios (Eu sei!, Dona Manga, Kota) não se traduzem em jogo
+//   nenhum, e traduzi-los partia a coesão da casa;
+// - os nomes das línguas dentro do seletor são sempre a língua que nomeiam —
+//   "English" tem de dizer English mesmo a quem lê espanhol, senão não se
+//   encontra;
+// - as palavras que são MESMO iguais em português e inglês (Texto/Text não,
+//   mas Pausa/Pause partilham raiz e algumas coincidem de todo).
+//
+// À parte, as CATEGORIAS do jogo clássico (Animal, Cidade, Fruta...) são
+// conteúdo e vivem no data.js. Traduzi-las decide em que língua se RESPONDE,
+// que é coisa do dono e não arrumação.
+const IGUAIS_DE_PROPOSITO = [
+  "Eu sei!", "Português", "English", "Español",
+  "Harry Potter", "Mar", "Tema", "Texto", "Fluorescente", "Círculo", "Mover",
+  "Letra:", "pts", "Cancelar", "Continuar", "Guardar", "Fino", "Liso",
+];
 
-// ---- 1. A PORTA DE ENTRADA ESTÁ TRADUZIDA ----
-// Os três ecrãs que decidem se alguém fica: o inicial, o menu de jogar
-// sozinho e a sala de espera. Aqui o tecto é zero, tirando as categorias do
-// clássico, que são conteúdo.
-const ctx = await browser.newContext();
-const page = await ctx.newPage();
-await page.addInitScript(() => { localStorage.setItem("euSei_lingua", "en"); });
-await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
-
-const categorias = await page.evaluate(() =>
-  [...document.querySelectorAll("#cfg-cat-grid label")].map((l) => l.textContent.trim()));
-
-const nus = await page.evaluate((props) => {
-  const temLetra = (s) => /\p{L}/u.test(s);
-  const proprio = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim();
-  const out = {};
-  document.querySelectorAll("[data-screen]").forEach((sec) => {
-    const antes = sec.classList.contains("active");
-    sec.classList.add("active");
-    const lista = [];
-    sec.querySelectorAll("*").forEach((el) => {
-      if (el.offsetParent === null) return;
-      if (el.closest("[data-i18n]")) return;
-      // Umas quantas frases levam peças a encaixar (pontos, dias seguidos) e
-      // por isso não cabem num data-i18n: quem as pinta volta a pintá-las no
-      // aoMudarLingua. Marcam-se com data-i18n-js para se saber que estão
-      // tratadas — e o passo 4 confirma que estão mesmo.
-      if (el.closest("[data-i18n-js]")) return;
-      if (el.closest("#cfg-cat-grid")) return;
-      const txt = proprio(el).replace(/\s+/g, " ");
-      if (!txt || !temLetra(txt) || props.includes(txt)) return;
-      lista.push(txt.slice(0, 50));
+// Corre a mesma varredura em português e em inglês, e compara. É por aqui
+// que se apanha o que NÃO está no HTML: uma frase construída em JavaScript
+// não tem data-i18n nenhum, e marcá-la à mão era pedir para alguém marcar o
+// que se esqueceu de traduzir — foi exatamente o que me aconteceu com os
+// nomes das ferramentas do quadro. Se o texto sai igual nas duas línguas e
+// não está na lista de cima, não passou pelo t().
+async function varrer(lingua) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.addInitScript((l) => { localStorage.setItem("euSei_lingua", l); }, lingua);
+  await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+  const out = await page.evaluate(() => {
+    const proprio = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim();
+    const res = {};
+    document.querySelectorAll("[data-screen]").forEach((sec) => {
+      const antes = sec.classList.contains("active");
+      sec.classList.add("active");
+      const lista = [];
+      sec.querySelectorAll("*").forEach((el) => {
+        if (el.offsetParent === null) return;
+        if (el.closest("#cfg-cat-grid")) return;
+        // Os pedaços dentro de uma frase com marcação (as teclas Ctrl+Z, B,
+        // E do atalho do quadro) são nomes de teclas, iguais em toda a
+        // parte; quem conta é a frase à volta, que é a que leva o atributo.
+        if (el.parentElement?.closest("[data-i18n-html]")) return;
+        lista.push(proprio(el).replace(/\s+/g, " "));
+      });
+      if (!antes) sec.classList.remove("active");
+      res[sec.dataset.screen] = lista;
     });
-    if (!antes) sec.classList.remove("active");
-    out[sec.dataset.screen] = lista;
+    return res;
   });
-  return out;
-}, PROPRIOS);
+  const categorias = await page.evaluate(() =>
+    [...document.querySelectorAll("#cfg-cat-grid label")].map((l) => l.textContent.trim()).length);
+  await ctx.close();
+  return { out, categorias };
+}
+
+const pt = await varrer("pt");
+const en = await varrer("en");
+
+const temLetra = (x) => /\p{L}/u.test(x);
+const medida = (x) => /^[\d.,]+\s*(px|%|s|pts|kb|mb)$/i.test(x);
+const nus = {};
+for (const [ecra, lista] of Object.entries(pt.out)) {
+  const outra = en.out[ecra] || [];
+  // As duas varreduras percorrem a MESMA árvore: só o texto muda, por isso a
+  // posição chega para emparelhar. Se um dia deixarem de ter o mesmo
+  // tamanho, é porque a língua mudou a estrutura — e isso é para saber.
+  if (lista.length !== outra.length) {
+    erros.push(`${ecra}: a árvore muda de tamanho com a língua (${lista.length} vs ${outra.length})`);
+    console.error(`FALHOU: ${ecra}: a árvore muda de tamanho com a língua`);
+    continue;
+  }
+  nus[ecra] = lista.filter((txt, i) => txt && temLetra(txt) && !medida(txt)
+    && txt === outra[i] && !IGUAIS_DE_PROPOSITO.includes(txt)).map((x) => x.slice(0, 50));
+}
 
 for (const ecra of ["home", "solo-menu", "lobby"]) {
   const restam = nus[ecra] || [];
   check(`${ecra}: nada por traduzir`, restam.length === 0, restam.join(" | "));
 }
-check("o mapa das categorias do clássico está lá (são conteúdo, não chrome)", categorias.length >= 30, `${categorias.length}`);
+check("o mapa das categorias do clássico está lá (são conteúdo, não chrome)", pt.categorias >= 30, `${pt.categorias}`);
 
-// ---- 2. O TECTO GLOBAL ----
-// 41 ecrãs. Este número desce à medida que a tradução avança e nunca deve
-// subir; quem o subir está a acrescentar português novo a um jogo que promete
-// três línguas.
-const TECTO = 150;
+// ---- 2. E EM ECRÃ NENHUM ----
+// Zero. Eram 285 antes disto, e o que aparecer aqui a partir de agora é
+// texto novo que alguém escreveu sem tradução — que é o que este número
+// existe para apanhar.
+const TECTO = 0;
 const total = Object.values(nus).reduce((s, v) => s + v.length, 0);
 const piores = Object.entries(nus).filter(([, v]) => v.length).sort((a, b) => b[1].length - a[1].length).slice(0, 6);
-console.log(`Por traduzir: ${total} textos. Piores ecrãs: ${piores.map(([e, v]) => `${e}=${v.length}`).join(", ")}`);
-check(`o que falta traduzir está dentro do tecto (${total} <= ${TECTO})`, total <= TECTO);
+for (const [e, v] of piores) console.error(`  ${e}: ${v.join(" | ")}`);
+console.log(`Por traduzir: ${total} textos.`);
+check(`nada por traduzir em ecrã nenhum (${total} <= ${TECTO})`, total <= TECTO);
+
+const ctx = await browser.newContext();
+const page = await ctx.newPage();
+await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
 
 // ---- 3. TROCAR DE LÍNGUA REPINTA MESMO O ECRÃ ----
 // A tabela pode estar certa e o ecrã continuar em português: basta o

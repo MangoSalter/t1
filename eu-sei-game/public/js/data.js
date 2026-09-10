@@ -1110,23 +1110,27 @@ export function pickBoardChaos(evitarId) {
 }
 
 // --- Ferramentas do quadro (solo e de sala) ---
+// A "chave" é o nome desta ferramenta na tabela das línguas (i18n.js). O
+// rótulo em português fica onde está: é o que se lê se a chave faltar, e é
+// como este ficheiro se lê. O data.js continua puro — não importa o i18n,
+// só diz onde procurar; quem PINTA é que traduz.
 // widthScale multiplica a espessura escolhida; alpha multiplica a
 // transparência escolhida; composite é o que dá a cada uma o seu carácter.
 // O fluorescente usa "multiply" para que, ao passar por cima do que já está
 // escrito, a tinta escureça em vez de tapar — é o que um marcador
 // fluorescente de verdade faz ao papel.
 export const BOARD_TOOLS = {
-  pen:         { label: "Caneta",       icon: "🖊️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round" },
-  marker:      { label: "Marcador",     icon: "🖍️", widthScale: 2.6, alpha: 0.95, composite: "source-over", cap: "round" },
-  pencil:      { label: "Lápis",        icon: "✏️", widthScale: 0.5, alpha: 0.75, composite: "source-over", cap: "round" },
-  highlighter: { label: "Fluorescente", icon: "🖌️", widthScale: 5,   alpha: 0.4,  composite: "multiply",    cap: "square" },
-  eraser:      { label: "Borracha",     icon: "🧽", widthScale: 3.5, alpha: 1,    composite: "destination-out", cap: "round" },
-  line:        { label: "Linha",        icon: "📏", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
-  arrow:       { label: "Seta",         icon: "➡️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
-  rect:        { label: "Retângulo",    icon: "▭",  widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
-  ellipse:     { label: "Círculo",      icon: "⭕", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
-  text:        { label: "Texto",        icon: "🔤", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", text: true },
-  hand:        { label: "Mover",        icon: "✋", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", pan: true },
+  pen:         { label: "Caneta", chave: "ferramentaCaneta",       icon: "🖊️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round" },
+  marker:      { label: "Marcador", chave: "ferramentaMarcador",     icon: "🖍️", widthScale: 2.6, alpha: 0.95, composite: "source-over", cap: "round" },
+  pencil:      { label: "Lápis", chave: "avatarLapis",        icon: "✏️", widthScale: 0.5, alpha: 0.75, composite: "source-over", cap: "round" },
+  highlighter: { label: "Fluorescente", chave: "ferramentaFluorescente", icon: "🖌️", widthScale: 5,   alpha: 0.4,  composite: "multiply",    cap: "square" },
+  eraser:      { label: "Borracha", chave: "avatarBorracha",     icon: "🧽", widthScale: 3.5, alpha: 1,    composite: "destination-out", cap: "round" },
+  line:        { label: "Linha", chave: "ferramentaLinha",        icon: "📏", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
+  arrow:       { label: "Seta", chave: "ferramentaSeta",         icon: "➡️", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true },
+  rect:        { label: "Retângulo", chave: "ferramentaRetangulo",    icon: "▭",  widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
+  ellipse:     { label: "Círculo", chave: "ferramentaCirculo",      icon: "⭕", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", shape: true, fillable: true },
+  text:        { label: "Texto", chave: "ferramentaTexto",        icon: "🔤", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", text: true },
+  hand:        { label: "Mover", chave: "ferramentaMover",        icon: "✋", widthScale: 1,   alpha: 1,    composite: "source-over", cap: "round", pan: true },
 };
 
 
