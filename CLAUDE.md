@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m11s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m49s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -248,14 +248,14 @@ were handled. Static markup is all this catches, so in-game HUDs still need
 real navigation; but the sweep tells you where to go and look.
 
 That sweep lived in my hands and nowhere on disk, so it only ever ran the day
-I wrote it. It is `a11y-test` step 13 now, and the run that put it there found
+I wrote it. It is `a11y-varrimento-test` step 2 now, and the run that put it there found
 the category checkboxes at 40px on three screens — the lobby included, where
 a mis-tap changes what the whole room is about to play. The CSS said 40 was
 "the compromise between hitting it and not scrolling for ever"; the grid has
 had `max-height: 240px` all along, so it already scrolled, and the compromise
 was paying for nothing.
 
-The same run's step 12 covers the sixteen overlays, which no sweep could ever
+Step 1 of the same case covers the sixteen overlays, which no sweep could ever
 have reached: they sit OUTSIDE `[data-screen]`, and they are born `hidden`, so
 a sweep that skips what it cannot see skips all of them. Open each one by hand
 (`classList.remove("hidden")`), measure, put it back. Fifteen of the sixteen
@@ -264,6 +264,21 @@ the step prints which came back empty so an overlay that measures nothing is
 visible instead of silently green. What it found: the seven colours you draw
 your own avatar with, at 26px, with no phone rule anywhere — the very first
 screen, before anyone joins a room.
+
+The four sweeps live in `a11y-varrimento-test`, not in `a11y-test`. They were
+one file until the set crossed the **five minutes the runner allows a single
+case** and got SIGKILLed halfway — and a killed case prints nothing useful,
+so the symptom was a silent failure with no error text. They split cleanly:
+`a11y-test` keeps focus, reduced motion and contrast; the sweeps measure size
+and name, screen by screen and overlay by overlay. Two cases also finish
+sooner than one, because the runner parallelises by case.
+
+The last of those sweeps measures the "a carregar..." label itself, which is
+UI I added and therefore UI that had never been measured. It holds the
+`solo.js` request open with `page.route` for a second and a half and reads the
+button mid-flight: **342x50 on an iPhone 13**, before and during, so the label
+swap never shrinks the target under the thumb. It also checks the old label
+comes back.
 
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
@@ -326,8 +341,8 @@ world" family of bugs can only appear in the tag arena — checked, not assumed.
 Also measured clean, so don't re-sweep: every room game's screen (Desenha e
 Adivinha, Fuga da Infeção, Labirinto, Mini-Golfe, mapa em sala, marcos) on an
 iPhone 13; and the classic game's four dynamic screens — the letter vote, the
-answer sheet, "porquê estes pontos" and the end of the match — which `a11y-test`
-step 14 now drives on a phone through the stub, because step 13 only ever sees
+answer sheet, "porquê estes pontos" and the end of the match — which
+`a11y-varrimento-test` step 3 drives on a phone through the stub, because step 2 only ever sees
 what is written in `index.html` and every button on those four is built in
 JavaScript.
 
