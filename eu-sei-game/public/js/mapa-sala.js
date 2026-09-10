@@ -88,10 +88,10 @@ function desenharClassificacao(room) {
   const caixa = document.getElementById("mapa-sala-tabela");
   if (!caixa) return;
   const linhas = mapaClassificacao(room);
-  caixa.innerHTML = linhas.map((l, i) => `
+  caixa.innerHTML = linhas.map((l) => `
     <li class="${l.uid === state.uid ? "eu" : ""}">
       <span class="mapa-sala-cor" style="background:${corDoJogador(room, l.uid)}"></span>
-      <b>${i + 1}º</b> ${escapeHtml(l.nome)}
+      <b>${l.lugar}º</b> ${escapeHtml(l.nome)}
       <span class="mapa-sala-num">${l.paises} · ${l.pontos} pts</span>
     </li>`).join("");
   caixa.classList.toggle("hidden", linhas.length === 0);

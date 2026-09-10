@@ -510,6 +510,33 @@ export async function finishVoting(code, room) {
 // de forma confusa com o voto de Inválida na mesma resposta).
 export const ROUND_GLORIA_BONUS = 5;
 
+// A CLASSIFICAÇÃO FINAL, com os empates a partilharem o lugar.
+//
+// Antes era só ordenar por pontos e dar a coroa ao primeiro da lista. Com dois
+// empatados em primeiro, a coroa ia para um deles e o outro lia "#2" — e quem
+// decidia era a ordem por que tinham entrado na sala, que não é coisa que
+// alguém veja nem possa contestar. Num jogo de festa o ecrã final é o que
+// fica da noite; dizer a duas pessoas com os mesmos pontos que uma ganhou é
+// inventar um resultado.
+//
+// Lugares à maneira das competições: dois primeiros, e a seguir o terceiro
+// lugar (não o segundo). Devolve a lista já ordenada, cada um com o seu
+// lugar e se está no topo.
+export function classificacaoFinal(players = {}) {
+  const lista = Object.entries(players)
+    .map(([uid, p]) => ({ uid, jogador: p, pontos: p?.score || 0 }))
+    .sort((a, b) => b.pontos - a.pontos);
+  let lugar = 0;
+  let pontosDoLugar = null;
+  return lista.map((linha, i) => {
+    if (linha.pontos !== pontosDoLugar) {
+      lugar = i + 1;
+      pontosDoLugar = linha.pontos;
+    }
+    return { ...linha, lugar, primeiro: lugar === 1 };
+  });
+}
+
 export function computeRoundResults(room) {
   const players = Object.keys(room.players || {});
   const N = players.length;
@@ -3482,7 +3509,16 @@ export function mapaClassificacao(room) {
       erros: marcadores[uid]?.erros || 0,
       melhorCadeia: marcadores[uid]?.melhorCadeia || 0,
     }))
-    .sort((a, b) => b.paises - a.paises || b.pontos - a.pontos || a.erros - b.erros);
+    .sort((a, b) => b.paises - a.paises || b.pontos - a.pontos || a.erros - b.erros)
+    // Empatados nas três contas partilham o lugar. É raro — são três
+    // desempates — mas quando acontece a tabela dizia 1º e 2º a duas pessoas
+    // com exatamente o mesmo, e escolhia pela ordem por que entraram.
+    .map((linha, i, todas) => {
+      const igual = (a, b) => a.paises === b.paises && a.pontos === b.pontos && a.erros === b.erros;
+      let lugar = i + 1;
+      for (let j = i - 1; j >= 0 && igual(todas[j], linha); j -= 1) lugar = j + 1;
+      return { ...linha, lugar };
+    });
 }
 
 export async function startMapaTeam(code, room, modo = "mundo", dificuldade = "livre") {

@@ -17,7 +17,7 @@ import {
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, submitAnswer, finishCategoriesRound, startVoting, castVote,
-  finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray,
+  finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
@@ -2926,15 +2926,15 @@ finalEls.rematchBtn.addEventListener("click", () => {
 });
 
 function renderFinal(room) {
-  const players = Object.entries(room.players || {});
-  players.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
   finalEls.ranking.innerHTML = "";
-  players.forEach(([uid, p], i) => {
+  // Empatados partilham o lugar, e a coroa é de todos os que estão no topo
+  // (ver classificacaoFinal em room.js).
+  classificacaoFinal(room.players || {}).forEach(({ jogador: p, pontos, lugar, primeiro }) => {
     const row = document.createElement("div");
     row.className = "final-row";
-    row.innerHTML = `<span class="final-pos">${i === 0 ? "👑" : `#${i + 1}`}</span>
+    row.innerHTML = `<span class="final-pos">${primeiro ? "👑" : `#${lugar}`}</span>
       <span class="final-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
-      <span class="final-score">${p.score || 0} pts</span>`;
+      <span class="final-score">${pontos} pts</span>`;
     finalEls.ranking.appendChild(row);
   });
   finalEls.rematchBtn.classList.toggle("hidden", !isHost(room));

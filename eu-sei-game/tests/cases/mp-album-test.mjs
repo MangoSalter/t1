@@ -138,6 +138,37 @@ if (!naSalaNova.escondido || naSalaNova.quantos !== 0) {
   falhar("o álbum de uma sala não pode aparecer na seguinte");
 }
 
+console.log("7) Empate no topo: a coroa é dos dois, e o lugar a seguir é o terceiro...");
+// A regra vive no room.js (classificacaoFinal) e está coberta por um teste
+// puro; isto prova que o ECRÃ a usa. Antes, dois empatados liam "👑" e "#2",
+// e quem escolhia era a ordem por que tinham entrado na sala.
+// A sala onde a página está agora é a "outraSala"; é preciso gente nela.
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/players`, {
+    p9: { name: "Empatada", score: 30, connected: true },
+    p8: { name: "Terceiro", score: 10, connected: true },
+  });
+  const r = window.__testDb.get(`rooms/${c}`);
+  window.__testDb.update(`rooms/${c}/players/${r.hostId}`, { score: 30 });
+  window.__testDb.update(`rooms/${c}`, { state: "lobby" });
+  window.__testDb.update(`rooms/${c}`, { state: "final" });
+}, outraSala);
+await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+await page.waitForTimeout(200);
+const lugares = await page.evaluate(() =>
+  [...document.querySelectorAll("#final-ranking .final-pos")].map((e) => e.textContent.trim()));
+console.log(`   lugares no ecrã: ${lugares.join(" ")}`);
+const coroas = lugares.filter((l) => l.includes("👑")).length;
+if (coroas !== 2) {
+  console.log(`   FALHOU: dois empatados em primeiro deviam ter as duas coroas (tinham ${coroas})`);
+  process.exitCode = 1;
+}
+if (lugares[2] !== "#3") {
+  console.log(`   FALHOU: a seguir a dois primeiros vem o #3, não "${lugares[2]}"`);
+  process.exitCode = 1;
+}
+
+
 await browser.close();
 const reais = erros.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(reais.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + reais.join("\n"));

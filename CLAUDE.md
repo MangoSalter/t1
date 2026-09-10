@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m40s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **15m21s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -172,6 +172,22 @@ something else.
 Two things that check out, so don't re-audit them: `pagoNestaSala` keys itself
 by room code, and `hangmanJudging` is released in a `finally`.
 
+## Ranking by array index invents a result
+`renderFinal` sorted players by score and gave the crown to index 0, `#2` to
+index 1, and so on. Two people tied for first therefore read "👑" and "#2",
+and what decided it was the order they had joined the room — something nobody
+can see or argue with. The final screen is what is left of the evening.
+`classificacaoFinal` (in `room.js`, so a pure test can reach it) gives tied
+players the same place, competition style: two firsts, then third. The map's
+live table had the same shape and now shares places too, though it is much
+rarer there — it breaks ties three deep (countries, points, fewest errors)
+before position can matter.
+
+Falsified both ways: the pure check went red with `lugar = 1` for everyone,
+and `mp-album` step 7 — which reads the crowns off the real screen — went red
+with `primeiro: i === 0`. Worth having both: the pure one states the rule, the
+browser one proves the screen uses it.
+
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with
 `if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that
@@ -180,6 +196,11 @@ decided its exit code, so the case passed with the old broken palette in
 place. Found only by falsifying. When you add to a pure case, put the new
 block BEFORE the summary line, or move the summary to the end (which is what
 I did here).
+
+It caught me a second time, mildly, in `test-scoring`: I appended the ties
+block after `console.log("Todos os testes passaram")`. That line only prints
+— it does not exit — so the checks could still fail the case, but the summary
+was printed before them and said everything had passed. Moved to the end.
 
 ## New UI is not done until it has been measured on a phone
 This is a party game: everyone joins from their own phone, so the phone is the

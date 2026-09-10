@@ -196,5 +196,31 @@ console.log("24) As cores do mapa distinguem-se umas das outras, em três visõe
   }
 }
 
+// --- Empates na tabela do mapa ---
+//
+// Há três desempates (países, pontos, erros), por isso um empate a sério é
+// raro — mas quando acontece a tabela dizia 1º e 2º a duas pessoas com
+// exatamente o mesmo, e quem decidia era a ordem por que entraram.
+{
+  const sala = {
+    players: { a: { name: "Ana" }, b: { name: "Beto" }, c: { name: "Carla" } },
+    mapa: {
+      donos: { Franca: "a", Espanha: "b", Peru: "c" },
+      marcadores: {
+        a: { pontos: 10, erros: 0, melhorCadeia: 1 },
+        b: { pontos: 10, erros: 0, melhorCadeia: 1 },
+        c: { pontos: 5, erros: 2, melhorCadeia: 1 },
+      },
+    },
+  };
+  const lugares = mapaClassificacao(sala).map((l) => l.lugar).join(",");
+  if (lugares !== "1,1,3") {
+    console.log(`FALHOU: dois empatados deviam partilhar o 1º e o seguinte ser 3º — deu ${lugares}`);
+    falhas += 1;
+  } else {
+    console.log(`OK: empate na tabela do mapa partilha o lugar (${lugares})`);
+  }
+}
+
 if (falhas > 0) { console.log(`=> mapa-sala FALHOU (${falhas})`); process.exit(1); }
 console.log("=> mapa-sala ok");

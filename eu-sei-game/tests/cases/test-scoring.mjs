@@ -9,7 +9,7 @@
 // Agora importa a função verdadeira. É possível porque os casos puros correm
 // dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
 // test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
-import { computeRoundResults, ROUND_GLORIA_BONUS } from "./js/room.js";
+import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal } from "./js/room.js";
 
 function catKey(i) { return "c" + i; }
 
@@ -140,4 +140,41 @@ function assertEqual(actual, expected, label) {
   assertEqual(roundPoints.A, 10, "só o voto mais recente de B (gloria, sem maioria) conta — resposta válida normal");
 }
 
+
+// --- A classificação final, com empates ---
+//
+// Antes disto o ecrã final ordenava por pontos e dava a coroa ao primeiro da
+// lista: dois empatados em primeiro liam "👑" e "#2", e quem decidia era a
+// ordem por que tinham entrado na sala. Num jogo de festa o ecrã final é o
+// que fica da noite.
+{
+  const empateNoTopo = classificacaoFinal({
+    a: { name: "Ana", score: 30 },
+    b: { name: "Beto", score: 30 },
+    c: { name: "Carla", score: 10 },
+  });
+  assertEqual(empateNoTopo.filter((l) => l.primeiro).length, 2, "dois empatados em primeiro são os dois primeiros");
+  assertEqual(empateNoTopo.map((l) => l.lugar).join(","), "1,1,3", "depois de dois primeiros vem o TERCEIRO lugar");
+
+  // E sem empates continua a ser 1, 2, 3.
+  const semEmpate = classificacaoFinal({
+    a: { name: "Ana", score: 30 },
+    b: { name: "Beto", score: 20 },
+    c: { name: "Carla", score: 10 },
+  });
+  assertEqual(semEmpate.map((l) => l.lugar).join(","), "1,2,3", "sem empates os lugares são 1,2,3");
+  assertEqual(semEmpate[0].jogador.name, "Ana", "quem tem mais pontos vem à frente");
+
+  // Toda a gente a zero é toda a gente em primeiro: é o que aconteceu.
+  const todosAZero = classificacaoFinal({ a: { score: 0 }, b: { score: 0 } });
+  assertEqual(todosAZero.every((l) => l.primeiro), true, "com todos a zero ninguém foi mais longe do que ninguém");
+
+  // Uma sala vazia não pode rebentar o ecrã final.
+  assertEqual(classificacaoFinal({}).length, 0, "uma sala sem jogadores dá uma lista vazia");
+}
+
+// O resumo fica no FIM do ficheiro. Ao acrescentar o bloco dos empates
+// abaixo dele, a linha "Todos os testes passaram" era impressa antes de eles
+// correrem — o exitCode ainda mudava, mas o que se lia mentia (ver a nota
+// sobre isto no CLAUDE.md).
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");

@@ -182,6 +182,7 @@ sai sozinha se disseres.
 | **Cores que se distinguem** (medidas, incluindo daltonismo) e cada jogador com a sua sem ter de a pedir | Mapa em sala; quadro | A cor era a única coisa a dizer de quem é o quê, e havia pares iguais |
 | **Onde vale a dobrar** (tracejado e "x2") e **quanto valeu cada país** (+10, +17 do mesmo continente, metade com pista) | Conquistar o Mapa | Duas regras que existiam e não se viam em lado nenhum |
 | **Convite por ligação**: um botão no lobby copia um endereço que abre a app com o código já escrito | Lobby, e a entrada | Ditar quatro letras por chamada é onde se perde gente — o Jackbox e o skribbl partilham ligação, não código |
+| **Empates partilham o lugar**: dois com os mesmos pontos são os dois primeiros, e a seguir vem o terceiro | Fim de partida; tabela do mapa | O ecrã final é o que fica da noite, e dizia a um dos empatados que tinha perdido — por ordem de entrada na sala, que ninguém vê |
 | **O mapa, o modo sozinho e o quadro solo só se carregam ao abrir**: 913 KB para 661 KB na primeira abertura | Todo o site | Um jogo de festa abre-se em dez telemóveis ao mesmo tempo, muitas vezes na rede de dados de outra pessoa |
 
 **Duas coisas que medi e NÃO mexi, para não decidir por ti:**
