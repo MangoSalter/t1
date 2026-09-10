@@ -83,11 +83,12 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 94 cases and takes **16m39s at 4 jobs** (measured
+rooms. The full suite is 96 cases and takes **16m42s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
-was true, and then at 91/14m33s for three more; this line rots every time
-somebody adds a case, so re-time it rather than quoting it). The serial figure in here used to say ~25 minutes; I have not
+was true, and then at 91/14m33s for three more, and 94 lasted exactly two
+commits of mine; this line rots every time somebody adds a case, so re-time
+it rather than quoting it). The serial figure in here used to say ~25 minutes; I have not
 re-measured it, so treat it as folklore. If you need a number, measure it.
 
 ## Counting tests per game: do not grep, and do not trust a tool either
@@ -555,8 +556,8 @@ so the symptom was a silent failure with no error text. That cliff is visible
 now: the runner prints each case's duration, says `MORTO ao fim de Ns` instead
 of a bare `FALHOU` when it was the ceiling that killed it, and ends the run by
 listing anything past 60% of the limit. The threshold is 60% and not 70%
-because measured, the two longest cases — `test-mapa` at **203s** and
-`a11y-test` at **200s** — both fall under 70% (210s), so that threshold would
+because measured, the two longest cases — `test-mapa` at **199-206s** and
+`a11y-test` at **194-200s** across three runs — both fall under 70% (210s), so that threshold would
 name nothing at all, the one file that has actually died included. Third is
 `a11y-varrimento-test` at 144s; everything else is under 111s. They split
 cleanly:
