@@ -30,14 +30,14 @@
       </svg>
       <h1>Eu sei!</h1>
       <p class="subtitle">Dona Manga mandou-te competir. Mostra que sabes.</p>
-      <input id="name-input" type="text" placeholder="O teu nome" maxlength="18" />
+      <input id="name-input" aria-label="O teu nome" type="text" placeholder="O teu nome" maxlength="18" />
       <div class="avatar-picker-row">
         <img id="avatar-preview" class="avatar-preview" alt="O teu avatar" />
         <button id="avatar-edit-btn" type="button" class="ghost-primary">Desenhar o meu avatar</button>
       </div>
       <button id="create-room-btn" class="primary">Criar sala</button>
       <div class="divider">ou</div>
-      <input id="join-code-input" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
+      <input id="join-code-input" aria-label="Código da sala, quatro letras" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
       <p id="join-convite-hint" class="hint small hidden"></p>
       <button id="join-room-btn">Entrar na sala</button>
       <div class="divider">ou</div>
@@ -213,9 +213,9 @@
       <p id="solo-hangman-lives" class="hint"></p>
 
       <div id="solo-hangman-guess-controls" class="hangman-guess-controls">
-        <input id="solo-hangman-letter-input" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
+        <input id="solo-hangman-letter-input" aria-label="Arriscar uma letra" type="text" maxlength="1" autocomplete="off" placeholder="Letra" />
         <button id="solo-hangman-guess-letter-btn" class="primary">Adivinhar letra</button>
-        <input id="solo-hangman-word-guess-input" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
+        <input id="solo-hangman-word-guess-input" aria-label="Arriscar a palavra toda" type="text" autocomplete="off" placeholder="Arriscar a palavra toda" />
         <button id="solo-hangman-guess-word-btn" class="primary">Arriscar!</button>
       </div>
       <p id="solo-hangman-status" class="hint"></p>
@@ -300,7 +300,7 @@
       <h2>Mini-jogo: Palavra Relâmpago!</h2>
       <p class="hint">Escreve o máximo de palavras que conseguires que comecem por <span id="wf-letter" class="letter-big"></span>, antes do tempo acabar.</p>
       <div class="round-timer" id="wf-timer"></div>
-      <input id="wf-input" type="text" autocomplete="off" placeholder="Escreve uma palavra e carrega Enter" />
+      <input id="wf-input" aria-label="Escrever uma palavra" type="text" autocomplete="off" placeholder="Escreve uma palavra e carrega Enter" />
       <p id="wf-feedback" class="hint small"></p>
       <div id="wf-words" class="wf-words"></div>
       <p id="wf-status" class="hint"></p>
@@ -351,7 +351,7 @@
       <div class="round-timer" id="map-timer"></div>
       <div id="map-arena" class="map-arena"></div>
       <div class="map-answer-row">
-        <input id="map-answer-input" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
+        <input id="map-answer-input" aria-label="Escrever o nome de um país" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
         <button id="map-answer-submit-btn" class="primary">Responder</button>
       </div>
       <p id="map-status" class="hint"></p>
@@ -891,7 +891,7 @@
       <div class="round-timer" id="map-trivia-timer"></div>
       <div id="map-trivia-arena" class="map-arena"></div>
       <div id="map-trivia-answer-row" class="map-answer-row">
-        <input id="map-trivia-answer-input" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
+        <input id="map-trivia-answer-input" aria-label="Escrever o nome de um país" type="text" autocomplete="off" placeholder="Escreve o nome de um país..." />
         <button id="map-trivia-answer-submit-btn" class="primary">Responder</button>
       </div>
       <p id="map-trivia-answered" class="hint small"></p>

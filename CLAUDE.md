@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m01s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **14m11s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -169,8 +169,14 @@ against the old word. Both paths share `palavraDestaFolha` now, and
 it. Falsified by removing the call: "Palavra: banana", on a sheet that spells
 something else.
 
-Two things that check out, so don't re-audit them: `pagoNestaSala` keys itself
-by room code, and `hangmanJudging` is released in a `finally`.
+Then I swept the rest of the module-level state for this shape and it is
+clean, so **don't re-audit these**: `pagoNestaSala` keys itself by room code;
+`hangmanJudging` is released in a `finally`; `paleta.js` nulls its callback in
+`fechar()` and every close path (button, backdrop, Escape) goes through it;
+`caos.js`'s `limparCaos` strips `.chaos-wobble` from every element rather than
+only the one it remembered; `esquecerMapaDaSala` clears both `ligado` and
+`ultimaManga`; and in `app.js` the ball-click flag resets per ball phase while
+the render caches key off content, not position.
 
 ## Ranking by array index invents a result
 `renderFinal` sorted players by score and gave the crown to index 0, `#2` to
@@ -277,6 +283,17 @@ all 16 overlays has a name**, and the avatar's seven colours were the only
 ones that did not — pure colour buttons, no label, in the overlay nobody had
 ever opened. They now announce "Amarelo-mostarda #e3a53d" and carry
 `aria-pressed`.
+
+The sweeps measure text inputs too, since September — `input` (minus hidden,
+checkbox and radio) and `textarea` alongside the buttons. Two results. Every
+input is already **at or above 44px**, so nothing to fix there; but seven were
+relying on their `placeholder` for a name: the player's name, the room code,
+the Forca solo's letter and whole-word boxes, Palavra Relâmpago's word box,
+and the map's two answer boxes. A placeholder is a browser's last-resort name
+— so strictly they were not mute — but it VANISHES the moment you type, and
+someone using a screen reader who comes back to a half-filled field then hears
+nothing. They carry `aria-label` now, and the check deliberately does not
+accept a placeholder as a name.
 
 Also: the avatar's colours had never been CLICKED by any test either — the
 whole picker was markup nobody exercised. `avatar-preview-polish-test` step 5

@@ -386,6 +386,13 @@ await cheiaCtx.close();
 // versão desta verificação PASSOU depois de eu tirar de propósito o
 // aria-label ao selector de língua. O que conta é a etiqueta: aria-label,
 // title, ou o <label> à volta sem o texto do próprio controlo.
+//
+// E o PLACEHOLDER não conta, de propósito. Os browsers usam-no como último
+// recurso, por isso a rigor um campo com placeholder não está mudo — mas o
+// placeholder desaparece assim que se escreve, e quem usa leitor de ecrã e
+// volta ao campo a meio deixa de ouvir o que ele é. Sete campos viviam disso:
+// o nome, o código da sala, as duas caixas da Forca solo, a do Palavra
+// Relâmpago e as duas do mapa. Levaram aria-label.
 function varrerControlos(modo) {
   const nomeDe = (el) => {
     const direto = (el.getAttribute("aria-label") || el.getAttribute("title") || "").trim();
@@ -406,7 +413,7 @@ function varrerControlos(modo) {
     const maus = [];
     const semNome = [];
     let vistos = 0;
-    raiz.querySelectorAll("button, label, [role=button], select").forEach((el) => {
+    raiz.querySelectorAll("button, label, [role=button], select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea").forEach((el) => {
       if (el.offsetParent === null) return;
       const r = el.getBoundingClientRect();
       if (r.height === 0 || r.width === 0) return;
