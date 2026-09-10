@@ -63,6 +63,7 @@ function comMapaSala() {
 // jogos da sala vive neste ficheiro.
 import { esconderAOficina } from "./oficina.js";
 import { pintarDesafio } from "./desafio.js";
+import { t, aoMudarLingua } from "./i18n.js";
 
 
 function showScreen(name) {
@@ -109,10 +110,17 @@ export function ligacaoDeConvite(code, href = window.location.href) {
 // jogaste hoje, e quantos dias seguidos levas — é a razão de se voltar
 // amanhã, e não pode aparecer só depois de alguém carregar nele. É a mesma
 // função que o menu do modo sozinho usa; a frase existe uma vez só.
-pintarDesafio({
-  estado: document.getElementById("home-desafio-estado"),
-  botao: document.getElementById("home-desafio-btn"),
-});
+function pintarDesafioDaEntrada() {
+  pintarDesafio({
+    estado: document.getElementById("home-desafio-estado"),
+    botao: document.getElementById("home-desafio-btn"),
+  });
+}
+pintarDesafioDaEntrada();
+// A frase leva peças a encaixar (pontos, dias seguidos), por isso não é o
+// data-i18n que a repõe quando alguém troca de língua — é preciso pintá-la
+// outra vez.
+aoMudarLingua(pintarDesafioDaEntrada);
 
 // O código vem do endereço para a caixa, e o foco vai para o nome — que é o
 // que falta. Não se entra sozinho: entrar na sala com um nome vazio (ou com o
@@ -131,7 +139,7 @@ els.joinBtn.disabled = true;
 
 els.createBtn.addEventListener("click", async () => {
   const name = els.nameInput.value.trim();
-  if (!name) return showHomeError("Escreve o teu nome primeiro.");
+  if (!name) return showHomeError(t("erroEscreveNome"));
   try {
     state.name = name;
     const code = await createRoom(state.uid, name, loadAvatar());
@@ -157,8 +165,8 @@ els.joinCodeInput.addEventListener("keydown", (e) => {
 els.joinBtn.addEventListener("click", async () => {
   const name = els.nameInput.value.trim();
   const code = els.joinCodeInput.value.trim();
-  if (!name) return showHomeError("Escreve o teu nome primeiro.");
-  if (!code) return showHomeError("Escreve o código da sala.");
+  if (!name) return showHomeError(t("erroEscreveNome"));
+  if (!code) return showHomeError(t("erroEscreveCodigo"));
   try {
     state.name = name;
     const joinedCode = await joinRoom(code, state.uid, name, loadAvatar());
@@ -782,13 +790,13 @@ function renderLobby(room) {
     const enough = connectedCount >= min;
     if (!enough) blockedByPlayers++;
     btn.disabled = !amHost || !enough;
-    btn.title = enough ? "" : `Precisa de ${min}+ jogadores ligados.`;
+    btn.title = enough ? "" : t("salaPrecisaJogadores", min);
   });
   lobbyEls.minigamesHint.textContent = !amHost
-    ? "Só o anfitrião escolhe o jogo."
+    ? t("salaSoAnfitriao")
     : blockedByPlayers > 0
-      ? `Salta as rondas clássicas e começa já neste. Há ${connectedCount} ligado(s) — alguns jogos precisam de mais.`
-      : "Salta as rondas clássicas e começa já neste.";
+      ? t("salaFaltamJogadores", connectedCount)
+      : t("salaSaltaRondas");
 }
 
 // ---------- BALL MINIGAME ----------
@@ -3167,11 +3175,11 @@ async function runHostLoopTick(room) {
 
 async function init() {
   showScreen("home");
-  showHomeError("A ligar ao servidor...");
+  showHomeError(t("erroALigar"));
   try {
     state.uid = await getUid();
   } catch (err) {
-    showHomeError("Não foi possível ligar ao servidor. Verifica a configuração do Firebase (firebase-config.js) e se o login anónimo está ativado.");
+    showHomeError(t("erroSemServidor"));
     return;
   }
   showHomeError("");

@@ -6,7 +6,6 @@
 import { LINGUAS, lingua, definirLingua, aoMudarLingua, t } from "./i18n.js";
 
 const sel = document.getElementById("lingua-select");
-const rotulo = document.getElementById("lingua-rotulo");
 
 if (sel) {
   LINGUAS.forEach((l) => {
@@ -20,7 +19,6 @@ if (sel) {
 }
 
 function aplicar() {
-  if (rotulo) rotulo.textContent = t("lingua");
   // Os textos que estão escritos no HTML e mudam com a língua marcam-se com
   // data-i18n. Assim não é preciso ir buscar cada um pelo id, e um botão novo
   // entra na tradução só por ter o atributo.
@@ -36,6 +34,18 @@ function aplicar() {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => {
     const texto = t(el.dataset.i18nTitle);
     if (texto) el.title = texto;
+  });
+  // O nome que o leitor de ecrã anuncia também muda de língua. Sem isto, quem
+  // joga em inglês com leitor de ecrã ouvia os campos em português — e o
+  // aria-label ganha sempre ao texto visível, por isso seria pior do que não
+  // ter nada.
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    const texto = t(el.dataset.i18nAria);
+    if (texto) el.setAttribute("aria-label", texto);
+  });
+  document.querySelectorAll("[data-i18n-alt]").forEach((el) => {
+    const texto = t(el.dataset.i18nAlt);
+    if (texto) el.alt = texto;
   });
 }
 

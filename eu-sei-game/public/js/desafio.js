@@ -13,6 +13,7 @@
 // Sem DOM ao carregar (ver "Module boundaries" no CLAUDE.md): quem pinta
 // recebe os elementos.
 import { diaDoDesafio } from "./data.js";
+import { t } from "./i18n.js";
 
 export const DESAFIO_KEY = "euSei_desafio";
 
@@ -48,19 +49,25 @@ export function diaAnterior(diaISO) {
 // A frase e o rótulo do botão, a partir do que está guardado.
 export function textoDoDesafio(guardado = lerDesafio(), hoje = diaDoDesafio()) {
   const jogadoHoje = guardado.dia === hoje;
-  const sequencia = guardado.sequencia > 0 ? ` · ${guardado.sequencia} dia(s) seguidos` : "";
+  const sequencia = guardado.sequencia > 0 ? t("desafioSequencia", guardado.sequencia) : "";
   return {
     texto: jogadoHoje
-      ? `Hoje já foi: ${guardado.pontos} pts (${guardado.corretas}/${guardado.total})${sequencia}`
-      : `Uma ronda, igual para toda a gente${sequencia}`,
-    rotulo: jogadoHoje ? "📅 Ver o desafio de hoje" : "📅 Desafio do dia",
+      ? t("desafioHoje", guardado.pontos, guardado.corretas, guardado.total, sequencia)
+      : t("desafioUmaRonda", sequencia),
+    rotulo: jogadoHoje ? t("casaVerDesafio") : t("casaDesafioDia"),
+    // O botão muda de frase conforme já se jogou hoje, por isso a chave dele
+    // também muda: sem isto, mudar de língua devolvia-lhe a frase errada.
+    chave: jogadoHoje ? "casaVerDesafio" : "casaDesafioDia",
   };
 }
 
 // Pinta onde lhe disserem. Aceita elementos em falta porque a entrada e o
 // menu do modo sozinho não têm os mesmos.
 export function pintarDesafio({ estado, botao } = {}) {
-  const { texto, rotulo } = textoDoDesafio();
+  const { texto, rotulo, chave } = textoDoDesafio();
   if (estado) estado.textContent = texto;
-  if (botao) botao.textContent = rotulo;
+  if (botao) {
+    botao.textContent = rotulo;
+    botao.dataset.i18n = chave;
+  }
 }

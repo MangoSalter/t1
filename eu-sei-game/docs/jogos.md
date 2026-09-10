@@ -280,6 +280,59 @@ mesmo, por isso não é um estar errado e o outro certo.
 
 ---
 
+# As três línguas: o que estava mesmo traduzido
+
+O seletor de língua é a primeira coisa que se vê e promete Português, English
+e Español. **Medi o que ele cumpria: só o mapa.** Na marcação estática eram 9
+textos traduzidos contra 285 em português (231 distintos), e o `app.js`, o
+`solo.js` e o `board.js` não chamavam o `t()` uma única vez. Quem escolhia
+English criava a sala em português, escolhia os jogos em português e esperava
+pelo anfitrião em português.
+
+Isto não é uma opinião sobre prioridades: é uma promessa escrita no ecrã de
+entrada que não estava a ser cumprida, e num jogo de festa a pessoa que não lê
+a língua fecha a página antes de perguntar a alguém.
+
+**Feito agora — a porta de entrada**, que são os três ecrãs que decidem se
+alguém fica: o ecrã inicial, o menu de jogar sozinho e a sala de espera.
+Nomes dos jogos, descrições, definições da partida, os avisos do anfitrião, os
+erros ("escreve o teu nome primeiro"), os placeholders e os nomes que o leitor
+de ecrã anuncia — tudo nas três. Restam **141 textos** noutros ecrãs, com o
+número guardado num tecto (`linguas-ecra-test`) para não voltar a andar
+sozinho: o board (22), a Forca (16), a preparação da maratona (15) e os ecrãs
+de preparação dos jogos a sozinho são o grosso.
+
+O que fica de fora de propósito, e porquê:
+
+- **os nomes próprios** — Eu sei!, Dona Manga, Brasa, Kota — não se traduzem;
+- **os nomes das línguas dentro do seletor**: "English" tem de dizer English a
+  quem lê espanhol, senão não se encontra;
+- **as categorias do jogo clássico** (Animal, Cidade, Fruta...). É a segunda
+  decisão pequena que te deixo, mais abaixo.
+
+## A pergunta pequena: em que língua se RESPONDE?
+
+As 40 categorias vivem no `data.js` e são conteúdo de jogo, não decoração.
+Traduzi-las não é arrumação: decide em que língua se joga. Numa sala com três
+línguas ao mesmo tempo — que é uma coisa que este jogo já faz no mapa — se
+cada pessoa lê "Fruta", "Fruit" e "Fruta" e escreve na sua língua, a votação
+passa a ser sobre palavras que metade da sala não reconhece.
+
+Três saídas, e a escolha é tua:
+
+1. **Ficam em português** para toda a gente, como agora. O jogo clássico é um
+   jogo de palavras portuguesas, e quem joga em inglês tem o resto da app na
+   sua língua mas responde em português. É o que está.
+2. **Traduzem-se, e cada um responde na sua.** Mais acolhedor a sozinho,
+   confuso em sala.
+3. **A sala escolhe uma língua** para as categorias, o anfitrião decide, e o
+   resto de cada ecrã continua na língua de cada pessoa. É o mais correto e o
+   único que dá trabalho a sério (a língua passa a viajar no documento da
+   sala).
+
+A sozinho nada disto tem problema — se disseres só "a sozinho traduz-se",
+faço isso e a sala fica como está.
+
 # A decisão que falta (a única)
 
 Os oito jogos da oficina estão à espera de uma coisa que não é trabalho meu:

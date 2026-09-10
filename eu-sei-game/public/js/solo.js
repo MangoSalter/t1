@@ -12,6 +12,7 @@ import {
 } from "./data.js";
 import { estaNaOficina, esconderAOficina } from "./oficina.js";
 import { lerDesafio, guardarDesafio, diaAnterior, pintarDesafio } from "./desafio.js";
+import { aoMudarLingua } from "./i18n.js";
 import { armarCaos, limparCaos, caosLigado, guardarCaosLigado } from "./caos.js";
 import {
   PRESENTATION_MODES, presentationMode, setPresentationMode,
@@ -1208,6 +1209,9 @@ function mostrarEstadoDoDesafio() {
   pintarDesafio({ estado: els.desafioEstadoCasa, botao: els.desafioBtnCasa });
 }
 mostrarEstadoDoDesafio();
+// A frase leva pontos e dias seguidos lá dentro, por isso o data-i18n não a
+// repõe sozinho quando alguém troca de língua.
+aoMudarLingua(mostrarEstadoDoDesafio);
 
 function comecarDesafio() {
   const hoje = diaDoDesafio();

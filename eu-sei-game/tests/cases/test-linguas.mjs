@@ -118,4 +118,18 @@ const espelhos = Array.from({ length: 6 }, espelho);
   definirLingua("pt");
 }
 
+// O data-i18n aponta para uma chave, e o i18n-ecra.js só troca o texto SE a
+// chave existir ("if (texto)"). Um erro de escrita no nome da chave não dá
+// erro nenhum: o elemento fica em português para sempre, em todas as línguas,
+// e ninguém dá por isso a não ser que saiba as três. Por isso as chaves
+// escritas no HTML confrontam-se com a tabela.
+{
+  const html = readFileSync(path.join(process.env.EU_SEI_PUBLIC, "index.html"), "utf8");
+  const noPt = new Set(pt);
+  const usadas = [...html.matchAll(/data-i18n(?:-placeholder|-title|-aria|-alt)?="([^"]+)"/g)].map((m) => m[1]);
+  const orfas = [...new Set(usadas.filter((k) => !noPt.has(k)))];
+  assert(usadas.length > 0, `o index.html usa chaves de tradução (${usadas.length} atributos)`);
+  assert(orfas.length === 0, `todas as chaves do index.html existem na tabela${orfas.length ? ` (não existem: ${orfas.join(", ")})` : ""}`);
+}
+
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");

@@ -29,28 +29,28 @@
         <circle cx="186" cy="104" r="1.3" fill="#fbf6e9"/>
       </svg>
       <h1>Eu sei!</h1>
-      <p class="subtitle">Dona Manga mandou-te competir. Mostra que sabes.</p>
-      <input id="name-input" aria-label="O teu nome" type="text" placeholder="O teu nome" maxlength="18" />
+      <p class="subtitle" data-i18n="casaSubtitulo">Dona Manga mandou-te competir. Mostra que sabes.</p>
+      <input id="name-input" aria-label="O teu nome" data-i18n-aria="casaNome" type="text" placeholder="O teu nome" data-i18n-placeholder="casaNome" maxlength="18" />
       <div class="avatar-picker-row">
-        <img id="avatar-preview" class="avatar-preview" alt="O teu avatar" />
-        <button id="avatar-edit-btn" type="button" class="ghost-primary">Desenhar o meu avatar</button>
+        <img id="avatar-preview" class="avatar-preview" alt="O teu avatar" data-i18n-alt="casaAvatarAlt" />
+        <button id="avatar-edit-btn" type="button" class="ghost-primary" data-i18n="casaDesenharAvatar">Desenhar o meu avatar</button>
       </div>
-      <button id="create-room-btn" class="primary">Criar sala</button>
-      <div class="divider">ou</div>
-      <input id="join-code-input" aria-label="Código da sala, quatro letras" type="text" placeholder="Código da sala" maxlength="4" style="text-transform:uppercase" />
+      <button id="create-room-btn" class="primary" data-i18n="casaCriarSala">Criar sala</button>
+      <div class="divider" data-i18n="ou">ou</div>
+      <input id="join-code-input" aria-label="Código da sala, quatro letras" data-i18n-aria="casaCodigoAria" type="text" placeholder="Código da sala" data-i18n-placeholder="casaCodigo" maxlength="4" style="text-transform:uppercase" />
       <p id="join-convite-hint" class="hint small hidden"></p>
-      <button id="join-room-btn">Entrar na sala</button>
-      <div class="divider">ou</div>
+      <button id="join-room-btn" data-i18n="casaEntrarSala">Entrar na sala</button>
+      <div class="divider" data-i18n="ou">ou</div>
       <label class="lingua-escolha">
-        <span id="lingua-rotulo">Língua</span>
+        <span id="lingua-rotulo" data-i18n="lingua">Língua</span>
         <select id="lingua-select" aria-label="Língua / Language / Idioma"></select>
       </label>
-      <button id="solo-menu-btn" class="ghost-primary">Jogar sozinho</button>
+      <button id="solo-menu-btn" class="ghost-primary" data-i18n="casaJogarSozinho">Jogar sozinho</button>
       <!-- O desafio do dia à entrada: é o que faz voltar amanhã, e escondido
            dentro do menu de jogar sozinho ninguém dava com ele. -->
-      <button id="home-desafio-btn" class="ghost">📅 Desafio do dia</button>
-      <p id="home-desafio-estado" class="hint small"></p>
-      <button data-open-board class="ghost">🖊️ Quadro branco</button>
+      <button id="home-desafio-btn" class="ghost" data-i18n="casaDesafioDia">📅 Desafio do dia</button>
+      <p id="home-desafio-estado" class="hint small" data-i18n-js="desafioUmaRonda"></p>
+      <button data-open-board class="ghost" data-i18n="casaQuadroBranco">🖊️ Quadro branco</button>
       <button data-open-mapa class="ghost" data-i18n="mapaAbrir">🌍 Mapa-Múndi</button>
       <p id="home-error" class="error"></p>
     </div>
@@ -59,45 +59,45 @@
   <!-- SOLO: MENU (escolher o modo/mini-jogo antes de mais nada) -->
   <section data-screen="solo-menu" class="screen">
     <div class="card wide">
-      <h2>Jogar sozinho</h2>
-      <p class="hint">Escolhe o que queres jogar.</p>
+      <h2 data-i18n="casaJogarSozinho">Jogar sozinho</h2>
+      <p class="hint" data-i18n="menuEscolhe">Escolhe o que queres jogar.</p>
       <p id="solo-account-xp" class="hint small account-xp"></p>
       <!-- Uma ronda por dia, igual para toda a gente. É o que faz voltar
            amanhã sem ter de haver mais alguém do outro lado. -->
-      <button id="solo-desafio-btn" class="ghost-primary">📅 Desafio do dia</button>
-      <p id="solo-desafio-estado" class="hint small"></p>
-      <button id="solo-classic-btn" class="primary">Eu sei — modo clássico</button>
-      <button id="solo-marathon-menu-btn">Maratona de mini-jogos</button>
-      <div class="divider">jogar avulso</div>
+      <button id="solo-desafio-btn" class="ghost-primary" data-i18n="casaDesafioDia">📅 Desafio do dia</button>
+      <p id="solo-desafio-estado" class="hint small" data-i18n-js="desafioUmaRonda"></p>
+      <button id="solo-classic-btn" class="primary" data-i18n="menuClassico">Eu sei — modo clássico</button>
+      <button id="solo-marathon-menu-btn" data-i18n="menuMaratona">Maratona de mini-jogos</button>
+      <div class="divider" data-i18n="menuAvulso">jogar avulso</div>
       <div class="solo-menu-grid">
-        <button data-oficina id="solo-play-reflex-btn">Olho de Lince</button>
-        <button id="solo-play-wordflash-btn">Palavra Relâmpago</button>
-        <button data-oficina id="solo-play-bug-btn">Mata o Inseto</button>
-        <button data-oficina id="solo-play-monkey-btn">Cada Macaco no Seu Galho</button>
-        <button id="solo-play-memory-btn">Memória</button>
-        <button id="solo-play-hangman-btn">Forca</button>
-        <button data-oficina id="solo-play-map-btn">Mapa-Múndi</button>
-        <button data-oficina id="solo-play-pac-btn">Kota Corre!</button>
-        <button id="solo-play-golf-btn">Mini-Golfe</button>
-        <button data-oficina id="solo-play-cards-btn">Descartando Juntos</button>
-        <button data-oficina id="solo-play-car-btn">Estrada Maluca</button>
-        <button data-oficina id="solo-play-landmark-btn">Onde Fica Isto?</button>
+        <button data-oficina id="solo-play-reflex-btn" data-i18n="jogoReflex">Olho de Lince</button>
+        <button id="solo-play-wordflash-btn" data-i18n="jogoWordflash">Palavra Relâmpago</button>
+        <button data-oficina id="solo-play-bug-btn" data-i18n="jogoBug">Mata o Inseto</button>
+        <button data-oficina id="solo-play-monkey-btn" data-i18n="jogoMonkey">Cada Macaco no Seu Galho</button>
+        <button id="solo-play-memory-btn" data-i18n="jogoMemoria">Memória</button>
+        <button id="solo-play-hangman-btn" data-i18n="jogoForca">Forca</button>
+        <button data-oficina id="solo-play-map-btn" data-i18n="jogoMapaMundi">Mapa-Múndi</button>
+        <button data-oficina id="solo-play-pac-btn" data-i18n="jogoPac">Kota Corre!</button>
+        <button id="solo-play-golf-btn" data-i18n="jogoGolfe">Mini-Golfe</button>
+        <button data-oficina id="solo-play-cards-btn" data-i18n="jogoCartas">Descartando Juntos</button>
+        <button data-oficina id="solo-play-car-btn" data-i18n="jogoCarro">Estrada Maluca</button>
+        <button data-oficina id="solo-play-landmark-btn" data-i18n="jogoMarcos">Onde Fica Isto?</button>
       </div>
       <div class="divider"></div>
-      <button data-open-board>🖊️ Quadro branco</button>
+      <button data-open-board data-i18n="casaQuadroBranco">🖊️ Quadro branco</button>
       <button data-open-mapa data-i18n="mapaAbrir">🌍 Mapa-Múndi</button>
-      <button id="solo-leaderboard-btn">🏆 Recordes</button>
-      <button id="solo-achievements-btn">🏅 Conquistas</button>
+      <button id="solo-leaderboard-btn" data-i18n="menuRecordes">🏆 Recordes</button>
+      <button id="solo-achievements-btn" data-i18n="menuConquistas">🏅 Conquistas</button>
       <details class="cat-picker solo-presentation">
-        <summary>Como queres que a app te acompanhe?</summary>
+        <summary data-i18n="menuAcompanhar">Como queres que a app te acompanhe?</summary>
         <div class="solo-presentation-row" id="solo-presentation-row"></div>
         <p id="solo-presentation-hint" class="hint small"></p>
-        <label class="chaos-toggle" id="solo-voice-row"><input type="checkbox" id="solo-voice-toggle" checked /> 🗣️ Voz a dizer o que vem a seguir</label>
-        <p id="solo-voice-warning" class="hint small hidden">Este browser não sabe falar — o modo guiado fica só com os sons.</p>
+        <label class="chaos-toggle" id="solo-voice-row"><input type="checkbox" id="solo-voice-toggle" checked /> <span data-i18n="menuVoz">🗣️ Voz a dizer o que vem a seguir</span></label>
+        <p id="solo-voice-warning" class="hint small hidden" data-i18n="menuSemVoz">Este browser não sabe falar — o modo guiado fica só com os sons.</p>
       </details>
-      <label class="chaos-toggle"><input type="checkbox" id="solo-sfx-toggle" checked /> 🔊 Sons</label>
-      <label class="chaos-toggle"><input type="checkbox" id="solo-chaos-toggle" checked /> 🐈 Deixar a Dona Manga interferir a meio dos jogos</label>
-      <button data-solo-home class="ghost">Voltar</button>
+      <label class="chaos-toggle"><input type="checkbox" id="solo-sfx-toggle" checked /> <span data-i18n="menuSons">🔊 Sons</span></label>
+      <label class="chaos-toggle"><input type="checkbox" id="solo-chaos-toggle" checked /> <span data-i18n="menuCaos">🐈 Deixar a Dona Manga interferir a meio dos jogos</span></label>
+      <button data-solo-home class="ghost" data-i18n="voltar">Voltar</button>
     </div>
   </section>
 
@@ -446,68 +446,68 @@
   <!-- LOBBY -->
   <section data-screen="lobby" class="screen">
     <div class="card">
-      <h2>Sala <span id="lobby-code" class="room-code"></span></h2>
-      <p class="hint">Partilha este código com os outros jogadores.</p>
+      <h2><span data-i18n="salaTitulo">Sala</span> <span id="lobby-code" class="room-code"></span></h2>
+      <p class="hint" data-i18n="salaPartilha">Partilha este código com os outros jogadores.</p>
       <!-- Um jogo de festa joga-se muitas vezes com metade da sala noutra
            casa, a ouvir por chamada. Ditar quatro letras ao telefone é onde
            se perde gente; a ligação abre a app já com o código escrito. -->
-      <button id="lobby-convite-btn" type="button" class="ghost">🔗 Copiar convite</button>
+      <button id="lobby-convite-btn" type="button" class="ghost" data-i18n="salaConvite">🔗 Copiar convite</button>
       <ul id="lobby-players" class="player-list"></ul>
-      <button id="lobby-avatar-edit-btn" type="button" class="ghost-primary">🎨 Desenhar o meu avatar</button>
-      <p class="hint small">Aproveita a espera para desenhares o teu avatar!</p>
+      <button id="lobby-avatar-edit-btn" type="button" class="ghost-primary" data-i18n="salaAvatar">🎨 Desenhar o meu avatar</button>
+      <p class="hint small" data-i18n="salaAvatarEspera">Aproveita a espera para desenhares o teu avatar!</p>
 
       <!-- Menu de escolha de jogo, como no modo sozinho -->
-      <div class="divider">o que vamos jogar?</div>
-      <button id="start-game-btn" class="primary">Eu sei — modo clássico (rondas + bónus)</button>
-      <p class="hint small">As rondas do Stop e, no fim, os mini-jogos bónus escolhidos nas definições.</p>
+      <div class="divider" data-i18n="salaOQueJogar">o que vamos jogar?</div>
+      <button id="start-game-btn" class="primary" data-i18n="salaClassico">Eu sei — modo clássico (rondas + bónus)</button>
+      <p class="hint small" data-i18n="salaClassicoHint">As rondas do Stop e, no fim, os mini-jogos bónus escolhidos nas definições.</p>
 
-      <div class="divider">ou joga já um mini-jogo</div>
-      <p id="lobby-minigames-hint" class="hint small">Salta as rondas clássicas e começa já neste. Precisa de 3+ jogadores ligados.</p>
+      <div class="divider" data-i18n="salaOuMinijogo">ou joga já um mini-jogo</div>
+      <p id="lobby-minigames-hint" class="hint small" data-i18n="salaSaltaRondas">Salta as rondas clássicas e começa já neste.</p>
       <div class="solo-menu-grid">
-        <button type="button" data-mp-game="draw">Desenha e Adivinha<span class="mp-game-desc">Um desenha uma palavra secreta, os outros adivinham em voz alta.</span></button>
-        <button type="button" data-mp-game="hangman">Quadro branco<span class="mp-game-desc">Folha em branco partilhada. Escreve um de cada vez; as regras combinam-se por voz.</span></button>
-        <button type="button" data-oficina data-mp-game="mapTrivia">Mapa-Múndi<span class="mp-game-desc">Escreve um país que cumpra o critério pedido. Há sempre mais do que uma resposta certa.</span></button>
-        <button type="button" data-mp-game="tag">Fuga da Infeção<span class="mp-game-desc">Perseguição no mesmo mapa: quem está infetado passa a infeção por contacto.</span></button>
-        <button type="button" data-mp-game="battle">Labirinto: Batalha<span class="mp-game-desc">Apanha uma arma no chão e sobrevive. 3 vidas cada.</span></button>
-        <button type="button" data-oficina data-mp-game="race">Estrada Maluca<span class="mp-game-desc">Todos apanham os mesmos carros ao mesmo tempo. Ganha quem aguentar mais.</span></button>
-        <button type="button" data-mp-game="marcos">Onde Fica Isto?<span class="mp-game-desc">Um desenha um monumento famoso, os outros dizem em que país fica.</span></button>
-        <button type="button" data-mp-game="golf">Mini-Golfe<span class="mp-game-desc">Mesmo buraco ao mesmo tempo, com power-ups para usar contra os outros.</span></button>
-        <button type="button" data-mp-game="mapa">Conquistar o Mapa<span class="mp-game-desc">O mapa-múndi para todos ao mesmo tempo: clica num país, escreve o nome, fica com ele. Quem errar deixa o país em causa — e vale a dobrar a quem o souber.</span></button>
+        <button type="button" data-mp-game="draw"><span data-i18n="jogoDesenha">Desenha e Adivinha</span><span class="mp-game-desc" data-i18n="descDesenha">Um desenha uma palavra secreta, os outros adivinham em voz alta.</span></button>
+        <button type="button" data-mp-game="hangman"><span data-i18n="jogoQuadro">Quadro branco</span><span class="mp-game-desc" data-i18n="descQuadro">Folha em branco partilhada. Escreve um de cada vez; as regras combinam-se por voz.</span></button>
+        <button type="button" data-oficina data-mp-game="mapTrivia"><span data-i18n="jogoMapaMundi">Mapa-Múndi</span><span class="mp-game-desc" data-i18n="descMapTrivia">Escreve um país que cumpra o critério pedido. Há sempre mais do que uma resposta certa.</span></button>
+        <button type="button" data-mp-game="tag"><span data-i18n="jogoTag">Fuga da Infeção</span><span class="mp-game-desc" data-i18n="descTag">Perseguição no mesmo mapa: quem está infetado passa a infeção por contacto.</span></button>
+        <button type="button" data-mp-game="battle"><span data-i18n="jogoBattle">Labirinto: Batalha</span><span class="mp-game-desc" data-i18n="descBattle">Apanha uma arma no chão e sobrevive. 3 vidas cada.</span></button>
+        <button type="button" data-oficina data-mp-game="race"><span data-i18n="jogoCarro">Estrada Maluca</span><span class="mp-game-desc" data-i18n="descCarro">Todos apanham os mesmos carros ao mesmo tempo. Ganha quem aguentar mais.</span></button>
+        <button type="button" data-mp-game="marcos"><span data-i18n="jogoMarcos">Onde Fica Isto?</span><span class="mp-game-desc" data-i18n="descMarcos">Um desenha um monumento famoso, os outros dizem em que país fica.</span></button>
+        <button type="button" data-mp-game="golf"><span data-i18n="jogoGolfe">Mini-Golfe</span><span class="mp-game-desc" data-i18n="descGolfe">Mesmo buraco ao mesmo tempo, com power-ups para usar contra os outros.</span></button>
+        <button type="button" data-mp-game="mapa"><span data-i18n="jogoConquistar">Conquistar o Mapa</span><span class="mp-game-desc" data-i18n="descConquistar">O mapa-múndi para todos ao mesmo tempo: clica num país, escreve o nome, fica com ele. Quem errar deixa o país em causa — e vale a dobrar a quem o souber.</span></button>
       </div>
 
       <div class="divider"></div>
       <details class="cat-picker">
-        <summary>⚙️ Definições da partida (anfitrião)</summary>
+        <summary data-i18n="cfgTitulo">⚙️ Definições da partida (anfitrião)</summary>
         <form id="config-form" class="config-form">
-          <label>Nº de categorias por ronda
+          <label><span data-i18n="cfgNumCategorias">Nº de categorias por ronda</span>
             <input id="cfg-num-categories" type="number" min="4" max="15" />
           </label>
-          <label>Tempo por ronda (segundos)
+          <label><span data-i18n="cfgTempo">Tempo por ronda (segundos)</span>
             <input id="cfg-time-limit" type="number" min="30" max="300" />
           </label>
           <label class="checkbox-label">
             <input id="cfg-exclude-hard" type="checkbox" />
-            Excluir letras difíceis (K, W, Y)
+            <span data-i18n="cfgLetrasDificeis">Excluir letras difíceis (K, W, Y)</span>
           </label>
-          <label>Nº de rondas por partida
+          <label><span data-i18n="cfgNumRondas">Nº de rondas por partida</span>
             <input id="cfg-num-rounds" type="number" min="1" max="15" />
           </label>
         </form>
 
         <details class="cat-picker">
-          <summary>Categorias ativas (<span id="cfg-cat-count">40</span>/<span id="cfg-cat-total">40</span>)</summary>
+          <summary><span data-i18n="cfgCategoriasAtivas">Categorias ativas</span> (<span id="cfg-cat-count">40</span>/<span id="cfg-cat-total">40</span>)</summary>
           <div class="cat-picker-actions">
-            <button type="button" id="cfg-cat-selectall" class="ghost">Selecionar todas</button>
-            <button type="button" id="cfg-cat-clear" class="ghost">Limpar</button>
+            <button type="button" id="cfg-cat-selectall" class="ghost" data-i18n="cfgSelecionarTodas">Selecionar todas</button>
+            <button type="button" id="cfg-cat-clear" class="ghost" data-i18n="cfgLimpar">Limpar</button>
           </div>
           <!-- As categorias da casa: as vossas, escritas aqui. Só o anfitrião
                as escreve; toda a gente as vê, porque saber com que categorias
                se joga faz parte de decidir se se entra. -->
-          <p class="hint small">As vossas categorias (★) jogam-se como as outras.</p>
+          <p class="hint small" data-i18n="cfgCategoriasCasa">As vossas categorias (★) jogam-se como as outras.</p>
           <form id="cfg-cat-propria-form" class="cat-propria-form">
             <input id="cfg-cat-propria-input" type="text" autocomplete="off"
-                   placeholder="Ex.: Marcas de carro" aria-label="Nova categoria da casa" />
-            <button type="submit" class="ghost">Acrescentar</button>
+                   placeholder="Ex.: Marcas de carro" data-i18n-placeholder="cfgNovaCategoria" aria-label="Nova categoria da casa" data-i18n-aria="cfgNovaCategoriaAria" />
+            <button type="submit" class="ghost" data-i18n="cfgAcrescentar">Acrescentar</button>
           </form>
           <p id="cfg-cat-propria-aviso" class="hint small hidden" role="status"></p>
           <ul id="cfg-cat-propria-lista" class="cat-propria-lista hidden"></ul>
@@ -515,24 +515,24 @@
         </details>
 
         <details class="cat-picker" open>
-          <summary>Mini-jogos bónus de fim de partida (a partir de 3 jogadores)</summary>
-          <p class="hint small">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
+          <summary data-i18n="cfgBonusTitulo">Mini-jogos bónus de fim de partida (a partir de 3 jogadores)</summary>
+          <p class="hint small" data-i18n="cfgBonusHint">Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.</p>
           <div class="marathon-picker">
-            <label><input type="checkbox" data-bonus-game="hangman" checked /> Quadro branco</label>
-            <label data-oficina><input type="checkbox" data-bonus-game="mapTrivia" checked /> Mapa-Múndi em equipa</label>
-            <label><input type="checkbox" data-bonus-game="mapa" checked /> Conquistar o Mapa</label>
-            <label><input type="checkbox" data-bonus-game="tag" /> Fuga da Infeção em equipa</label>
-            <label><input type="checkbox" data-bonus-game="battle" /> Labirinto: Batalha em equipa</label>
-            <label><input type="checkbox" data-bonus-game="draw" /> Desenha e Adivinha em equipa</label>
-            <label data-oficina><input type="checkbox" data-bonus-game="race" /> Estrada Maluca em equipa</label>
-            <label><input type="checkbox" data-bonus-game="marcos" /> Onde Fica Isto? em equipa</label>
-            <label><input type="checkbox" data-bonus-game="golf" /> Mini-Golfe em equipa</label>
+            <label><input type="checkbox" data-bonus-game="hangman" checked /> <span data-i18n="equipaQuadro">Quadro branco</span></label>
+            <label data-oficina><input type="checkbox" data-bonus-game="mapTrivia" checked /> <span data-i18n="equipaMapTrivia">Mapa-Múndi em equipa</span></label>
+            <label><input type="checkbox" data-bonus-game="mapa" checked /> <span data-i18n="jogoConquistar">Conquistar o Mapa</span></label>
+            <label><input type="checkbox" data-bonus-game="tag" /> <span data-i18n="equipaTag">Fuga da Infeção em equipa</span></label>
+            <label><input type="checkbox" data-bonus-game="battle" /> <span data-i18n="equipaBattle">Labirinto: Batalha em equipa</span></label>
+            <label><input type="checkbox" data-bonus-game="draw" /> <span data-i18n="equipaDesenha">Desenha e Adivinha em equipa</span></label>
+            <label data-oficina><input type="checkbox" data-bonus-game="race" /> <span data-i18n="equipaCarro">Estrada Maluca em equipa</span></label>
+            <label><input type="checkbox" data-bonus-game="marcos" /> <span data-i18n="equipaMarcos">Onde Fica Isto? em equipa</span></label>
+            <label><input type="checkbox" data-bonus-game="golf" /> <span data-i18n="equipaGolfe">Mini-Golfe em equipa</span></label>
           </div>
         </details>
       </details>
 
-      <p id="lobby-waiting" class="hint">A aguardar que o anfitrião comece o jogo...</p>
-      <button data-leave class="ghost">Sair da sala</button>
+      <p id="lobby-waiting" class="hint" data-i18n="salaEsperaAnfitriao">A aguardar que o anfitrião comece o jogo...</p>
+      <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>
     </div>
   </section>
 
@@ -594,7 +594,7 @@
       <h2>Pontuação da ronda</h2>
       <div id="round-score-table" class="score-table"></div>
       <button id="round-next-btn" class="primary hidden">Próxima ronda</button>
-      <button data-leave class="ghost">Sair da sala</button>
+      <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>
     </div>
   </section>
 
@@ -971,7 +971,7 @@
         <div id="final-album-grid" class="final-album-grid"></div>
       </section>
       <button id="final-rematch-btn" class="primary hidden">Jogar outra vez</button>
-      <button data-leave class="ghost">Sair da sala</button>
+      <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>
     </div>
   </section>
 

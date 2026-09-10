@@ -452,6 +452,42 @@ answer sheet, "porquê estes pontos" and the end of the match — which
 what is written in `index.html` and every button on those four is built in
 JavaScript.
 
+## A promise printed on the screen is a claim, and claims get measured
+
+The language selector sits on the entry screen and offers Português, English,
+Español. Nothing ever checked what picking one of them actually did. It did
+the map: **9 translated strings against 285 Portuguese ones** (231 distinct)
+in the static markup, and `app.js`, `solo.js` and `board.js` did not call
+`t()` once between them. Pick English and you created the room in Portuguese,
+chose the game in Portuguese and waited for the host in Portuguese.
+
+`test-linguas` was green the whole time, and rightly so: it checks that the
+three TABLES agree with each other. Nothing checked that the tables reach the
+screen. The two questions are different and both need asking.
+
+Three things learned putting the front door (home, solo menu, lobby) into
+three languages:
+
+- **`data-i18n` sets `textContent`, so it eats the element's children.** The
+  option rows are `<label><input type=checkbox> Sons</label>` and the room's
+  game buttons are `<button>Nome<span class=mp-game-desc>...</span></button>`;
+  marking either would have deleted the checkbox or the description. Wrap the
+  text in its own `<span>` and mark that.
+- **A sentence with a number in it cannot live in `data-i18n`** — the daily
+  challenge says how many days in a row you have played. Those are painted by
+  whoever owns them and re-painted on `aoMudarLingua`; they carry
+  `data-i18n-js` so a sweep can tell "handled elsewhere" from "forgotten", and
+  step 4 of `linguas-ecra-test` proves the re-paint actually happens.
+- **`i18n-ecra.js` only swaps the text `if (texto)`**, so a typo in a key name
+  is invisible: no console error, the element just stays Portuguese in all
+  three languages, for ever. `test-linguas` now confronts every key written in
+  `index.html` against the table (110 attributes today). Falsified by renaming
+  one.
+
+The remaining count is a ceiling in `linguas-ecra-test`, not a note in this
+file, for the reason the first-load section gives: numbers written down go
+stale, numbers that fail a test do not.
+
 ## First load has a budget now, not a note
 The old note here said 868 KB across 23 files. Measured again in September:
 **913 KB across 23 files** — it had grown 45 KB while the number in this
