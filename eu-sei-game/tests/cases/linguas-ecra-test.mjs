@@ -208,7 +208,10 @@ async function medirTelemovel(lingua) {
   const p = await c.newPage();
   await p.addInitScript((l) => { localStorage.setItem("euSei_lingua", l); }, lingua);
   await p.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
-  const r = await p.evaluate(() => {
+  // A largura do APARELHO, e não a window.innerWidth: quando alguma coisa
+  // transborda, o Chromium ALARGA a janela, e a comparação passa a dar
+  // falso justamente no caso que interessa apanhar.
+  const r = await p.evaluate((larguraDoAparelho) => {
     const transbordam = [];
     const alturas = {};
     const rolam = [];
@@ -219,7 +222,7 @@ async function medirTelemovel(lingua) {
     jaAtivos.forEach((x) => x.classList.remove("active"));
     document.querySelectorAll("[data-screen]").forEach((sec) => {
       sec.classList.add("active");
-      if (document.documentElement.scrollWidth > window.innerWidth + 1) rolam.push(sec.dataset.screen);
+      if (document.documentElement.scrollWidth > larguraDoAparelho + 1) rolam.push(sec.dataset.screen);
       [...sec.querySelectorAll("button, label, summary, h1, h2, h3, .divider, option")].forEach((el, i) => {
         if (el.offsetParent === null) return;
         const caixa = el.getBoundingClientRect();
@@ -240,7 +243,7 @@ async function medirTelemovel(lingua) {
     });
     jaAtivos.forEach((x) => x.classList.add("active"));
     return { transbordam, alturas, rolam };
-  });
+  }, devices["iPhone 13"].viewport.width);
   await c.close();
   return r;
 }

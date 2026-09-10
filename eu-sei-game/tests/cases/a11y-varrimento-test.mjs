@@ -275,6 +275,57 @@ if (rotuloDepois !== rotuloAntes) {
 }
 await lentoCtx.close();
 
+console.log("5) E no telemóvel mais ESTREITO que ainda se usa, não só no do dono...");
+// Tudo aqui em cima mede num iPhone 13, 390px de largura. Um iPhone SE tem
+// 320, e um Android comum 360 — e uma régua só prova a régua que se usou.
+// Este passo repete as duas perguntas que não admitem discussão, na mais
+// apertada das três: nada abaixo de 44px, e a página nunca rola de lado.
+// (Uma barra que rola de lado é uma escolha; o CORPO a rolar não é.)
+const estreitoCtx = await browser.newContext({ ...devices["iPhone SE"] });
+const ep = await estreitoCtx.newPage();
+await ep.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await ep.evaluate(() => localStorage.setItem("euSei_lingua", "pt"));
+await ep.reload({ waitUntil: "networkidle" });
+// A LARGURA DO APARELHO, e não a window.innerWidth. Quando alguma coisa é
+// mais larga do que o ecrã, o Chromium ALARGA a janela para a acomodar — e
+// então scrollWidth > innerWidth dá falso, precisamente no caso que se quer
+// apanhar. Descobri-o a falsificar: um botão de 420px pôs a innerWidth a
+// 444 e a verificação ficou verde.
+const estreito = await ep.evaluate((larguraDoAparelho) => {
+  const out = { rolam: [], pequenos: [], vistos: 0, largura: window.innerWidth, aparelho: larguraDoAparelho };
+  const jaAtivos = [...document.querySelectorAll("[data-screen].active")];
+  jaAtivos.forEach((x) => x.classList.remove("active"));
+  document.querySelectorAll("[data-screen]").forEach((sec) => {
+    sec.classList.add("active");
+    if (document.documentElement.scrollWidth > larguraDoAparelho + 1) {
+      out.rolam.push(`${sec.dataset.screen} (${document.documentElement.scrollWidth}px num ecrã de ${larguraDoAparelho})`);
+    }
+    sec.querySelectorAll("button, label, select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea").forEach((el) => {
+      if (el.offsetParent === null) return;
+      const b = el.getBoundingClientRect();
+      if (b.height === 0 || b.width === 0) return;
+      out.vistos += 1;
+      if (b.height < 44 || b.width < 44) {
+        out.pequenos.push(`${sec.dataset.screen}:${(el.textContent || el.id || "").trim().slice(0, 16)} ${Math.round(b.width)}x${Math.round(b.height)}`);
+      }
+    });
+    sec.classList.remove("active");
+  });
+  jaAtivos.forEach((x) => x.classList.add("active"));
+  return out;
+}, devices["iPhone SE"].viewport.width);
+await estreitoCtx.close();
+console.log(`   ${estreito.largura}px de largura · ${estreito.vistos} controlos vistos`);
+// Se não viu controlos nenhuns, a medição não diz nada — e um contexto com
+// um nome de aparelho errado dá exatamente isso, uma janela de computador e
+// um verde que não vale nada.
+queixar("controlos abaixo de 44px a 320px", estreito.pequenos);
+queixar("ecrãs que põem a página a rolar de lado a 320px", estreito.rolam);
+if (estreito.aparelho !== 320 || estreito.vistos < 40) {
+  console.log(`   FALHOU: a medição não é de um telemóvel estreito (${estreito.aparelho}px, ${estreito.vistos} controlos)`);
+  process.exitCode = 1;
+}
+
 await browser.close();
 const real = errors.filter((e) => !/gstatic|googleapis|TUNNEL|Fingerprinting|CONNECTION_RESET/.test(e));
 console.log(real.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + real.join("\n"));

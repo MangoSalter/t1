@@ -283,6 +283,29 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## `window.innerWidth` is not the width of the phone
+
+The "does the page scroll sideways" check compared `scrollWidth` against
+`window.innerWidth`, which sounds right and is wrong: when something is wider
+than the screen, Chromium's mobile emulation WIDENS the window to fit it. So
+`innerWidth` grows with the overflow and the comparison stays false in
+exactly the case it exists to catch.
+
+Found by falsifying: a 420px `min-width` on the create-room button reported
+`innerWidth` 444 and zero overflowing screens. Both sweeps compare against
+the DEVICE width now (`devices["iPhone SE"].viewport.width`), and the same
+falsification reports one screen.
+
+Worth remembering as a shape, not just a fact: a check whose reference point
+moves with the thing it measures can never fail.
+
+Also measured, so don't repeat it: every screen at **320px** (iPhone SE, the
+narrowest phone still worth caring about) has no control under 44px and no
+sideways scroll. It is step 5 of `a11y-varrimento-test` now, so "measured on
+a phone" means the narrow one too, and the step refuses to pass if the
+context is not actually 320px wide with 40+ controls in view — a wrong device
+name silently gives you a desktop window and a green tick.
+
 ## Two lists that must agree: make the agreement checkable, not careful
 
 The workshop is two places. `JOGOS_NA_OFICINA` in `data.js` decides which
