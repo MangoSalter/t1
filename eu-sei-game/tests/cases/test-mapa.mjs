@@ -530,5 +530,41 @@ check("sem jogadas", vazio.certos, 0);
 check("sem ritmo", vazio.porMinuto, 0);
 check("sem precisão para mostrar", String(vazio.precisao), "null");
 
+console.log("24) Quem joga em espanhol escreve em espanhol e o mapa entende...");
+// O jogo diz que fala PT/EN/ES, e para o mapa isso quer dizer ACEITAR o que
+// um espanhol escreve. Quase tudo já batia certo sozinho: tirar os acentos
+// faz "Grécia" e "Grecia" serem a mesma palavra, e a lista de alternativas
+// cobre "Alemania", "Francia", "Suiza". As capitais é que tinham buracos —
+// dez, todas do mesmo feitio: um artigo à frente ("El Cairo", "La Habana") ou
+// um nome mesmo diferente ("Tiflis", "Yakarta", "Jartum"). O quaseIgual exige
+// que a PRIMEIRA letra bata certo, e com razão, por isso "El Cairo" nunca
+// chegaria a "Cairo" por semelhança — tinha de estar na lista.
+{
+  const emEspanhol = {
+    // Países, para não voltarem a fugir.
+    Alemania: "Alemanha", Francia: "França", Suiza: "Suíça", "Países Bajos": "Países Baixos",
+    Sudáfrica: "África do Sul", Marruecos: "Marrocos", "Nueva Zelanda": "Nova Zelândia",
+    // As dez capitais que faltavam.
+    "El Cairo": "Egito", "La Habana": "Cuba", Tiflis: "Geórgia", Yakarta: "Indonésia",
+    Jartum: "Sudão", Dacca: "Bangladeche", "Puerto España": "Trindade e Tobago",
+    "Ciudad de Guatemala": "Guatemala", "Ciudad de Panamá": "Panamá", "Ciudad de México": "México",
+  };
+  const nomesDoPais = (pais) => [pais.nome, pais.en, ...(pais.alt || [])].filter(Boolean);
+  const nomesDaCapital = (pais) => (pais.cap ? [pais.cap.pt, pais.cap.en, ...(pais.cap.alt || [])].filter(Boolean) : []);
+  // A mesma ordem do porNomeEscrito: primeiro o que bate certo, só depois a
+  // gralha — senão uma gralha rouba um nome escrito bem.
+  const aQuemPertence = (escrito) => {
+    const todos = dados.flatMap((pais) => [
+      { pais: pais.nome, nomes: nomesDoPais(pais) },
+      { pais: pais.nome, nomes: nomesDaCapital(pais) },
+    ]);
+    const exato = todos.find((a) => a.nomes.some((n) => m.limpar(escrito) === m.limpar(n)));
+    return (exato || todos.find((a) => a.nomes.some((n) => m.quaseIgual(escrito, n))) || {}).pais || null;
+  };
+  Object.entries(emEspanhol).forEach(([escrito, esperado]) => {
+    check(`"${escrito}"`, aQuemPertence(escrito), esperado);
+  });
+}
+
 if (falhas > 0) { console.log(`=> test-mapa FALHOU (${falhas})`); process.exit(1); }
 console.log("=> test-mapa ok");

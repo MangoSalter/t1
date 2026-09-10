@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **15m43s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m09s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -250,6 +250,29 @@ The rest of the sweep came back clean or owner-blocked: `startBattleTeam`
 shuffles only to hand out spawn points (no role to miss), and everything else
 that iterates all players is either scoring — which lands squarely in the
 survival-scoring decision that is the owner's — or harmless.
+
+## Measuring with your own comparison instead of the real one
+The game claims PT/EN/ES, so I checked what the map does with Spanish. My
+first pass compared strings by hand and reported **11 of 18 country names
+missing** — Grécia/Grecia, Itália/Italia, Suécia/Suecia and so on. Every one
+of those was wrong. `limpar` strips accents before matching, so those pairs
+are the SAME WORD, and the `alt` lists cover the genuinely different ones
+(Alemania, Francia, Suiza). Measured again through the real `limpar` and
+`quaseIgual`: **37 of 37**, and the one apparent miss was my own bad test
+input ("Nueva Guinea" instead of "Papua Nueva Guinea").
+
+The capitals were the real gap: **10 of 64** did not resolve, all the same
+shape — an article in front (`El Cairo`, `La Habana`, `Puerto España`,
+`Ciudad de México`) or a genuinely different word (`Tiflis`, `Yakarta`,
+`Jartum`, `Dacca`). `quaseIgual` insists the FIRST LETTER matches, and
+rightly so, so "El Cairo" could never reach "Cairo" by similarity — it had to
+be in the list. They are in `cap.alt` now, guarded by `test-mapa` step 24,
+falsified by removing one.
+
+The lesson is the one this file keeps relearning from the other direction:
+when you measure a rule, measure it with the code that implements the rule.
+A hand-rolled comparison invented a crisis and hid a real (smaller) defect
+behind it.
 
 ## A test that reaches its subject by chance fails by chance
 `solo-monkey-test` played classic rounds until the random bonus draw happened
