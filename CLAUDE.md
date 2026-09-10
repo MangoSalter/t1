@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **14m49s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m05s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -268,7 +268,13 @@ screen, before anyone joins a room.
 The four sweeps live in `a11y-varrimento-test`, not in `a11y-test`. They were
 one file until the set crossed the **five minutes the runner allows a single
 case** and got SIGKILLed halfway — and a killed case prints nothing useful,
-so the symptom was a silent failure with no error text. They split cleanly:
+so the symptom was a silent failure with no error text. That cliff is visible
+now: the runner prints each case's duration, says `MORTO ao fim de Ns` instead
+of a bare `FALHOU` when it was the ceiling that killed it, and ends the run by
+listing anything past 60% of the limit. The threshold is 60% and not 70%
+because measured, the longest case is `a11y-test` at **191s** — at 70% (210s)
+the warning would not name the one file that has actually died. Everything
+else is under 111s. They split cleanly:
 `a11y-test` keeps focus, reduced motion and contrast; the sweeps measure size
 and name, screen by screen and overlay by overlay. Two cases also finish
 sooner than one, because the runner parallelises by case.

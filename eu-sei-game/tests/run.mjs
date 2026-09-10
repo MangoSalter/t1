@@ -45,6 +45,10 @@ const stub = path.join(here, "stub", "firebase-init.js");
 const CHROMIUM_DA_CAIXA = "/opt/pw-browsers/chromium";
 const chromiumPath = existsSync(CHROMIUM_DA_CAIXA) ? CHROMIUM_DA_CAIXA : "";
 const PORTAS_BASE = [8936, 8937];
+// O tempo que um caso tem antes de levar SIGKILL. Um caso morto não imprime
+// nada de útil, por isso o fim da corrida também avisa de quem se está a
+// aproximar disto.
+const TETO_MS = 300000;
 
 const args = process.argv.slice(2);
 let jobs = 4;
@@ -167,6 +171,7 @@ try {
   }
 
   const failed = [];
+  const duracoes = [];
   const fila = [...cases];
   const correr = (t, file) => new Promise((resolve) => {
     // Onde correr cada caso:
@@ -188,15 +193,26 @@ try {
     let out = "";
     p.stdout.on("data", (d) => { out += d; });
     p.stderr.on("data", (d) => { out += d; });
-    const kill = setTimeout(() => p.kill("SIGKILL"), 300000);
+    const comecou = Date.now();
+    let morto = false;
+    const kill = setTimeout(() => { morto = true; p.kill("SIGKILL"); }, TETO_MS);
     p.on("close", (c) => {
       clearTimeout(kill);
+      const segundos = Math.round((Date.now() - comecou) / 1000);
+      duracoes.push({ file, segundos });
       // 120 e nao 40: com 40, uma pilha de erro do Playwright (que sao umas
       // vinte linhas de "retrying click action") empurrava para fora do ecra
       // os passos que diziam ONDE o caso ia. Custou-me uma volta inteira a
       // perceber que o que faltava era o print, nao a causa.
-      if (c !== 0) console.log(`${file.padEnd(34)} FALHOU\n${out.split("\n").slice(-120).join("\n")}`);
-      else console.log(verboso ? `${file.padEnd(34)} ok\n${out}` : `${file.padEnd(34)} ok`);
+      // Um caso MORTO pelo teto não imprime nada de útil — o processo leva
+      // SIGKILL a meio de um passo e o que se vê é uma falha calada. Diz-se
+      // aqui, porque foi assim que perdi uma volta a olhar para um ficheiro
+      // que não tinha erro nenhum: só era comprido de mais.
+      const marca = morto
+        ? `MORTO ao fim de ${segundos}s (o teto é ${TETO_MS / 1000}s) — parte o ficheiro em dois`
+        : `FALHOU (${segundos}s)`;
+      if (c !== 0) console.log(`${file.padEnd(34)} ${marca}\n${out.split("\n").slice(-120).join("\n")}`);
+      else console.log(verboso ? `${file.padEnd(34)} ok (${segundos}s)\n${out}` : `${file.padEnd(34)} ok (${segundos}s)`);
       if (c !== 0) failed.push(file);
       resolve();
     });
@@ -209,6 +225,20 @@ try {
       await correr(t, file);
     }
   }));
+
+  // Quem está perto do teto. Um caso que passa em 250s passa hoje e morre no
+  // dia em que alguém lhe acrescentar um passo — e morre CALADO. Mais vale
+  // saber-se antes, e partir o ficheiro em dois como se fez ao a11y-test.
+  //
+  // 60% e não 70%: medido, o mais demorado é o a11y-test a 191s, e a 70% (210s)
+  // não apareceria aqui — mas é exatamente ele que já morreu uma vez. Um aviso
+  // que não avisa do único caso em risco não serve de nada.
+  const AVISO = 0.6;
+  const perto = duracoes.filter((d) => d.segundos >= TETO_MS / 1000 * AVISO).sort((a, b) => b.segundos - a.segundos);
+  if (perto.length > 0) {
+    console.log(`\nPerto do teto de ${TETO_MS / 1000}s por caso (parte-os antes que morram calados):`);
+    perto.forEach((d) => console.log(`  ${d.file.padEnd(34)} ${d.segundos}s`));
+  }
 
   console.log(`\n${cases.length - failed.length}/${cases.length} casos passaram.`);
   if (failed.length > 0) {
