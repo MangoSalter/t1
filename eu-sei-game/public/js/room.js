@@ -2507,10 +2507,24 @@ export async function undoLastDrawStroke(code, room, uid) {
 
 // Quem desenha escolhe quem acertou primeiro (é o único que sabe a
 // resposta) — atribui pontos ao vencedor e um bónus a quem desenhou.
+// QUEM PODE LEVAR A RONDA. Quem desenha julga de ouvido — foi alguém que
+// gritou a palavra — por isso é ele que escolhe de uma lista. A lista eram
+// TODOS os jogadores que a sala já viu, e não é a mesma coisa: quem fechou o
+// telemóvel a meio aparecia lá, e os pontos da ronda podiam ir para alguém
+// que não estava na sala para gritar coisa nenhuma. A ordem das vezes deste
+// mesmo jogo (`startDrawGame`) já filtra por ligado; a lista de vencedores é
+// que não filtrava. Mesma função para o ecrã e para a escrita.
+export function candidatosAVencedorDoDesenho(room) {
+  const draw = room?.draw;
+  if (!draw) return [];
+  return Object.keys(room.players || {})
+    .filter((uid) => uid !== draw.drawerId && naSala(room, uid));
+}
+
 export async function selectDrawWinner(code, room, judgeUid, winnerUid) {
   const draw = room.draw;
   if (!draw || draw.resolved || draw.drawerId !== judgeUid || winnerUid === judgeUid) return;
-  if (!room.players?.[winnerUid]) return;
+  if (!candidatosAVencedorDoDesenho(room).includes(winnerUid)) return;
   const prevWinnerScore = room.players?.[winnerUid]?.score || 0;
   const prevDrawerScore = room.players?.[judgeUid]?.score || 0;
   await update(roomRef(code), {

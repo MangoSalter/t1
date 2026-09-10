@@ -102,6 +102,31 @@ const escondido = await page.locator("#draw-skip-btn").isVisible();
 console.log(`   com a Carla (ligada) a desenhar, a Ana vê o botão: ${escondido}`);
 if (escondido) falhar("qualquer um pode cortar a vez de quem está a desenhar");
 
+console.log("3c) E quem já saiu não pode LEVAR a ronda: a lista de vencedores só tem quem está cá...");
+// A ordem das vezes deste mesmo jogo já filtrava por ligado; a lista do
+// "🏆 Alguém acertou!" mostrava toda a gente que a sala alguma vez viu, e os
+// pontos podiam ir para quem fechou o telemóvel e não gritou nada.
+// A Carla desenha (está ligada) e o Beto continua fora.
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/draw`, { drawerId: "p3", resolved: false, roundWinnerId: null, resolvedAt: null });
+}, code);
+await page.waitForTimeout(300);
+const nomesNaLista = await page.evaluate(async ({ c, quem }) => {
+  const m = await import("./js/room.js");
+  const sala = window.__testDb.get(`rooms/${c}`);
+  return m.candidatosAVencedorDoDesenho(sala).map((u) => sala.players[u].name);
+}, { c: code, quem: "p3" });
+console.log(`   candidatos a vencedor: ${nomesNaLista.join(", ") || "(nenhum)"}`);
+if (nomesNaLista.includes("Beto")) falhar("o Beto saiu e ainda pode levar os pontos da ronda");
+if (!nomesNaLista.includes("Ana") || !nomesNaLista.includes("Dinis")) falhar("faltam candidatos que estão na sala");
+if (nomesNaLista.includes("Carla")) falhar("quem desenha não se pode escolher a si própria");
+// E a escrita recusa o mesmo que o ecrã esconde, senão a regra é só decoração.
+await chamar("selectDrawWinner", "p3", "p2");
+await page.waitForTimeout(300);
+r = await sala();
+console.log(`   depois de tentar dar a ronda ao Beto: fechada = ${r.draw.resolved}, pontos dele = ${r.players.p2.score}`);
+if (r.draw.resolved || r.players.p2.score !== 0) falhar("a escrita aceitou um vencedor que já não está na sala");
+
 console.log("4) E a vez de quem já saiu não pode chegar com a caneta na mão dele...");
 // A Carla também se vai embora, ANTES da vez dela (é a seguinte na ordem).
 await page.evaluate((c) => window.__testDb.update(`rooms/${c}/players/p3`, { connected: false }), code);

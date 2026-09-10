@@ -18,7 +18,8 @@ import {
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
-  pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho, advanceDrawRound,
+  pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho,
+  candidatosAVencedorDoDesenho, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
   spawnTagPowerup, resolveTagRound, finishTagRound, reatribuirInfecao, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
@@ -1390,19 +1391,30 @@ drawEls.selectWinnerBtn.addEventListener("click", () => {
   const room = state.room;
   if (!room) return;
   drawEls.winnerList.innerHTML = "";
-  Object.entries(room.players || {})
-    .filter(([uid]) => uid !== room.draw.drawerId)
-    .forEach(([uid, p]) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "primary";
-      btn.innerHTML = avatarImgHtml(p.avatar, "sm", p.name) + escapeHtml(p.name);
-      btn.addEventListener("click", () => {
-        selectDrawWinner(state.code, state.room, state.uid, uid);
-        drawEls.winnerOverlay.classList.add("hidden");
-      });
-      drawEls.winnerList.appendChild(btn);
+  // A mesma lista que a escrita aceita (candidatosAVencedorDoDesenho): só
+  // quem está LIGADO. Isto mostrava toda a gente que a sala já tinha visto,
+  // e os pontos da ronda podiam ir para quem tinha fechado o telemóvel.
+  const candidatos = candidatosAVencedorDoDesenho(room);
+  candidatos.forEach((uid) => {
+    const p = room.players[uid];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "primary";
+    btn.innerHTML = avatarImgHtml(p.avatar, "sm", p.name) + escapeHtml(p.name);
+    btn.addEventListener("click", () => {
+      selectDrawWinner(state.code, state.room, state.uid, uid);
+      drawEls.winnerOverlay.classList.add("hidden");
     });
+    drawEls.winnerList.appendChild(btn);
+  });
+  // Uma lista vazia sem explicação lê-se como avaria. Não é beco sem saída:
+  // o "ninguém acertou" está ali ao lado.
+  if (candidatos.length === 0) {
+    const p = document.createElement("p");
+    p.className = "hint small";
+    p.textContent = t("desenhaNinguemParaEscolher");
+    drawEls.winnerList.appendChild(p);
+  }
   drawEls.winnerOverlay.classList.remove("hidden");
 });
 drawEls.winnerCancelBtn.addEventListener("click", () => {

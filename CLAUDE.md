@@ -294,6 +294,18 @@ Two things to take from it:
   and the falsification has to run BOTH ways here, because "show the button
   always" fixes the stuck room and lets anyone cut short someone else's turn.
 
+Reading the rest of that same screen found the `players.length` bug AGAIN, a
+hundred lines down: the "🏆 Alguém acertou!" list was
+`Object.entries(room.players)` minus the drawer — so everyone the room had
+ever seen, and the round's points could go to somebody who had closed their
+phone and shouted nothing. `startDrawGame`'s own turn order, in the same
+feature, has always filtered on connected. That is the sixth instance of
+this shape and the pattern for finding them is now boringly reliable:
+**when one bug in a feature turns out to be "the screen wrote its own copy
+of the rule", read the whole feature before leaving** — the copies come in
+pairs. `candidatosAVencedorDoDesenho` is shared by the render and by
+`selectDrawWinner`, so the write refuses what the list hides.
+
 `roundScore` and the drawing round's result screen still wait on a host
 button with no deadline, and that is left alone on purpose: the host is
 pacing a screen everybody is reading, and `maybeReclaimHost` covers the host

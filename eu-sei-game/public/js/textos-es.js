@@ -667,6 +667,7 @@ export default {
   desenhaTuLivre: (ronda, palavra) => `${ronda} — dibuja: “${palavra}”`,
   desenhaTuMarcos: (ronda, palavra, onde) => `${ronda} — dibuja: “${palavra}” (está en ${onde})`,
   desenhaQuemDesenhavaSaiu: (nome) => `🙈 ${nome} se fue — seguir adelante`,
+  desenhaNinguemParaEscolher: "No queda nadie más en la sala para elegir. Usa “Nadie acertó”.",
   desenhaAcertou: (palavra, quem, pts, bonus, desenhista) => `🎉 ${palavra}¡${quem} acertó! +${pts} pts (y +${bonus} para ${desenhista})`,
   albumGuardar: (autor) => `Guardar el dibujo de ${autor}`,
   albumDesenhoDe: (palavra, autor) => `Dibujo de ${palavra}, por ${autor}`,
