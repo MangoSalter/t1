@@ -766,10 +766,16 @@ function renderLobby(room) {
   lobbyEls.catSelectAll.classList.toggle("hidden", !amHost);
   lobbyEls.catClear.classList.toggle("hidden", !amHost);
   lobbyEls.startBtn.classList.toggle("hidden", !amHost);
-  lobbyEls.startBtn.disabled = players.length < 2;
   lobbyEls.waiting.classList.toggle("hidden", amHost);
 
   const connectedCount = players.filter(([, p]) => p.connected).length;
+  // LIGADOS, e não quantos constam da sala. Duas linhas abaixo os mini-jogos
+  // já contavam assim; a partida clássica — que é o jogo principal — contava
+  // toda a gente que alguma vez entrou. Bastava alguém fechar o telemóvel
+  // para o anfitrião poder começar uma partida de um jogador só, com o outro
+  // na classificação a não fazer nada. A regra estava aqui ao lado.
+  lobbyEls.startBtn.disabled = connectedCount < 2;
+  lobbyEls.startBtn.title = connectedCount < 2 ? "Precisa de 2+ jogadores ligados." : "";
   let blockedByPlayers = 0;
   mpGameButtons.forEach((btn) => {
     const min = MP_GAME_MIN_PLAYERS[btn.dataset.mpGame] ?? 2;

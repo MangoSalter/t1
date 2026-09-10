@@ -171,6 +171,53 @@ if (posicoes[2] !== "#3") {
 }
 
 
+console.log("10) Começar a partida conta quem está LIGADO, não quem consta da sala...");
+// Os mini-jogos já contavam ligados; a partida clássica contava toda a gente
+// que alguma vez entrou. Bastava alguém fechar o telemóvel para o anfitrião
+// poder começar uma partida de um jogador só, com o outro na classificação
+// sem fazer nada.
+// Sair pelo lobby, que é o caminho de uma pessoa — recarregar devolveria à
+// sala guardada, que é o que faz um F5 a meio de uma partida não desfazer o
+// grupo.
+// O passo 9 deixou o painel de Opções aberto, e ele apanha os cliques.
+await page.click("#options-close-btn");
+await page.click('[data-screen="lobby"] [data-leave]');
+await page.waitForSelector('[data-screen="home"].active', { timeout: 8000 });
+await page.fill("#name-input", "Ana");
+await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 3000 });
+await page.click("#create-room-btn");
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const salaDoSozinho = (await page.locator("#lobby-code").textContent()).trim();
+const soUm = await page.locator("#start-game-btn").isDisabled();
+console.log(`   sozinha na sala: começar desligado = ${soUm} (esperado true)`);
+if (!soUm) { console.log("   FALHOU: uma pessoa sozinha não podia começar uma partida"); process.exitCode = 1; }
+
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/players`, { p2: { name: "Beto", score: 0, connected: true } });
+}, salaDoSozinho);
+await page.waitForTimeout(250);
+const comDois = await page.locator("#start-game-btn").isDisabled();
+console.log(`   com o Beto ligado: começar desligado = ${comDois} (esperado false)`);
+if (comDois) { console.log("   FALHOU: com dois ligados devia dar para começar"); process.exitCode = 1; }
+
+// E agora o Beto fecha o telemóvel: continua na sala, mas não está lá.
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/players/p2`, { connected: false });
+}, salaDoSozinho);
+await page.waitForTimeout(250);
+const comDesligado = await page.locator("#start-game-btn").isDisabled();
+const dica = await page.locator("#start-game-btn").getAttribute("title");
+console.log(`   com o Beto desligado: começar desligado = ${comDesligado} · dica: "${dica}"`);
+if (!comDesligado) {
+  console.log("   FALHOU: um jogador desligado não conta para começar a partida");
+  process.exitCode = 1;
+}
+if (!dica || !/ligados/i.test(dica)) {
+  console.log("   FALHOU: um botão desligado tem de dizer porquê, como os dos mini-jogos");
+  process.exitCode = 1;
+}
+
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));
