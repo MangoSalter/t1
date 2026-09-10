@@ -388,6 +388,45 @@ Três saídas, e a escolha é tua:
 A sozinho nada disto tem problema — se disseres só "a sozinho traduz-se",
 faço isso e a sala fica como está.
 
+# As cores que dizem quem é quem (uma pergunta pequena)
+
+No quadro de sala cada pessoa escolhe uma cor, e é só por ela que se sabe de
+quem foi a letra errada — o nome está num `title`, que num telemóvel ninguém
+vê, porque não há rato para lá pousar. A cor é a informação toda. Medi as
+dez.
+
+**Uma coisa estava partida e está arranjada.** O amarelo da casa dava 2,1:1
+de contraste sobre a folha, e a regra para um objeto gráfico é 3:1. Como
+decoração passa; como letra fina não se lê. Escurecê-lo à primeira resolveu
+o contraste e partiu outra coisa — ficou indistinguível do vermelho-tijolo
+para quem tem protanopia —, e foi o teste novo que recusou. O ouro que lá
+está agora (`#9b8c3e`) cumpre as duas.
+
+**A outra é tua.** Cerca de 6% dos homens não separa vermelho de verde. Medi
+as dez cores em visão normal e nas três dicromacias, e o pior par fica a
+**7,3 pontos de distância** — pouco: duas pessoas na mesma sala podem não se
+distinguir uma da outra. Dá para chegar a **24** trocando a paleta toda, e eu
+não o fiz por uma razão: as cores que o conseguem são mais claras e mais
+saturadas do que estas, e mudam a cara do quadro. A cara do quadro é tua.
+
+Três saídas:
+
+1. **Fica como está.** É jogável; só é pior para quem não separa as cores.
+2. **Troco a paleta** pela que separa melhor. O quadro fica mais colorido e
+   menos terroso — posso mostrar-te antes de trocar.
+3. **Deixo as cores e ponho a inicial** de quem escreveu ao lado da letra.
+   Resolve para toda a gente sem mexer na paleta, mas acrescenta texto a um
+   ecrã que tu já afinaste.
+
+Enquanto não disseres, o `test-cores` garante que ninguém piora o número sem
+dar por isso.
+
+(À parte, e não mexi: no quadro de JOGAR SOZINHO há fundos escuros, e o
+castanho-escuro sobre o quadro de giz dá 1,0:1 — tinta invisível. Quem
+escolhe é quem está a olhar, e vê logo, por isso é menos grave do que
+parece; mas se quiseres, a tinta pode aclarar sozinha quando o papel é
+escuro, que é o que a tinta por omissão já faz.)
+
 # A decisão que falta (a única)
 
 Os oito jogos da oficina estão à espera de uma coisa que não é trabalho meu:

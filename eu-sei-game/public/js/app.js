@@ -39,6 +39,7 @@ import {
   GOLF_MP_BROADCAST_MS, GOLF_MP_RESULT_DISPLAY_MS,
   golfTerreno, golfSaltitao, GOLF_MP_ACELERADORES, GOLF_MP_SALTITOES, GOLF_MP_AREIAS,
   mapaMangaRouba, MAPA_MANGA_CADA_MS,
+  NOMES_DAS_CORES,
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
 import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
@@ -184,15 +185,9 @@ const AVATAR_KEY = "euSei_avatar";
 // ecrã, e a paleta grande dos quadros já anuncia a dela desde sempre. Estavam
 // mudos porque vivem numa sobreposição que varrimento nenhum abria (ver
 // a11y-test, passo 12).
-const AVATAR_PALETTE = [
-  { cor: "#3a3126", nome: "Castanho-escuro", chave: "corCastanhoEscuro" },
-  { cor: "#c65d4a", nome: "Vermelho-telha", chave: "corVermelhoTelha" },
-  { cor: "#e3a53d", nome: "Amarelo-mostarda", chave: "corAmareloMostarda" },
-  { cor: "#6c8a4f", nome: "Verde-musgo", chave: "corVerdeMusgo" },
-  { cor: "#5c7e91", nome: "Azul-acinzentado", chave: "corAzulAcinzentado" },
-  { cor: "#8a6bb0", nome: "Roxo", chave: "corRoxo" },
-  { cor: "#ffffff", nome: "Branco", chave: "corBranco" },
-];
+// Os nomes vêm da lista partilhada (NOMES_DAS_CORES, no room.js): havia três
+// paletas espalhadas pela app e só esta tinha nomes, escritos à mão aqui.
+const AVATAR_PALETTE = ["#3a3126", "#c65d4a", "#e3a53d", "#6c8a4f", "#5c7e91", "#8a6bb0", "#ffffff"];
 const AVATAR_BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
 
 const avatarEls = {
@@ -209,7 +204,7 @@ const avatarEls = {
   cancelBtn: document.getElementById("avatar-cancel-btn"),
 };
 
-const avatarState = { tool: "pencil", color: AVATAR_PALETTE[0].cor, drawing: false };
+const avatarState = { tool: "pencil", color: AVATAR_PALETTE[0], drawing: false };
 const avatarCtx = avatarEls.canvas.getContext("2d", { willReadFrequently: true });
 avatarCtx.imageSmoothingEnabled = false;
 
@@ -235,12 +230,12 @@ function updateAvatarPreview(dataUrl) {
 }
 updateAvatarPreview(loadAvatar());
 
-AVATAR_PALETTE.forEach(({ cor, nome, chave }) => {
+AVATAR_PALETTE.forEach((cor) => {
   const swatch = document.createElement("button");
   swatch.type = "button";
   swatch.className = "avatar-swatch";
   swatch.style.background = cor;
-  swatch.setAttribute("aria-label", t("corAria", t(chave) || nome, cor));
+  swatch.setAttribute("aria-label", t("corAria", t(NOMES_DAS_CORES[cor]) || cor, cor));
   const marcar = (ligado) => {
     swatch.classList.toggle("active", ligado);
     swatch.setAttribute("aria-pressed", ligado ? "true" : "false");

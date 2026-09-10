@@ -283,6 +283,38 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## A ratchet catches the fix that breaks something else
+
+In the room whiteboard, the colour a player picks is the ONLY thing saying
+whose wrong letter that was — the name lives in a `title`, and a phone has
+nowhere to hover. So the colours have two jobs, and I measured both.
+
+One had an objective answer: the house yellow gave **2.1:1** against the
+sheet, under the 3:1 a graphical object needs. As decoration it passes; as a
+thin letter it does not. I darkened it, and `test-cores` refused the fix —
+the darker gold landed **6.9** from the brick red under protanopia, below the
+7.3 that was the set's worst pair. I had improved one axis and quietly
+damaged the other, and the only reason I know is that the check measures both
+and holds a floor under each. The gold that shipped clears 3:1 AND stays 12.2
+from everything else in every vision.
+
+The second job has no objective answer. Across normal vision and the three
+dichromacies the worst pair is 7.3 — two people in a room may be unable to
+tell each other apart. A palette exists that reaches 24, but it is lighter
+and more saturated than this game looks, so it is a decision about
+appearance, and appearance is the owner's. `docs/jogos.md` carries the
+numbers and three options.
+
+So the check does two different things on purpose: it FAILS on contrast
+(objective), and it holds a RATCHET on separation (a matter of taste that
+must not silently get worse). Falsified both ways.
+
+While measuring, a third list of colours turned up. There were three — the
+player identities, the room's ink, the avatar's — and only the avatar's had
+names; the other two announced `Cor #b24b38` to a screen reader. One shared
+`NOMES_DAS_CORES` now, in `room.js`, as keys only so the "room.js knows no
+languages" check still holds.
+
 ## A stopwatch inside a parallel run measures the machine, not the code
 
 `mapa-desempenho-test` went red in a full run and passed on its own with

@@ -154,7 +154,7 @@ await david.click("#join-room-btn");
 await david.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
 console.log("   o David entrou e foi parar ao quadro, onde o jogo já ia a meio");
 await david.waitForSelector("#hangman-color-overlay:not(.hidden)", { timeout: 8000 });
-await david.click('[data-color-choice="#e3a53d"]');
+await david.click('[data-color-choice="#9b8c3e"]');
 await david.waitForFunction(() => document.getElementById("hangman-color-overlay").classList.contains("hidden"), { timeout: 8000 });
 // Os espaços só são botões (com data-slot-index) para quem tem a caneta; para
 // quem adivinha são células. Conta-se a célula, não o botão.

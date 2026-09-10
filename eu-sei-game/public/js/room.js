@@ -1267,20 +1267,35 @@ export const CORES_DO_MAPA = [
   "#339988", "#ff99cc", "#77aaee", "#bbcc77", "#bbbb22",
 ];
 
+// O amarelo da casa (#e3a53d) não entra AQUI, e é a única diferença para a
+// paleta de desenho: sobre a folha dá 2,1:1 de contraste, e a regra para um
+// objeto gráfico é 3:1. Como decoração passa; como LETRA FINA, que é o que
+// estas cores desenham na faixa das erradas, não se lê.
+//
+// Escurecê-lo à primeira (#b68431, 3,3:1) resolveu o contraste e PARTIU
+// outra coisa: ficou a 6,9 do vermelho-tijolo para quem tem protanopia,
+// abaixo dos 7,3 que era o pior par do conjunto. Foi o test-cores que
+// recusou. Este (#9b8c3e) dá 3,3:1 e fica a 12,2 de todos os outros em
+// todas as visões — é o ouro mais parecido com o original que cumpre as
+// duas coisas.
 export const HANGMAN_PLAYER_COLORS = [
-  "#b24b38", "#5c7e91", "#5b7442", "#e3a53d", "#7a4fb5",
+  "#b24b38", "#5c7e91", "#5b7442", "#9b8c3e", "#7a4fb5",
   "#2f7d6e", "#d1691f", "#c2569b", "#3a3126", "#8a8a8a",
 ];
 
-// O NOME DE CADA UMA, para quem usa leitor de ecrã: "#b24b38" não diz nada a
-// ninguém. Aqui ficam só as CHAVES — este módulo não conhece línguas (e há um
-// teste que o garante), por isso quem pinta é que traduz. As sete do avatar
-// já tinham nome há muito; estas dez, ao lado, liam o hexadecimal em voz
-// alta.
-export const HANGMAN_COLOR_KEYS = {
+// O NOME DE CADA COR DA CASA, para quem usa leitor de ecrã: "#b24b38" não
+// diz nada a ninguém. Aqui ficam só as CHAVES — este módulo não conhece
+// línguas (e há um teste que o garante), por isso quem pinta é que traduz.
+//
+// UMA lista para todas as paletas: a identidade de cada jogador, a tinta do
+// quadro de sala, o rascunho pessoal e o avatar. Havia três listas de cores
+// espalhadas e só a do avatar tinha nomes; as outras liam o hexadecimal em
+// voz alta.
+export const NOMES_DAS_CORES = {
   "#b24b38": "corTijolo",
   "#5c7e91": "corAzulAcinzentado",
   "#5b7442": "corVerdeOliva",
+  "#9b8c3e": "corOuroVelho",
   "#e3a53d": "corAmareloMostarda",
   "#7a4fb5": "corRoxoEscuro",
   "#2f7d6e": "corVerdeAzulado",
@@ -1288,6 +1303,11 @@ export const HANGMAN_COLOR_KEYS = {
   "#c2569b": "corRosa",
   "#3a3126": "corCastanhoEscuro",
   "#8a8a8a": "corCinzento",
+  "#f6efdd": "corCreme",
+  "#c65d4a": "corVermelhoTelha",
+  "#6c8a4f": "corVerdeMusgo",
+  "#8a6bb0": "corRoxo",
+  "#ffffff": "corBranco",
 };
 
 export function takenHangmanColors(room, exceptUid) {

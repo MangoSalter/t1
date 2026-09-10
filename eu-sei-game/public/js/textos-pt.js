@@ -883,4 +883,6 @@ export default {
   corRosa: "Rosa",
   corCinzento: "Cinzento",
   corAria: (nome, hex) => `${nome} ${hex}`,
+  corOuroVelho: "Ouro-velho",
+  corCreme: "Creme",
 };

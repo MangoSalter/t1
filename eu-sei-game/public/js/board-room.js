@@ -13,7 +13,7 @@ import { say as narrar } from "./voice.js";
 import { BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS } from "./data.js";
 import {
   BOARD_CHAOS_EVERY, BOARD_MODES, BOARD_SETTINGS_SPEC, DEFAULT_BOARD_MODE, DOODLE_BOARD_FULL,
-  HANGMAN_COLOR_KEYS, HANGMAN_PLAYER_COLORS,
+  HANGMAN_PLAYER_COLORS, NOMES_DAS_CORES,
   MAX_TEAMS, WORD_SEP, addHangmanMiss, applyBoardVotes, boardChaosOn, boardSetting,
   canDrawOnBoard, canGuessNow, canSetBoardMode, clearHangmanDoodle, clearHangmanPuzzle, connectedPlayerIds,
   correctCountOf, currentGuesser, finishHangman, fireBoardChaos, freeGuessing, guessesAreAnonymous,
@@ -664,7 +664,7 @@ function buildHangmanPenZone() {
     btn.className = "board-color";
     btn.dataset.hangmanColor = color;
     btn.style.background = color;
-    btn.setAttribute("aria-label", `Cor ${color}`);
+    btn.setAttribute("aria-label", t("corAria", t(NOMES_DAS_CORES[color]) || color, color));
     btn.addEventListener("click", () => selectHangmanColor(color));
     hangmanEls.colorRow.appendChild(btn);
   });
@@ -981,7 +981,7 @@ function personalBuildTools() {
     btn.className = "board-color";
     btn.dataset.personalColor = cor;
     btn.style.background = cor;
-    btn.setAttribute("aria-label", t("quadroCorRascunhoAria", cor));
+    btn.setAttribute("aria-label", t("quadroCorRascunhoAria", t(NOMES_DAS_CORES[cor]) || cor));
     btn.addEventListener("click", () => {
       personal.color = cor;
       personal.erasing = false;
@@ -1786,7 +1786,7 @@ function hangmanRenderColorPicker(room) {
     btn.dataset.colorChoice = cor;
     btn.style.background = cor;
     btn.disabled = ocupadas.includes(cor);
-    btn.setAttribute("aria-label", t("corAria", t(HANGMAN_COLOR_KEYS[cor]) || cor, cor));
+    btn.setAttribute("aria-label", t("corAria", t(NOMES_DAS_CORES[cor]) || cor, cor));
     btn.setAttribute("aria-pressed", String(minha === cor));
     btn.addEventListener("click", () => pickHangmanColor(state.code, state.room, state.uid, cor));
     hangmanEls.colorChoices.appendChild(btn);
