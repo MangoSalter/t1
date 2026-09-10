@@ -614,6 +614,37 @@ paint. A case that wants another language passes `{ locale: "en-US" }`, or
 stores a choice — `linguas-ecra-test` stores `en`, which beats the browser's
 language exactly as a person's choice should.
 
+### A ceiling set for order-of-magnitude change does not catch 20%
+
+Translating the game took `i18n.js` from **15 KB to 146 KB**, and the first
+load from 661 KB to 792 KB — undoing a fifth of what the previous session
+spent real effort winning (913 -> 661). `carga-inicial-test` stayed green the
+whole time, and correctly: its ceiling is 1000 KB, put there deliberately as
+"something changed by an order of magnitude, not a target to chase". A 20%
+regression walks straight under it.
+
+That is not an argument for lowering the ceiling. It is an argument for
+guarding the INVARIANT instead of the size, which is what step 4 of that case
+does now: **exactly one `textos-*.js` at first load**, and it fails on two.
+Falsified by loading Spanish alongside Portuguese.
+
+The three tables live in `textos-pt.js`, `textos-en.js` and `textos-es.js`;
+`i18n.js` is 3 KB and pulls the chosen one with a top-level `await import`,
+so `t()` stays synchronous for everything downstream and nobody has to know.
+First load: **713 KB / 19 files** — the whole three-language game costs 52 KB
+over where it started, not 131.
+
+Two consequences worth knowing before touching this:
+
+- **`definirLingua` is async now.** Switching language may have to fetch a
+  table. The `<select>` does not await it (the listeners fire when the text
+  lands, which is what matters), but every test that switches language must,
+  or it reads the old one.
+- **The fall-back to Portuguese is gone**, because Portuguese may not be
+  loaded. Nothing is lost: `test-linguas` compares all three tables key by
+  key and fails on any divergence, which is a stronger guarantee than a
+  silent fallback that shows Portuguese inside an English screen.
+
 ## First load has a budget now, not a note
 The old note here said 868 KB across 23 files. Measured again in September:
 **913 KB across 23 files** — it had grown 45 KB while the number in this

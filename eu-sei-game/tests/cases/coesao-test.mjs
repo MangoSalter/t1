@@ -93,10 +93,10 @@ const contagens = await page.evaluate(async () => {
   const i = await import("./js/i18n.js");
   const n = {};
   for (const lingua of ["pt", "en", "es"]) {
-    i.definirLingua(lingua);
+    await i.definirLingua(lingua);
     n[lingua] = i.t("mapaFalas").length;
   }
-  i.definirLingua("pt");
+  await i.definirLingua("pt");
   return n;
 });
 console.log(`   falas por língua: ${JSON.stringify(contagens)}`);

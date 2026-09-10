@@ -107,20 +107,41 @@ if (!/insetos|toca/i.test(frase)) fail("devia dizer o que se faz no jogo, não s
 
 console.log("4) As instruções são escritas para ser OUVIDAS...");
 // Um sintetizador lê tudo: parênteses, barras e emoji viram ruído.
+// As instruções passaram a viver na tabela das línguas — o modo guiado fala
+// a língua de quem joga —, por isso a regra vale para as TRÊS. Uma frase
+// inglesa com um parêntesis é tão ruidosa ao ouvido como uma portuguesa.
 const problemas = await page.evaluate(async () => {
-  const { GAME_HOWTO } = await import("./js/data.js");
-  return Object.entries(GAME_HOWTO)
-    .filter(([, texto]) => /[()\/\[\]<>*_#]|\p{Extended_Pictographic}/u.test(texto))
-    .map(([k]) => k);
+  const { GAME_HOWTO_KEYS } = await import("./js/data.js");
+  const { definirLingua, t } = await import("./js/i18n.js");
+  const maus = [];
+  for (const lingua of ["pt", "en", "es"]) {
+    await definirLingua(lingua);
+    for (const [jogo, chave] of Object.entries(GAME_HOWTO_KEYS)) {
+      const texto = t(chave);
+      if (/[()\/\[\]<>*_#]|\p{Extended_Pictographic}/u.test(texto)) maus.push(`${lingua}.${jogo}`);
+    }
+  }
+  await definirLingua("pt");
+  return maus;
 });
 console.log(`   instruções com símbolos que a voz leria em voz alta: ${problemas.length ? problemas.join(", ") : "nenhuma"}`);
 if (problemas.length > 0) fail(`estas instruções têm símbolos: ${problemas.join(", ")}`);
 // E todos os mini-jogos têm instrução: um sem ela deixava quem joga sozinho
 // sem saber o que fazer, que é exatamente o que este modo veio resolver.
 const semInstrucao = await page.evaluate(async () => {
-  const { GAME_HOWTO } = await import("./js/data.js");
-  const chaves = ["reflex", "word", "bug", "monkey", "memory", "hangman", "map", "pacman", "golf", "cards", "car", "landmark"];
-  return chaves.filter((k) => !GAME_HOWTO[k] || GAME_HOWTO[k].length < 20);
+  const { GAME_HOWTO_KEYS } = await import("./js/data.js");
+  const { definirLingua, t } = await import("./js/i18n.js");
+  const jogos = ["reflex", "word", "bug", "monkey", "memory", "hangman", "map", "pacman", "golf", "cards", "car", "landmark"];
+  const faltam = [];
+  for (const lingua of ["pt", "en", "es"]) {
+    await definirLingua(lingua);
+    for (const j of jogos) {
+      const texto = GAME_HOWTO_KEYS[j] ? t(GAME_HOWTO_KEYS[j]) : "";
+      if (!texto || texto.length < 20) faltam.push(`${lingua}.${j}`);
+    }
+  }
+  await definirLingua("pt");
+  return faltam;
 });
 if (semInstrucao.length > 0) fail(`mini-jogos sem instrução falada: ${semInstrucao.join(", ")}`);
 

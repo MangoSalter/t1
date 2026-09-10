@@ -15,7 +15,9 @@ if (sel) {
     sel.appendChild(op);
   });
   sel.value = lingua();
-  sel.addEventListener("change", () => definirLingua(sel.value));
+  // Assíncrona: a tabela da língua nova pode ter de ser carregada. Os
+  // ouvintes (e portanto o aplicar()) só correm quando ela chegar.
+  sel.addEventListener("change", () => { definirLingua(sel.value); });
 }
 
 function aplicar() {

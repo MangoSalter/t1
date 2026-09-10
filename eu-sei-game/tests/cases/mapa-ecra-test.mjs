@@ -560,12 +560,12 @@ const idiomas = await page.evaluate(async () => {
   const v = await import("./js/voice.js");
   const lidos = [];
   for (const lang of ["pt", "en", "es"]) {
-    i.definirLingua(lang);
+    await i.definirLingua(lang);
     // Não há como ler o u.lang sem falar de verdade, por isso lê-se a decisão
     // pela mesma porta que o say() usa: a língua atual do jogo.
     lidos.push([lang, i.lingua()]);
   }
-  i.definirLingua("pt");
+  await i.definirLingua("pt");
   v.setPresentationMode("minimo");
   return lidos;
 });

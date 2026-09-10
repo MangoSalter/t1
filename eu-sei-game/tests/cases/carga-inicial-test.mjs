@@ -73,5 +73,15 @@ console.log(`   mais ${depois.length} ficheiros ao abrir o mapa: ${depois.map((p
 if (!trouxePaises) fail("paises.json não foi pedido ao abrir o mapa — a medição não diz nada");
 if (!trouxeModulos) fail("os módulos do mapa não foram pedidos ao abrir o mapa — a medição não diz nada");
 
+console.log("4) E das três línguas só viaja UMA...");
+// As três tabelas de texto são 140 KB juntas, e ninguém lê mais do que uma.
+// Quando o jogo passou a falar três línguas a sério, este ficheiro engordou
+// 131 KB de uma vez e o tecto de cima NÃO deu por isso — está posto em
+// "mudou de ordem de grandeza", e 20% passa-lhe por baixo. Daí este passo
+// existir: o invariante é "uma tabela", e não "menos de tanto".
+const tabelas = pedidos.filter((p) => /textos-\w+\.js/.test(p.nome));
+console.log(`   tabelas de texto na primeira abertura: ${tabelas.map((p) => p.nome).join(", ") || "nenhuma"}`);
+if (tabelas.length !== 1) fail(`viajaram ${tabelas.length} tabelas de texto, devia ser 1: ${tabelas.map((p) => p.nome).join(", ")}`);
+
 await browser.close();
 console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: OK");

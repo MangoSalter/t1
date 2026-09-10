@@ -22,14 +22,16 @@ function assert(cond, label) {
   else console.log(`OK: ${label}`);
 }
 
-// As tabelas não são exportadas (e não devem ser: quem lê textos usa o t()),
-// por isso as chaves saem do ficheiro. É frágil o suficiente para avisar se
-// alguém mudar a forma da tabela, que é justamente quando se quer olhar.
-const fonte = readFileSync(i18nPath, "utf8");
+// Cada língua vive no seu ficheiro (textos-pt.js e companhia), e só a
+// escolhida viaja no primeiro carregamento — daí este teste ser AINDA mais
+// importante do que era: já não há queda para português a tapar um buraco.
+// As chaves saem do ficheiro por leitura, e não por import, porque as
+// tabelas não são para ser lidas por ninguém a não ser o t().
 const tabelas = {};
 for (const { chave } of LINGUAS) {
-  const m = fonte.match(new RegExp(`\\n  ${chave}: \\{(.*?)\\n  \\},`, "s"));
-  tabelas[chave] = m ? [...m[1].matchAll(/^ {4}(\w+):/gm)].map((x) => x[1]) : null;
+  const caminho = path.join(process.env.EU_SEI_PUBLIC, "js", `textos-${chave}.js`);
+  const fonte = readFileSync(caminho, "utf8");
+  tabelas[chave] = [...fonte.matchAll(/^ {2}(\w+):/gm)].map((x) => x[1]);
 }
 
 assert(Object.values(tabelas).every((v) => v && v.length > 0), "encontrei as três tabelas de textos no i18n.js");
@@ -66,7 +68,7 @@ const espelhos = Array.from({ length: 6 }, espelho);
   const vazios = [];
   const naoTexto = [];
   for (const { chave: lingua } of LINGUAS) {
-    definirLingua(lingua);
+    await definirLingua(lingua);
     for (const k of pt) {
       // O t() CHAMA a frase logo, se ela for das que levam peças a encaixar
       // (o retrato do fim do mapa, por exemplo). Por isso passa-se sempre o
@@ -92,20 +94,20 @@ const espelhos = Array.from({ length: 6 }, espelho);
 // A queda para português é de propósito, mas só para chaves que EXISTAM.
 // Uma chave inventada tem de dar vazio e não "undefined" a passear no ecrã.
 {
-  definirLingua("en");
+  await definirLingua("en");
   const inventada = t("estaChaveNaoExisteDeCerteza");
   assert(inventada === "", `uma chave que não existe dá vazio, não "undefined" (deu ${JSON.stringify(inventada)})`);
-  definirLingua("pt");
+  await definirLingua("pt");
 }
 
 // Traduzir não é copiar: se o inglês e o espanhol fossem só o português
 // outra vez, as tabelas passavam nos testes de cima e o jogo continuava em
 // português para toda a gente.
 {
-  definirLingua("pt");
+  await definirLingua("pt");
   const emPt = pt.map((k) => { const v = t(k, ...espelhos); return typeof v === "string" ? v : ""; });
   for (const lingua of ["en", "es"]) {
-    definirLingua(lingua);
+    await definirLingua(lingua);
     const iguais = pt.filter((k, i) => {
       const v = t(k, ...espelhos);
       return typeof v === "string" && v.trim() !== "" && v === emPt[i];
@@ -115,7 +117,7 @@ const espelhos = Array.from({ length: 6 }, espelho);
     const proporcao = iguais.length / pt.length;
     assert(proporcao < 0.5, `${lingua} está mesmo traduzido (${iguais.length}/${pt.length} iguais ao português${proporcao >= 0.5 ? `: ${iguais.slice(0, 8).join(", ")}` : ""})`);
   }
-  definirLingua("pt");
+  await definirLingua("pt");
 }
 
 // O data-i18n aponta para uma chave, e o i18n-ecra.js só troca o texto SE a
