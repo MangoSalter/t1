@@ -26,11 +26,15 @@ const VOICE_KEY = "euSei_voiceEnabled";
 export const PRESENTATION_MODES = {
   minimo: {
     label: "Mínimo",
+    chave: "apresentacaoMinimo",
     hint: "Só o jogo e alguns sons. Sem ninguém a explicar nada.",
+    chaveHint: "apresentacaoMinimoHint",
   },
   guiado: {
     label: "Guiado",
+    chave: "apresentacaoGuiado",
     hint: "A app diz o que vem a seguir e como correu — para jogar sozinho sem ninguém ao lado.",
+    chaveHint: "apresentacaoGuiadoHint",
   },
 };
 

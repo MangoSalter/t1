@@ -310,14 +310,14 @@ export async function createRoom(uid, name, avatar) {
     attachPresence(code, uid);
     return code;
   }
-  throw new Error("Não foi possível criar a sala. Tenta novamente.");
+  throw new Error("salaErroCriar");
 }
 
 export async function joinRoom(code, uid, name, avatar) {
   code = code.trim().toUpperCase();
   const r = roomRef(code);
   const snap = await get(r);
-  if (!snap.exists()) throw new Error("Essa sala não existe.");
+  if (!snap.exists()) throw new Error("salaNaoExiste");
   const room = snap.val();
   // Uma sala a meio de uma partida está fechada a estranhos: entrar a meio de
   // uma ronda pontuada distorce a classificação de quem lá está desde o
@@ -328,11 +328,11 @@ export async function joinRoom(code, uid, name, avatar) {
   // escolhe a cor e entra no jogo — não apanha pontos de rondas que não jogou
   // porque no quadro não há rondas dessas.
   if (room.state !== "lobby" && room.state !== "hangman") {
-    throw new Error("Essa sala já começou a jogar.");
+    throw new Error("salaJaComecou");
   }
   const playerCount = Object.keys(room.players || {}).length;
   if (!room.players?.[uid] && playerCount >= 10) {
-    throw new Error("Essa sala já está cheia (máx. 10 jogadores).");
+    throw new Error("salaCheia");
   }
   await update(ref(db, `rooms/${code}/players/${uid}`), {
     name, avatar: avatar || room.players?.[uid]?.avatar || null,
@@ -899,46 +899,46 @@ export const HANGMAN_MAX_MISSES = 6;
 // No Desenha e Adivinha não há letras nem erros: ou se reconhece o desenho, ou
 // não. Tudo o que conta letras ou erros fica sem efeito, e o painel di-lo em
 // vez de deixar escolher para nada.
-const SEM_LETRAS = (room) => (lettersMode(room) ? null : "sem efeito no Desenha e Adivinha");
+const SEM_LETRAS = (room) => (lettersMode(room) ? null : "cfgSemEfeitoDesenha");
 
 export const BOARD_SETTINGS_SPEC = {
   forca: [
     {
       key: "maxMisses",
-      label: "Erros permitidos",
+      label: "Erros permitidos", chave: "cfgErrosPermitidos",
       // 0 é "sem limite" de propósito: é o modo de jogar com crianças, ou
       // quando a palavra é difícil e ninguém quer perder por causa disso.
       options: [
-        { value: 3, label: "3 (difícil)" },
-        { value: 6, label: "6 (normal)" },
-        { value: 10, label: "10 (fácil)" },
-        { value: 0, label: "Sem limite" },
+        { value: 3, label: "3 (difícil)", chave: "cfgTresDificil" },
+        { value: 6, label: "6 (normal)", chave: "cfgSeisNormal" },
+        { value: 10, label: "10 (fácil)", chave: "cfgDezFacil" },
+        { value: 0, label: "Sem limite", chave: "cfgSemLimite" },
       ],
       default: 6,
       // Com erros de cada um não há teto que enforque ninguém (ver o
       // missPatch): este número deixa de querer dizer o que diz, e um número
       // que não quer dizer nada num painel de definições é uma promessa falsa.
       naoSeAplica: (room) => SEM_LETRAS(room)
-        || (individualMisses(room) ? "sem efeito com erros de cada um" : null),
+        || (individualMisses(room) ? "cfgSemEfeitoIndividuais" : null),
     },
     {
       key: "guessMode",
-      label: "Quem arrisca",
+      label: "Quem arrisca", chave: "cfgQuemArrisca",
       options: [
-        { value: "turnos", label: "À vez, um de cada vez" },
-        { value: "livre", label: "Qualquer um, quando quiser" },
+        { value: "turnos", label: "À vez, um de cada vez", chave: "cfgAVez" },
+        { value: "livre", label: "Qualquer um, quando quiser", chave: "cfgQualquerUm" },
       ],
       default: "turnos",
       naoSeAplica: SEM_LETRAS,
     },
     {
       key: "matchWords",
-      label: "A partida dura",
+      label: "A partida dura", chave: "cfgPartidaDura",
       options: [
-        { value: 3, label: "3 palavras" },
-        { value: 5, label: "5 palavras" },
-        { value: 8, label: "8 palavras" },
-        { value: 0, label: "Sem fim (joga-se até se querer parar)" },
+        { value: 3, label: "3 palavras", chave: "cfgTresPalavras" },
+        { value: 5, label: "5 palavras", chave: "cfgCincoPalavras" },
+        { value: 8, label: "8 palavras", chave: "cfgOitoPalavras" },
+        { value: 0, label: "Sem fim (joga-se até se querer parar)", chave: "cfgSemFim" },
       ],
       // 5 por omissão: as equipas contavam letras e ninguém ganhava nunca. Um
       // jogo que não acaba não tem vencedor, e sem vencedor as equipas são só
@@ -947,10 +947,10 @@ export const BOARD_SETTINGS_SPEC = {
     },
     {
       key: "missMode",
-      label: "Erros",
+      label: "Erros", chave: "cfgErros",
       options: [
-        { value: "partilhados", label: "Da sala (o teto enforca todos)" },
-        { value: "individuais", label: "De cada um" },
+        { value: "partilhados", label: "Da sala (o teto enforca todos)", chave: "cfgErrosDaSala" },
+        { value: "individuais", label: "De cada um", chave: "cfgErrosDeCadaUm" },
       ],
       // Por omissão fica o de sempre: é a forca clássica, e é o que já está
       // testado. Quem quiser o outro escolhe-o.
@@ -959,23 +959,23 @@ export const BOARD_SETTINGS_SPEC = {
     },
     {
       key: "penaltyEvery",
-      label: "Penalização por erros",
+      label: "Penalização por erros", chave: "cfgPenalizacao",
       options: [
-        { value: 0, label: "Sem penalização" },
-        { value: 2, label: "A cada 2 erros, perde a vez seguinte" },
-        { value: 3, label: "A cada 3 erros, perde a vez seguinte" },
-        { value: 5, label: "A cada 5 erros, perde a vez seguinte" },
+        { value: 0, label: "Sem penalização", chave: "cfgSemPenalizacao" },
+        { value: 2, label: "A cada 2 erros, perde a vez seguinte", chave: "cfgCada2" },
+        { value: 3, label: "A cada 3 erros, perde a vez seguinte", chave: "cfgCada3" },
+        { value: 5, label: "A cada 5 erros, perde a vez seguinte", chave: "cfgCada5" },
       ],
       default: 0,
       naoSeAplica: (room) => SEM_LETRAS(room)
-        || (individualMisses(room) ? null : "sem efeito com erros da sala"),
+        || (individualMisses(room) ? null : "cfgSemEfeitoPartilhados"),
     },
     {
       key: "autoPen",
-      label: "Caneta entre palavras",
+      label: "Caneta entre palavras", chave: "cfgCanetaEntre",
       options: [
-        { value: 1, label: "Passa sozinha a quem ainda não desenhou" },
-        { value: 0, label: "Vota-se sempre" },
+        { value: 1, label: "Passa sozinha a quem ainda não desenhou", chave: "cfgCanetaPassa" },
+        { value: 0, label: "Vota-se sempre", chave: "cfgCanetaVota" },
       ],
       // Por omissão desligada: votar é o que já existia e o que já foi
       // testado. Quem quiser menos cerimónia liga isto e fica assim para a
@@ -985,10 +985,10 @@ export const BOARD_SETTINGS_SPEC = {
     },
     {
       key: "chaos",
-      label: "A Dona Manga interfere",
+      label: "A Dona Manga interfere", chave: "cfgMangaInterfere",
       options: [
-        { value: 1, label: "Sim, de vez em quando" },
-        { value: 0, label: "Não, deixem-me jogar" },
+        { value: 1, label: "Sim, de vez em quando", chave: "cfgMangaSim" },
+        { value: 0, label: "Não, deixem-me jogar", chave: "cfgMangaNao" },
       ],
       // Desligado por omissão: interferir no jogo dos outros é coisa que se
       // escolhe, não coisa que aconteça a quem não pediu nada.
@@ -996,21 +996,21 @@ export const BOARD_SETTINGS_SPEC = {
     },
     {
       key: "revealGuesses",
-      label: "Tentativas",
+      label: "Tentativas", chave: "cfgTentativas",
       options: [
-        { value: 1, label: "À vista: vê-se quem tentou o quê" },
-        { value: 0, label: "Anónimas: ninguém sabe de quem foi" },
+        { value: 1, label: "À vista: vê-se quem tentou o quê", chave: "cfgTentativasVista" },
+        { value: 0, label: "Anónimas: ninguém sabe de quem foi", chave: "cfgTentativasAnonimas" },
       ],
       default: 1,
       naoSeAplica: SEM_LETRAS,
     },
     {
       key: "help",
-      label: "Ajuda do Brasa",
+      label: "Ajuda do Brasa", chave: "cfgAjudaBrasa",
       options: [
-        { value: "custa", label: "Sim, mas custa" },
-        { value: "gratis", label: "Sim, à borla" },
-        { value: "nao", label: "Não há ajuda" },
+        { value: "custa", label: "Sim, mas custa", chave: "cfgAjudaCusta" },
+        { value: "gratis", label: "Sim, à borla", chave: "cfgAjudaGratis" },
+        { value: "nao", label: "Não há ajuda", chave: "cfgAjudaNao" },
       ],
       // "Custa" por omissão: uma ajuda de graça tira o sentido de arriscar, e
       // nenhuma ajuda deixa quem está encravado sem nada para fazer a não ser

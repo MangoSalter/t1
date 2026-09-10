@@ -571,9 +571,25 @@ that would train someone to ignore red:
   tripped the check in every language. The name is stripped before the text
   is tokenised.
 
+### And then there is the half that is never on screen at all
+
+The guided mode SPEAKS. `GAME_HOWTO` — one sentence per mini-game, written to
+be heard rather than read — went to the synthesiser in Portuguese no matter
+which language you had picked, and no sweep of any kind could ever have seen
+it, because it is never drawn. Same for the "ready?" gate's spoken line and
+the whiteboard's. Found by reading `voice.js` after the two guards ran out of
+things to catch, which is the right order: the guards clear the ground so
+what is left is small enough to read.
+
+The room's SETTINGS panel was the other one the guards missed, for a duller
+reason: they enter the game, and the settings live behind a button nobody
+pressed. Twenty-odd labels and options, all of them in `room.js`.
+
 Still not covered, and the doc says so: what only appears deep into a room
 game — an arena's closing scoreboard, the middle of a four-player Forca. The
-guard opens the room and enters the game; it does not play the match out.
+guard opens the room and enters the game; it does not play the match out. And
+the card game's jokers stay Portuguese on purpose: that game is in the
+workshop, off the site, and the owner has not said it is coming back.
 
 ### The suite had never said which language it was testing
 

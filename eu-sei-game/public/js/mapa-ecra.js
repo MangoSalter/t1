@@ -409,8 +409,8 @@ function encherDificuldades() {
   DIFICULDADES.forEach((d) => {
     const op = document.createElement("option");
     op.value = d.chave;
-    op.textContent = d.nome;
-    op.title = d.desc;
+    op.textContent = t(d.chaveNome) || d.nome;
+    op.title = t(d.chaveDesc) || d.desc;
     els.dificuldade.appendChild(op);
   });
   els.dificuldade.value = mapa.dificuldade;
@@ -421,8 +421,8 @@ function encherCamadas() {
   CAMADAS.forEach((c) => {
     const op = document.createElement("option");
     op.value = c.chave;
-    op.textContent = c.nome;
-    op.title = c.desc;
+    op.textContent = t(c.chaveNome) || c.nome;
+    op.title = t(c.chaveDesc) || c.desc;
     els.camada.appendChild(op);
   });
   els.camada.value = mapa.camada;
@@ -453,7 +453,7 @@ function trocarCamada(chave) {
   enquadrarQuandoDer(true);
   redesenhar();
   const c = CAMADAS.find((x) => x.chave === chave);
-  dizer(chave === "capitais" ? t("mapaCamadaCapitais", emJogo().length) : t("mapaModoPronto", c ? c.nome : chave, emJogo().length));
+  dizer(chave === "capitais" ? t("mapaCamadaCapitais", emJogo().length) : t("mapaModoPronto", c ? (t(c.chaveNome) || c.nome) : chave, emJogo().length));
   armarAjuda();
   focar();
 }
@@ -463,8 +463,8 @@ function encherModos() {
   MODOS.forEach((m) => {
     const op = document.createElement("option");
     op.value = m.chave;
-    op.textContent = m.nome;
-    op.title = m.desc;
+    op.textContent = t(m.chaveNome) || m.nome;
+    op.title = t(m.chaveDesc) || m.desc;
     els.modo.appendChild(op);
   });
   els.modo.value = mapa.modo;
@@ -486,7 +486,7 @@ function trocarModo(chave) {
   enquadrarQuandoDer(true);
   redesenhar();
   const m = MODOS.find((x) => x.chave === chave);
-  dizer(t("mapaModoPronto", m ? m.nome : chave, emJogo().length));
+  dizer(t("mapaModoPronto", m ? (t(m.chaveNome) || m.nome) : chave, emJogo().length));
   armarAjuda();
   focar();
 }
@@ -635,7 +635,7 @@ if (haEcra()) {
     esconderHipoteses();
     redesenhar();
     const d = DIFICULDADES.find((x) => x.chave === mapa.dificuldade);
-    dizer(d ? d.desc : "");
+    dizer(d ? (t(d.chaveDesc) || d.desc) : "");
     focar();
   });
   els.openBtns.forEach((b) => b.addEventListener("click", abrirMapa));

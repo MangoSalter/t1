@@ -145,7 +145,7 @@ els.createBtn.addEventListener("click", async () => {
     const code = await createRoom(state.uid, name, loadAvatar());
     enterRoom(code);
   } catch (err) {
-    showHomeError(err.message);
+    showHomeError(t(err.message) || err.message);
   }
 });
 
@@ -172,7 +172,7 @@ els.joinBtn.addEventListener("click", async () => {
     const joinedCode = await joinRoom(code, state.uid, name, loadAvatar());
     enterRoom(joinedCode);
   } catch (err) {
-    showHomeError(err.message);
+    showHomeError(t(err.message) || err.message);
   }
 });
 
@@ -1388,7 +1388,7 @@ function renderDraw(room) {
   // monumentos ("Torre Eiffel", e o que se adivinha é o PAÍS).
   const marcos = draw.tema === TEMA_MARCOS;
   const marco = marcos ? LANDMARKS.find((l) => l.id === draw.landmarkId) : null;
-  drawEls.title.textContent = marcos ? "Onde Fica Isto?" : "Desenha e Adivinha";
+  drawEls.title.textContent = marcos ? t("jogoMarcos") : t("jogoDesenha");
 
   if (!draw.resolved) {
     // A palavra secreta só aparece a quem desenha; os outros só sabem de
@@ -1508,7 +1508,7 @@ function desenharAlbum() {
     });
     const cap = document.createElement("figcaption");
     cap.textContent = f.acertou
-      ? `${f.palavra || "?"} — ${f.autor} desenhou, ${f.acertou} acertou`
+      ? t("albumComAcerto", f.palavra || "?", f.autor, f.acertou)
       : t("albumNinguem", f.palavra || "?", f.autor);
     fig.appendChild(btn);
     fig.appendChild(cap);
@@ -1592,17 +1592,17 @@ function renderMapTrivia(room) {
       const p = room.players?.[uid];
       const name = escapeHtml(p?.name || "?");
       const statusLabel = r.correct
-        ? (r.votedIn ? "✓ aceite pela equipa! +8 pts" : "✓ +8 pts")
-        : "✕ 0 pts";
+        ? (r.votedIn ? t("mapTriviaAceite") : t("mapTriviaCerta"))
+        : t("mapTriviaErrada");
       row.innerHTML = `<span class="score-name">${avatarImgHtml(p?.avatar, "sm", p?.name)}${name}</span>
-        <span class="score-round">${escapeHtml(r.answer) || "(sem resposta)"}</span>
+        <span class="score-round">${escapeHtml(r.answer) || t("semResposta")}</span>
         <span class="score-total">${statusLabel}</span>`;
       if (!r.correct && r.answer && uid !== state.uid) {
         anyChallengeable = true;
         const alreadyVoted = !!mt.votes?.[uid]?.[state.uid];
         const voteBtn = document.createElement("button");
         voteBtn.className = "vote-btn";
-        voteBtn.textContent = alreadyVoted ? t("votasteAceitar") : "Aceitar resposta";
+        voteBtn.textContent = alreadyVoted ? t("votasteAceitar") : t("aceitarResposta");
         voteBtn.disabled = alreadyVoted;
         voteBtn.addEventListener("click", () => {
           voteAcceptMapTriviaAnswer(state.code, state.room, uid, state.uid);
@@ -1913,7 +1913,7 @@ function renderTag(room) {
     tagEls.continueBtn.classList.add("hidden");
   } else {
     tagEls.timer.textContent = "";
-    tagEls.statusLine.textContent = "Ronda terminada!";
+    tagEls.statusLine.textContent = t("rondaTerminada");
     tagEls.results.classList.remove("hidden");
     tagEls.results.innerHTML = "";
     const startedAt = tag.startedAt || 0;

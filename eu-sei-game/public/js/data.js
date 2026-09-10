@@ -1007,29 +1007,26 @@ export function pickChaosEvent(anterior = null) {
 // dizer em voz alta o que se faz, a quem está a jogar sozinho e não tem
 // ninguém ao lado para explicar. Escrito para ser OUVIDO e não lido: frases
 // curtas, sem parênteses nem símbolos, porque um sintetizador de voz lê tudo.
-export const GAME_HOWTO = {
-  reflex: "Procura no cenário o objeto que te pedirem e toca nele antes do tempo acabar.",
-  word: "Escreve uma palavra que comece pela letra que aparecer, o mais depressa que conseguires.",
-  bug: "Toca nos insetos que aparecem. Quanto mais seguidos acertares, mais valem.",
-  monkey: "Apanha os macacos que caem, movendo-te para a esquerda e para a direita.",
-  memory: "Vira as cartas duas a duas e encontra os pares iguais.",
-  hangman: "Adivinha a palavra escondida, uma letra de cada vez.",
-  map: "Escreve o nome de um país que cumpra o que for pedido, e vê-o acender no mapa.",
-  pacman: "Come tudo pelo labirinto e foge da Dona Manga. Usa as setas do teclado.",
-  golf: "Manda a bola ao buraco com o menor número de tacadas.",
-  cards: "Escolhe cartas para fazer pontos. Podes descartar as que não servem.",
-  car: "Guia o carro pelas faixas e desvia-te do que vier pela estrada.",
-  landmark: "Vê a fotografia e diz onde fica aquele sítio.",
-  // O quadro e o mapa não são mini-jogos e não passam pelo ecrã do "pronto?",
-  // por isso durante muito tempo não tiveram frase nenhuma aqui — a narração
-  // nasceu para os doze mini-jogos, e os mini-jogos foram quase todos para a
-  // oficina. Ficaram os dois melhores jogos da casa sem quem lhes dissesse o
-  // que fazer, que é justamente para quem o modo guiado existe.
-  board: "Tens uma folha em branco. Escolhe uma cor e desenha com o dedo ou com o rato.",
+// As chaves na tabela das línguas; o texto português fica lá também. Quem
+// ouve o modo guiado tem direito à sua língua tanto como quem lê.
+export const GAME_HOWTO_KEYS = {
+  reflex: "comoReflex",
+  word: "comoWord",
+  bug: "comoBug",
+  monkey: "comoMonkey",
+  memory: "comoMemory",
+  hangman: "comoHangman",
+  map: "comoMap",
+  pacman: "comoPacman",
+  golf: "comoGolf",
+  cards: "comoCards",
+  car: "comoCar",
+  landmark: "comoLandmark",
+  board: "comoBoard",
 };
 
 export function gameHowTo(key) {
-  return GAME_HOWTO[key] || "";
+  return GAME_HOWTO_KEYS[key] || "";
 }
 
 // --- Falas do quadro: a Dona Manga a gozar com os erros ---

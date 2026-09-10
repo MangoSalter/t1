@@ -1308,7 +1308,7 @@ function showReadyOverlay(label, onStart, gameKey) {
   // Modo guiado: diz que jogo vem e o que se faz nele. É o momento certo —
   // o jogador está parado à espera, e ainda não há nada a acontecer no ecrã
   // que a voz pudesse atrapalhar.
-  const como = gameKey ? gameHowTo(gameKey) : "";
+  const como = gameKey ? t(gameHowTo(gameKey)) : "";
   say(como ? `${label}. ${como}` : label);
   // Uma fala da mascote sobre ESTE jogo: é o que liga os mini-jogos ao mesmo
   // mundo em vez de serem doze coisas soltas com o mesmo botão.
@@ -1415,7 +1415,7 @@ function refreshPresentation() {
   els.presentationRow.querySelectorAll("[data-presentation]").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.presentation === atual));
   });
-  els.presentationHint.textContent = PRESENTATION_MODES[atual]?.hint || "";
+  els.presentationHint.textContent = t(PRESENTATION_MODES[atual]?.chaveHint) || PRESENTATION_MODES[atual]?.hint || "";
   // A escolha da voz só faz sentido no modo guiado: no mínimo não há nada
   // para ligar, e um interruptor que não faz nada é pior do que não existir.
   els.voiceRow.classList.toggle("hidden", atual !== "guiado");
@@ -1428,7 +1428,7 @@ Object.entries(PRESENTATION_MODES).forEach(([key, modo]) => {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.dataset.presentation = key;
-  btn.textContent = modo.label;
+  btn.textContent = t(modo.chave) || modo.label;
   btn.addEventListener("click", () => {
     setPresentationMode(key);
     refreshPresentation();
@@ -1442,7 +1442,7 @@ Object.entries(PRESENTATION_MODES).forEach(([key, modo]) => {
 els.voiceToggle.addEventListener("change", () => {
   setVoiceEnabled(els.voiceToggle.checked);
   refreshPresentation();
-  if (els.voiceToggle.checked) say("Voz ligada.");
+  if (els.voiceToggle.checked) say(t("vozLigada"));
 });
 
 refreshPresentation();
@@ -1638,7 +1638,7 @@ function renderResult(rows, correctCount, needed, passed, roundScore, soTabela =
     const row = document.createElement("div");
     row.className = "score-row";
     row.innerHTML = `<span class="score-name">${CATEGORIES[ci]}</span>
-      <span class="score-round">${text ? text : "(sem resposta)"}</span>
+      <span class="score-round">${text ? text : t("semResposta")}</span>
       <span class="score-total">${valid ? "✓ 10 pts" : "✕ 0 pts"}</span>`;
     els.resultTable.appendChild(row);
   });
@@ -1781,7 +1781,7 @@ function nextReflexRound() {
     const msLeft = solo.reflexRoundEndAt - Date.now();
     els.reflexTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
     if (msLeft <= 0) {
-      els.reflexStatus.textContent = `Tempo esgotado! Era: ${target.e} ${target.n}`;
+      els.reflexStatus.textContent = t("soloTempoEsgotadoEra", `${target.e} ${target.n}`);
       solo.reflexTarget = null;
       clearTimeout(solo.reflexAdvanceTimeoutId);
       solo.reflexAdvanceTimeoutId = setTimeout(() => nextReflexRound(), 900);
@@ -2500,7 +2500,7 @@ function nextMapRound() {
     if (msLeft <= 0) {
       const missedNames = solo.mapCriteria.matchNames.slice(0, 3).join(", ");
       const more = solo.mapCriteria.matchNames.length > 3 ? "..." : "";
-      els.mapStatus.textContent = `Tempo esgotado! Era: ${missedNames}${more}`;
+      els.mapStatus.textContent = t("soloTempoEsgotadoEra", `${missedNames}${more}`);
       solo.mapCriteria = null;
       clearTimeout(solo.mapAdvanceTimeoutId);
       solo.mapAdvanceTimeoutId = setTimeout(() => nextMapRound(), 900);

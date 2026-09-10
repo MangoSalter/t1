@@ -927,8 +927,9 @@ function falaDaCasaNoQuadro() {
   // não dizia nada — a narração foi feita para o ecrã do "pronto?" dos
   // mini-jogos, e o quadro não passa por lá. Primeiro o que se faz, depois a
   // graça: quem está à espera de instruções não quer ouvir a piada primeiro.
-  const como = gameHowTo("board");
-  say(como ? `${como} ${fala.who} diz: ${fala.text}` : `${fala.who} diz: ${fala.text}`);
+  const como = t(gameHowTo("board"));
+  const dito = t("vozDiz", fala.who, fala.text);
+  say(como ? `${como} ${dito}` : dito);
   if (falaTimer) clearTimeout(falaTimer);
   falaTimer = setTimeout(() => {
     els.mascote.classList.add("a-sair");

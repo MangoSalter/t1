@@ -238,15 +238,15 @@ export function oceanoEm(x, y) {
 // países grandes — que é a versão que se ganha, e que ensina o mapa antes de o
 // exigir todo.
 export const MODOS = [
-  { chave: "mundo", nome: "O mundo inteiro", desc: "Os 177 países." },
-  { chave: "grandes", nome: "Só os grandes", desc: "Os 60 maiores. Bom para começar." },
-  { chave: "Europa", nome: "Europa", desc: "Um continente de cada vez." },
-  { chave: "África", nome: "África", desc: "Um continente de cada vez." },
-  { chave: "Ásia", nome: "Ásia", desc: "Um continente de cada vez." },
-  { chave: "América do Norte", nome: "América do Norte", desc: "Um continente de cada vez." },
-  { chave: "América do Sul", nome: "América do Sul", desc: "Um continente de cada vez." },
-  { chave: "Oceânia", nome: "Oceânia", desc: "Um continente de cada vez." },
-  { chave: "oceanos", nome: "Os oceanos", desc: "Cinco. Clica na água e diz qual é." },
+  { chave: "mundo", nome: "O mundo inteiro", chaveNome: "mapaModoMundo", desc: "Os 177 países.", chaveDesc: "mapaModoMundoDesc" },
+  { chave: "grandes", nome: "Só os grandes", chaveNome: "mapaModoGrandes", desc: "Os 60 maiores. Bom para começar.", chaveDesc: "mapaModoGrandesDesc" },
+  { chave: "Europa", nome: "Europa", chaveNome: "mapaEuropa", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "África", nome: "África", chaveNome: "mapaAfrica", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "Ásia", nome: "Ásia", chaveNome: "mapaAsia", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "América do Norte", nome: "América do Norte", chaveNome: "mapaAmericaNorte", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "América do Sul", nome: "América do Sul", chaveNome: "mapaAmericaSul", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "Oceânia", nome: "Oceânia", chaveNome: "mapaOceania", desc: "Um continente de cada vez.", chaveDesc: "mapaContinente" },
+  { chave: "oceanos", nome: "Os oceanos", chaveNome: "mapaOceanos", desc: "Cinco. Clica na água e diz qual é.", chaveDesc: "mapaOceanosDesc" },
 ];
 
 const QUANTOS_GRANDES = 60;
@@ -260,8 +260,8 @@ const QUANTOS_GRANDES = 60;
 // As duas camadas. Ficam aqui, ao lado dos modos e das dificuldades, porque
 // são a mesma espécie de escolha: o que muda é a pergunta, não o mapa.
 export const CAMADAS = [
-  { chave: "paises", nome: "Países", desc: "Nomeia o território." },
-  { chave: "capitais", nome: "Capitais", desc: "Nomeia a capital de cada território." },
+  { chave: "paises", nome: "Países", chaveNome: "mapaCamadaPaises", desc: "Nomeia o território.", chaveDesc: "mapaCamadaPaisesDesc" },
+  { chave: "capitais", nome: "Capitais", chaveNome: "mapaCamadaCapitaisNome", desc: "Nomeia a capital de cada território.", chaveDesc: "mapaCamadaCapitaisDesc" },
 ];
 
 export const DIFICULDADES = [
@@ -269,9 +269,9 @@ export const DIFICULDADES = [
   // onde escrever um nome com o teclado a tapar o mapa é o que mais estraga o
   // jogo — e serve também a quem reconhece a bandeira mas não arrisca a
   // ortografia.
-  { chave: "escolher", nome: "Só clicar e escolher", desc: "Clica num território e escolhe entre três. Sem escrever." },
-  { chave: "livre", nome: "Escrever à vontade", desc: "Escreve o nome de qualquer país. Mais fácil." },
-  { chave: "apontado", nome: "Apontar primeiro", desc: "Clica no território e só depois diz o nome. Mais difícil." },
+  { chave: "escolher", nome: "Só clicar e escolher", chaveNome: "mapaDifEscolher", desc: "Clica num território e escolhe entre três. Sem escrever.", chaveDesc: "mapaDifEscolherDesc" },
+  { chave: "livre", nome: "Escrever à vontade", chaveNome: "mapaDifLivre", desc: "Escreve o nome de qualquer país. Mais fácil.", chaveDesc: "mapaDifLivreDesc" },
+  { chave: "apontado", nome: "Apontar primeiro", chaveNome: "mapaDifApontado", desc: "Clica no território e só depois diz o nome. Mais difícil.", chaveDesc: "mapaDifApontadoDesc" },
 ];
 
 // Encontra o país por NOME, entre os que ainda faltam. É o que faz o modo

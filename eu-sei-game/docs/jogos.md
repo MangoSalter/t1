@@ -322,11 +322,20 @@ traduzidos o quadro de sala inteiro (a caneta, as equipas, os erros, o fim da
 partida, a ajuda do Brasa), o Desenha e Adivinha, as três arenas e o álbum
 do fim da noite.
 
+**E o modo guiado, que FALA.** As frases que a app diz em voz alta antes de
+cada jogo iam para o sintetizador em português, fosse qual fosse a língua
+escolhida — e nenhum varrimento as podia ver, porque nunca chegam ao ecrã.
+Quem mais precisa delas é justamente quem não está a ler. Estão nas três, e
+as definições do quadro de sala (que vivem atrás de um botão que os guardas
+não carregam) também.
+
 **O que ainda falta**, e continua a ser honesto dizê-lo: o que só aparece
 depois de MUITO jogo em sala — o placar de uma arena a acabar, o meio de uma
 partida da Forca com quatro pessoas. O guarda abre a sala e entra no jogo;
-não joga a partida toda. E as CATEGORIAS continuam à tua espera (a pergunta
-está acima).
+não joga a partida toda. Os coringas do Descartando Juntos ficam em
+português de propósito: esse jogo está na oficina, fora do site, e não vale a
+pena traduzir o que talvez não volte. E as CATEGORIAS continuam à tua espera
+(a pergunta está acima).
 
 O que fica de fora de propósito, e porquê:
 

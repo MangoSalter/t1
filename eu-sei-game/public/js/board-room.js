@@ -836,7 +836,8 @@ function hangmanOpenSettings() {
     if (semEfeito) bloco.className = "hangman-setting-off";
     const label = document.createElement("span");
     label.className = "hangman-setting-label";
-    label.textContent = semEfeito ? `${def.label} — ${semEfeito}` : def.label;
+    const rotuloDef = t(def.chave) || def.label;
+    label.textContent = semEfeito ? t("cfgSemEfeito", rotuloDef, t(semEfeito) || semEfeito) : rotuloDef;
     bloco.appendChild(label);
     const linha = document.createElement("div");
     linha.className = "hangman-setting-options";
@@ -845,7 +846,7 @@ function hangmanOpenSettings() {
       btn.type = "button";
       btn.dataset.setting = def.key;
       btn.dataset.settingValue = String(op.value);
-      btn.textContent = op.label;
+      btn.textContent = t(op.chave) || op.label;
       btn.disabled = !!semEfeito;
       btn.setAttribute("aria-pressed", String(op.value === atual));
       btn.addEventListener("click", async () => {
@@ -1398,9 +1399,9 @@ function hangmanOpenHistory() {
     const quemGanhou = entrada.winnerUid ? state.room?.players?.[entrada.winnerUid]?.name : null;
     const partes = [];
     if (entrada.hint) partes.push(t("forcaPistaCurta", entrada.hint));
-    if (quemPos) partes.push(`posta por ${quemPos}`);
-    if (quemGanhou) partes.push(`ganha por ${quemGanhou}`);
-    partes.push(`${entrada.misses || 0} erro${(entrada.misses || 0) === 1 ? "" : "s"}`);
+    if (quemPos) partes.push(t("forcaPostaPor", quemPos));
+    if (quemGanhou) partes.push(t("forcaGanhaPor", quemGanhou));
+    partes.push(t("forcaErrosContagem", entrada.misses || 0));
     meta.textContent = partes.join(" · ");
     linha.appendChild(meta);
     hangmanEls.historyList.appendChild(linha);
