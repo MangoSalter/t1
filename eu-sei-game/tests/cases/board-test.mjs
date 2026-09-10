@@ -7,6 +7,7 @@
 //  - nenhuma ferramenta futura pode ser adicionada sem cor, espessura e
 //    modo de composição, senão rebenta no redesenho.
 import { chromium, devices } from "playwright";
+import { entrarNoSolo } from "./test-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
@@ -405,7 +406,7 @@ await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
 console.log("   o 'voltar' do browser sai do quadro sem sair do jogo: ok");
 
 console.log("16) Também se chega ao quadro pelo menu de jogar sozinho...");
-await page.click("#solo-menu-btn");
+await entrarNoSolo(page);
 await page.click('.screen.active [data-open-board]');
 await page.waitForSelector('[data-screen="board"].active', { timeout: 5000 });
 

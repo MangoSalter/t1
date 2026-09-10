@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { entrarNoSolo } from "./test-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage();
@@ -55,6 +56,11 @@ console.log("4) Recarregar a página — a seleção deve persistir (localStorag
 const stored = await page.evaluate(() => localStorage.getItem("euSei_soloEnabledCategories"));
 console.log(`   Guardado no localStorage: ${stored}`);
 await page.reload({ waitUntil: "networkidle" });
+// Voltar a entrar pelo caminho de uma pessoa: o ecrã de configuração é
+// pintado pelo solo.js, que só chega quando se entra no modo sozinho.
+await entrarNoSolo(page);
+await page.click("#solo-classic-btn");
+await page.waitForSelector('[data-screen="solo-setup"].active', { timeout: 5000 });
 const countAfterReload = await page.locator("#solo-cat-count").textContent();
 console.log(`   Contagem após recarregar: ${countAfterReload} (esperado continuar em 4)`);
 if (countAfterReload !== "4") process.exitCode = 1;

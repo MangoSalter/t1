@@ -62,6 +62,7 @@ function comMapaSala() {
 // Os jogos que ainda não estão para se mostrar saem do ecrã aqui — o menu de
 // jogos da sala vive neste ficheiro.
 import { esconderAOficina } from "./oficina.js";
+import { pintarDesafio } from "./desafio.js";
 
 
 function showScreen(name) {
@@ -100,6 +101,18 @@ export function ligacaoDeConvite(code, href = window.location.href) {
   url.searchParams.set(PARAM_SALA, code);
   return url.toString();
 }
+
+// O estado do desafio do dia, à entrada, SEM o solo.js.
+//
+// O solo.js são 143 KB que só servem a quem joga sozinho, por isso chega
+// tarde (ver o carregador no index.html). Mas o que este botão diz — se já
+// jogaste hoje, e quantos dias seguidos levas — é a razão de se voltar
+// amanhã, e não pode aparecer só depois de alguém carregar nele. É a mesma
+// função que o menu do modo sozinho usa; a frase existe uma vez só.
+pintarDesafio({
+  estado: document.getElementById("home-desafio-estado"),
+  botao: document.getElementById("home-desafio-btn"),
+});
 
 // O código vem do endereço para a caixa, e o foco vai para o nome — que é o
 // que falta. Não se entra sozinho: entrar na sala com um nome vazio (ou com o

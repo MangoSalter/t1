@@ -11,6 +11,7 @@ import {
   ACHIEVEMENTS, pickMascotIntro, gameHowTo,
 } from "./data.js";
 import { estaNaOficina, esconderAOficina } from "./oficina.js";
+import { lerDesafio, guardarDesafio, diaAnterior, pintarDesafio } from "./desafio.js";
 import { armarCaos, limparCaos, caosLigado, guardarCaosLigado } from "./caos.js";
 import {
   PRESENTATION_MODES, presentationMode, setPresentationMode,
@@ -1174,7 +1175,13 @@ els.gameHudSkipBtn.addEventListener("click", skipCurrentGame);
 els.pauseResumeBtn.addEventListener("click", resumeGame);
 els.pauseExitBtn.addEventListener("click", exitGameToMenu);
 
-els.menuBtn.addEventListener("click", () => showScreen("solo-menu"));
+// As duas portas de entrada do modo sozinho, exportadas para o carregador do
+// index.html: no PRIMEIRO clique ainda não há ouvintes aqui dentro, por isso
+// é ele que chama estas funções depois de trazer o módulo.
+export function abrirMenuSolo() { showScreen("solo-menu"); }
+export function abrirDesafioDoDia() { comecarDesafio(); }
+
+els.menuBtn.addEventListener("click", abrirMenuSolo);
 document.querySelectorAll("[data-solo-home]").forEach((btn) => {
   btn.addEventListener("click", () => showScreen("home"));
 });
@@ -1190,52 +1197,15 @@ document.querySelectorAll("[data-solo-leave]").forEach((btn) => {
 // Uma ronda por dia, a mesma para toda a gente (ver desafioDoDia no data.js).
 // Guarda-se só o dia, os pontos e a sequência: é uma linha de localStorage,
 // não uma conta nem um servidor.
-const DESAFIO_KEY = "euSei_desafio";
-
-function lerDesafio() {
-  try {
-    const bruto = JSON.parse(localStorage.getItem(DESAFIO_KEY) || "{}");
-    return {
-      dia: typeof bruto.dia === "string" ? bruto.dia : null,
-      pontos: Number(bruto.pontos) || 0,
-      corretas: Number(bruto.corretas) || 0,
-      total: Number(bruto.total) || 0,
-      sequencia: Number(bruto.sequencia) || 0,
-    };
-  } catch {
-    return { dia: null, pontos: 0, corretas: 0, total: 0, sequencia: 0 };
-  }
-}
-
-function guardarDesafio(dados) {
-  try { localStorage.setItem(DESAFIO_KEY, JSON.stringify(dados)); } catch { /* sem drama */ }
-}
-
-// Ontem em relação a um dia dado, para saber se a sequência continua ou
-// recomeça. Feito com Date para os fins de mês e os anos bissextos não serem
-// um caso especial escrito à mão.
-function diaAnterior(diaISO) {
-  const [a, m, d] = diaISO.split("-").map(Number);
-  const data = new Date(a, m - 1, d);
-  data.setDate(data.getDate() - 1);
-  return diaDoDesafio(data);
-}
-
+// O que se guarda e a frase que se lê vivem no desafio.js, partilhados com o
+// app.js: o ecrã de entrada mostra o estado do desafio ANTES de este módulo
+// ser carregado (ver o carregador no index.html), e a frase não pode ser
+// escrita em dois sítios que depois discordam.
 function mostrarEstadoDoDesafio() {
-  const guardado = lerDesafio();
-  const hoje = diaDoDesafio();
-  const jogadoHoje = guardado.dia === hoje;
-  const sequencia = guardado.sequencia > 0 ? ` · ${guardado.sequencia} dia(s) seguidos` : "";
-  const texto = jogadoHoje
-    ? `Hoje já foi: ${guardado.pontos} pts (${guardado.corretas}/${guardado.total})${sequencia}`
-    : `Uma ronda, igual para toda a gente${sequencia}`;
-  const rotulo = jogadoHoje ? "📅 Ver o desafio de hoje" : "📅 Desafio do dia";
-  els.desafioEstado.textContent = texto;
-  els.desafioBtn.textContent = rotulo;
+  pintarDesafio({ estado: els.desafioEstado, botao: els.desafioBtn });
   // O mesmo à entrada: quem abre o site vê logo se já jogou hoje e quantos
   // dias seguidos leva.
-  if (els.desafioEstadoCasa) els.desafioEstadoCasa.textContent = texto;
-  if (els.desafioBtnCasa) els.desafioBtnCasa.textContent = rotulo;
+  pintarDesafio({ estado: els.desafioEstadoCasa, botao: els.desafioBtnCasa });
 }
 mostrarEstadoDoDesafio();
 

@@ -2,6 +2,7 @@
 // o interruptor manda mesmo, que a preferencia sobrevive, e que nenhum som
 // tem duracao ou volume capazes de irritar.
 import { chromium } from "playwright";
+import { entrarNoSolo } from "./test-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage();
@@ -95,7 +96,7 @@ const stored = await page.evaluate(() => localStorage.getItem("euSei_sfx"));
 console.log(`   guardado: ${stored} (esperado off)`);
 if (stored !== "off") { console.log("   FALHOU"); process.exitCode = 1; }
 await page.reload({ waitUntil: "networkidle" });
-await page.click("#solo-menu-btn");
+await entrarNoSolo(page);
 const checked = await page.locator("#solo-sfx-toggle").isChecked();
 console.log(`   caixa marcada depois de recarregar: ${checked} (esperado false)`);
 if (checked) { console.log("   FALHOU"); process.exitCode = 1; }

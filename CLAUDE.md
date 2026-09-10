@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **14m12s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **14m44s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -306,29 +306,59 @@ module nobody imports, entered only by `[data-open-board]` — so the load is
 what the old inline listener did) because the loader has to open the screen
 itself for the click that triggered the import.
 
-What is left, measured and NOT done: `solo.js` is 143 KB — 18% of what remains
-— and is also a leaf entry module. It is not the same easy case, for two
-reasons worth knowing before anyone tries. It paints the home screen at load
-(`mostrarEstadoDoDesafio` writes the daily challenge's status and streak into
-the home screen as well as the solo menu), so deferring it blanks the very
-thing that is meant to bring people back; the honest fix is to pull
-`lerDesafio` + the status text into a small shared module that both app.js and
-solo.js import, not to duplicate the text in two places. And several solo
-cases reach those screens by toggling `[data-screen].active` rather than by
-clicking the entry buttons, so they would find an inert screen. Neither is a
-blocker, both are more than a six-line loader.
+Then `solo.js`, the big one at 143 KB, which brings the first load to
+**661 KB across 18 files** — 28% below where this started. Both obstacles
+written up the night before turned out to be real and both were tractable:
 
-Two things that deferral needed, and would be easy to get wrong:
+- It painted the home screen at load, so deferring it blindly would blank the
+  daily challenge's status and streak — the one thing on that screen designed
+  to bring someone back tomorrow. `desafio.js` now holds `lerDesafio`,
+  `guardarDesafio`, `diaAnterior` and the status text; `app.js` imports it and
+  paints the home screen immediately, `solo.js` imports the same functions for
+  the solo menu. One sentence, written once, so the two can never disagree.
+- Five cases went red (`solo-catpicker`, `solo-chaos`, `solo-voice`, and then
+  `board-test` and `sfx-test`, which only the full suite caught), and none was
+  a real defect: entering solo mode is now ASYNCHRONOUS, and each of them
+  clicked the entry button and read the DOM in the same breath.
+  `page.evaluate` and `locator.textContent` do not auto-wait the way `click`
+  does, so they read the unpainted HTML. `entrarNoSolo` in `test-helpers.mjs`
+  clicks and waits for the screen. Nothing a person can see is affected: every
+  element involved lives inside a solo screen, and those only become visible
+  after the module lands.
 
-- `index.html` carries a six-line loader that handles the FIRST click on
-  `[data-open-mapa]` and calls `__mapa.abrirMapa()` itself. After that the
-  module's own listener is attached and the loader stands down on a flag —
-  without the flag, the second open button would import again and open twice.
+  Two process notes from that hunt. A narrow run is not proof: `node
+  tests/run.mjs solo` was green while `board-test` and `sfx-test` were broken,
+  because neither has "solo" in its name and both enter the solo menu. And
+  when a "fix" does not take, check that it was applied — my `entrarNoSolo`
+  import matched `import { chromium } from "playwright"` exactly, so it
+  silently skipped `board-test`, which imports `{ chromium, devices }`. The
+  test then failed with `entrarNoSolo is not defined`, which I could not see
+  because the runner printed only the last 40 lines of a run whose Playwright
+  stack trace is longer than that. It prints 120 now.
+
+All four doors now share ONE loader at the bottom of `index.html` instead of a
+copy each. Three things it has to get right, all learned the hard way:
+
+- each door opens what the click asked for (`__mapa.abrirMapa()`,
+  `abrirQuadro()`, `abrirMenuSolo()`, `abrirDesafioDoDia()`), because in that
+  first instant the module's own listeners do not exist yet; afterwards a
+  `Set` of loaded modules makes the loader stand down. Without it the second
+  `[data-open-mapa]` button would import again and open twice;
+- the button says "a carregar..." while the module travels. On a slow phone
+  143 KB is seconds, and a button that neither acts nor speaks reads as
+  broken. The old label goes back BEFORE `abrir(m)` runs, never after — the
+  daily-challenge button repaints itself on load, and restoring afterwards
+  would overwrite what the module just wrote;
 - `onRoomUpdate`'s `case "mapa"` shows the screen first and renders when the
   module lands, reading `state.room` at THAT moment rather than the room it
   was called with: an update can arrive between the request and the response,
   and the one that counts is the last. `esquecerMapaDaSala` is only called if
   the module was ever loaded — there is nothing to forget otherwise.
+
+One editing note, since it cost a rebuild: `index.html`'s loaders were not
+adjacent (the board one sat before `i18n-ecra.js`, the map one after), so a
+slice from "first loader" to "last loader" spans the wrong region and
+duplicates the tail. Check `grep -n "<script"` after any surgery down there.
 
 Measured and NOT a problem, so don't re-litigate: light vs dark OS theme
 renders the same (every colour is explicit — total difference of 1 across the

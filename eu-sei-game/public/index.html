@@ -1221,34 +1221,52 @@
   </div>
 
   <script type="module" src="js/app.js"></script>
-  <script type="module" src="js/solo.js"></script>
-  <!-- O quadro solo carrega-se ao abrir, como o mapa: 43 KB que só servem a
-       quem carrega em "Quadro branco". Mesmo carregador, mesma bandeira. -->
-  <script type="module">
-    let aCarregar = false;
-    const abrirOQuadro = async (ev) => {
-      if (aCarregar) return; // já foi: quem trata do clique agora é o módulo
-      aCarregar = true;
-      ev.preventDefault();
-      const m = await import("./js/board.js");
-      m.abrirQuadro();
-    };
-    document.querySelectorAll("[data-open-board]").forEach((b) => b.addEventListener("click", abrirOQuadro));
-  </script>
   <script type="module" src="js/i18n-ecra.js"></script>
-  <!-- O mapa carrega-se ao abrir, não à entrada: são 71 KB de JavaScript que
-       só servem a quem joga o Conquistar o Mapa. Este carregador trata do
-       PRIMEIRO clique; a partir daí é o próprio módulo que ouve os botões. -->
+  <!-- CARREGAMENTO TARDIO dos três pesos-pesados que não servem a quem entra
+       numa sala: o Conquistar o Mapa (262 KB com o paises.json), o modo
+       sozinho (143 KB) e o quadro solo (43 KB). A primeira abertura passou de
+       913 KB para 661 KB — e num jogo de festa a primeira abertura acontece
+       em dez telemóveis ao mesmo tempo, muitas vezes na rede de dados de
+       outra pessoa.
+
+       Cada porta trata do SEU primeiro clique: traz o módulo e abre o que o
+       clique pedia, porque nesse instante ainda não há ouvintes lá dentro.
+       Depois afasta-se, e quem responde é o módulo.
+
+       O rótulo muda enquanto o módulo vem: numa rede lenta são segundos, e um
+       botão que não faz nada nem diz nada lê-se como avariado. -->
   <script type="module">
-    let aCarregar = false;
-    const abrirOMapa = async (ev) => {
-      if (aCarregar) return; // já foi: quem trata do clique agora é o módulo
-      aCarregar = true;
-      ev.preventDefault();
-      const m = await import("./js/mapa-ecra.js");
-      m.__mapa.abrirMapa();
-    };
-    document.querySelectorAll("[data-open-mapa]").forEach((b) => b.addEventListener("click", abrirOMapa));
+    const portas = [
+      { sel: "[data-open-mapa]", mod: "./js/mapa-ecra.js", abrir: (m) => m.__mapa.abrirMapa() },
+      { sel: "[data-open-board]", mod: "./js/board.js", abrir: (m) => m.abrirQuadro() },
+      { sel: "#solo-menu-btn", mod: "./js/solo.js", abrir: (m) => m.abrirMenuSolo() },
+      { sel: "#home-desafio-btn", mod: "./js/solo.js", abrir: (m) => m.abrirDesafioDoDia() },
+    ];
+    const jaCa = new Set();
+    for (const porta of portas) {
+      document.querySelectorAll(porta.sel).forEach((btn) => {
+        btn.addEventListener("click", async (ev) => {
+          if (jaCa.has(porta.mod)) return; // o módulo já ouve este botão
+          ev.preventDefault();
+          const rotulo = btn.textContent;
+          btn.textContent = "a carregar...";
+          try {
+            const m = await import(porta.mod);
+            jaCa.add(porta.mod);
+            // O rótulo volta ANTES de abrir: o módulo pode reescrevê-lo (o
+            // botão do desafio do dia diz se hoje já foi jogado), e o que ele
+            // escreve tem de ficar por cima.
+            btn.textContent = rotulo;
+            porta.abrir(m);
+          } catch (err) {
+            // Sem o módulo não há jogo, mas o botão tem de voltar ao que era:
+            // quem tiver rede outra vez carrega e entra.
+            btn.textContent = rotulo;
+            console.error("não consegui trazer " + porta.mod, err);
+          }
+        });
+      });
+    }
   </script>
 </body>
 </html>

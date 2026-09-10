@@ -2,6 +2,7 @@
 // nunca. O guiado é que fala — e tem de continuar a funcionar em máquinas
 // onde não há voz nenhuma instalada, que é o caso desta.
 import { chromium } from "playwright";
+import { entrarNoSolo } from "./test-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
 const page = await browser.newPage();
@@ -61,7 +62,7 @@ await page.addInitScript(() => {
 await page.reload({ waitUntil: "networkidle" });
 
 console.log("1) O jogo começa no modo mínimo...");
-await page.click("#solo-menu-btn");
+await entrarNoSolo(page);
 await abrirPainel(page);
 const inicial = await page.evaluate(() =>
   document.querySelector('[data-presentation="minimo"]').getAttribute("aria-pressed"));
@@ -138,7 +139,7 @@ if (comVozDesligada !== 0) fail("a voz desligada continuou a falar");
 
 console.log("6) A escolha fica guardada entre sessões...");
 await page.reload({ waitUntil: "networkidle" });
-await page.click("#solo-menu-btn");
+await entrarNoSolo(page);
 await abrirPainel(page);
 const depoisDeRecarregar = await page.evaluate(() => ({
   modo: document.querySelector('[data-presentation="guiado"]').getAttribute("aria-pressed"),

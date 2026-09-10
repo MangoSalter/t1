@@ -191,7 +191,11 @@ try {
     const kill = setTimeout(() => p.kill("SIGKILL"), 300000);
     p.on("close", (c) => {
       clearTimeout(kill);
-      if (c !== 0) console.log(`${file.padEnd(34)} FALHOU\n${out.split("\n").slice(-40).join("\n")}`);
+      // 120 e nao 40: com 40, uma pilha de erro do Playwright (que sao umas
+      // vinte linhas de "retrying click action") empurrava para fora do ecra
+      // os passos que diziam ONDE o caso ia. Custou-me uma volta inteira a
+      // perceber que o que faltava era o print, nao a causa.
+      if (c !== 0) console.log(`${file.padEnd(34)} FALHOU\n${out.split("\n").slice(-120).join("\n")}`);
       else console.log(verboso ? `${file.padEnd(34)} ok\n${out}` : `${file.padEnd(34)} ok`);
       if (c !== 0) failed.push(file);
       resolve();
