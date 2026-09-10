@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 90 cases and takes **15m21s at 4 jobs** (measured
+rooms. The full suite is 90 cases and takes **14m01s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -187,6 +187,19 @@ Falsified both ways: the pure check went red with `lugar = 1` for everyone,
 and `mp-album` step 7 — which reads the crowns off the real screen — went red
 with `primeiro: i === 0`. Worth having both: the pure one states the rule, the
 browser one proves the screen uses it.
+
+Then I grepped for the same shape elsewhere and found a third:
+`renderOptionsLeaderboard`, the live standings behind the ⚙️ button, which is
+where people look mid-game to see who is winning. Same fix, same guard
+(`mp-options` step 9).
+
+The part worth remembering: **the rule already existed in this codebase.**
+`board-room.js`'s match table has handled ties correctly for ages, under a
+comment that says it in one line — "Empate fica no mesmo lugar: dois primeiros
+são dois primeiros." It just never reached the two screens where it mattered
+most. When you fix something like this, grep for the pattern before assuming
+the instance you found is the only one; and when you get it right somewhere,
+that corner is worth copying rather than re-deriving.
 
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with

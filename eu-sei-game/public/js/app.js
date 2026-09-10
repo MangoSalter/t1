@@ -2971,14 +2971,14 @@ const optionsEls = {
 };
 
 function renderOptionsLeaderboard(room) {
-  const players = Object.entries(room.players || {});
-  players.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
   optionsEls.leaderboardList.innerHTML = "";
-  players.forEach(([uid, p], i) => {
+  // A mesma regra do ecrã final: empatados partilham o lugar, e a coroa é de
+  // quem estiver no topo, seja um ou três.
+  classificacaoFinal(room.players || {}).forEach(({ jogador: p, pontos, lugar, primeiro }) => {
     const row = document.createElement("div");
     row.className = "score-row";
-    row.innerHTML = `<span class="score-name">${i === 0 ? "👑 " : `#${i + 1} `}${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
-      <span class="score-total">${p.score || 0} pts</span>`;
+    row.innerHTML = `<span class="score-name">${primeiro ? "👑 " : `#${lugar} `}${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
+      <span class="score-total">${pontos} pts</span>`;
     optionsEls.leaderboardList.appendChild(row);
   });
 }

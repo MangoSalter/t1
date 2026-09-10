@@ -134,6 +134,43 @@ const fabHiddenAfterLeave = await page.locator("#options-fab").evaluate((el) => 
 console.log(`   fab escondido depois de sair: ${fabHiddenAfterLeave} (esperado true)`);
 if (!fabHiddenAfterLeave) { console.log("   FALHOU"); process.exitCode = 1; }
 
+console.log("9) A classificação ao vivo também partilha o lugar nos empates...");
+// A mesma regra do ecrã final (classificacaoFinal, no room.js). Este painel
+// abre-se a meio de qualquer jogo, por isso é onde as pessoas vão espreitar
+// quem vai à frente — e dizer "#2" a quem tem os mesmos pontos do primeiro é
+// inventar uma diferença que não existe.
+await page.goto("http://localhost:8937/index.html", { waitUntil: "networkidle" });
+await page.fill("#name-input", "Ana");
+await page.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 3000 });
+await page.click("#create-room-btn");
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+const salaDoEmpate = (await page.locator("#lobby-code").textContent()).trim();
+await page.evaluate((c) => {
+  const r = window.__testDb.get(`rooms/${c}`);
+  window.__testDb.update(`rooms/${c}/players`, {
+    p2: { name: "Beto", score: 30, connected: true },
+    p3: { name: "Carla", score: 5, connected: true },
+  });
+  window.__testDb.update(`rooms/${c}/players/${r.hostId}`, { score: 30 });
+}, salaDoEmpate);
+await page.waitForTimeout(250);
+await page.click("#options-fab");
+await page.waitForSelector("#options-overlay:not(.hidden)", { timeout: 5000 });
+const posicoes = await page.evaluate(() =>
+  [...document.querySelectorAll("#options-leaderboard-list .score-name")]
+    .map((e) => e.textContent.trim().split(" ")[0]));
+console.log(`   posições na classificação ao vivo: ${posicoes.join(" ")}`);
+const coroasAoVivo = posicoes.filter((p) => p.includes("👑")).length;
+if (coroasAoVivo !== 2) {
+  console.log(`   FALHOU: dois empatados em primeiro deviam ter as duas coroas (tinham ${coroasAoVivo})`);
+  process.exitCode = 1;
+}
+if (posicoes[2] !== "#3") {
+  console.log(`   FALHOU: a seguir a dois primeiros vem o #3, não "${posicoes[2]}"`);
+  process.exitCode = 1;
+}
+
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));
