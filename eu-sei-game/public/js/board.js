@@ -525,7 +525,7 @@ function beginStroke(e) {
   const tool = BOARD_TOOLS[board.tool];
 
   if (tool.text) {
-    const text = window.prompt("Texto a escrever no quadro:");
+    const text = window.prompt(t("quadroTextoPergunta"));
     if (text && text.trim()) {
       commitStroke({
         tool: "text", text: text.trim(), color: board.color,
@@ -575,7 +575,7 @@ function extendStroke(e) {
 
 function commitStroke(stroke) {
   if (board.strokes.length >= MAX_STROKES) {
-    setStatus("O quadro está cheio — anula ou limpa para continuar.");
+    setStatus(t("quadroCheio"));
     return;
   }
   board.strokes.push(stroke);
@@ -658,7 +658,7 @@ export function clearBoard(skipConfirm) {
   // Limpar tudo é a única ação daqui que deita fora trabalho de verdade, por
   // isso pergunta primeiro. A borracha, essa, apaga só onde se passa e nunca
   // pergunta nada — são coisas diferentes de propósito.
-  if (!skipConfirm && !window.confirm("Limpar o quadro todo? Isto apaga tudo o que está desenhado.")) return;
+  if (!skipConfirm && !window.confirm(t("quadroConfirmarLimpar"))) return;
   // "Limpar" é UMA ação, por isso desfaz-se com UM passo. Empilhar os traços
   // um a um fazia com que desfazer uma limpeza de 300 traços pedisse 300
   // cliques — na prática, o mesmo que não se poder desfazer. E volta o desenho
@@ -719,7 +719,7 @@ async function importBoardFile(file) {
     const parsed = JSON.parse(await file.text());
     const strokes = sanitizeStrokes(parsed?.strokes ?? parsed);
     if (strokes.length === 0) {
-      setStatus("Esse ficheiro não tem nenhum desenho reconhecível.");
+      setStatus(t("quadroFicheiroMau"));
       return;
     }
     // Importar ACRESCENTA em vez de substituir, e o que estava continua a
@@ -729,9 +729,9 @@ async function importBoardFile(file) {
     refreshButtons();
     zoomToFit();
     saveDrawingNow();
-    setStatus(`Importados ${strokes.length} traços.`);
+    setStatus(t("quadroImportados", strokes.length));
   } catch {
-    setStatus("Não consegui ler esse ficheiro.");
+    setStatus(t("quadroFicheiroIlegivel"));
   }
 }
 
@@ -758,7 +758,7 @@ function refreshButtons() {
   if (els.saveBtn) els.saveBtn.disabled = empty;
   if (els.exportBtn) els.exportBtn.disabled = empty;
   if (els.zoomFitBtn) els.zoomFitBtn.disabled = empty;
-  setStatus(empty ? "Folha em branco — escolhe uma caneta e começa." : `${board.strokes.length} traço${board.strokes.length === 1 ? "" : "s"}.`);
+  setStatus(empty ? t("quadroVazio") : t("quadroTracos", board.strokes.length));
 }
 
 // --- Barra de ferramentas ---
@@ -910,7 +910,12 @@ export function setFillShapes(on) {
 let falaTimer = null;
 function falaDaCasaNoQuadro() {
   if (!els.mascote) return;
-  const fala = pickMascotIntro("board");
+  // A fala vem da tabela das línguas (o data.js fica com a portuguesa, que é
+  // o recurso se a tabela falhar).
+  const lista = t("falasBoard");
+  const fala = Array.isArray(lista) && lista.length > 0
+    ? (([who, text]) => ({ who, text }))(lista[Math.floor(Math.random() * lista.length)])
+    : pickMascotIntro("board");
   if (!fala) return;
   els.mascote.innerHTML = "";
   const b = document.createElement("b");

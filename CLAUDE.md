@@ -517,9 +517,63 @@ file, for the reason the first-load section gives: numbers written down go
 stale, numbers that fail a test do not. It is **zero** now — 285 to nothing —
 so anything that appears there is text somebody added without translating it.
 
-What zero does NOT cover, and the doc says so: sentences that only exist
-mid-game — Dona Manga's lines, mini-game status text, the room whiteboard's
-running commentary. No sweep of a freshly loaded page can see them.
+What zero does NOT cover: sentences that only exist mid-game. That needed a
+second guard.
+
+### The mid-game half needs a guard that plays
+
+`linguas-jogo-test` plays in English and looks for words that only a
+Portuguese sentence produces. It does not ask whether a text is translated —
+it cannot know — it asks whether a word appears that no English rendering
+would ever produce. Crude on purpose: few false positives, and it prints the
+whole sentence, because a word on its own does not tell you which of three
+thousand lines to open.
+
+It caught its own two mistakes before it caught anything else, and both are
+the same mistake in different clothes:
+
+- **The mini-game step passed without ever reaching the mini-game.** It
+  clicked "next round" and waited 1.2 seconds. Falsifying (Portuguese back
+  into the end screen's title) left it green. Every standalone game goes
+  through the "ready?" gate, so nothing had started. It enters by the game's
+  own menu button now and drives Memory to its end screen — the
+  `solo-monkey-test` lesson again, from the other direction: a test that
+  reaches its subject by chance also PASSES by chance.
+- **The word list was too short.** Thirty-odd words let a Dona Manga line
+  through because the line happened to contain none of them — and the line is
+  drawn at random from two, so it passed half the time. The list is about a
+  hundred words now: Portuguese grammar words that are not English words, so
+  a Portuguese sentence can hardly dodge all of them.
+
+Between them the two guards found: the tool names, the ball screen, the
+memory prompt, both board titles, the whole achievements table, every mascot
+line, and the leaderboard's stat chips. None of that was visible to a person
+reading the code with the intention of translating it — I had read those same
+files twice.
+
+The mascot lines moved to `i18n.js`, where the map's already lived, under a
+comment written months ago that predicted exactly this: "uma gata a resmungar
+em português para quem escolheu inglês não é coesão, é um descuido."
+
+The same case then opens a room with TWO clients and enters the shared
+whiteboard, reading the host's screen and the guest's — different text, both
+Portuguese. Nothing else could have reached it: a one-player sweep never sees
+a word of what the room games say.
+
+Two exclusions the word list needs, and both are the kind of false positive
+that would train someone to ignore red:
+
+- the CATEGORIES (Animal, Cidade, Fruta) are game content, not chrome.
+  Translating them decides what language you ANSWER in, which is the owner's
+  call, so all the sweeps exclude them by name rather than pretending they
+  are done;
+- **the game's own name.** "Eu sei" contains "eu", so the classic-mode button
+  tripped the check in every language. The name is stripped before the text
+  is tokenised.
+
+Still not covered, and the doc says so: what only appears deep into a room
+game — an arena's closing scoreboard, the middle of a four-player Forca. The
+guard opens the room and enters the game; it does not play the match out.
 
 ### The suite had never said which language it was testing
 

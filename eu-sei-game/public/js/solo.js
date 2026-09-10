@@ -542,20 +542,25 @@ function saveAccount() {
   }
 }
 
-const GAME_LABELS = {
-  reflex: "Olho de Lince",
-  word: "Palavra Relâmpago",
-  bug: "Mata o Inseto",
-  monkey: "Cada Macaco no Seu Galho",
-  memory: "Memória",
-  hangman: "Forca",
-  map: "Mapa-Múndi",
-  pacman: "Kota Corre!",
-  golf: "Mini-Golfe",
-  cards: "Descartando Juntos",
-  car: "Estrada Maluca",
-  landmark: "Onde Fica Isto?",
+// Os nomes dos jogos vivem na tabela das línguas: aqui só ficam as chaves,
+// para o menu, o portão "pronto?" e o ecrã de fim dizerem todos o mesmo.
+const GAME_LABEL_KEYS = {
+  reflex: "jogoReflex",
+  word: "jogoWordflash",
+  bug: "jogoBug",
+  monkey: "jogoMonkey",
+  memory: "jogoMemoria",
+  hangman: "jogoForca",
+  map: "jogoMapaMundi",
+  pacman: "jogoPac",
+  golf: "jogoGolfe",
+  cards: "jogoCartas",
+  car: "jogoCarro",
+  landmark: "jogoMarcos",
 };
+function gameLabel(chave) {
+  return t(GAME_LABEL_KEYS[chave]) || t("miniJogo");
+}
 
 const account = loadAccount();
 account.sessionXp = 0;
@@ -1002,14 +1007,24 @@ const MASCOT_QUIPS = [
   { who: "Dona Manga", text: "Continua. Estou a tirar uma soneca com um olho aberto." },
   { who: "Brasa", text: "Dica secreta: ela finge que dorme mas está sempre a contar os teus pontos." },
 ];
+// As falas vivem no i18n.js (como as do mapa). O data.js fica com a lista
+// portuguesa, que é o que se lê se a tabela falhar.
+function falaSorteada(chave, recurso) {
+  const lista = t(chave);
+  if (Array.isArray(lista) && lista.length > 0) {
+    const [who, text] = lista[Math.floor(Math.random() * lista.length)];
+    return { who, text };
+  }
+  return recurso;
+}
 function randomMascotQuip() {
-  return MASCOT_QUIPS[Math.floor(Math.random() * MASCOT_QUIPS.length)];
+  return falaSorteada("falasEntreJogos", MASCOT_QUIPS[Math.floor(Math.random() * MASCOT_QUIPS.length)]);
 }
 
 function updateAccountXpLabel() {
   if (els.accountXpLabel) {
     els.accountXpLabel.textContent =
-      `⭐ ${account.xp} XP — ${account.gamesPlayed} jogos jogados (${account.sessionGamesPlayed} nesta sessão, +${account.sessionXp} XP)`;
+      t("soloXp", account.xp, account.gamesPlayed, account.sessionGamesPlayed, account.sessionXp);
   }
 }
 updateAccountXpLabel();
@@ -1030,17 +1045,17 @@ function showMinigameEnd({ gameLabel, points, favoriteKey, resultText }) {
   solo.runScore += chaosBonus;
   const gained = addXP(totalPoints, favoriteKey);
   updateAccountXpLabel();
-  els.mgeTitle.textContent = `${gameLabel} — fim!`;
-  els.mgePoints.textContent = (resultText || `+${points} pts bónus.`)
-    + (chaosBonus > 0 ? ` (+${chaosBonus} que o Brasa te passou por baixo da mesa)` : "");
-  els.mgeXp.textContent = `+${gained} XP — conta: ${account.xp} XP (${account.gamesPlayed} jogos)`;
+  els.mgeTitle.textContent = t("soloFimDoMini", gameLabel);
+  els.mgePoints.textContent = (resultText || t("soloBonus", points))
+    + (chaosBonus > 0 ? t("soloBrasaBonus", chaosBonus) : "");
+  els.mgeXp.textContent = t("soloXpGanho", gained, account.xp, account.gamesPlayed);
   // Uma conquista nova rouba o lugar à boca do costume: é mais raro e é a
   // única altura em que a Dona Manga admite que reparou em ti.
   const fresh = checkAchievements();
   if (fresh.length > 0) {
     const a = fresh[0];
     const extra = fresh.length > 1 ? ` (+${fresh.length - 1})` : "";
-    els.mgeQuip.textContent = `${a.icon} Conquista: ${a.name}${extra} — ${a.who}: “${a.quip}”`;
+    els.mgeQuip.textContent = t("soloConquista", a.icon, t(a.chaveNome) || a.name, extra, a.who, t(a.chaveBoca) || a.quip);
     // A conquista e a boca da mascote partilham este elemento; marcar qual e
     // qual deixa de ser ambiguo para quem le o ecra (e para os testes, que de
     // outra forma nao distinguem "nao ha boca" de "ha uma conquista").
@@ -1251,7 +1266,7 @@ function terminarDesafio(rows, corretas, pontos) {
   if (!solo.desafio.repetido) {
     sequencia = guardado.dia === diaAnterior(hoje) ? guardado.sequencia + 1 : 1;
     guardarDesafio({ dia: hoje, pontos, corretas, total: rows.length, sequencia });
-    addScoreHistoryEntry({ score: pontos, mode: "Desafio do dia", detail: `${corretas}/${rows.length}`, date: Date.now() });
+    addScoreHistoryEntry({ score: pontos, mode: t("soloDesafioModo"), detail: `${corretas}/${rows.length}`, date: Date.now() });
     addXP(pontos, null);
   }
   mostrarEstadoDoDesafio();
@@ -1260,8 +1275,8 @@ function terminarDesafio(rows, corretas, pontos) {
     ? `Desafio de hoje, outra vez: ${corretas}/${rows.length}`
     : `Desafio do dia: ${corretas}/${rows.length} corretas`;
   els.resultSummary.textContent = solo.desafio.repetido
-    ? "Esta não conta — o desafio de hoje já estava jogado."
-    : `${pontos} pts · ${sequencia} dia(s) seguidos. Volta amanhã para outro.`;
+    ? t("soloDesafioRepetido")
+    : t("soloDesafioResumo", pontos, sequencia);
   els.continueBtn.classList.add("hidden");
   els.restartBtn.classList.add("hidden");
   els.desafioCopiarBtn.classList.remove("hidden");
@@ -1297,7 +1312,9 @@ function showReadyOverlay(label, onStart, gameKey) {
   say(como ? `${label}. ${como}` : label);
   // Uma fala da mascote sobre ESTE jogo: é o que liga os mini-jogos ao mesmo
   // mundo em vez de serem doze coisas soltas com o mesmo botão.
-  const intro = gameKey ? pickMascotIntro(gameKey) : null;
+  const intro = gameKey
+    ? falaSorteada(`falas${gameKey[0].toUpperCase()}${gameKey.slice(1)}`, pickMascotIntro(gameKey))
+    : null;
   if (intro) {
     els.readyMascot.textContent = `${intro.who}: “${intro.text}”`;
     els.readyMascot.classList.remove("hidden");
@@ -1316,7 +1333,7 @@ function showReadyOverlay(label, onStart, gameKey) {
 function launchStandalone(startFn, gameKey) {
   // "Continuar" no ecrã de fim volta a jogar o mesmo jogo (jogar novamente
   // sem ter de voltar ao menu) — "Sair" continua sempre disponível à parte.
-  const label = GAME_LABELS[gameKey] || "Mini-jogo";
+  const label = gameLabel(gameKey);
   const gated = () => showReadyOverlay(label, startFn, gameKey);
   solo.afterMinigame = gated;
   solo.runScore = 0;
@@ -1417,7 +1434,7 @@ Object.entries(PRESENTATION_MODES).forEach(([key, modo]) => {
     refreshPresentation();
     // Uma frase de exemplo ao ligar o guiado: assim ouve-se logo como é, em
     // vez de se descobrir só no meio do primeiro jogo.
-    if (key === "guiado") say("Modo guiado ligado. Vou dizer-te o que vem a seguir.");
+    if (key === "guiado") say(t("soloGuiadoLigado"));
   });
   els.presentationRow.appendChild(btn);
 });
@@ -1495,7 +1512,7 @@ function nextRound() {
 }
 
 function renderLetterPick() {
-  els.letterInfo.textContent = `Ronda ${solo.round} — pontuação atual: ${solo.runScore} pts`;
+  els.letterInfo.textContent = t("soloRondaAtual", solo.round, solo.runScore);
   els.letterButtons.innerHTML = "";
   solo.pendingCandidates.forEach((letter) => {
     const btn = document.createElement("button");
@@ -1530,11 +1547,10 @@ function renderRound() {
   if (solo.desafio) {
     // No desafio não há run nem mínimo para passar: há o dia de hoje. Dizer
     // "precisas de 3 para continuar a run" era uma regra que não existe.
-    els.roundInfo.textContent = `Desafio de ${solo.desafio.dia} — ${solo.categoryIndexes.length} categorias, `
-      + `${DESAFIO_SEGUNDOS} segundos, 10 pts por resposta certa.`;
+    els.roundInfo.textContent = t("soloDesafioInfo", solo.desafio.dia, solo.categoryIndexes.length, DESAFIO_SEGUNDOS);
   } else {
     const needed = minCorrectNeeded(solo.categoryIndexes.length);
-    els.roundInfo.textContent = `Precisas de pelo menos ${needed} de ${solo.categoryIndexes.length} respostas válidas para continuar a run.`;
+    els.roundInfo.textContent = t("soloPrecisas", needed, solo.categoryIndexes.length);
   }
   els.catList.innerHTML = "";
   solo.categoryIndexes.forEach((ci) => {
@@ -1630,21 +1646,21 @@ function renderResult(rows, correctCount, needed, passed, roundScore, soTabela =
   if (soTabela) return;
 
   if (passed) {
-    els.resultTitle.textContent = `Passaste! ${correctCount}/${rows.length} corretas`;
-    els.resultSummary.textContent = `+${roundScore} pts nesta ronda — pontuação da run: ${solo.runScore} pts.`;
+    els.resultTitle.textContent = t("soloPassaste", correctCount, rows.length);
+    els.resultSummary.textContent = t("soloNestaRonda", roundScore, solo.runScore);
     els.continueBtn.classList.remove("hidden");
     els.restartBtn.classList.add("hidden");
   } else {
     const best = loadHighScore();
     const isNewBest = !best || solo.runScore > best.score;
     if (isNewBest) saveHighScore(solo.runScore, solo.round);
-    addScoreHistoryEntry({ score: solo.runScore, mode: "Clássico", detail: `${solo.round} ronda(s)`, date: Date.now() });
+    addScoreHistoryEntry({ score: solo.runScore, mode: t("soloModoClassico"), detail: t("soloRondasDetalhe", solo.round), date: Date.now() });
 
-    els.resultTitle.textContent = `Fim da run — ${correctCount}/${rows.length} corretas (precisavas de ${needed})`;
-    let summary = `Pontuação final: ${solo.runScore} pts, em ${solo.round} ronda(s).`;
+    els.resultTitle.textContent = t("soloFimDaRun", correctCount, rows.length, needed);
+    let summary = t("soloPontuacaoFinal", solo.runScore, solo.round);
     summary += isNewBest
-      ? " Novo recorde! 🎉"
-      : ` Recorde atual: ${best.score} pts (ronda ${best.rounds}).`;
+      ? t("soloNovoRecorde")
+      : t("soloRecordeAtual", best.score, best.rounds);
     els.resultSummary.textContent = summary;
     els.continueBtn.classList.add("hidden");
     els.restartBtn.classList.remove("hidden");
@@ -1795,7 +1811,7 @@ function handleReflexItemClick(item, btn) {
     updateGameHudScore();
     btn.classList.add("wrong-flash");
     sfx("errado");
-    els.reflexStatus.textContent = `Isso é "${item.n}" — não é o que procuras.`;
+    els.reflexStatus.textContent = t("linceErrado", item.n);
     setTimeout(() => btn.classList.remove("wrong-flash"), 400);
   }
 }
@@ -1807,7 +1823,7 @@ function finishReflexMinigame() {
   solo.reflexTarget = null;
   const bonus = Math.min(solo.reflexScore, REFLEX_MAX_BONUS);
   solo.runScore += bonus;
-  showMinigameEnd({ gameLabel: "Olho de Lince", points: bonus, favoriteKey: "reflex", resultText: `+${bonus} pts bónus!` });
+  showMinigameEnd({ gameLabel: t("jogoReflex"), points: bonus, favoriteKey: "reflex", resultText: t("soloBonusEx", bonus) });
 }
 
 // --- Palavra Relâmpago: escreve o máximo de palavras possível numa letra
@@ -1857,15 +1873,15 @@ function submitWfWord() {
   const letter = solo.wfLetter.toUpperCase();
   const key = raw.toLowerCase();
   if (raw[0].toUpperCase() !== letter) {
-    els.wfFeedback.textContent = `"${raw}" não começa por ${solo.wfLetter}.`;
+    els.wfFeedback.textContent = t("wfNaoComeca", raw, solo.wfLetter);
     return;
   }
   if (raw.length < WF_MIN_LENGTH) {
-    els.wfFeedback.textContent = `"${raw}" é demasiado curta.`;
+    els.wfFeedback.textContent = t("wfCurta", raw);
     return;
   }
   if (solo.wfWords.has(key)) {
-    els.wfFeedback.textContent = `Já escreveste "${raw}".`;
+    els.wfFeedback.textContent = t("wfRepetida", raw);
     return;
   }
 
@@ -1888,10 +1904,10 @@ function finishWordFlash() {
   const bonus = Math.min(solo.wfPoints, WF_MAX_BONUS);
   solo.runScore += bonus;
   showMinigameEnd({
-    gameLabel: "Palavra Relâmpago",
+    gameLabel: t("jogoWordflash"),
     points: bonus,
     favoriteKey: "word",
-    resultText: `${solo.wfWords.size} palavra(s) válida(s) — +${bonus} pts bónus!`,
+    resultText: t("wfResultado", solo.wfWords.size, bonus),
   });
 }
 
@@ -1988,7 +2004,7 @@ function finishBugSmash() {
 
   const bonus = Math.min(solo.bugScore, BUG_MAX_BONUS);
   solo.runScore += bonus;
-  showMinigameEnd({ gameLabel: "Mata o Inseto", points: bonus, favoriteKey: "bug", resultText: `+${bonus} pts bónus!` });
+  showMinigameEnd({ gameLabel: t("jogoBug"), points: bonus, favoriteKey: "bug", resultText: t("soloBonusEx", bonus) });
 }
 
 // --- Cada Macaco no Seu Galho: apanha os macacos que caem, movendo o
@@ -2152,7 +2168,7 @@ function finishMonkeyRescue() {
 
   const bonus = Math.min(solo.monkeyScore, MONKEY_MAX_BONUS);
   solo.runScore += bonus;
-  showMinigameEnd({ gameLabel: "Cada Macaco no Seu Galho", points: bonus, favoriteKey: "monkey", resultText: `+${bonus} pts bónus!` });
+  showMinigameEnd({ gameLabel: t("jogoMonkey"), points: bonus, favoriteKey: "monkey", resultText: t("soloBonusEx", bonus) });
 }
 
 // --- Memória: memoriza categorias mostradas por breves segundos, depois
@@ -2223,10 +2239,10 @@ function finishMemory() {
   const bonus = Math.max(0, correct * MEM_POINTS_CORRECT - wrong * MEM_POINTS_WRONG);
   solo.runScore += bonus;
   showMinigameEnd({
-    gameLabel: "Memória",
+    gameLabel: t("jogoMemoria"),
     points: bonus,
     favoriteKey: "memory",
-    resultText: `${correct} certa(s), ${wrong} errada(s) — +${bonus} pts bónus!`,
+    resultText: t("memResultado", correct, wrong, bonus),
   });
 }
 
@@ -2253,7 +2269,7 @@ function runNextMarathonGame() {
   }
   const key = solo.marathonQueue.shift();
   const startFn = MARATHON_GAMES[key];
-  if (startFn) showReadyOverlay(GAME_LABELS[key] || "Mini-jogo", startFn, key);
+  if (startFn) showReadyOverlay(gameLabel(key), startFn, key);
   else runNextMarathonGame();
 }
 
@@ -2265,7 +2281,7 @@ function showMarathonResult() {
     detail: `${solo.marathonTotalGames} mini-jogo(s)`,
     date: Date.now(),
   });
-  els.marathonSummary.textContent = `Pontuação total: ${solo.runScore} pts.`;
+  els.marathonSummary.textContent = t("soloTotal", solo.runScore);
   showScreen("solo-marathon-result");
 }
 
@@ -2313,7 +2329,7 @@ function achievementContext() {
     distinctGames: Object.keys(favorites).length,
     // SÓ OS JOGOS QUE A PESSOA PODE MESMO JOGAR.
     //
-    // Contava os doze do GAME_LABELS, incluindo os oito que foram para a
+    // Contava os doze do GAME_LABEL_KEYS, incluindo os oito que foram para a
     // oficina. O "Provaste tudo" pedia doze jogos distintos a quem só tem
     // quatro à frente, e o "Curioso" pedia cinco — as duas ficaram
     // impossíveis de ganhar no dia em que os jogos saíram do menu, e uma
@@ -2322,7 +2338,7 @@ function achievementContext() {
     //
     // Com ?oficina=1 os doze voltam a contar, porque aí voltam a ser
     // jogáveis. É a mesma regra do menu e da maratona.
-    totalGames: Object.keys(GAME_LABELS).filter((k) => !estaNaOficina(k)).length,
+    totalGames: Object.keys(GAME_LABEL_KEYS).filter((k) => !estaNaOficina(k)).length,
     runs: history.length,
     bestScore: history.length ? Math.max(...history.map((h) => h.score || 0)) : 0,
   };
@@ -2347,7 +2363,7 @@ function renderAchievements() {
   checkAchievements();
   const unlocked = loadUnlockedAchievements();
   const ctx = achievementContext();
-  els.achievementsCount.textContent = `${unlocked.size} de ${ACHIEVEMENTS.length} conquistas`;
+  els.achievementsCount.textContent = t("conquistasContagem", unlocked.size, ACHIEVEMENTS.length);
   els.achievementsList.innerHTML = "";
   ACHIEVEMENTS.forEach((a) => {
     const got = unlocked.has(a.id);
@@ -2355,17 +2371,17 @@ function renderAchievements() {
     row.className = `achievement-row${got ? "" : " achievement-locked"}`;
     row.innerHTML = `<span class="achievement-icon">${got ? a.icon : "🔒"}</span>
       <span class="achievement-text">
-        <strong>${a.name}</strong>
-        <span class="hint small">${a.desc}</span>
-        ${got ? `<span class="achievement-quip">${a.who}: “${a.quip}”</span>` : ""}
+        <strong>${t(a.chaveNome) || a.name}</strong>
+        <span class="hint small">${t(a.chaveDesc) || a.desc}</span>
+        ${got ? `<span class="achievement-quip">${a.who}: “${t(a.chaveBoca) || a.quip}”</span>` : ""}
       </span>`;
     els.achievementsList.appendChild(row);
   });
   // Uma pista do que falta, para não ser só uma parede de cadeados.
   const next = ACHIEVEMENTS.find((a) => !unlocked.has(a.id));
   els.achievementsHint.textContent = next
-    ? `A seguir: ${next.name} — ${next.desc}`
-    : "Apanhaste tudo. A Dona Manga finge que não reparou.";
+    ? t("conquistaSeguinte", t(next.chaveNome) || next.name, t(next.chaveDesc) || next.desc)
+    : t("conquistasTodas");
 }
 
 function renderLeaderboard() {
@@ -2376,10 +2392,10 @@ function renderLeaderboard() {
       : "—";
     els.leaderboardStats.innerHTML = `
       <div class="stat-chip">⭐ ${account.xp} XP</div>
-      <div class="stat-chip">🎮 ${account.gamesPlayed} jogos (${account.sessionGamesPlayed} nesta sessão)</div>
-      <div class="stat-chip">🔥 combo recorde: ${account.bestCombo || 0}</div>
-      <div class="stat-chip">🪢 sequência recorde na Forca: ${account.bestHangmanStreak || 0}</div>
-      <div class="stat-chip">🏅 jogo favorito: ${GAME_LABELS[favLabel] || favLabel}</div>
+      <div class="stat-chip">${t("chipJogos", account.gamesPlayed, account.sessionGamesPlayed)}</div>
+      <div class="stat-chip">${t("chipCombo", account.bestCombo || 0)}</div>
+      <div class="stat-chip">${t("chipForca", account.bestHangmanStreak || 0)}</div>
+      <div class="stat-chip">${t("chipFavorito", t(GAME_LABEL_KEYS[favLabel]) || favLabel)}</div>
     `;
   }
   const history = loadScoreHistory();
@@ -2387,7 +2403,7 @@ function renderLeaderboard() {
   if (history.length === 0) {
     const empty = document.createElement("p");
     empty.className = "hint";
-    empty.textContent = "Ainda não há pontuações guardadas — joga uma run (clássico ou maratona) para entrares na tabela!";
+    empty.textContent = t("recordesVazio");
     els.leaderboardList.appendChild(empty);
     return;
   }
@@ -2456,7 +2472,7 @@ function submitMapAnswer() {
   } else {
     solo.mapScore = Math.max(0, solo.mapScore - MAP_WRONG_PENALTY);
     updateGameHudScore();
-    els.mapStatus.textContent = `"${raw}" não é isso — -${MAP_WRONG_PENALTY} pts. Tenta outra vez!`;
+    els.mapStatus.textContent = t("mapaSoloErrado", raw, MAP_WRONG_PENALTY);
   }
 }
 
@@ -2502,9 +2518,9 @@ function finishMapMinigame() {
   solo.mapCriteria = null;
   const bonus = Math.min(solo.mapScore, MAP_MAX_BONUS);
   solo.runScore += bonus;
-  els.mapPrompt.textContent = "Jogo terminado!";
+  els.mapPrompt.textContent = t("mapaSoloFim");
   els.mapRoundInfo.textContent = "";
-  showMinigameEnd({ gameLabel: "Mapa-Múndi", points: bonus, favoriteKey: "map", resultText: `+${bonus} pts bónus!` });
+  showMinigameEnd({ gameLabel: t("jogoMapaMundi"), points: bonus, favoriteKey: "map", resultText: t("soloBonusEx", bonus) });
 }
 
 // --- "Onde Fica Isto?": identifica um marco famoso a partir de um desenho
@@ -2552,9 +2568,9 @@ function landmarkChoose(chosen, btnEl) {
     const points = LANDMARK_HIT_BASE_POINTS + speedBonus;
     solo.landmarkScore += points;
     updateGameHudScore();
-    els.landmarkStatus.textContent = `Certo! ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}! +${points} pts`;
+    els.landmarkStatus.textContent = t("marcosCerto", solo.landmarkCurrent.name, solo.landmarkCurrent.answer, points);
   } else {
-    els.landmarkStatus.textContent = `Não é isso — ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}.`;
+    els.landmarkStatus.textContent = t("marcosErrado", solo.landmarkCurrent.name, solo.landmarkCurrent.answer);
   }
   solo.landmarkAdvanceTimeoutId = setTimeout(() => landmarkNextRound(), 1400);
 }
@@ -2578,7 +2594,7 @@ function landmarkNextRound() {
         btn.disabled = true;
         if (btn.textContent === solo.landmarkCurrent.answer) btn.classList.add("correct-flash");
       });
-      els.landmarkStatus.textContent = `Tempo esgotado! ${solo.landmarkCurrent.name} é em ${solo.landmarkCurrent.answer}.`;
+      els.landmarkStatus.textContent = t("marcosTempo", solo.landmarkCurrent.name, solo.landmarkCurrent.answer);
       clearTimeout(solo.landmarkAdvanceTimeoutId);
       solo.landmarkAdvanceTimeoutId = setTimeout(() => landmarkNextRound(), 1400);
       return;
@@ -2612,7 +2628,7 @@ function finishLandmarkMinigame() {
   solo.landmarkActive = false;
   const bonus = Math.min(solo.landmarkScore, LANDMARK_MAX_BONUS);
   solo.runScore += bonus;
-  showMinigameEnd({ gameLabel: "Onde Fica Isto?", points: bonus, favoriteKey: "landmark", resultText: `+${bonus} pts bónus!` });
+  showMinigameEnd({ gameLabel: t("jogoMarcos"), points: bonus, favoriteKey: "landmark", resultText: t("soloBonusEx", bonus) });
 }
 
 // --- Kota Corre!: renderiza o labirinto uma vez (paredes/pastilhas fixas),
@@ -2794,7 +2810,7 @@ function pacLoseLife() {
     finishPacman(false);
     return;
   }
-  els.pacStatus.textContent = "Apanhado! Cuidado da próxima vez...";
+  els.pacStatus.textContent = t("pacApanhado");
   solo.pacPlayer.row = PAC_ROWS - 2;
   solo.pacPlayer.col = Math.floor(PAC_COLS / 2);
   solo.pacPlayer.dir = { r: 0, c: 0 };
@@ -2907,8 +2923,8 @@ function finishPacman(won) {
   const bonus = Math.min(solo.pacScore, PAC_MAX_BONUS);
   solo.runScore += bonus;
   const resultText = won
-    ? `Comeste tudo! +${bonus} pts bónus!`
-    : `As comidas apanharam-te — +${bonus} pts bónus mesmo assim.`;
+    ? t("pacComeste", bonus)
+    : t("pacComidas", bonus);
   showMinigameEnd({ gameLabel: "Kota Corre!", points: bonus, favoriteKey: "pacman", resultText });
 }
 
@@ -3049,7 +3065,7 @@ function golfCompleteHole() {
   const points = Math.max(GOLF_POINTS_PER_HOLE_MIN, Math.round(GOLF_POINTS_PER_HOLE_MAX - elapsed * 1.2));
   solo.golfScore += points;
   updateGameHudScore();
-  els.golfStatus.textContent = `Buraco ${solo.golfHoleIndex + 1} em ${elapsed.toFixed(1)}s — +${points} pts!`;
+  els.golfStatus.textContent = t("golfeBuraco", solo.golfHoleIndex + 1, elapsed.toFixed(1), points);
   solo.golfHoleIndex += 1;
 
   clearTimeout(solo.golfAdvanceTimeoutId);
@@ -3110,8 +3126,8 @@ function finishGolf(wonAll) {
   const bonus = Math.min(solo.golfScore, GOLF_MAX_BONUS);
   solo.runScore += bonus;
   const resultText = wonAll
-    ? `Acabaste os ${GOLF_HOLES.length} buracos! +${bonus} pts bónus!`
-    : `+${bonus} pts bónus pelos buracos que fizeste.`;
+    ? t("golfeAcabaste", GOLF_HOLES.length, bonus)
+    : t("golfeParcial", bonus);
   showMinigameEnd({ gameLabel: "Mini-Golfe", points: bonus, favoriteKey: "golf", resultText });
 }
 
@@ -3308,7 +3324,7 @@ function cardRenderCardEl(card, index, { selectable, onClick }) {
 function cardRenderHandTypePreview() {
   const selectedCards = [...solo.cardSelected].map((i) => solo.cardHand[i]);
   if (selectedCards.length === 0) {
-    els.cardHandTypePreview.textContent = "Seleciona até 5 cartas.";
+    els.cardHandTypePreview.textContent = t("cartasSeleciona");
     return;
   }
   const preview = cardScorePlay(selectedCards);
@@ -3431,14 +3447,14 @@ function cardOpenShop(moneyEarned) {
   solo.cardPhase = "shop";
   const available = CARD_JOKER_POOL.filter((j) => !solo.cardJokers.includes(j.key));
   solo.cardShopOffers = shuffleArray(available).slice(0, 2);
-  els.cardShopMoney.textContent = `Ganhaste 💰 ${moneyEarned} por vencer o blind. Tens 💰 ${solo.cardMoney} no total.`;
+  els.cardShopMoney.textContent = t("cartasGanhaste", moneyEarned, solo.cardMoney);
   els.cardShopOffers.innerHTML = "";
   if (solo.cardShopOffers.length === 0 || solo.cardJokers.length >= CARD_JOKER_SLOTS) {
     const p = document.createElement("p");
     p.className = "hint";
     p.textContent = solo.cardJokers.length >= CARD_JOKER_SLOTS
-      ? "Já tens o máximo de coringas — segue em frente!"
-      : "Sem coringas novos disponíveis desta vez.";
+      ? t("cartasMaxCoringas")
+      : t("cartasSemCoringas");
     els.cardShopOffers.appendChild(p);
   } else {
     solo.cardShopOffers.forEach((joker) => {
@@ -3465,7 +3481,7 @@ function cardBuyJoker(key) {
   solo.cardJokers.push(key);
   cardRenderJokerRow();
   cardOpenShop(0);
-  els.cardShopMoney.textContent = `Tens 💰 ${solo.cardMoney} no total.`;
+  els.cardShopMoney.textContent = t("cartasTens", solo.cardMoney);
 }
 
 els.cardShopContinueBtn.addEventListener("click", () => {
@@ -3707,7 +3723,7 @@ function finishCarGame() {
   const scoreRounded = Math.round(solo.carScore);
   const bonus = Math.min(scoreRounded, CAR_MAX_BONUS);
   solo.runScore += bonus;
-  const resultText = `Aguentaste ${Math.floor(solo.carElapsed)}s na estrada — +${bonus} pts bónus!`;
+  const resultText = t("carroAguentaste", Math.floor(solo.carElapsed), bonus);
   showMinigameEnd({ gameLabel: "Estrada Maluca", points: bonus, favoriteKey: "car", resultText });
 }
 
@@ -3815,25 +3831,25 @@ function finishSoloHangman(won) {
       solo.hangmanStreak += 1;
       const streakMult = 1 + Math.min(solo.hangmanStreak - 1, SOLO_HANGMAN_STREAK_MULT_CAP) * SOLO_HANGMAN_STREAK_MULT_STEP;
       bonus = Math.round(base * streakMult * challengeMult);
-      resultText = `Acertaste "${solo.hangmanWord}"! Sequência: ${solo.hangmanStreak} 🔥 — +${bonus} pts.`;
+      resultText = t("forcaAcertasteSeq", solo.hangmanWord, solo.hangmanStreak, bonus);
       if (solo.hangmanStreak > (account.bestHangmanStreak || 0)) {
         account.bestHangmanStreak = solo.hangmanStreak;
         saveAccount();
       }
-      solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, startSoloHangman, "hangman");
+      solo.afterMinigame = () => showReadyOverlay(gameLabel("hangman"), startSoloHangman, "hangman");
     } else {
       bonus = Math.round(base * challengeMult);
-      resultText = `Acertaste "${solo.hangmanWord}"! +${bonus} pts bónus!`;
+      resultText = t("forcaAcertaste", solo.hangmanWord, bonus);
     }
   } else if (solo.hangmanStreakMode) {
     resultText = `A sequência acabou em ${solo.hangmanStreak} palavra(s) — a palavra era "${solo.hangmanWord}". Recorde: ${account.bestHangmanStreak || 0}.`;
-    solo.afterMinigame = () => showReadyOverlay(GAME_LABELS.hangman, () => {
+    solo.afterMinigame = () => showReadyOverlay(gameLabel("hangman"), () => {
       solo.hangmanStreak = 0;
       solo.hangmanUsedWords = new Set();
       startSoloHangman();
     }, "hangman");
   } else {
-    resultText = `Não desta vez — a palavra era "${solo.hangmanWord}".`;
+    resultText = t("forcaNaoDestaVez", solo.hangmanWord);
   }
 
   solo.runScore += bonus;

@@ -308,11 +308,25 @@ outra em inglês, e compara ecrã a ecrã. O que sair igual nas duas línguas n�
 passou pelo `t()` — venha do HTML ou de JavaScript. Foi assim que apareceram
 os nomes das ferramentas do quadro, que nenhuma marcação apanhava.
 
-**O que ainda falta**, e é honesto dizê-lo: as frases que só nascem A MEIO
-de um jogo — o que a Dona Manga diz, os estados dos mini-jogos ("ganhaste por
-2 segundos"), as mensagens do quadro de sala enquanto se joga. Nenhum
-varrimento as vê, porque só existem depois de alguém jogar. São a fase
-seguinte.
+**E as frases de meio de jogo, que nenhum varrimento de ecrã vê.** Há um
+segundo guarda para essas (`linguas-jogo-test`): JOGA em inglês e procura
+palavras que só uma frase portuguesa produz. Apanhou o resultado da ronda, o
+ecrã de fim de mini-jogo, as treze conquistas, as falas da Dona Manga e do
+Brasa antes de cada jogo, e os números da tabela de recordes. Está tudo
+traduzido e está tudo verde.
+
+O mesmo guarda abre depois **uma sala com dois jogadores** e entra no quadro
+partilhado, para ver o que o anfitrião lê e o que o convidado lê — que são
+coisas diferentes, e as duas estavam em português. Com isso ficaram
+traduzidos o quadro de sala inteiro (a caneta, as equipas, os erros, o fim da
+partida, a ajuda do Brasa), o Desenha e Adivinha, as três arenas e o álbum
+do fim da noite.
+
+**O que ainda falta**, e continua a ser honesto dizê-lo: o que só aparece
+depois de MUITO jogo em sala — o placar de uma arena a acabar, o meio de uma
+partida da Forca com quatro pessoas. O guarda abre a sala e entra no jogo;
+não joga a partida toda. E as CATEGORIAS continuam à tua espera (a pergunta
+está acima).
 
 O que fica de fora de propósito, e porquê:
 

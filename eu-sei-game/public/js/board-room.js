@@ -364,17 +364,17 @@ async function hangmanImportar(ficheiro) {
     const lido = JSON.parse(await ficheiro.text());
     const pontos = sanitizeBoardPoints(lido?.points ?? lido);
     if (pontos.length === 0) {
-      hangmanEls.status.textContent = "Esse ficheiro não tem nenhum desenho reconhecível.";
+      hangmanEls.status.textContent = t("quadroFicheiroMau");
       return;
     }
     // ACRESCENTA, não substitui: importar por engano não pode apagar o que a
     // sala tem no quadro, e anular continua a desfazer traço a traço.
     const r = await pushHangmanDoodlePoints(state.code, state.room, state.uid, pontos);
     hangmanEls.status.textContent = r === DOODLE_BOARD_FULL
-      ? "O quadro encheu a meio da importação — limpa para continuar."
-      : `Importados ${pontos.length} pontos.`;
+      ? t("salaQuadroImportCheio")
+      : t("salaQuadroImportados", pontos.length);
   } catch {
-    hangmanEls.status.textContent = "Não consegui ler esse ficheiro.";
+    hangmanEls.status.textContent = t("quadroFicheiroIlegivel");
   }
 }
 
@@ -458,7 +458,7 @@ function hangmanDoodleFlush() {
     // silêncio, e quem estava a desenhar via o desenho a encolher sem
     // perceber porquê.
     if (r === DOODLE_BOARD_FULL) {
-      hangmanEls.status.textContent = "O quadro está cheio — carrega em Limpar para continuar.";
+      hangmanEls.status.textContent = t("salaQuadroCheio");
     }
   });
 }
@@ -478,7 +478,7 @@ hangmanEls.doodleCanvas.addEventListener("pointerdown", (e) => {
   const tool = BOARD_TOOLS[key];
 
   if (tool.text) {
-    const texto = window.prompt("Texto a escrever no quadro:");
+    const texto = window.prompt(t("quadroTextoPergunta"));
     if (texto && texto.trim()) {
       hangmanDoodleState.pending.push({
         x: p.x, y: p.y, newStroke: true, tool: key, text: texto.trim(),
@@ -760,9 +760,9 @@ function hangmanOpenModePicker() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.dataset.modeChoice = key;
-    const atual = room.hangman.mode === key ? " (a jogar agora)" : "";
-    btn.innerHTML = `<b>${escapeHtml(mode.label)}${atual}</b><br>` +
-      `<span class="hint small">${escapeHtml(mode.hint)}</span>`;
+    const atual = room.hangman.mode === key ? t("salaQuadroAJogarAgora") : "";
+    btn.innerHTML = `<b>${escapeHtml(t(mode.chave) || mode.label)}${atual}</b><br>` +
+      `<span class="hint small">${escapeHtml(t(mode.chaveHint) || mode.hint)}</span>`;
     btn.addEventListener("click", async () => {
       // Muda já, para todos. Se mudarem de ideias, é voltar a clicar.
       const mudou = await setBoardMode(state.code, state.room, state.uid, key);
@@ -979,7 +979,7 @@ function personalBuildTools() {
     btn.className = "board-color";
     btn.dataset.personalColor = cor;
     btn.style.background = cor;
-    btn.setAttribute("aria-label", `Cor do rascunho ${cor}`);
+    btn.setAttribute("aria-label", t("quadroCorRascunhoAria", cor));
     btn.addEventListener("click", () => {
       personal.color = cor;
       personal.erasing = false;
@@ -1044,7 +1044,7 @@ function narrarQuadro(room, souLider) {
   // A narração conta letras e espaços: no Desenha e Adivinha não teria o que
   // dizer, e dizer o tamanho da palavra seria dar meia resposta.
   if (!h || h.mode !== "forca") return;
-  const nome = (uid) => room.players?.[uid]?.name || "alguém";
+  const nome = (uid) => room.players?.[uid]?.name || t("alguemMinusculo");
 
   // Palavra nova: diz-se o TAMANHO, que é informação pública (está no ecrã
   // em espaços), nunca as letras.
@@ -1054,15 +1054,15 @@ function narrarQuadro(room, souLider) {
     if (h.mask && !antes) {
       const letras = [...h.mask].filter((c) => /[\p{L}\p{N}_]/u.test(c)).length;
       const palavras = h.mask.trim().split(/\s+/).length;
-      const pista = h.hint ? ` A pista é: ${h.hint}.` : "";
-      narrar(`Palavra nova, com ${letras} letras${palavras > 1 ? ` em ${palavras} palavras` : ""}.${pista}`);
+      const pista = h.hint ? t("forcaPistaE", h.hint) : "";
+      narrar(t("forcaPalavraNova", letras, palavras > 1 ? t("forcaEmPalavras", palavras) : "", pista));
     }
   }
 
   if (h.leaderId !== narrado.leaderId) {
     narrado.leaderId = h.leaderId;
     if (h.leaderId) {
-      narrar(souLider ? "Ficaste com a caneta. Escreve a palavra." : `${nome(h.leaderId)} ficou com a caneta.`);
+      narrar(souLider ? t("forcaFicasteCaneta") : t("forcaFicouComCaneta", nome(h.leaderId)));
     }
   }
 
@@ -1071,12 +1071,12 @@ function narrarQuadro(room, souLider) {
   const erradas = wrongLetters(room);
   if (erradas.length > narrado.wrongCount) {
     const nova = erradas[erradas.length - 1];
-    narrar(`${nome(nova.uid)} disse ${nova.letter}. Não está na palavra.`);
+    narrar(t("forcaDisseLetra", nome(nova.uid), nova.letter));
   }
   narrado.wrongCount = erradas.length;
 
   if (h.solved && !narrado.solved) {
-    narrar("Acertaram a palavra!");
+    narrar(t("forcaAcertaramPalavra"));
   }
   narrado.solved = !!h.solved;
 
@@ -1086,8 +1086,8 @@ function narrarQuadro(room, souLider) {
     const daVez = currentGuesser(room);
     if (daVez !== narrado.turnUid) {
       narrado.turnUid = daVez;
-      if (daVez === state.uid) narrar("É a tua vez de arriscar uma letra.");
-      else if (daVez) narrar(`É a vez de ${nome(daVez)}.`);
+      if (daVez === state.uid) narrar(t("forcaTuaVezLetra"));
+      else if (daVez) narrar(t("forcaVezDe", nome(daVez)));
     }
   }
 }
@@ -1211,14 +1211,14 @@ function hangmanOpenTeams(forcar) {
     // Não se mexe no campo enquanto lá se está a escrever: seria apagar o que
     // a pessoa tem a meio.
     if (document.activeElement !== campo) campo.value = eq.name;
-    campo.setAttribute("aria-label", `Nome da ${eq.name}`);
+    campo.setAttribute("aria-label", t("equipasNomeAria", eq.name));
 
     const membros = caixa.querySelector("[data-team-members]");
     membros.innerHTML = "";
     if (eq.members.length === 0) {
       const vazio = document.createElement("span");
       vazio.className = "hangman-team-empty";
-      vazio.textContent = "ainda ninguém";
+      vazio.textContent = t("equipasAindaNinguem");
       membros.appendChild(vazio);
     }
     eq.members.forEach((uid) => {
@@ -1230,18 +1230,18 @@ function hangmanOpenTeams(forcar) {
 
     const pontos = caixa.querySelector("[data-team-score]");
     pontos.hidden = eq.score === 0;
-    pontos.textContent = eq.score > 0 ? `${eq.score} letra${eq.score === 1 ? "" : "s"}` : "";
+    pontos.textContent = eq.score > 0 ? t("equipasLetras", eq.score) : "";
 
     const entrar = caixa.querySelector(".hangman-team-join");
-    entrar.textContent = eq.id === minha ? "Sair" : "Entrar";
+    entrar.textContent = eq.id === minha ? t("sair") : t("entrar");
     entrar.disabled = trancado;
   });
 
   hangmanEls.teamsHint.textContent = trancado
-    ? "O jogo já começou — as equipas ficam como estão até à próxima palavra."
+    ? t("equipasTrancado")
     : (emEquipas
-      ? "Entra numa equipa. Podem trocar à vontade até a palavra ser definida."
-      : "Cada um joga por si.");
+      ? t("equipasEntra")
+      : t("equipasCadaUm"));
 
   if (aEscrever) {
     const campo = hangmanEls.teamBoxes.querySelector(`[data-team-name-input="${aEscrever.id}"]`);
@@ -1265,7 +1265,7 @@ function construirControlosEquipas() {
   if (controlosEquipasProntos) return;
   controlosEquipasProntos = true;
   hangmanEls.playToggle.innerHTML = "";
-  [["solo", "🙋 Cada um por si"], ["equipas", "👥 Equipas"]].forEach(([valor, texto]) => {
+  [["solo", t("equipasCadaUmBtn")], ["equipas", t("salaQuadroEquipas")]].forEach(([valor, texto]) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.dataset.playMode = valor;
@@ -1339,7 +1339,7 @@ function hangmanRenderMatchOver(room) {
     if (entrada.membros.length > 1 || teamsOn(room)) {
       const quem = document.createElement("span");
       quem.className = "hangman-match-members";
-      quem.textContent = ` (${entrada.membros.map((u) => room.players?.[u]?.name).filter(Boolean).join(", ") || "sem ninguém"})`;
+      quem.textContent = ` (${entrada.membros.map((u) => room.players?.[u]?.name).filter(Boolean).join(", ") || t("equipasSemNinguem")})`;
       nome.appendChild(quem);
     }
     linha.appendChild(nome);
@@ -1350,21 +1350,21 @@ function hangmanRenderMatchOver(room) {
     // vista, os pontos apareciam no placar geral sem ninguém perceber de onde
     // tinham vindo.
     const paraASala = entrada.membros.reduce((soma, u) => soma + (ganhosDaSala[u] || 0), 0);
-    pts.textContent = `${entrada.pontos} letra${entrada.pontos === 1 ? "" : "s"}`
-      + (paraASala > 0 ? ` · +${paraASala} pts na sala` : "");
+    pts.textContent = t("equipasLetras", entrada.pontos)
+      + (paraASala > 0 ? t("equipasParaASala", paraASala) : "");
     linha.appendChild(pts);
     hangmanEls.matchRanking.appendChild(linha);
   });
 
   const ganhou = ordem.filter((e) => e.pontos === maisPontos && maisPontos > 0);
   hangmanEls.matchTitle.textContent = ganhou.length === 0
-    ? "Fim da partida — ninguém acertou nada!"
-    : (ganhou.length > 1 ? "Fim da partida — empate!" : `Fim da partida — ganhou ${ganhou[0].nome}!`);
-  hangmanEls.matchSub.textContent = `${wordsDone(room)} palavra${wordsDone(room) === 1 ? "" : "s"} jogada${wordsDone(room) === 1 ? "" : "s"}.`;
+    ? t("fimNinguemAcertou")
+    : (ganhou.length > 1 ? t("fimEmpate") : t("fimGanhou", ganhou[0].nome));
+  hangmanEls.matchSub.textContent = t("fimPalavrasJogadas", wordsDone(room));
 
   const manda = canSetBoardMode(room, state.uid);
   hangmanEls.matchAgainBtn.classList.toggle("hidden", !manda);
-  hangmanEls.matchWait.textContent = manda ? "" : "À espera de quem manda no quadro para começar outra.";
+  hangmanEls.matchWait.textContent = manda ? "" : t("fimAEsperaDeQuemManda");
 
   // O anfitrião leva os pontos ao placar da sala. Só ele, e só uma vez — o
   // guarda está no room.js (matchPaid, escrito na mesma atualização); este
@@ -1397,7 +1397,7 @@ function hangmanOpenHistory() {
     const quemPos = state.room?.players?.[entrada.by]?.name;
     const quemGanhou = entrada.winnerUid ? state.room?.players?.[entrada.winnerUid]?.name : null;
     const partes = [];
-    if (entrada.hint) partes.push(`pista: ${entrada.hint}`);
+    if (entrada.hint) partes.push(t("forcaPistaCurta", entrada.hint));
     if (quemPos) partes.push(`posta por ${quemPos}`);
     if (quemGanhou) partes.push(`ganha por ${quemGanhou}`);
     partes.push(`${entrada.misses || 0} erro${(entrada.misses || 0) === 1 ? "" : "s"}`);
@@ -1558,7 +1558,7 @@ hangmanEls.wordForm.addEventListener("submit", async (e) => {
   hangmanEls.wordInput.value = "";
   hangmanEls.hintInput.value = "";
   if (retoma) {
-    hangmanEls.status.textContent = "Palavra recuperada — o jogo continua de onde estava.";
+    hangmanEls.status.textContent = t("forcaPalavraRecuperada");
     renderHangman(state.room);
     return;
   }
@@ -1669,7 +1669,7 @@ function renderSlotsInto(destino, mask, base, interactive) {
       btn.type = "button";
       btn.className = "hangman-slot-btn";
       btn.dataset.slotIndex = String(i);
-      btn.setAttribute("aria-label", `Escrever a letra da posição ${i + 1}`);
+      btn.setAttribute("aria-label", t("forcaEscreverPosicaoAria", i + 1));
       btn.appendChild(el);
       btn.addEventListener("click", () => hangmanFillSlot(i));
       destino.appendChild(btn);
@@ -1686,10 +1686,10 @@ async function hangmanFillSlot(index) {
   if (!mask || !hangmanSecretWord) return;
   const certa = hangmanSecretWord[index];
   if (!certa) return;
-  const escrita = window.prompt(`Que letra vai na posição ${index + 1}?`);
+  const escrita = window.prompt(t("forcaQueLetraPosicao", index + 1));
   if (!escrita) return;
   if (escrita.trim().toLocaleLowerCase("pt") !== certa.toLocaleLowerCase("pt")) {
-    hangmanEls.status.textContent = `Nesse espaço não vai "${escrita.trim()}".`;
+    hangmanEls.status.textContent = t("forcaNesseEspaco", escrita.trim());
     return;
   }
   await updateHangmanMask(state.code, state.room, state.uid, revealLetter(hangmanSecretWord, mask, certa));
@@ -1724,8 +1724,8 @@ function renderWrongLetters(room) {
     fala = {
       who: "Brasa",
       text: ajuda.custou
-        ? `Toma o "${ajuda.letra}". Não contes a ninguém — e paguei-a com um dos teus erros, desculpa.`
-        : `Toma o "${ajuda.letra}". Ela está a dormir, aproveita.`,
+        ? t("forcaAjudaCustou", ajuda.letra)
+        : t("forcaAjudaBorlaFala", ajuda.letra),
     };
     quando = ajuda.at || 0;
   }
@@ -1791,7 +1791,7 @@ function hangmanRenderColorPicker(room) {
   });
   const semCor = connectedPlayerIds(room).filter((uid) => !room.hangman?.colors?.[uid]);
   hangmanEls.colorWaiting.textContent = minha
-    ? (semCor.length ? `À espera de ${semCor.map((u) => room.players[u]?.name).filter(Boolean).join(", ")}...` : "")
+    ? (semCor.length ? t("forcaAEsperaDe", semCor.map((u) => room.players[u]?.name).filter(Boolean).join(", ")) : "")
     : "";
 }
 
@@ -1803,7 +1803,7 @@ hangmanEls.guessForm.addEventListener("submit", async (e) => {
   hangmanEls.guessInput.value = "";
   if (!letra) return;
   if (letterAlreadyTried(state.room, letra)) {
-    hangmanEls.status.textContent = `A letra "${letra}" já foi tentada.`;
+    hangmanEls.status.textContent = t("forcaLetraJaTentada", letra);
     return;
   }
   await submitLetterGuess(state.code, state.room, state.uid, letra);
@@ -1902,7 +1902,7 @@ export function renderHangman(room) {
   hangmanEls.screen.classList.toggle("hangman-role-viewer", !amLeader);
   hangmanEls.penZone.classList.toggle("hidden", !possoEscrever);
   hangmanEls.modeTitle.textContent = t("quadroModoTitulo", t(BOARD_MODES[mode].chave) || BOARD_MODES[mode].label);
-  hangmanEls.modeHint.textContent = BOARD_MODES[mode].hint;
+  hangmanEls.modeHint.textContent = t(BOARD_MODES[mode].chaveHint) || BOARD_MODES[mode].hint;
 
   // No modo Forca ninguém tem a caneta até a sala votar. Enquanto isso, o
   // quadro pergunta de quem é a vez em vez de ficar mudo.
@@ -1917,25 +1917,25 @@ export function renderHangman(room) {
   const aVotarCaneta = comPalavraAqui && semCaneta && !!hangman.colors?.[state.uid];
 
   if (aVotarCaneta) {
-    hangmanEls.status.textContent = "Votem em quem fica com a caneta.";
+    hangmanEls.status.textContent = t("forcaVotemCaneta");
   } else if (amLeader) {
     if (mode === "forca") {
-      hangmanEls.status.textContent = "Tens a caneta — desenha a forca e os espaços da palavra. Os outros pedem a palavra para arriscar.";
+      hangmanEls.status.textContent = t("forcaTensCanetaForca");
     } else if (mode === "adivinha") {
-      hangmanEls.status.textContent = "Tens a caneta — desenha a palavra. Nada de letras nem números: só o desenho.";
+      hangmanEls.status.textContent = t("forcaTensCanetaDesenha");
     } else {
-      hangmanEls.status.textContent = "Tens a caneta — escreve ou desenha. Quando quiseres, passa a caneta a outra pessoa.";
+      hangmanEls.status.textContent = t("forcaTensCanetaLivre");
     }
   } else if (!comPalavraAqui) {
-    hangmanEls.status.textContent = "A folha é de todos — escreve à vontade. Combinem as regras em voz alta.";
+    hangmanEls.status.textContent = t("forcaFolhaDeTodos");
   } else if (possoEscrever) {
     hangmanEls.status.textContent = hangman.solved
-      ? "Acertaram! Enquanto se escolhe a próxima palavra, a folha é de todos."
-      : "Enquanto não há palavra, a folha é de todos.";
+      ? t("forcaAcertaramFolhaLivre")
+      : t("forcaSemPalavraFolhaLivre");
   } else if (mode === "adivinha") {
-    hangmanEls.status.textContent = `${leaderName || "Ninguém"} está a desenhar. Escreve o palpite quando reconheceres.`;
+    hangmanEls.status.textContent = t("forcaEstaADesenhar", leaderName || t("ninguem"));
   } else {
-    hangmanEls.status.textContent = `${leaderName || "Ninguém"} tem a caneta. Arrisca uma letra quando for a tua vez.`;
+    hangmanEls.status.textContent = t("forcaTemACaneta", leaderName || t("ninguem"));
   }
 
   hangmanEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", possoEscrever);
@@ -2031,8 +2031,8 @@ export function renderHangman(room) {
   hangmanEls.wordForm.classList.toggle("hidden", !(comPalavra && amLeader && (!mask || perdiAPalavra)));
   hangmanEls.wordTools.classList.toggle("hidden", !(comPalavra && amLeader && !!mask && !perdiAPalavra));
   hangmanEls.wordInput.placeholder = perdiAPalavra
-    ? "Escreve outra vez a palavra para continuares a arbitrar"
-    : (naForca ? "Palavra a adivinhar (só tu a vês)" : "O que vais desenhar (só tu o vês)");
+    ? t("forcaEscreveOutraVez")
+    : (naForca ? t("forcaPalavraAdivinhar") : t("forcaOQueDesenhar"));
 
   // Cor de cada um: pede-se ao entrar no modo, e só depois de todos terem
   // escolhido é que as letras erradas dizem alguma coisa.
@@ -2112,7 +2112,7 @@ export function renderHangman(room) {
           if (posso && deCastigo) sufixo += " ⏭️";
         }
         tag.textContent = (room.players[uid]?.name || "?") + sufixo;
-        if (deCastigo) tag.title = "Perde a vez seguinte";
+        if (deCastigo) tag.title = t("forcaPerdeVez");
         hangmanEls.players.appendChild(tag);
       });
     }
@@ -2137,10 +2137,10 @@ export function renderHangman(room) {
         && !!hangmanUltimaMascara && contarLetras(mask) > contarLetras(hangmanUltimaMascara);
       hangmanEls.turnLabel.textContent = daVez === state.uid
         ? (hangman.guesses?.[state.uid]
-          ? "A tua letra está a ser verificada..."
-          : (acabouDeAcertar ? "Acertaste! Joga outra vez." : "É a tua vez de arriscar."))
+          ? t("forcaAVerificar")
+          : (acabouDeAcertar ? t("forcaAcertasteJogaOutra") : t("forcaTuaVez")))
         : (nomeDaVez
-          ? (acabouDeAcertar ? `${nomeDaVez} acertou e joga outra vez.` : `É a vez de ${nomeDaVez}.`)
+          ? (acabouDeAcertar ? t("forcaAcertouJogaOutra", nomeDaVez) : t("forcaVezDe", nomeDaVez))
           : "");
     }
   } else {
@@ -2165,7 +2165,7 @@ export function renderHangman(room) {
   const feitas = wordsDone(room);
   hangmanEls.matchProgress.classList.toggle("hidden", !(comPalavra && totalPalavras > 0));
   if (comPalavra && totalPalavras > 0) {
-    hangmanEls.matchProgress.textContent = `Palavra ${Math.min(feitas + 1, totalPalavras)} de ${totalPalavras}`;
+    hangmanEls.matchProgress.textContent = t("forcaPalavraNde", Math.min(feitas + 1, totalPalavras), totalPalavras);
   }
 
   if (temPalavra) {
@@ -2190,28 +2190,28 @@ export function renderHangman(room) {
       // monta a sua. Com a palavra à vista de todos, o que a pessoa fez foi
       // fechá-la — e dizer-lhe que a montou primeiro era dar-lhe crédito pelas
       // letras dos outros.
-      const comoGanhou = guessesAreAnonymous(room) ? "montou a palavra primeiro" : "fechou a palavra";
+      const comoGanhou = guessesAreAnonymous(room) ? t("forcaMontouPrimeiro") : t("forcaFechou");
       if (naForca) {
         hangmanEls.missesLabel.textContent = vencedor
-          ? (hangman.winnerUid === state.uid ? "Ganhaste esta! 🎉" : `${vencedor} ${comoGanhou}.`)
-          : "Acertaram! 🎉";
+          ? (hangman.winnerUid === state.uid ? t("forcaGanhasteEsta") : t("forcaGanhouEsta", vencedor, comoGanhou))
+          : t("forcaAcertaramGeral");
       }
     } else if (!naForca) {
       // Sem letras não há erros a contar: o que interessa dizer é de quem é a
       // caneta e que se está à espera de palpites.
       hangmanEls.missesLabel.textContent = amLeader
-        ? "Desenha — sem letras nem números!"
-        : "Escreve o teu palpite quando reconheceres.";
+        ? t("forcaDesenhaSemLetras")
+        : t("forcaEscrevePalpite");
       hangmanEls.missesLabel.dataset.danger = "0";
     } else if (individualMisses(room)) {
       // Com erros de cada um não há "enforcado": ninguém acaba a ronda dos
       // outros por ser distraído. O contador da sala passa a ser só um total.
       const meus = missesOfPlayer(room, state.uid);
       hangmanEls.missesLabel.textContent = amLeader
-        ? `Erros de todos: ${Object.values(hangman.missesBy || {}).reduce((a, b) => a + b, 0)}`
-        : `Os teus erros: ${meus}`;
+        ? t("forcaErrosDeTodos", Object.values(hangman.missesBy || {}).reduce((a, b) => a + b, 0))
+        : t("forcaOsTeusErros", meus);
     } else if (teto > 0) {
-      hangmanEls.missesLabel.textContent = `Erros: ${misses}/${teto}${misses >= teto ? " — enforcado!" : ""}`;
+      hangmanEls.missesLabel.textContent = t("forcaErrosDeTeto", misses, teto, misses >= teto ? t("forcaEnforcado") : "");
     } else {
       // Sem limite: os erros continuam a contar-se, só não acabam o jogo.
       hangmanEls.missesLabel.textContent = `Erros: ${misses}`;
@@ -2225,12 +2225,12 @@ export function renderHangman(room) {
       // frase se escreveu, e hoje também aparece quando a folha à frente é de
       // outra palavra (sala nova, partida nova). Dizer "ao recarregar" a quem
       // não recarregou manda-o procurar um problema que não teve.
-      "Não tenho a palavra desta folha. Escreve-a outra vez (ou começa outra) para continuar a arbitrar.";
+      t("forcaSemPalavraDestaFolha");
   }
   if (amLeader && mask) {
     // Só quem tem a caneta vê a palavra, e vê-a sempre — depois de a escrever
     // ainda tem de a saber para julgar quem arrisca em voz alta.
-    hangmanEls.secretLabel.textContent = hangmanSecretWord ? `Palavra: ${hangmanSecretWord}` : "";
+    hangmanEls.secretLabel.textContent = hangmanSecretWord ? t("forcaPalavraE", hangmanSecretWord) : "";
   }
 
   // Arriscar a palavra inteira é de quem NÃO tem a caneta, enquanto há palavra
@@ -2249,14 +2249,14 @@ export function renderHangman(room) {
   hangmanEls.helpBtn.classList.toggle("hidden", !possoPedirAjuda);
   if (possoPedirAjuda) {
     hangmanEls.helpBtn.textContent = helpCosts(room)
-      ? "🐈‍⬛ Pedir ajuda ao Brasa (custa)"
-      : "🐈‍⬛ Pedir ajuda ao Brasa";
+      ? t("forcaAjudaCusta")
+      : t("forcaPedirBrasa");
     hangmanEls.helpBtn.title = helpCosts(room)
-      ? "Custa um erro. Sem erros para gastar, ficas sem arriscar a palavra inteira até à próxima."
-      : "Ele revela-te uma letra, à borla.";
+      ? t("forcaAjudaCustaTitulo")
+      : t("forcaAjudaBorla");
   }
   if (blockedFromWordGuess(room, state.uid) && naForca && !!mask) {
-    hangmanEls.turnLabel.textContent = "Pediste ajuda: ficas sem arriscar a palavra inteira até à próxima.";
+    hangmanEls.turnLabel.textContent = t("forcaPedisteAjuda");
   }
 
   // As votações abertas acompanham o estado: se a caneta já foi decidida

@@ -389,7 +389,7 @@ let lastRenderedState = null;
 
 function onRoomUpdate(room) {
   if (!room) {
-    alert("A sala deixou de existir.");
+    alert(t("salaDeixouDeExistir"));
     leaveToHome();
     return;
   }
@@ -617,7 +617,7 @@ function desenharListaDeProprias(proprias, amHost) {
       btn.type = "button";
       btn.className = "ghost";
       btn.textContent = "✕";
-      btn.setAttribute("aria-label", `Apagar a categoria ${nome}`);
+      btn.setAttribute("aria-label", t("cfgCategoriaApagar", nome));
       btn.addEventListener("click", () => apagarCategoriaPropria(i));
       li.appendChild(btn);
     }
@@ -662,12 +662,12 @@ function acrescentarCategoriaPropria(nomeBruto) {
   if (!state.room || !isHost(state.room)) return;
   const antes = categoriasPropriasDaSala();
   if (antes.length >= MAX_CUSTOM_CATEGORIES) {
-    avisarSobreProprias(`Já são ${MAX_CUSTOM_CATEGORIES} — apaga uma para pôr outra.`);
+    avisarSobreProprias(t("cfgCategoriasCheias", MAX_CUSTOM_CATEGORIES));
     return;
   }
   const depois = limparCategoriasProprias([...antes, nomeBruto]);
   if (depois.length === antes.length) {
-    avisarSobreProprias("Essa categoria já existe (ou está vazia).");
+    avisarSobreProprias(t("cfgCategoriaExiste"));
     return;
   }
   // Uma categoria acabada de escrever entra LIGADA. O contrário — escrevê-la
@@ -783,7 +783,7 @@ function renderLobby(room) {
   // para o anfitrião poder começar uma partida de um jogador só, com o outro
   // na classificação a não fazer nada. A regra estava aqui ao lado.
   lobbyEls.startBtn.disabled = connectedCount < 2;
-  lobbyEls.startBtn.title = connectedCount < 2 ? "Precisa de 2+ jogadores ligados." : "";
+  lobbyEls.startBtn.title = connectedCount < 2 ? t("salaPrecisaDois") : "";
   let blockedByPlayers = 0;
   mpGameButtons.forEach((btn) => {
     const min = MP_GAME_MIN_PLAYERS[btn.dataset.mpGame] ?? 2;
@@ -814,7 +814,7 @@ ballEls.circle.addEventListener("click", async () => {
   if (!room || room.state !== "ball" || ballClicked) return;
   const appearAt = room.ball?.appearAt;
   if (serverNow() < appearAt) {
-    flashBallStatus("Cedo demais! Espera a bola vermelha. 🙈");
+    flashBallStatus(t("bolaCedoDemais"));
     return;
   }
   ballClicked = true;
@@ -850,8 +850,8 @@ function renderBall(room) {
     if (r.ball?.winnerId) {
       const winner = r.players?.[r.ball.winnerId];
       ballEls.status.textContent = r.ball.winnerId === state.uid
-        ? "Ganhaste! Escolhe a letra..."
-        : `${winner?.name || "Alguém"} ganhou esta ronda!`;
+        ? t("bolaGanhaste")
+        : t("bolaGanhou", winner?.name || t("alguem"));
       ballEls.circle.classList.add("visible");
       return;
     }
@@ -874,8 +874,8 @@ function renderLetterPick(room) {
   const winner = room.players?.[room.ball?.winnerId];
   const amWinner = room.ball?.winnerId === state.uid;
   letterEls.info.textContent = amWinner
-    ? "Escolhe a letra desta ronda:"
-    : `${winner?.name || "O vencedor"} está a escolher a letra...`;
+    ? t("letraEscolhe")
+    : t("letraAEscolher", winner?.name || t("oVencedor"));
 
   letterEls.buttons.innerHTML = "";
   const candidates = room.letterPick?.candidates || [];
@@ -1382,7 +1382,7 @@ function renderDraw(room) {
   const draw = room.draw;
   if (!draw) return;
   const amDrawer = draw.drawerId === state.uid;
-  const drawerName = room.players?.[draw.drawerId]?.name || "Alguém";
+  const drawerName = room.players?.[draw.drawerId]?.name || t("alguem");
   const roundLabel = `Ronda ${draw.turnIndex + 1}/${draw.turnOrder.length}`;
   // O mesmo ecrã serve os dois baralhos: palavras soltas ("Girafa") e
   // monumentos ("Torre Eiffel", e o que se adivinha é o PAÍS).
@@ -1399,8 +1399,8 @@ function renderDraw(room) {
         ? `${roundLabel} — desenha: “${draw.secretWord || "?"}” (fica ${marco?.onde || "?"})`
         : `${roundLabel} — desenha: “${draw.secretWord || "?"}”`)
       : (marcos
-        ? `${roundLabel} — ${drawerName} está a desenhar um monumento. Digam o PAÍS em voz alta!`
-        : `${roundLabel} — ${drawerName} está a desenhar. Adivinhem em voz alta!`);
+        ? t("desenhaMarcos", roundLabel, drawerName)
+        : t("desenhaLivre", roundLabel, drawerName));
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
     drawEls.undoBtn.classList.toggle("hidden", !amDrawer);
@@ -1433,10 +1433,10 @@ function renderDraw(room) {
       ? `${marco.frase} `
       : draw.secretWord ? `Era “${draw.secretWord}”. ` : "";
     if (draw.roundWinnerId) {
-      const winnerName = room.players?.[draw.roundWinnerId]?.name || "Alguém";
-      drawEls.result.textContent = `🎉 ${word}${winnerName} acertou! +${DRAW_WINNER_POINTS} pts (e +${DRAW_DRAWER_BONUS} para ${drawerName})`;
+      const winnerName = room.players?.[draw.roundWinnerId]?.name || t("alguem");
+      drawEls.result.textContent = t("desenhaAcertou", word, winnerName, DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, drawerName);
     } else {
-      drawEls.result.textContent = `${word}Ninguém acertou desta vez...`;
+      drawEls.result.textContent = `${word}${t("desenhoNinguem")}`;
     }
   }
   drawDoodleRedraw();
@@ -1476,7 +1476,7 @@ function guardarNoAlbum(room, draw, marco) {
   albumDaNoite.push({
     imagem: mini.toDataURL("image/png"),
     palavra: marco ? marco.name : (draw.secretWord || ""),
-    autor: room.players?.[draw.drawerId]?.name || "Alguém",
+    autor: room.players?.[draw.drawerId]?.name || t("alguem"),
     acertou: draw.roundWinnerId ? (room.players?.[draw.roundWinnerId]?.name || null) : null,
   });
 }
@@ -1495,10 +1495,10 @@ function desenharAlbum() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "album-guardar";
-    btn.title = `Guardar o desenho de ${f.autor}`;
+    btn.title = t("albumGuardar", f.autor);
     const img = document.createElement("img");
     img.src = f.imagem;
-    img.alt = f.palavra ? `Desenho de ${f.palavra}, por ${f.autor}` : `Desenho de ${f.autor}`;
+    img.alt = f.palavra ? t("albumDesenhoDe", f.palavra, f.autor) : t("albumDesenhoAutor", f.autor);
     btn.appendChild(img);
     btn.addEventListener("click", () => {
       const a = document.createElement("a");
@@ -1509,7 +1509,7 @@ function desenharAlbum() {
     const cap = document.createElement("figcaption");
     cap.textContent = f.acertou
       ? `${f.palavra || "?"} — ${f.autor} desenhou, ${f.acertou} acertou`
-      : `${f.palavra || "?"} — ${f.autor} desenhou, ninguém acertou`;
+      : t("albumNinguem", f.palavra || "?", f.autor);
     fig.appendChild(btn);
     fig.appendChild(cap);
     finalEls.albumGrid.appendChild(fig);
@@ -1602,7 +1602,7 @@ function renderMapTrivia(room) {
         const alreadyVoted = !!mt.votes?.[uid]?.[state.uid];
         const voteBtn = document.createElement("button");
         voteBtn.className = "vote-btn";
-        voteBtn.textContent = alreadyVoted ? "Votaste para aceitar" : "Aceitar resposta";
+        voteBtn.textContent = alreadyVoted ? t("votasteAceitar") : "Aceitar resposta";
         voteBtn.disabled = alreadyVoted;
         voteBtn.addEventListener("click", () => {
           voteAcceptMapTriviaAnswer(state.code, state.room, uid, state.uid);
@@ -1907,8 +1907,8 @@ function renderTag(room) {
     const msLeft = Math.max(0, (tag.endAt || 0) - serverNow());
     tagEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
     tagEls.statusLine.textContent = amInfected
-      ? "Estás INFETADO — encosta aos outros para os apanhar!"
-      : "Foge dos infetados! Apanha os power-ups no chão.";
+      ? t("tagInfetado")
+      : t("tagFoge");
     tagEls.results.classList.add("hidden");
     tagEls.continueBtn.classList.add("hidden");
   } else {
@@ -1921,7 +1921,7 @@ function renderTag(room) {
       const survived = tag.survived ? !!tag.survived[uid] : !tag.infected?.[uid];
       const infectedAt = tag.infectedAt?.[uid];
       const detail = survived
-        ? "sobreviveu à ronda toda!"
+        ? t("tagSobreviveu")
         : `apanhado aos ${Math.max(0, Math.round(((infectedAt || startedAt) - startedAt) / 1000))}s`;
       const row = document.createElement("div");
       row.className = "score-row";
@@ -2231,10 +2231,10 @@ function renderBattle(room) {
     const msLeft = Math.max(0, (battle.endAt || 0) - serverNow());
     battleEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
     battleEls.statusLine.textContent = amEliminated
-      ? "Foste eliminado — vê o resto da batalha em modo espetador."
+      ? t("battleEliminado")
       : amArmed
-        ? "Estás ARMADO! Espaço para atacar quem estiver perto."
-        : "Apanha uma arma no chão para poderes atacar. Foge de quem já tiver uma!";
+        ? t("battleArmado")
+        : t("battleSemArma");
     battleEls.results.classList.add("hidden");
     battleEls.continueBtn.classList.add("hidden");
   } else {
@@ -2520,8 +2520,8 @@ function renderRace(room) {
 
   if (!race.resolved) {
     raceEls.statusLine.textContent = raceState.crashed
-      ? "Bateste! Vê quem ainda aguenta — a ronda acaba quando o último bater."
-      : "Desvia-te! Todos apanham exatamente os mesmos carros.";
+      ? t("raceBateste")
+      : t("raceDesvia");
     raceEls.results.classList.add("hidden");
     raceEls.continueBtn.classList.add("hidden");
     raceEls.standings.classList.remove("hidden");
@@ -2542,7 +2542,7 @@ function renderRace(room) {
       const st = race.standings?.[uid] || {};
       const seconds = ((st.timeMs || 0) / 1000).toFixed(1);
       const detail = st.podium
-        ? `${st.place}º — ${seconds}s (+${st.podium} de pódio)`
+        ? t("racePlace", st.place, seconds, st.podium)
         : `${st.place || "-"}º — ${seconds}s`;
       const row = document.createElement("div");
       row.className = "score-row";
@@ -2891,12 +2891,12 @@ function renderGolfMp(room) {
     const charge = golf.charges?.[state.uid];
     const frozen = (golf.frozenUntil?.[state.uid] || 0) > serverNow();
     golfMpEls.statusLine.textContent = golf.finished?.[state.uid] !== undefined
-      ? "Já meteste! Vê quem ainda anda a bater nas paredes."
+      ? t("golfeMeteste")
       : frozen
-        ? "🔌 Alguém te desligou os comandos — aguenta uns segundos!"
+        ? t("golfeDesligado")
         : charge
-          ? `Tens ${charge === "barrier" ? "🧱 uma barreira" : "🔌 um interruptor"} — Espaço para usar contra os outros.`
-          : "Mete a bola no buraco. Apanha os power-ups pelo caminho.";
+          ? t("golfeTens", charge === "barrier" ? t("golfeBarreira") : t("golfeInterruptor"))
+          : t("golfeMete");
     golfMpEls.results.classList.add("hidden");
     golfMpEls.continueBtn.classList.add("hidden");
   } else {
@@ -2910,7 +2910,7 @@ function renderGolfMp(room) {
         const st = golf.standings?.[uid] || {};
         const detail = st.finished
           ? `${st.place}º — meteu em ${(st.timeMs / 1000).toFixed(1)}s`
-          : `não meteu — ficou a ${st.distance || "?"}px do buraco`;
+          : t("golfeNaoMeteu", st.distance || "?");
         const row = document.createElement("div");
         row.className = "score-row";
         row.innerHTML = `<span class="score-name">${avatarImgHtml(p.avatar, "sm", p.name)}${escapeHtml(p.name)}</span>
@@ -3007,8 +3007,8 @@ function refreshOptionsBack(room) {
   const mostrarAviso = !noLobby && !souAnfitriao;
   optionsEls.backHint.classList.toggle("hidden", !mostrarAviso);
   if (mostrarAviso) {
-    const anfitriao = room.players?.[room.hostId]?.name || "quem criou a sala";
-    optionsEls.backHint.textContent = `Para voltar ao lobby sem desfazer a sala, pede a ${anfitriao}.`;
+    const anfitriao = room.players?.[room.hostId]?.name || t("quemCriouASala");
+    optionsEls.backHint.textContent = t("opcoesPedeAoAnfitriao", anfitriao);
   }
 }
 
