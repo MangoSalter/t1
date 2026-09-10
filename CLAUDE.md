@@ -634,6 +634,17 @@ so `t()` stays synchronous for everything downstream and nobody has to know.
 First load: **713 KB / 19 files** — the whole three-language game costs 52 KB
 over where it started, not 131.
 
+And one process scar, because it cost a full suite run: I falsified the new
+"one table only" check by editing `i18n.js` to load Spanish as well, then
+undid it with `git checkout public/js/i18n.js` — which restored the
+**committed** file, and the split was not committed yet. So the commit went
+out with the three new `textos-*.js` files AND the old 146 KB `i18n.js`, and
+`node tests/run.mjs linguas` passed anyway, because the tables existed on
+disk and the old inline ones still worked. Only `carga-inicial` caught it,
+by measuring. `git checkout <file>` is not an undo for an edit you made on
+top of uncommitted work; keep a copy (`cp x /tmp/x.bak`) as everywhere else
+in this session, or commit first.
+
 Two consequences worth knowing before touching this:
 
 - **`definirLingua` is async now.** Switching language may have to fetch a

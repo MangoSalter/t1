@@ -134,9 +134,20 @@ await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" }
 // ---- 3. TROCAR DE LÍNGUA REPINTA MESMO O ECRÃ ----
 // A tabela pode estar certa e o ecrã continuar em português: basta o
 // aoMudarLingua não chegar ao elemento. Lê-se o botão de criar sala nas três.
+// Trocar de língua deixou de ser instantâneo: só a tabela escolhida viaja no
+// primeiro carregamento, por isso a segunda tem de ser ida buscar. O ecrã só
+// muda quando ela chega — espera-se por isso, em vez de ler a meio e apanhar
+// metade de cada língua (foi o que este passo apanhou quando a tabela se
+// partiu em três, e é o que uma pessoa vê durante um instante).
+const ESPERADO = { pt: "Criar sala", en: "Create room", es: "Crear sala" };
 const lido = {};
 for (const lingua of ["pt", "en", "es"]) {
   await page.selectOption("#lingua-select", lingua);
+  await page.waitForFunction(
+    (esperado) => document.getElementById("create-room-btn").textContent.trim() === esperado,
+    ESPERADO[lingua],
+    { timeout: 5000 },
+  ).catch(() => {});
   lido[lingua] = {
     criar: (await page.textContent("#create-room-btn")).trim(),
     nome: await page.getAttribute("#name-input", "placeholder"),
