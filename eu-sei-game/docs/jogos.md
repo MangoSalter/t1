@@ -329,18 +329,33 @@ Quem mais precisa delas é justamente quem não está a ler. Estão nas três, e
 as definições do quadro de sala (que vivem atrás de um botão que os guardas
 não carregam) também.
 
+**E as dezasseis sobreposições**, que quase escaparam: vivem fora dos ecrãs
+e nascem escondidas, por isso o varrimento não lhes tocava — o "zero" era
+zero em 41 ecrãs e em nenhuma delas. Abertas uma a uma, apareceu logo o
+título de fim de partida do quadro em português, e as dez cores do quadro
+de sala a anunciarem "Cor #b24b38" a quem usa leitor de ecrã (as sete do
+avatar já tinham nome há muito; estas, na porta ao lado, não). Têm nome nas
+três línguas agora.
+
+**Cabe tudo no telemóvel**, medido e não esperado: as três línguas abertas
+num iPhone 13, ecrã a ecrã. Nada fica cortado, nenhum controlo ganha uma
+linha por causa da tradução, e nenhum ecrã põe a página a rolar de lado. O
+inglês é quase sempre mais comprido do que o português, e aqui não custou
+nada.
+
+**E não engordou a app.** As três tabelas juntas são 140 KB, e ninguém lê
+mais do que uma: cada uma vive no seu ficheiro e só a escolhida viaja. O
+primeiro carregamento está em 713 KB — as três línguas custam 52 KB, e há
+um teste que exige que viaje UMA tabela e não duas.
+
 **O que ainda falta**, e continua a ser honesto dizê-lo: o que só aparece
 depois de MUITO jogo em sala — o placar de uma arena a acabar, o meio de uma
 partida da Forca com quatro pessoas. O guarda abre a sala e entra no jogo;
-não joga a partida toda. **E cabe tudo no telemóvel**, medido e não esperado: as três línguas abertas
-num iPhone 13, ecrã a ecrã. Nada fica cortado, nenhum botão ganha uma linha
-por causa da tradução, e nenhum ecrã põe a página a rolar de lado. O inglês é
-quase sempre mais comprido do que o português, e isso não custou nada aqui.
+não joga a partida toda.
 
-Os coringas do Descartando Juntos ficam em
-português de propósito: esse jogo está na oficina, fora do site, e não vale a
-pena traduzir o que talvez não volte. E as CATEGORIAS continuam à tua espera
-(a pergunta está acima).
+Os coringas do Descartando Juntos ficam em português de propósito: esse jogo
+está na oficina, fora do site, e não vale a pena traduzir o que talvez não
+volte. E as CATEGORIAS continuam à tua espera — a pergunta está mais abaixo.
 
 O que fica de fora de propósito, e porquê:
 
