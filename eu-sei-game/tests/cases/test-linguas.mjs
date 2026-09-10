@@ -134,4 +134,71 @@ const espelhos = Array.from({ length: 6 }, espelho);
   assert(orfas.length === 0, `todas as chaves do index.html existem na tabela${orfas.length ? ` (não existem: ${orfas.join(", ")})` : ""}`);
 }
 
+const MODULOS = ["app.js", "solo.js", "board.js", "board-room.js", "room.js", "data.js",
+  "mapa.js", "mapa-ecra.js", "mapa-sala.js", "i18n.js", "i18n-ecra.js", "voice.js",
+  "desafio.js", "caos.js", "paleta.js", "oficina.js", "identity.js", "sfx.js",
+  "ui-utils.js", "touch-controls.js", "app-state.js"];
+
+// UMA CHAVE QUE NINGUÉM USA quase sempre quer dizer que alguém a escreveu e
+// se esqueceu de a LIGAR — e então a frase continua em português no ecrã. Foi
+// assim que apareceu a "Sequência atual" da Forca a sozinho: a chave estava
+// nas três tabelas e a linha continuava escrita à mão. Os varrimentos não a
+// viam, porque não jogam a Forca.
+//
+// (O peso também conta: a tabela escolhida viaja no primeiro carregamento.)
+{
+  const codigo = MODULOS
+    .map((f) => { try { return readFileSync(path.join(process.env.EU_SEI_PUBLIC, "js", f), "utf8"); } catch { return ""; } })
+    .join("\n") + readFileSync(path.join(process.env.EU_SEI_PUBLIC, "index.html"), "utf8");
+  // As falas de cada mini-jogo são pedidas com o nome montado à mão
+  // (`falas${jogo}`), por isso nenhuma procura literal as encontra.
+  const orfas = pt.filter((k) => !k.startsWith("falas") && !new RegExp(`\\b${k}\\b`).test(codigo));
+  assert(orfas.length === 0, `nenhuma chave da tabela está por ligar${orfas.length ? ` (ninguém usa: ${orfas.join(", ")})` : ""}`);
+}
+
+// AS PEÇAS QUE FALTAM NA CHAMADA, e não na tabela.
+//
+// O espelho lá em cima chama todas as frases com seis argumentos, por isso
+// apanha uma TRADUÇÃO que se esqueceu de uma peça que o português tem. O que
+// ele não pode ver é o outro lado: um t("x", a) onde a frase pede dois deixa
+// "undefined" no meio do ecrã, e é no código que isso se lê.
+{
+  const aridade = new Map();
+  const tabela = readFileSync(path.join(process.env.EU_SEI_PUBLIC, "js", "textos-pt.js"), "utf8");
+  for (const m of tabela.matchAll(/^ {2}(\w+): \(([^)]*)\) =>/gm)) {
+    aridade.set(m[1], m[2].split(",").filter((x) => x.trim()).length);
+  }
+  for (const m of tabela.matchAll(/^ {2}(\w+): "/gm)) {
+    if (!aridade.has(m[1])) aridade.set(m[1], 0);
+  }
+  // Conta os argumentos de uma chamada equilibrando parênteses, chavetas e
+  // parêntesis retos — as frases levam expressões lá dentro, e cortar pela
+  // primeira vírgula dava contas erradas.
+  const argumentos = (txt, abre) => {
+    let prof = 0, atual = "", partes = [];
+    for (let j = abre; j < txt.length; j += 1) {
+      const c = txt[j];
+      if ("([{".includes(c)) prof += 1;
+      else if (")]}".includes(c)) { prof -= 1; if (prof === 0) { partes.push(atual); break; } }
+      if (prof === 1 && c === ",") { partes.push(atual); atual = ""; }
+      else if (prof >= 1 && !(prof === 1 && c === "(")) atual += c;
+    }
+    return partes.map((x) => x.trim()).filter((x) => x !== "").length;
+  };
+  const maus = [];
+  for (const f of MODULOS) {
+    let txt;
+    try { txt = readFileSync(path.join(process.env.EU_SEI_PUBLIC, "js", f), "utf8"); } catch { continue; }
+    for (const m of txt.matchAll(/\bt\((["'])(\w+)\1/g)) {
+      const chave = m[2];
+      if (!aridade.has(chave)) continue;
+      const passados = argumentos(txt, m.index + 1) - 1;
+      if (passados !== aridade.get(chave)) {
+        maus.push(`${f}: t("${chave}") pede ${aridade.get(chave)} e recebe ${passados}`);
+      }
+    }
+  }
+  assert(maus.length === 0, `todas as chamadas ao t() passam as peças que a frase pede${maus.length ? ` (${maus.join("; ")})` : ""}`);
+}
+
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");

@@ -3761,7 +3761,7 @@ function startSoloHangman() {
   els.soloHangmanStatus.textContent = "";
   els.soloHangmanGuessControls.classList.remove("hidden");
   els.hangmanStreakInfo.textContent = solo.hangmanStreakMode
-    ? `Sequência atual: ${solo.hangmanStreak} palavra(s) certa(s)${solo.hangmanChallengeMode ? " — modo desafio 🔥" : ""}`
+    ? t("forcaSequenciaAtual", solo.hangmanStreak, solo.hangmanChallengeMode ? t("forcaModoDesafioSufixo") : "")
     : "";
   renderSoloHangman();
   showScreen("solo-hangman");
