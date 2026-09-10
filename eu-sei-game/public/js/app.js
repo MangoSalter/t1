@@ -16,7 +16,7 @@ import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig,
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
-  confirmLetter, letraMaisVotada, submitAnswer, finishCategoriesRound, startVoting, castVote,
+  confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
@@ -42,7 +42,7 @@ import {
   NOMES_DAS_CORES,
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
-import { escapeHtml, avatarImgHtml } from "./ui-utils.js";
+import { escapeHtml, avatarImgHtml, pintarRelogio, limparRelogio } from "./ui-utils.js";
 // O quadro de sala (Forca / desenho livre) vive em módulo próprio: ver a nota
 // no topo do board-room.js.
 import { renderHangman, esquecerNarracao } from "./board-room.js";
@@ -899,13 +899,16 @@ function renderLetterPick(room) {
   // categorias e da votação, e é o que torna o prazo visível em vez de
   // surpreendente.
   cancelAnimationFrame(letterRAF);
+  const relogioLetra = {};
   function tick() {
     const r = state.room;
-    if (!r || r.state !== "letterPick") { letterEls.timer.textContent = ""; return; }
+    if (!r || r.state !== "letterPick") { limparRelogio(letterEls.timer, relogioLetra); return; }
     const fim = r.letterPick?.endAt || 0;
-    letterEls.timer.textContent = r.letterPick?.chosen || !fim
-      ? ""
-      : formatSeconds(Math.max(0, Math.ceil((fim - serverNow()) / 1000)));
+    if (r.letterPick?.chosen || !fim) {
+      limparRelogio(letterEls.timer, relogioLetra);
+    } else {
+      pintarRelogio(letterEls.timer, Math.max(0, Math.ceil((fim - serverNow()) / 1000)), relogioLetra, () => sfx("toque"));
+    }
     letterRAF = requestAnimationFrame(tick);
   }
   letterRAF = requestAnimationFrame(tick);
@@ -919,6 +922,7 @@ const catEls = {
   list: document.getElementById("cat-list"),
   regras: document.getElementById("cat-regras"),
   finishBtn: document.getElementById("cat-finish-btn"),
+  progress: document.getElementById("cat-progress"),
 };
 let catRAF = null;
 let catRenderedKey = null;
@@ -926,6 +930,28 @@ let catRenderedKey = null;
 catEls.finishBtn.addEventListener("click", () => {
   finishCategoriesRound(state.code, state.uid);
 });
+
+// A tira de "quem já vai onde". Sessenta segundos a escrever sem saber se
+// se está atrasado, e depois alguém carrega em "Acabei!" e a ronda fecha em
+// cima de toda a gente — a queixa que se lê nas aplicações de "Stop". Os
+// números já estavam na sala; faltava mostrá-los.
+function renderCatProgress(room) {
+  if (!catEls.progress) return;
+  const linhas = progressoDasRespostas(room, state.uid);
+  catEls.progress.innerHTML = "";
+  // Sozinho na sala não há com quem comparar, e uma ficha só a dizer o que a
+  // folha já diz é ruído.
+  if (linhas.length < 2) return;
+  linhas.forEach((l) => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (l.acabou ? " acabou" : "") + (l.sou ? " sou-eu" : "");
+    chip.textContent = `${l.nome} ${l.feitas}/${l.total}`;
+    // O texto da ficha é "Ana 3/5", que um leitor de ecrã diz como "Ana três
+    // barra cinco". A frase inteira fica no nome acessível.
+    chip.setAttribute("aria-label", t("rondaProgresso", l.nome, l.feitas, l.total));
+    catEls.progress.appendChild(chip);
+  });
+}
 
 function renderCategories(room) {
   const cr = room.categoriesRound;
@@ -936,6 +962,11 @@ function renderCategories(room) {
   if (catEls.regras) {
     catEls.regras.textContent = t("rondaRegras", cr.letter);
   }
+
+  // ANTES do return abaixo: a tira tem de se repintar a cada atualização da
+  // sala (é para isso que serve), e os inputs é que não podem ser recriados
+  // enquanto alguém escreve dentro deles.
+  renderCatProgress(room);
 
   if (catRenderedKey === cr.endAt) return; // mesma ronda; não recriar os inputs enquanto o jogador escreve
   catRenderedKey = cr.endAt;
@@ -971,20 +1002,15 @@ function renderCategories(room) {
   });
 
   cancelAnimationFrame(catRAF);
+  const relogioCat = {};
   function tick() {
     const r = state.room;
-    if (!r || r.state !== "categories") return;
+    if (!r || r.state !== "categories") { limparRelogio(catEls.timer, relogioCat); return; }
     const msLeft = (r.categoriesRound?.endAt || 0) - serverNow();
-    catEls.timer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    pintarRelogio(catEls.timer, Math.max(0, Math.ceil(msLeft / 1000)), relogioCat, () => sfx("toque"));
     catRAF = requestAnimationFrame(tick);
   }
   catRAF = requestAnimationFrame(tick);
-}
-
-function formatSeconds(total) {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
 }
 
 // ---------- VOTING ----------
@@ -1052,11 +1078,15 @@ function renderVoting(room) {
   voteEls.list.scrollTop = scrollTop;
 
   cancelAnimationFrame(voteRAF);
+  const relogioVoto = {};
   function tick() {
     const r = state.room;
-    if (!r || r.state !== "voting") return;
+    if (!r || r.state !== "voting") { limparRelogio(voteEls.timer, relogioVoto); return; }
     const msLeft = (r.voting?.endAt || 0) - serverNow();
-    voteEls.timer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    // Sem som aqui: a votação é o momento em que se está a ler o que os
+    // outros escreveram, e um apito a cada segundo do fim atrapalha a
+    // leitura em vez de avisar. A cor chega.
+    pintarRelogio(voteEls.timer, Math.max(0, Math.ceil(msLeft / 1000)), relogioVoto, null);
     voteRAF = requestAnimationFrame(tick);
   }
   voteRAF = requestAnimationFrame(tick);

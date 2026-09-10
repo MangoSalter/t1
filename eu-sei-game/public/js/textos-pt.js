@@ -203,6 +203,7 @@ export default {
   votoEngracada: "😂 Engraçada",
   semResposta: "(sem resposta)",
   votacaoAsTuasRespostas: "As tuas respostas",
+  rondaProgresso: (nome, feitas, total) => `${nome} escreveu ${feitas} de ${total}`,
   rondaPontuacao: "Pontuação da ronda",
   rondaProxima: "Próxima ronda",
   rondaQuadroBonus: "Quadro branco (bónus)",

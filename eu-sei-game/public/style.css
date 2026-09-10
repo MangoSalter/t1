@@ -21,6 +21,9 @@
   --accent-soft: #f0cf8f;
   --blue: #5c7e91;
   --success: #5b7442;
+  /* Para texto pequeno sobre --paper-soft: o --success só chega a 4,02 e
+     texto normal precisa de 4,5. Este dá 5,49. */
+  --success-dark: #4a5e35;
   --danger: #b8483a;
   --radius: 16px;
 }
@@ -486,7 +489,46 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .round-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .round-letter { font-size: 1.3rem; font-weight: 700; }
 .round-letter span { color: var(--primary-dark); }
+/* A tira de "quem já vai onde" da folha de respostas. Enrola em telemóvel
+   (dez pessoas não cabem numa linha de 390px) e cada ficha é pequena de
+   propósito: é informação de canto do olho, não é o que se está a fazer. */
+.cat-progress { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 14px; }
+.cat-progress:empty { display: none; }
+.cat-progress .chip {
+  font-size: 0.78rem; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: var(--paper-soft); border: 1.5px solid var(--paper-line); color: var(--text);
+}
+/* Quem acabou fica marcado, e não só pela cor: a bordadura engrossa, para
+   quem não separa verde de castanho.
+   A tinta NÃO é --success: medido, o verde da casa dá 4,02:1 sobre
+   --paper-soft e isto é texto pequeno, que precisa de 4,5. O --success-dark
+   dá 5,49. O mesmo erro que o relógio dos últimos segundos quase levou, uma
+   secção acima — o token com o nome certo não é o token com o contraste
+   certo. O contorno pode ficar em --success: é objeto gráfico, 3:1, e tem
+   4,02. */
+/* A tua vem à frente (ver progressoDasRespostas) e é a única com fundo de
+   cartão: com dez fichas, "a primeira" não chega para a encontrar de
+   relance. Não é só cor — é posição, fundo e peso. */
+.cat-progress .chip.sou-eu { background: var(--card-bg); border-color: var(--ink); font-weight: 700; }
+.cat-progress .chip.acabou { color: var(--success-dark); border-color: var(--success); border-width: 2px; }
+
 .round-timer { font-variant-numeric: tabular-nums; font-weight: 700; background: var(--paper-soft); border: 1.5px solid var(--paper-line); padding: 6px 14px; border-radius: 20px; }
+/* Os últimos dez segundos. A tinta é --primary-dark e não --danger porque
+   medi: --danger sobre --paper-soft dá 4,02:1 e isto é texto normal, que
+   precisa de 4,5. O --primary-dark dá 5,76. O contorno pode ser --danger —
+   é objeto gráfico, precisa de 3 e tem 4,02 contra a etiqueta e 4,55 contra
+   o cartão. O pulsar é o terceiro sinal e o único dispensável: a regra de
+   movimento reduzido apaga-o e a cor fica. */
+.round-timer.relogio-urgente {
+  color: var(--primary-dark);
+  border-color: var(--danger);
+  border-width: 2px;
+  animation: relogio-a-acabar 1s ease-in-out infinite;
+}
+@keyframes relogio-a-acabar {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
 
 .cat-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; text-align: left; }
 .cat-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.95rem; color: var(--muted); }

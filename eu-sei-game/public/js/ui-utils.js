@@ -27,3 +27,47 @@ export function avatarImgHtml(avatarDataUrl, size, name) {
   }
   return `<img class="${cls}" src="${escapeHtml(avatarDataUrl)}" alt="" />`;
 }
+
+// O RELÓGIO DAS FASES CRONOMETRADAS.
+//
+// Era um número a descer e mais nada. Numa ronda de 60 segundos escrita em
+// dez telemóveis, o ecrã trocava a meio de uma palavra e ninguém tinha visto
+// vir — os jogos deste género marcam sempre os últimos segundos. É a mesma
+// etiqueta em quatro sítios (a letra, a folha e a votação na sala, e a folha
+// do modo sozinho), por isso o aviso é escrito uma vez e não quatro.
+//
+// O aviso é DUPLO de propósito. A cor e o contorno ficam para quem tem o
+// movimento reduzido, que perde o pulsar (a regra global do style.css apaga
+// as animações todas) e continuaria sem saber de nada. E o som toca nos
+// ÚLTIMOS TRÊS segundos, não nos dez: um apito por segundo durante dez, em
+// dez telemóveis desencontrados, é barulho e não aviso.
+export const RELOGIO_URGENTE_S = 10;
+export const RELOGIO_SOM_S = 3;
+
+export function formatarSegundos(total) {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+}
+
+// `estado` é um objeto qualquer que o chamador guarde entre quadros: isto é
+// chamado a cada requestAnimationFrame e o som só pode tocar quando o SEGUNDO
+// muda, não sessenta vezes dentro do mesmo segundo.
+export function pintarRelogio(el, segundos, estado, tocar) {
+  if (!el) return;
+  el.textContent = formatarSegundos(segundos);
+  el.classList.toggle("relogio-urgente", segundos > 0 && segundos <= RELOGIO_URGENTE_S);
+  if (tocar && estado && estado.ultimo !== segundos && segundos > 0 && segundos <= RELOGIO_SOM_S) {
+    tocar();
+  }
+  if (estado) estado.ultimo = segundos;
+}
+
+// Sair da fase: a etiqueta esvazia-se (o :empty do CSS esconde-a) e a
+// urgência tem de sair com ela, senão a próxima fase começa a vermelho.
+export function limparRelogio(el, estado) {
+  if (!el) return;
+  el.textContent = "";
+  el.classList.remove("relogio-urgente");
+  if (estado) estado.ultimo = null;
+}

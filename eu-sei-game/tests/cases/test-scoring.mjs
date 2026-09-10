@@ -9,7 +9,7 @@
 // Agora importa a função verdadeira. É possível porque os casos puros correm
 // dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
 // test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
-import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada } from "./js/room.js";
+import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada, progressoDasRespostas } from "./js/room.js";
 
 function catKey(i) { return "c" + i; }
 
@@ -212,6 +212,61 @@ function assertEqual(actual, expected, label) {
 
   assertEqual(letraMaisVotada({ candidates: [] }), null, "sem candidatas não há letra");
   assertEqual(letraMaisVotada(null), null, "sem fase de letra não há letra");
+}
+
+// QUEM JÁ VAI ONDE, na folha de respostas.
+//
+// A tira que diz "Ana 3/5" enquanto a ronda decorre. Duas regras que não são
+// óbvias e que o ecrã não consegue afirmar sozinho: uma casa em branco não
+// conta (nem uma casa só com espaços), e quem está DESLIGADO não aparece —
+// um "Beto 0/5" parado é exatamente a informação errada para decidir se se
+// carrega no "Acabei!".
+{
+  const sala = {
+    players: {
+      a: { name: "Ana", connected: true },
+      b: { name: "Beto", connected: true },
+      z: { name: "Zé", connected: false },
+    },
+    categoriesRound: { categoryIndexes: [0, 3, 7] },
+    answers: {
+      a: { c0: "Abacate", c3: "Angola", c7: "Aveiro" },
+      b: { c0: "Banana", c3: "   ", c7: "" },
+      z: { c0: "Zebra", c3: "Zâmbia", c7: "Zurique" },
+    },
+  };
+  const linhas = progressoDasRespostas(sala);
+  assertEqual(linhas.length, 2, "quem está desligado não entra na tira");
+  assertEqual(linhas.map((l) => l.uid).join(","), "a,b", "a ordem é estável (pelo uid), não pela ordem do objeto");
+
+  const ana = linhas.find((l) => l.uid === "a");
+  assertEqual(ana.feitas, 3, "a Ana escreveu as três");
+  assertEqual(ana.total, 3, "o total é o número de categorias DESTA ronda");
+  assertEqual(ana.acabou, true, "quem escreveu todas fica marcada como acabada");
+
+  const beto = linhas.find((l) => l.uid === "b");
+  assertEqual(beto.feitas, 1, "espaços em branco não são resposta");
+  assertEqual(beto.acabou, false, "quem tem casas por preencher não acabou");
+
+  // Uma ronda sem categorias (entre fases, ou a sala acabada de criar) não
+  // pode dar toda a gente como tendo acabado — 0 de 0 não é vitória.
+  const semRonda = progressoDasRespostas({ players: { a: { name: "Ana", connected: true } } });
+  assertEqual(semRonda[0].total, 0, "sem ronda, o total é zero");
+  assertEqual(semRonda[0].acabou, false, "0 de 0 não é 'acabou'");
+
+  // A ordem: quem pergunta vai à frente, o resto fica estável. Com dez
+  // fichas, procurar a sua no meio delas contra o relógio é o oposto do que
+  // a tira serve.
+  const comBeto = progressoDasRespostas(sala, "b");
+  assertEqual(comBeto.map((l) => l.uid).join(","), "b,a", "a minha ficha vem à frente");
+  assertEqual(comBeto[0].sou, true, "e vem marcada como minha");
+  assertEqual(comBeto[1].sou, false, "as outras não");
+  // Um uid que não está na sala não pode reordenar nem rebentar nada.
+  assertEqual(progressoDasRespostas(sala, "ninguem").map((l) => l.uid).join(","), "a,b",
+    "um uid de fora deixa a ordem como estava");
+
+  assertEqual(progressoDasRespostas(null).length, 0, "sem sala não há tira");
+  assertEqual(progressoDasRespostas({}).length, 0, "sem jogadores não há tira");
 }
 
 // O resumo fica no FIM do ficheiro. Ao acrescentar o bloco dos empates

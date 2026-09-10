@@ -97,4 +97,65 @@ console.log(`   pior de todas: ${piorDeTodas.toFixed(1)} em ${piorPar} (chão ${
 assert(piorDeTodas >= CHAO,
   `as cores não se separam menos do que já se separavam (${piorDeTodas.toFixed(1)}, chão ${CHAO})`);
 
+console.log("3) O relógio dos últimos segundos lê-se sobre a etiqueta...");
+// O aviso dos últimos dez segundos muda a tinta e o contorno da etiqueta do
+// relógio. É onde é fácil escolher um vermelho bonito que não se lê: o
+// --danger da casa, que parecia a escolha óbvia, dá 4,0 sobre --paper-soft e
+// texto normal precisa de 4,5. As cores saem do CSS por leitura, para o
+// número não poder ficar aqui a envelhecer enquanto a folha de estilo muda.
+{
+  const css = readFileSync(path.join(process.env.EU_SEI_PUBLIC, "style.css"), "utf8");
+  const token = (nome) => {
+    const m = css.match(new RegExp(`--${nome}:\\s*(#[0-9a-fA-F]{6})`));
+    return m ? m[1] : null;
+  };
+  const regra = css.match(/\.round-timer\.relogio-urgente\s*\{([^}]*)\}/);
+  assert(!!regra, "a regra .round-timer.relogio-urgente existe no style.css");
+  if (regra) {
+    const varDe = (prop) => {
+      const m = regra[1].match(new RegExp(`${prop}:\\s*var\\(--([a-z-]+)\\)`));
+      return m ? token(m[1]) : null;
+    };
+    // O fundo da etiqueta é --paper-soft (regra .round-timer), e o que está
+    // por trás dela é o cartão.
+    const etiqueta = token("paper-soft");
+    const cartao = token("card-bg");
+    const tinta = varDe("color");
+    const contorno = varDe("border-color");
+    assert(!!etiqueta && !!cartao && !!tinta && !!contorno, "li as quatro cores do CSS");
+    if (etiqueta && cartao && tinta && contorno) {
+      const rTinta = contraste(tinta, etiqueta);
+      const rContorno = Math.min(contraste(contorno, etiqueta), contraste(contorno, cartao));
+      console.log(`   tinta ${tinta} sobre ${etiqueta}: ${rTinta.toFixed(2)} (mínimo 4,5 — é texto)`);
+      console.log(`   contorno ${contorno}: ${rContorno.toFixed(2)} no pior lado (mínimo 3 — é objeto gráfico)`);
+      assert(rTinta >= 4.5, `o número dos últimos segundos lê-se (${rTinta.toFixed(2)} >= 4.5)`);
+      assert(rContorno >= 3, `o contorno vermelho vê-se dos dois lados (${rContorno.toFixed(2)} >= 3)`);
+    }
+  }
+
+  // A ficha de "quem já vai onde" senta-se na mesma etiqueta e caiu na mesma
+  // armadilha durante o desenvolvimento: o --success dá 4,02 sobre
+  // --paper-soft, tal como o --danger. Nesta paleta um token com o nome
+  // certo não é um token com o contraste certo, por isso os dois estados da
+  // ficha são medidos aqui e não confiados ao nome.
+  const fichaTexto = css.match(/\.cat-progress \.chip\s*\{([^}]*)\}/);
+  const fichaAcabou = css.match(/\.cat-progress \.chip\.acabou\s*\{([^}]*)\}/);
+  assert(!!fichaTexto && !!fichaAcabou, "as duas regras da ficha de progresso existem no style.css");
+  if (fichaTexto && fichaAcabou) {
+    const etiqueta = token("paper-soft");
+    const corDe = (corpo, prop) => {
+      const m = corpo.match(new RegExp(`${prop}:\\s*var\\(--([a-z-]+)\\)`));
+      return m ? token(m[1]) : null;
+    };
+    const normal = corDe(fichaTexto[1], "color");
+    const acabou = corDe(fichaAcabou[1], "color");
+    [["a ficha normal", normal], ["a ficha de quem acabou", acabou]].forEach(([nome, cor]) => {
+      if (!cor) { assert(false, `${nome} tem uma cor legível no CSS`); return; }
+      const r = contraste(cor, etiqueta);
+      console.log(`   ${nome}: ${cor} sobre ${etiqueta} = ${r.toFixed(2)}`);
+      assert(r >= 4.5, `${nome} lê-se (${r.toFixed(2)} >= 4.5)`);
+    });
+  }
+}
+
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");

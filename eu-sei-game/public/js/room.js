@@ -490,6 +490,43 @@ export async function confirmLetter(code, room, letter) {
   });
 }
 
+// QUEM JÁ VAI ONDE, enquanto a ronda decorre.
+//
+// Escrevia-se sessenta segundos às escuras e depois alguém carregava em
+// "Acabei!" e a ronda fechava-se em cima de toda a gente. É a queixa que se
+// lê nas aplicações de "Stop": não se sabe se se está atrasado ou se ainda
+// há tempo. Os dados já estavam na sala — cada resposta é escrita à medida
+// que se escreve —, só não estavam no ecrã.
+//
+// Contam-se as respostas NÃO VAZIAS desta ronda, e só de quem está LIGADO:
+// quem fechou o telemóvel não está a escrever, e um "Beto 0/5" parado é
+// exatamente a informação errada para decidir se se carrega no botão. (A
+// mesma regra do connectedCount do lobby — ver a nota no CLAUDE.md sobre
+// contar jogadores que já saíram.)
+//
+// `meuUid` só decide a ORDEM: com a sala cheia são dez fichas, e procurar a
+// sua no meio delas enquanto se escreve contra o relógio é o oposto do que
+// isto serve. Quem pergunta vai à frente. O resto fica por uid, que é uma
+// ordem arbitrária mas ESTÁVEL — o que não pode acontecer é as fichas
+// trocarem de sítio de cada vez que alguém escreve uma letra.
+export function progressoDasRespostas(room, meuUid = null) {
+  const indices = room?.categoriesRound?.categoryIndexes || [];
+  const total = indices.length;
+  const jogadores = room?.players || {};
+  return Object.keys(jogadores)
+    .filter((uid) => jogadores[uid]?.connected)
+    .sort((a, b) => {
+      if (a === meuUid) return -1;
+      if (b === meuUid) return 1;
+      return a < b ? -1 : a > b ? 1 : 0;
+    })
+    .map((uid) => {
+      const minhas = room?.answers?.[uid] || {};
+      const feitas = indices.filter((i) => String(minhas[catKey(i)] || "").trim() !== "").length;
+      return { uid, nome: jogadores[uid]?.name || "", feitas, total, acabou: total > 0 && feitas === total, sou: uid === meuUid };
+    });
+}
+
 export async function submitAnswer(code, uid, catIndex, text) {
   await set(ref(db, `rooms/${code}/answers/${uid}/${catKey(catIndex)}`), text);
 }

@@ -270,6 +270,41 @@ different letters are two different rounds in one room.
 Worth generalising: **a phase that waits on ONE person needs a deadline, and
 its neighbours will already have one.** Grep the state machine, not the file.
 
+The other half of the same idea, found while fixing it: **a deadline nobody
+can see arrive is barely better than no deadline.** All three timed room
+phases drew a bare number that ran to zero and swapped the screen mid-word.
+They share one `pintarRelogio` now — colour, border and a pulse in the last
+ten seconds, a tick in the last three — and so does the solo answer sheet,
+because the same rule in two files is two rules waiting to diverge.
+
+Three notes worth keeping from doing it:
+
+- the obvious colour was wrong. `--danger` (#b8483a) on the badge's
+  `--paper-soft` is **4.02:1**, and this is normal-weight text, which needs
+  4.5. `--primary-dark` gives 5.76. The border may stay `--danger` — a border
+  is a graphical object at 3:1, and it clears that against both the badge and
+  the card behind it. `test-cores` step 3 reads those four colours OUT OF THE
+  CSS and does the arithmetic, so the numbers can't rot while the stylesheet
+  moves; falsified by putting `--danger` back on the text.
+- **a class that is present but does nothing is the worst kind of green.** The
+  browser check does not stop at `classList.contains` — it compares the
+  computed `color` and `border-color` against the same element before the
+  deadline, so a rule that stopped matching would go red.
+- the sound is in the last THREE seconds, not the last ten. Ten phones each
+  beeping ten times, none of them in step, is noise; and the voting screen
+  gets no sound at all, because that is the screen where people are reading
+  what everyone else wrote.
+
+The colour trap caught me twice in one sitting, in two different tokens, and
+both times the token with the right NAME was the wrong colour. `--success`
+(#5b7442) on `--paper-soft` is **4.02:1** — same failure as `--danger`, same
+place, same reason: these tokens were chosen against `--paper`/white and the
+badge sits on the darker soft paper. There is a `--success-dark` (#4a5e35,
+5.49) now for exactly this. **On this palette, assume a token fails on
+`--paper-soft` until you have the number**, and keep the coloured border as
+the second signal — a border is a graphical object at 3:1 and the plain
+token clears that.
+
 ## Measuring with your own comparison instead of the real one
 The game claims PT/EN/ES, so I checked what the map does with Spanish. My
 first pass compared strings by hand and reported **11 of 18 country names

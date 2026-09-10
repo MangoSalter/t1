@@ -20,6 +20,7 @@ import {
 } from "./voice.js";
 import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import { sfx, sfxEnabled, setSfxEnabled } from "./sfx.js";
+import { formatarSegundos, pintarRelogio, limparRelogio } from "./ui-utils.js";
 
 const HIGH_SCORE_KEY = "euSei_soloHighScore";
 const ENABLED_CATEGORIES_KEY = "euSei_soloEnabledCategories";
@@ -991,11 +992,9 @@ function showScreen(name) {
   });
 }
 
-function formatSeconds(total) {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
-}
+// O formatador vive no ui-utils.js: eram duas cópias, esta e a do app.js, e
+// duas cópias de uma regra são duas regras à espera de divergirem.
+const formatSeconds = formatarSegundos;
 
 // --- Falas da Dona Manga / Brasa entre mini-jogos da maratona — servem só
 // para dar sabor ao ecrã onde o jogador controla o ritmo entre jogos. ---
@@ -1580,11 +1579,15 @@ function renderRound() {
     els.catList.appendChild(wrapper);
   });
 
+  // O mesmo aviso dos últimos segundos que a folha da sala tem. Sozinho não
+  // há dez telemóveis, mas a ronda acaba na mesma a meio de uma palavra.
+  const relogioCat = {};
   function tick() {
-    if (!solo.inRound) return;
+    if (!solo.inRound) { limparRelogio(els.catTimer, relogioCat); return; }
     const msLeft = solo.endAt - Date.now();
-    els.catTimer.textContent = formatSeconds(Math.max(0, Math.ceil(msLeft / 1000)));
+    pintarRelogio(els.catTimer, Math.max(0, Math.ceil(msLeft / 1000)), relogioCat, () => sfx("toque"));
     if (msLeft <= 0) {
+      limparRelogio(els.catTimer, relogioCat);
       finishRound();
       return;
     }

@@ -10,6 +10,11 @@
 //
 // Este caso põe a Ana (anfitriã, é ela que corre o laço) a ver o Beto
 // escolher. O Beto nunca carrega em nada.
+//
+// Os passos 7 e 8 são do mesmo assunto pelo outro lado: um prazo que não se
+// vê chegar ao fim é quase tão mau como não haver prazo. As três fases
+// cronometradas da sala partilham a etiqueta do relógio, e nos últimos dez
+// segundos ela avisa.
 import { chromium } from "playwright";
 import { abrirBrowser } from "./test-helpers.mjs";
 
@@ -117,6 +122,38 @@ if (sala.letterPick.chosen !== "T") {
   console.log("   FALHOU: com o vencedor desligado a letra devia ser a mais votada");
   process.exitCode = 1;
 }
+
+console.log("7) Os últimos dez segundos da folha de respostas têm de se ver a chegar...");
+async function porFolha(segundos) {
+  await page.evaluate(({ c, segundos }) => {
+    window.__testDb.update(`rooms/${c}`, {
+      state: "categories",
+      categoriesRound: { letter: "P", categoryIndexes: [0, 1], endAt: Date.now() + segundos * 1000, finishedBy: null },
+    });
+  }, { c: code, segundos });
+  await page.waitForSelector('[data-screen="categories"].active', { timeout: 3000 });
+  await page.waitForTimeout(150);
+  return page.evaluate(() => {
+    const el = document.getElementById("cat-timer");
+    const cs = getComputedStyle(el);
+    return { texto: el.textContent, urgente: el.classList.contains("relogio-urgente"), cor: cs.color, borda: cs.borderTopColor };
+  });
+}
+const calmo = await porFolha(40);
+console.log(`   a 40s: "${calmo.texto}", urgente=${calmo.urgente}, cor=${calmo.cor}`);
+if (calmo.urgente) { console.log("   FALHOU: avisa cedo de mais — a 40s ninguém está atrasado"); process.exitCode = 1; }
+
+const apertado = await porFolha(6);
+console.log(`   a 6s: "${apertado.texto}", urgente=${apertado.urgente}, cor=${apertado.cor}, borda=${apertado.borda}`);
+if (!apertado.urgente) { console.log("   FALHOU: os últimos segundos passam sem aviso nenhum"); process.exitCode = 1; }
+// A classe sem efeito é o pior dos mundos: verde no teste e igual no ecrã.
+if (apertado.cor === calmo.cor) { console.log("   FALHOU: a classe está lá mas a cor não mudou"); process.exitCode = 1; }
+if (apertado.borda === calmo.borda) { console.log("   FALHOU: a classe está lá mas o contorno não mudou"); process.exitCode = 1; }
+
+console.log("8) E o vermelho não pode seguir para a ronda seguinte...");
+const outraVez = await porFolha(40);
+console.log(`   ronda nova a 40s: urgente=${outraVez.urgente}`);
+if (outraVez.urgente) { console.log("   FALHOU: a ronda nova começou a vermelho"); process.exitCode = 1; }
 
 if (errors.length) {
   console.log("\nErros na consola:");
