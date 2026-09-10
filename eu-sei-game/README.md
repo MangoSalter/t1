@@ -149,7 +149,7 @@ testes rápidos batem.
 ```
 npm install                      # traz o Playwright
 npx playwright install chromium  # e o browser que ele usa
-node tests/run.mjs               # os 91 casos, 14m05s a 4 trabalhos
+node tests/run.mjs               # os 91 casos, 14m08s a 4 trabalhos
 node tests/run.mjs mapa          # só os que têm "mapa" no nome
 node tests/run.mjs --jobs 1 --ver mapa   # um de cada vez, com o output todo
 ```

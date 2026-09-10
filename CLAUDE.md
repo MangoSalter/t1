@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **14m05s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m08s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -206,6 +206,45 @@ são dois primeiros." It just never reached the two screens where it mattered
 most. When you fix something like this, grep for the pattern before assuming
 the instance you found is the only one; and when you get it right somewhere,
 that corner is worth copying rather than re-deriving.
+
+## Two lines apart, two different rules
+`renderLobby` gates the mini-game buttons on `connectedCount` — players whose
+`connected` flag is true — and tells you why when one is blocked. Two lines
+above, the button that starts the CLASSIC match, which is the main game,
+gated on `players.length`: everyone the room document has ever seen. So one
+person closing their phone left the host able to start a full match with a
+single live player and a ghost sitting in the standings. Same file, same
+function, adjacent lines, opposite rules — the correct one was already there
+to copy.
+
+That is the third time this shape has turned up (after the tie ranking and the
+Forca's word). The lesson keeps being the same: when you find a rule that is
+right somewhere, check the neighbours before assuming it is applied
+everywhere.
+
+## A test that reaches its subject by chance fails by chance
+`solo-monkey-test` played classic rounds until the random bonus draw happened
+to land on Cada Macaco, with a ceiling of sixteen tries. One full run in this
+session went red with nothing broken: sixteen draws, no monkey. A test that
+fails a few times in a hundred teaches people to ignore red, which is the
+worst thing a test can do.
+
+The menu has a button per mini-game (`#solo-play-monkey-btn`), and the
+sibling case `solo-monkey-lifesaver-test` was already using it — the right
+approach, again, one file away. Entering by the door made the case
+deterministic and cut it from 28s to 21s. One assertion had to go with the
+dice: "and then it goes back to the letter pick" is the MARATHON's behaviour,
+not the monkey's, and every solo case that plays a bonus already exercises it
+through `backToLetterpick`.
+
+Three other cases still roll dice, with the ceilings measured: `solo-bug`
+(40 tries), `solo-wordflash` (30), `solo-memory` (20). Their margins are far
+wider than monkey's sixteen, so they are left alone — and `solo-full-regression`
+rolls on purpose, since exercising the draw across every game IS its subject.
+If one of them ever goes red with nothing broken, this is the fix, and
+`solo-memory` would gain from it twice: entering at round 1 lets it assert
+exactly 5 cards instead of the 5-to-8 range it had to accept because the draw
+decided which round the game landed in.
 
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with

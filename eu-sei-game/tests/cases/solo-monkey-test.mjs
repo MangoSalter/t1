@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { backToLetterpick } from "./test-helpers.mjs";
+import { entrarNoSolo } from "./test-helpers.mjs";
 
 // A lista dos ecras de mini-jogo tem de estar COMPLETA: estes testes
 // esperam que a run caia num deles, e quando saiu um jogo novo (memoria,
@@ -44,27 +44,23 @@ async function currentMinigame() {
   return null;
 }
 
-await page.click("#solo-menu-btn"); await page.click("#solo-classic-btn"); await page.click("#solo-setup-start-btn");
+// PELA PORTA, e não à sorte.
+//
+// Isto jogava rondas clássicas até o bónus aleatório calhar no Cada Macaco,
+// com dezasseis tentativas de teto. Com cinco jogos no sorteio, a hipótese de
+// nunca calhar em dezasseis é de uns 3% — e foi o que aconteceu numa corrida
+// destas: vermelho sem nada partido. Um teste que falha três vezes em cem
+// ensina a ignorar o vermelho, que é o pior que um teste pode fazer.
+//
+// O menu tem um botão para cada mini-jogo. Entra-se por ele: fica
+// determinista e passa de 28s para poucos segundos.
+await entrarNoSolo(page);
+await page.click("#solo-play-monkey-btn");
+await page.waitForSelector("#ready-overlay:not(.hidden) #ready-start-btn", { timeout: 8000 });
+await page.click("#ready-start-btn");
+await page.waitForSelector('[data-screen="solo-minigame-monkey"].active', { timeout: 8000 });
 
-let found = false;
-for (let attempt = 0; attempt < 16 && !found; attempt++) {
-  await playRoundToMinigame();
-  const which = await currentMinigame();
-  console.log(`Tentativa ${attempt + 1}: calhou ${which}`);
-  if (which === "solo-minigame-monkey") {
-    found = true;
-  } else {
-    // Qualquer outro mini-jogo: o caminho partilhado sai de todos, sem
-    // precisar de saber os botoes de cada um. (Antes clicava no
-    // #solo-mg-circle do Olho de Lince, que saiu no redesenho.)
-    await backToLetterpick(page);
-  }
-}
-
-if (!found) {
-  console.log("AVISO: não calhou Cada Macaco no Seu Galho em 16 tentativas.");
-  process.exitCode = 1;
-} else {
+{
   console.log("A verificar que o apanhador segue o rato...");
   const arenaBox = await page.locator("#monkey-arena").boundingBox();
   await page.mouse.move(arenaBox.x + 50, arenaBox.y + 100);
@@ -99,11 +95,13 @@ if (!found) {
     await page.waitForTimeout(80);
   }
 
-  console.log("A aguardar o fim do mini-jogo e avanço automático...");
-  await backToLetterpick(page);
-  const infoAfter = await page.locator("#solo-letter-info").textContent();
-  console.log(`   OK: avançou — ${infoAfter}`);
-
+  // Acabar o jogo e confirmar que a arena fica limpa. O "e a seguir volta-se
+  // à escolha de letra" saiu daqui com o sorteio: isso é o caminho da
+  // maratona, não é do Cada Macaco, e é exercitado por todos os casos do solo
+  // que passam por um bónus (ver backToLetterpick em test-helpers).
+  console.log("A acabar o mini-jogo e a ver a arena limpa...");
+  await page.click("#game-hud-skip-btn");
+  await page.waitForSelector("#minigame-end-overlay:not(.hidden)", { timeout: 8000 });
   const residual = await page.locator(".falling-monkey").count();
   console.log(`   Macacos residuais na arena após terminar: ${residual} (esperado 0)`);
   if (residual !== 0) process.exitCode = 1;
