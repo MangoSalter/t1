@@ -530,7 +530,7 @@ check("sem jogadas", vazio.certos, 0);
 check("sem ritmo", vazio.porMinuto, 0);
 check("sem precisão para mostrar", String(vazio.precisao), "null");
 
-console.log("24) Quem joga em espanhol escreve em espanhol e o mapa entende...");
+console.log("24) As três línguas: o mapa entende quem escreve em espanhol e em inglês...");
 // O jogo diz que fala PT/EN/ES, e para o mapa isso quer dizer ACEITAR o que
 // um espanhol escreve. Quase tudo já batia certo sozinho: tirar os acentos
 // faz "Grécia" e "Grecia" serem a mesma palavra, e a lista de alternativas
@@ -540,6 +540,12 @@ console.log("24) Quem joga em espanhol escreve em espanhol e o mapa entende...")
 // que a PRIMEIRA letra bata certo, e com razão, por isso "El Cairo" nunca
 // chegaria a "Cairo" por semelhança — tinha de estar na lista.
 {
+  // Primeiro o inglês, que é um campo próprio e tem de estar preenchido em
+  // toda a gente — se faltar num país, quem joga em inglês não tem por onde
+  // lá chegar.
+  check("nenhum país sem nome em inglês", dados.filter((p) => !p.en).length, 0);
+  check("nenhuma capital sem nome em inglês", dados.filter((p) => p.cap && !p.cap.en).length, 0);
+
   const emEspanhol = {
     // Países, para não voltarem a fugir.
     Alemania: "Alemanha", Francia: "França", Suiza: "Suíça", "Países Bajos": "Países Baixos",
@@ -548,6 +554,10 @@ console.log("24) Quem joga em espanhol escreve em espanhol e o mapa entende...")
     "El Cairo": "Egito", "La Habana": "Cuba", Tiflis: "Geórgia", Yakarta: "Indonésia",
     Jartum: "Sudão", Dacca: "Bangladeche", "Puerto España": "Trindade e Tobago",
     "Ciudad de Guatemala": "Guatemala", "Ciudad de Panamá": "Panamá", "Ciudad de México": "México",
+    // E o inglês, medido ao mesmo tempo: 36 em 36 do que experimentei, sem
+    // nada a corrigir. Ficam alguns aqui para não fugirem depois.
+    Germany: "Alemanha", Netherlands: "Países Baixos", "Czech Republic": "Chéquia",
+    "Ivory Coast": "Costa do Marfim", Copenhagen: "Dinamarca", Khartoum: "Sudão",
   };
   const nomesDoPais = (pais) => [pais.nome, pais.en, ...(pais.alt || [])].filter(Boolean);
   const nomesDaCapital = (pais) => (pais.cap ? [pais.cap.pt, pais.cap.en, ...(pais.cap.alt || [])].filter(Boolean) : []);

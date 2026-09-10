@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **14m09s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m33s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -268,6 +268,15 @@ shape — an article in front (`El Cairo`, `La Habana`, `Puerto España`,
 rightly so, so "El Cairo" could never reach "Cairo" by similarity — it had to
 be in the list. They are in `cap.alt` now, guarded by `test-mapa` step 24,
 falsified by removing one.
+
+English, checked the same way straight afterwards, needed nothing: **36 of
+36**, with `en` filled on every country and every capital. The one apparent
+miss was mine again — "The Hague" is not the Netherlands' capital in this
+data (Amsterdam is), so refusing it is correct. Step 24 covers all three
+languages now and also asserts that no country or capital has an empty `en`,
+which is a different failure from a missing alias: `Czech Republic` still
+resolved through `alt` while `Chéquia`'s `en` was blanked, so the structural
+check catches what the name check cannot.
 
 The lesson is the one this file keeps relearning from the other direction:
 when you measure a rule, measure it with the code that implements the rule.
