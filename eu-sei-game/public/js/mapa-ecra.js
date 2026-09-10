@@ -548,8 +548,18 @@ function mostrarHipoteses(pais) {
   dizer(t("mapaTresEscolhe"));
 }
 
+// De onde se veio, para o "← Voltar" devolver a pessoa ao sítio onde ela
+// estava. Havia dois botões para abrir o mapa — a entrada e o menu de jogar
+// sozinho — e o voltar levava sempre ao menu, mesmo a quem tinha vindo da
+// entrada. Passou a importar quando o solo.js deixou de vir na primeira
+// abertura: mandar alguém para um menu que o seu módulo ainda não pintou é
+// mostrar-lhe um ecrã meio morto.
+let ecraDeOndeVim = "solo-menu";
+
 function abrirMapa() {
   if (!haEcra()) return;
+  const activo = document.querySelector(".screen.active")?.dataset.screen;
+  if (activo && activo !== "mapa") ecraDeOndeVim = activo;
   document.querySelectorAll("[data-screen]").forEach((el) => {
     el.classList.toggle("active", el.dataset.screen === "mapa");
   });
@@ -589,7 +599,7 @@ function sairDoMapa() {
     return;
   }
   document.querySelectorAll("[data-screen]").forEach((el) => {
-    el.classList.toggle("active", el.dataset.screen === "solo-menu");
+    el.classList.toggle("active", el.dataset.screen === ecraDeOndeVim);
   });
 }
 

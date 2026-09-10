@@ -583,6 +583,44 @@ const noMinimo = await page.evaluate(async () => (await import("./js/voice.js"))
 console.log(`   no modo mínimo disse ${noMinimo} frases (esperado 0)`);
 if (noMinimo !== 0) fail("no modo mínimo o mapa tem de estar calado");
 
+console.log("18) O mapa abre pelos DOIS botões, e o segundo já não passa pelo carregador...");
+// O mapa carrega-se ao abrir (ver o carregador no fim do index.html): o
+// PRIMEIRO clique traz o módulo e abre o ecrã ele próprio, e a partir daí
+// quem ouve os botões é o módulo. Há dois botões — o da entrada e o do menu
+// de jogar sozinho — e se o carregador se afastasse sem o módulo ter ligado
+// o segundo, o mapa deixava de abrir por aí. É o tipo de coisa que ninguém
+// repara até alguém ir pelo caminho menos usado.
+const dois = await browser.newPage();
+dois.on("pageerror", (e) => errors.push(`dois: ${e.message}`));
+await dois.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+await dois.click('[data-screen="home"] [data-open-mapa]');
+await dois.waitForSelector('[data-screen="mapa"].active', { timeout: 15000 });
+// O "← Voltar" devolve a pessoa ao sítio de onde veio — a entrada, e não o
+// menu de jogar sozinho, que é um ecrã que o solo.js ainda nem pintou.
+await dois.click("#mapa-exit-btn");
+await dois.waitForSelector('[data-screen="home"].active', { timeout: 8000 });
+// Agora pelo outro, o do menu de jogar sozinho.
+await dois.click("#solo-menu-btn");
+await dois.waitForSelector('[data-screen="solo-menu"].active', { timeout: 10000 });
+await dois.click('[data-screen="solo-menu"] [data-open-mapa]');
+await dois.waitForSelector('[data-screen="mapa"].active', { timeout: 10000 });
+const aberto = await dois.evaluate(() => document.querySelector(".screen.active")?.dataset.screen);
+console.log(`   depois do segundo botão: ecrã "${aberto}"`);
+if (aberto !== "mapa") {
+  console.log("   FALHOU: o mapa não abriu pelo botão do menu de jogar sozinho");
+  process.exitCode = 1;
+}
+// E o rótulo do botão tem de voltar ao que era: enquanto o módulo vinha
+// dizia "a carregar...", e um botão que fica preso nisso mente.
+const rotulo = await dois.evaluate(() => document.querySelector('[data-screen="home"] [data-open-mapa]').textContent.trim());
+console.log(`   rótulo do botão da entrada: "${rotulo}"`);
+if (/carregar/i.test(rotulo)) {
+  console.log("   FALHOU: o botão ficou preso no 'a carregar...'");
+  process.exitCode = 1;
+}
+await dois.close();
+
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;
