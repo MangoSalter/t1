@@ -596,6 +596,22 @@ that would train someone to ignore red:
   tripped the check in every language. The name is stripped before the text
   is tokenised.
 
+### The promise that three languages can share one room
+
+`i18n.js` opens by promising that three people in one room can each read
+their own language, and says why it works: what travels between players are
+THINGS — a country, a colour, a score — never sentences. Moving several
+hundred strings through `t()` is exactly the change that could have broken
+it, by writing an already-translated sentence into the room document where
+somebody reading another language would find it.
+
+Checked, and it holds: `room.js` — which every write goes through — does not
+import `i18n.js` at all, and no write expression anywhere contains a `t()`.
+That first half is now a check in `test-linguas`, because it is the
+enforceable version of the promise: with no `t()` in reach, nobody can put a
+translated sentence into the room by accident. Falsified by adding the
+import.
+
 ### Does the translation fit on a phone?
 
 Nobody had ever seen this app in English at 390px, and English runs longer

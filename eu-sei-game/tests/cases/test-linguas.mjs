@@ -201,4 +201,21 @@ const MODULOS = ["app.js", "solo.js", "board.js", "board-room.js", "room.js", "d
   assert(maus.length === 0, `todas as chamadas ao t() passam as peças que a frase pede${maus.length ? ` (${maus.join("; ")})` : ""}`);
 }
 
+// O QUE VIAJA ENTRE JOGADORES SÃO COISAS, NÃO FRASES.
+//
+// É a promessa que o i18n.js faz logo no princípio: numa sala podem estar
+// três pessoas a jogar em três línguas, cada uma a ler o seu ecrã. Só se
+// aguenta enquanto o documento da sala guardar um país, uma cor, uma
+// pontuação — e nunca uma frase já escrita numa língua, que chegaria ao
+// ecrã de quem escolheu outra.
+//
+// O room.js é por onde passam TODAS as escritas. Que ele não conheça
+// línguas é a forma verificável de manter a promessa: sem t(), não há como
+// escrever uma frase traduzida na sala por distração.
+{
+  const fonte = readFileSync(path.join(process.env.EU_SEI_PUBLIC, "js", "room.js"), "utf8");
+  const sabeLinguas = /from "\.\/i18n\.js"/.test(fonte);
+  assert(!sabeLinguas, "o room.js não conhece línguas (o que se escreve na sala são coisas, não frases)");
+}
+
 console.log(process.exitCode ? "\nAlguns testes falharam." : "\nTodos os testes passaram.");
