@@ -283,6 +283,22 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## Grep the docs before you measure: it may already be decided
+
+I measured the ten player colours under colour blindness, searched for a
+better palette, found that the good ones are "hot pinks and near-blacks
+that are not this game", and wrote it up as a decision for the owner. All
+of which a previous session had already done — for the PEN palette, which
+shares nine of those ten colours — and the owner had already settled it:
+leave it as it is. It is in `docs/jogos.md`, in a bullet, in plain
+Portuguese.
+
+The measuring was not wasted (it found a real 2.1:1 contrast failure in the
+identity palette, which is a different question), but presenting a settled
+decision as an open one wastes the owner's attention, which is the scarcest
+thing here. **Before measuring anything that ends in "what do you want?",
+grep `docs/jogos.md` for it.**
+
 ## `pgrep -f` finds the loop that is looking for it
 
 Waiting for a run with `until ! pgrep -f 'node tests/run.mjs'; do sleep 20;
