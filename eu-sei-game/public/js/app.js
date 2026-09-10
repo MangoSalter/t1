@@ -21,7 +21,7 @@ import {
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
-  spawnTagPowerup, resolveTagRound, finishTagRound, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
+  spawnTagPowerup, resolveTagRound, finishTagRound, reatribuirInfecao, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
   TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, tagClampToWalls, tagTravadoPor,
   TAG_POWERUP_MAX_ACTIVE, TAG_POWERUP_SPAWN_INTERVAL_MS, TAG_RESULT_DISPLAY_MS, updateBattlePosition, claimBattleWeapon,
   claimBattleHit, spawnBattleWeapon, resolveBattleRound, finishBattleRound, battleClampToWalls,
@@ -3090,6 +3090,10 @@ async function runHostLoopTick(room) {
           await spawnTagPowerup(state.code, room);
         }
         const connectedIds = Object.keys(room.players || {}).filter((uid) => room.players[uid].connected);
+        // Se quem estava infetado se desligou, ninguém apanha ninguém e a
+        // ronda corria até ao fim sem acontecer nada. Passa-se a infeção a
+        // alguém que esteja cá (ver reatribuirInfecao em room.js).
+        await reatribuirInfecao(state.code, room);
         const allInfected = connectedIds.length > 0 && connectedIds.every((uid) => tag.infected?.[uid]);
         if (now >= (tag.endAt || 0) || allInfected) {
           await resolveTagRound(state.code, room);

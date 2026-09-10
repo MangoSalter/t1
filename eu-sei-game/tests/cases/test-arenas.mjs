@@ -17,7 +17,7 @@
 import {
   BATTLE_WALLS, BATTLE_ARENA_W, BATTLE_ARENA_H, BATTLE_PLAYER_RADIUS, battleClampToWalls,
   TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, TAG_PLAYER_RADIUS, tagClampToWalls,
-  randomBattleWeaponSpot, BATTLE_WEAPON_RADIUS, primeiroInfetado,
+  randomBattleWeaponSpot, BATTLE_WEAPON_RADIUS, primeiroInfetado, precisaDeNovoInfetado,
 } from "./js/room.js";
 
 let falhou = false;
@@ -160,6 +160,46 @@ console.log("4) As armas da Batalha nascem sempre em chão livre...");
     falhou = true;
   } else {
     console.log(`OK: sem ninguém ligado escolhe à mesma (${escolhido})`);
+  }
+}
+
+// --- E SE O INFETADO SE DESLIGAR A MEIO ---
+//
+// O mesmo buraco, mas depois de a ronda começar: se quem estava infetado
+// fechou o telemóvel e mais ninguém foi apanhado, não há quem apanhe.
+{
+  const ligado = (n) => ({ name: n, connected: true });
+  const fora = (n) => ({ name: n, connected: false });
+  const casos = [
+    {
+      nome: "o único infetado desligou-se",
+      sala: { players: { a: fora("Ana"), b: ligado("Beto"), c: ligado("Carla") }, tag: { infected: { a: true } } },
+      esperado: true,
+    },
+    {
+      nome: "há um infetado ligado",
+      sala: { players: { a: fora("Ana"), b: ligado("Beto"), c: ligado("Carla") }, tag: { infected: { a: true, b: true } } },
+      esperado: false,
+    },
+    {
+      nome: "sobrou um jogador só",
+      sala: { players: { a: fora("Ana"), b: ligado("Beto") }, tag: { infected: { a: true } } },
+      esperado: false,
+    },
+    {
+      nome: "a ronda já acabou",
+      sala: { players: { a: fora("Ana"), b: ligado("Beto"), c: ligado("Carla") }, tag: { infected: { a: true }, resolved: true } },
+      esperado: false,
+    },
+  ];
+  for (const caso of casos) {
+    const deu = precisaDeNovoInfetado(caso.sala);
+    if (deu !== caso.esperado) {
+      console.log(`FALHOU: "${caso.nome}" devia dar ${caso.esperado} e deu ${deu}`);
+      falhou = true;
+    } else {
+      console.log(`OK: ${caso.nome} -> ${deu}`);
+    }
   }
 }
 

@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **14m12s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **15m43s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -234,6 +234,17 @@ saiu deixava o quadro trancado"). It is `primeiroInfetado` now, a pure
 exported function so `test-arenas` can state the rule; it falls back to all
 players when nobody is connected, because returning nobody is the same broken
 round by another route.
+
+The same hole exists MID-round, and fixing only the start would have been
+half a fix: if the infected player closes their phone before catching anyone,
+nobody can catch anybody and the round runs its timer with nothing happening.
+The host loop already computed `connectedIds` right there to decide when
+everyone is infected, so `reatribuirInfecao` slots in beside it — it hands
+the infection to a connected player when no connected player has it. It does
+nothing when only one player is left connected: infecting the last person
+standing would take the round off them for being alone, with nobody to run
+from. `precisaDeNovoInfetado` is the pure half, and `test-arenas` states all
+four cases.
 
 The rest of the sweep came back clean or owner-blocked: `startBattleTeam`
 shuffles only to hand out spawn points (no role to miss), and everything else

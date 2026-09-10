@@ -2604,6 +2604,32 @@ export function primeiroInfetado(room, sortear = shuffleArray) {
   return sortear(ligados.length > 0 ? ligados : todos)[0];
 }
 
+// E o mesmo problema A MEIO da ronda: se quem estava infetado se desligou e
+// mais ninguém foi apanhado, não há quem apanhe — a ronda corre até ao fim
+// sem acontecer nada, que é a mesma ronda morta que o primeiroInfetado evita
+// ao começar. Aqui só se pergunta; quem escreve é o reatribuirInfecao.
+//
+// Com um só jogador ligado não se faz nada: infetá-lo era tirar-lhe a ronda
+// por estar sozinho, e não há ninguém para lhe fugir.
+export function precisaDeNovoInfetado(room) {
+  const tag = room?.tag;
+  if (!tag || tag.resolved) return false;
+  const ligados = connectedPlayerIds(room);
+  if (ligados.length < 2) return false;
+  return ligados.every((uid) => !tag.infected?.[uid]);
+}
+
+export async function reatribuirInfecao(code, room) {
+  if (!precisaDeNovoInfetado(room)) return null;
+  const novo = primeiroInfetado(room);
+  if (!novo) return null;
+  await update(roomRef(code), {
+    [`tag/infected/${novo}`]: true,
+    [`tag/infectedAt/${novo}`]: serverNow(),
+  });
+  return novo;
+}
+
 export async function startTagTeam(code, room) {
   const playerIds = Object.keys(room.players || {});
   const startInfected = primeiroInfetado(room);
