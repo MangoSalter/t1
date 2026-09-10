@@ -855,9 +855,12 @@ The old note here said 868 KB across 23 files. Measured again in September:
 document stayed still, which is what a measurement does when nothing guards it.
 `carga-inicial-test` is that guard: it counts BYTES and FILES, never seconds
 (this container's seconds are not a phone's, and four jobs in parallel make
-them noise), with ceilings at 1100 KB and 32 files — the point where something
-changed by an order of magnitude, not a target to chase. Falsified by making
-`app.js` fetch `paises.json` at the top: 1104 KB, red.
+them noise), with ceilings at **1000 KB and 32 files** — the point where
+something changed by an order of magnitude, not a target to chase. (This
+paragraph said 1100 for a while; the code has always said 1000. A number in
+prose next to a number in code is one more pair that must agree, and this
+one did not.) Falsified by making `app.js` fetch `paises.json` at the top:
+red.
 
 What the guard showed on its first run: `paises.json` (191 KB) was deferred
 until the map opens, but the map's three JS modules travelled in everyone's
@@ -953,7 +956,8 @@ which pins the context to `pt-PT` (see the language section above for why the
 old sentence here — "browser cases set `euSei_lingua=pt`" — was folklore: nine
 of seventy-five did). They open
 `index.html?oficina=1` when they need a game that is hidden from the public
-site (see `public/js/oficina.js`). Most cases open the plain URL — 48 of them —
+site (see `public/js/oficina.js`). Most open the plain URL — 56 of them, with
+26 opening the workshop and a few doing both —
 but `oficina-test.mjs` is the only one that CHECKS THE HIDING: that the
 workshop games are gone from the menus and unticked in the marathon. Without
 it a broken hide passes the whole suite, because every other case either
