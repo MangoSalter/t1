@@ -283,6 +283,21 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## `pgrep -f` finds the loop that is looking for it
+
+Waiting for a run with `until ! pgrep -f 'node tests/run.mjs'; do sleep 20;
+done` never finishes: the bash process running that loop has the string in
+its own command line, so pgrep always matches it. Two of those spun for
+hours, and worse, every `pgrep` I typed afterwards also matched them — so
+twice I concluded the suite was "running long" when it had finished ages
+before and a stale waiter was answering for it.
+
+Wait on the OUTPUT instead (the file stays empty until the command exits),
+or match the process precisely (`pgrep -x node`). And when a measurement
+surprises you, check what you are actually measuring before believing the
+surprise — which is the same lesson as the two stacked screens, in a
+different costume.
+
 ## `window.innerWidth` is not the width of the phone
 
 The "does the page scroll sideways" check compared `scrollWidth` against
