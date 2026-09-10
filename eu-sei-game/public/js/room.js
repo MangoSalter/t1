@@ -2588,10 +2588,25 @@ const TAG_SPAWN_POINTS = [
   { x: 0.5, y: 0.5 }, { x: 0.3, y: 0.3 },
 ];
 
+// O PRIMEIRO INFETADO tem de estar LIGADO. Um ponto que não se mexe não
+// apanha ninguém: se calhasse a quem já tinha fechado o telemóvel, a ronda
+// corria o tempo todo sem infeção nenhuma e toda a gente sobrevivia — o jogo
+// simplesmente não acontecia. A mesma regra já estava escrita no Desenha e
+// Adivinha (a ordem de desenho filtra ligados) e no quadro (o
+// pickRandomPenHolder, "a um jogador que já saiu deixava o quadro trancado");
+// faltava aqui.
+//
+// Se ninguém estiver ligado não há jogo nenhum para salvar: sorteia-se de
+// todos, para nunca devolver vazio.
+export function primeiroInfetado(room, sortear = shuffleArray) {
+  const todos = Object.keys(room?.players || {});
+  const ligados = todos.filter((uid) => room.players[uid]?.connected);
+  return sortear(ligados.length > 0 ? ligados : todos)[0];
+}
+
 export async function startTagTeam(code, room) {
   const playerIds = Object.keys(room.players || {});
-  const shuffled = shuffleArray(playerIds);
-  const startInfected = shuffled[0];
+  const startInfected = primeiroInfetado(room);
   const positions = {};
   playerIds.forEach((uid, i) => {
     const spot = TAG_SPAWN_POINTS[i % TAG_SPAWN_POINTS.length];

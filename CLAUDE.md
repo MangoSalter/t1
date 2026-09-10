@@ -83,7 +83,7 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 91 cases and takes **14m08s at 4 jobs** (measured
+rooms. The full suite is 91 cases and takes **14m12s at 4 jobs** (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true). The serial figure in here used to say ~25 minutes; I have not
@@ -221,6 +221,24 @@ That is the third time this shape has turned up (after the tie ranking and the
 Forca's word). The lesson keeps being the same: when you find a rule that is
 right somewhere, check the neighbours before assuming it is applied
 everywhere.
+
+So I grepped every place that counts or picks from `room.players`, and found
+a fourth — the worst of them. `startTagTeam` chose the first infected player
+by shuffling ALL players, disconnected included. A dot that does not move
+never catches anyone: if patient zero had closed their phone, the whole round
+ran its timer with no infection at all and everybody survived. Not a scoring
+quirk — the game simply did not happen. And the rule was already written
+twice elsewhere: the drawing game filters connected for its turn order, and
+`pickRandomPenHolder` filters for exactly this reason ("a um jogador que já
+saiu deixava o quadro trancado"). It is `primeiroInfetado` now, a pure
+exported function so `test-arenas` can state the rule; it falls back to all
+players when nobody is connected, because returning nobody is the same broken
+round by another route.
+
+The rest of the sweep came back clean or owner-blocked: `startBattleTeam`
+shuffles only to hand out spawn points (no role to miss), and everything else
+that iterates all players is either scoring — which lands squarely in the
+survival-scoring decision that is the owner's — or harmless.
 
 ## A test that reaches its subject by chance fails by chance
 `solo-monkey-test` played classic rounds until the random bonus draw happened

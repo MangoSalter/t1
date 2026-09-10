@@ -17,7 +17,7 @@
 import {
   BATTLE_WALLS, BATTLE_ARENA_W, BATTLE_ARENA_H, BATTLE_PLAYER_RADIUS, battleClampToWalls,
   TAG_WALLS, TAG_ARENA_W, TAG_ARENA_H, TAG_PLAYER_RADIUS, tagClampToWalls,
-  randomBattleWeaponSpot, BATTLE_WEAPON_RADIUS,
+  randomBattleWeaponSpot, BATTLE_WEAPON_RADIUS, primeiroInfetado,
 } from "./js/room.js";
 
 let falhou = false;
@@ -122,6 +122,45 @@ console.log("4) As armas da Batalha nascem sempre em chão livre...");
   }
   console.log(`   3000 sorteios: ${dentroDeParede} dentro de paredes${piorExemplo ? ` (ex.: ${piorExemplo})` : ""}`);
   check(dentroDeParede === 0, `nenhuma arma nasce dentro de uma parede${dentroDeParede ? ` (${dentroDeParede} em 3000)` : ""}`);
+}
+
+// --- QUEM COMEÇA INFETADO TEM DE ESTAR LIGADO ---
+//
+// Um ponto que não se mexe não apanha ninguém. Se o primeiro infetado
+// calhasse a quem já fechou o telemóvel, a ronda corria o tempo todo sem
+// infeção nenhuma e toda a gente sobrevivia — o jogo não acontecia.
+{
+  const sala = {
+    players: {
+      a: { name: "Ana", connected: false },
+      b: { name: "Beto", connected: true },
+      c: { name: "Carla", connected: false },
+    },
+  };
+  // Sorteio determinista: devolve a lista tal e qual, para o teste não
+  // depender da sorte (ver a nota sobre isso no CLAUDE.md).
+  const semSorte = (lista) => [...lista];
+  // Com QUALQUER ordem de sorteio, o escolhido tem de ser o Beto.
+  const escolhas = new Set();
+  for (let i = 0; i < 20; i += 1) escolhas.add(primeiroInfetado(sala));
+  escolhas.add(primeiroInfetado(sala, semSorte));
+  if (escolhas.size !== 1 || !escolhas.has("b")) {
+    console.log(`FALHOU: o primeiro infetado tem de ser sempre alguém ligado — saiu ${[...escolhas].join(", ")}`);
+    falhou = true;
+  } else {
+    console.log("OK: o primeiro infetado é sempre um jogador ligado");
+  }
+
+  // E com ninguém ligado não se devolve vazio: sem isto a sala ficava sem
+  // infetado nenhum, que é outra maneira de o jogo não acontecer.
+  const ninguem = { players: { a: { connected: false }, b: { connected: false } } };
+  const escolhido = primeiroInfetado(ninguem);
+  if (!escolhido) {
+    console.log("FALHOU: sem ninguém ligado, tinha de escolher alguém à mesma");
+    falhou = true;
+  } else {
+    console.log(`OK: sem ninguém ligado escolhe à mesma (${escolhido})`);
+  }
 }
 
 console.log(`\n${BATTLE_WALLS.length} paredes na Batalha, ${TAG_WALLS.length} na Infeção.`);
