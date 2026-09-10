@@ -249,6 +249,21 @@ check("o quadro de sala não deixa português a quem desenha", noQuadroDeSala.le
 const noQuadroConvidado = await fugas(convidado, "o quadro de sala (quem vê)");
 check("o quadro de sala não deixa português a quem vê", noQuadroConvidado.length === 0, noQuadroConvidado.join(", "));
 
+// DESENHA E ADIVINHA, os dois lados. O varrimento nunca cá tinha entrado — e
+// era aqui que estava a linha de quem desenha ("Ronda 1/2 — desenha: X"),
+// escrita em português fixo dentro do renderDraw. Quem desenha e quem
+// adivinha leem coisas DIFERENTES, por isso leem-se as duas páginas.
+await anfitriao.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "lobby", hangman: null }), codigo);
+await anfitriao.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+await anfitriao.click('[data-mp-game="draw"]');
+await anfitriao.waitForSelector('[data-screen="draw"].active', { timeout: 10000 });
+await convidado.waitForSelector('[data-screen="draw"].active', { timeout: 10000 });
+await anfitriao.waitForTimeout(600);
+for (const [pagina, quem] of [[anfitriao, "a anfitriã"], [convidado, "o convidado"]]) {
+  const achadas = await fugas(pagina, `o Desenha e Adivinha (${quem})`);
+  check(`o Desenha e Adivinha não deixa português (${quem})`, achadas.length === 0, achadas.join(", "));
+}
+
 await browser.close();
 const reais = consola.filter((e) => !/gstatic|googleapis|TUNNEL|CONNECTION_RESET/.test(e));
 if (reais.length) { console.error("ERROS:\n" + reais.join("\n")); erros.push("erros de consola"); }

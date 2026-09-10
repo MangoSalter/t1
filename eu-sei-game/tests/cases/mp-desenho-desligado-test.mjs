@@ -57,14 +57,50 @@ await page.waitForTimeout(400);
 let r = await sala();
 console.log(`   quem desenha: ${r.draw.drawerId} (ligado: ${r.players.p2.connected}), ronda fechada: ${r.draw.resolved}`);
 
-console.log("3) O ESSENCIAL: a sala tem de conseguir seguir em frente sem ele...");
-await chamar("skipDrawRound", anaId);
+console.log("3) O ESSENCIAL: a Ana tem de ter um BOTÃO, e não só uma função...");
+// Este passo chamava skipDrawRound pelo módulo. Provava que a regra existe e
+// não provava nada sobre quem lhe chega: o ecrã escondia o botão a toda a
+// gente menos a quem desenhava, ou seja, exatamente a quem já não está cá.
+// A sala ficava presa com a saída de emergência escrita e inalcançável. A
+// partir daqui é a Ana a carregar no que vê.
+const botaoSaltar = page.locator("#draw-skip-btn");
+const visivel = await botaoSaltar.isVisible();
+const rotulo = (await botaoSaltar.textContent()).trim();
+console.log(`   botão "saltar" visível para a Ana: ${visivel} — diz "${rotulo}"`);
+if (!visivel) {
+  falhar("quem desenhava saiu e a Ana não tem botão nenhum: a saída existe no room.js e ninguém lhe chega");
+} else {
+  // O rótulo tem de dizer PORQUÊ: um botão que aparece do nada a meio da
+  // ronda de outra pessoa lê-se como uma maneira de a estragar.
+  if (!rotulo.includes("Beto")) falhar(`o botão não diz de quem se está à espera (diz "${rotulo}")`);
+  await botaoSaltar.click();
+}
 await page.waitForTimeout(400);
 r = await sala();
-console.log(`   depois de a anfitriã tentar saltar a ronda: fechada = ${r.draw.resolved}`);
+console.log(`   depois de a anfitriã carregar no botão: fechada = ${r.draw.resolved}`);
 if (!r.draw.resolved) {
   falhar("a ronda não fecha: quem desenhava foi-se embora e mais ninguém a pode fechar — a partida fica presa aqui");
 }
+
+// E com a ronda já fechada o botão sai de cena: senão dava para a saltar
+// duas vezes, e a segunda passava por cima da ronda de outra pessoa.
+const aindaLa = await page.locator("#draw-skip-btn").isVisible();
+console.log(`   com a ronda já fechada, o botão continua à vista: ${aindaLa}`);
+if (aindaLa) falhar("dava para saltar a mesma ronda duas vezes");
+
+console.log("3b) E o contrário: com quem desenha presente, mais ninguém lhe fecha a ronda...");
+// Sem isto, "mostrar o botão sempre" passaria o passo 3 e estragaria o jogo:
+// qualquer pessoa podia cortar a vez de quem está a desenhar.
+await chamar("advanceDrawRound");
+await page.waitForTimeout(400);
+r = await sala();
+await page.evaluate(({ c, quem }) => {
+  window.__testDb.update(`rooms/${c}/draw`, { drawerId: quem, resolved: false, roundWinnerId: null, resolvedAt: null });
+}, { c: code, quem: "p3" }); // a Carla desenha, e está ligada
+await page.waitForTimeout(400);
+const escondido = await page.locator("#draw-skip-btn").isVisible();
+console.log(`   com a Carla (ligada) a desenhar, a Ana vê o botão: ${escondido}`);
+if (escondido) falhar("qualquer um pode cortar a vez de quem está a desenhar");
 
 console.log("4) E a vez de quem já saiu não pode chegar com a caneta na mão dele...");
 // A Carla também se vai embora, ANTES da vez dela (é a seguinte na ordem).

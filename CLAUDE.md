@@ -271,6 +271,34 @@ different letters are two different rounds in one room.
 Worth generalising: **a phase that waits on ONE person needs a deadline, and
 its neighbours will already have one.** Grep the state machine, not the file.
 
+Applying that sweep to the rest of the state machine turned up a worse one
+than the letter pick, and of a different kind: **the escape hatch existed and
+nothing on the screen could reach it.** In Desenha e Adivinha only the drawer
+can close a round — right, since only they know the word — and there is no
+clock at all. `skipDrawRound` has handled the drawer walking out for ages,
+under a comment that says exactly why ("essa regra deixava a sala presa para
+sempre"). But `renderDraw` wrote its own version of the rule, `!amDrawer`,
+and so hid the button from everyone except the one person who had left. The
+room sat on "o Beto está a desenhar" with no way out but leaving it — the
+thing `backToLobby` was built to avoid.
+
+Two things to take from it:
+
+- `mp-desenho-desligado-test` called `skipDrawRound` **through the module**.
+  It proved the rule existed and said nothing about whether a player could
+  reach it, so it was green throughout. A test that reaches its subject by a
+  route no player has is the passing twin of the flaky one two sections up.
+  It presses the button now, and checks the label names who left.
+- one rule, `podeFecharRondaDeDesenho`, used by the write AND the render.
+  The same "give the two sides a common name" move as the workshop lists —
+  and the falsification has to run BOTH ways here, because "show the button
+  always" fixes the stuck room and lets anyone cut short someone else's turn.
+
+`roundScore` and the drawing round's result screen still wait on a host
+button with no deadline, and that is left alone on purpose: the host is
+pacing a screen everybody is reading, and `maybeReclaimHost` covers the host
+actually leaving.
+
 The other half of the same idea, found while fixing it: **a deadline nobody
 can see arrive is barely better than no deadline.** All three timed room
 phases drew a bare number that ran to zero and swapped the screen mid-word.

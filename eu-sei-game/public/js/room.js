@@ -2536,12 +2536,24 @@ function naSala(room, uid) {
 // presa para sempre — não há relógio nenhum neste jogo, e os outros ficavam a
 // olhar para "o Beto está a desenhar" sem saída. Quando quem tinha a caneta já
 // não está na sala, qualquer pessoa pode fechar a ronda.
+// A regra de quem pode fechar, em UMA função, porque tem de ser a mesma dos
+// dois lados. Era escrita aqui dentro e o ecrã tinha a sua própria versão
+// (`!amDrawer` e mais nada), o que tornava esta saída de emergência
+// INALCANÇÁVEL: quando quem desenhava se ia embora — precisamente o caso
+// para que ela foi escrita — nenhum dos outros tinha botão nenhum para
+// carregar. A sala ficava presa a olhar para "o Beto está a desenhar" e a
+// única saída era sair da sala, que é o que o backToLobby existe para
+// evitar.
+export function podeFecharRondaDeDesenho(room, uid) {
+  const draw = room?.draw;
+  if (!draw || draw.resolved) return false;
+  if (draw.drawerId === uid) return true;
+  return !naSala(room, draw.drawerId);
+}
+
 export async function skipDrawRound(code, room, uid) {
   const draw = room.draw;
-  if (!draw || draw.resolved) return;
-  const eleProprio = draw.drawerId === uid;
-  const quemDesenhavaSaiu = !naSala(room, draw.drawerId);
-  if (!eleProprio && !quemDesenhavaSaiu) return;
+  if (!podeFecharRondaDeDesenho(room, uid)) return;
   await update(roomRef(code), {
     "draw/resolved": true,
     "draw/roundWinnerId": null,

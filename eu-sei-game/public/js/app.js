@@ -18,7 +18,7 @@ import {
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
-  pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
+  pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
   voteAcceptMapTriviaAnswer, MAP_TRIVIA_RESULT_DISPLAY_MS, updateTagPosition, claimTagInfection, claimTagPowerup,
   spawnTagPowerup, resolveTagRound, finishTagRound, reatribuirInfecao, TAG_PLAYER_RADIUS, TAG_POWERUP_RADIUS,
@@ -1426,7 +1426,7 @@ function renderDraw(room) {
   if (!draw) return;
   const amDrawer = draw.drawerId === state.uid;
   const drawerName = room.players?.[draw.drawerId]?.name || t("alguem");
-  const roundLabel = `Ronda ${draw.turnIndex + 1}/${draw.turnOrder.length}`;
+  const roundLabel = t("desenhaRondaDe", draw.turnIndex + 1, draw.turnOrder.length);
   // O mesmo ecrã serve os dois baralhos: palavras soltas ("Girafa") e
   // monumentos ("Torre Eiffel", e o que se adivinha é o PAÍS).
   const marcos = draw.tema === TEMA_MARCOS;
@@ -1439,8 +1439,8 @@ function renderDraw(room) {
     drawEls.reveal.classList.add("hidden");
     drawEls.status.textContent = amDrawer
       ? (marcos
-        ? `${roundLabel} — desenha: “${draw.secretWord || "?"}” (fica ${marco?.onde || "?"})`
-        : `${roundLabel} — desenha: “${draw.secretWord || "?"}”`)
+        ? t("desenhaTuMarcos", roundLabel, draw.secretWord || "?", marco?.onde || "?")
+        : t("desenhaTuLivre", roundLabel, draw.secretWord || "?"))
       : (marcos
         ? t("desenhaMarcos", roundLabel, drawerName)
         : t("desenhaLivre", roundLabel, drawerName));
@@ -1450,7 +1450,19 @@ function renderDraw(room) {
     drawEls.corBtn.classList.toggle("hidden", !amDrawer);
     drawEls.espessuras.classList.toggle("hidden", !amDrawer);
     drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
-    drawEls.skipBtn.classList.toggle("hidden", !amDrawer);
+    // O "ninguém acertou" não é só de quem desenha: quando quem tem a caneta
+    // SAI a meio, a regra do room.js deixa qualquer pessoa fechar a ronda —
+    // é a única saída, porque este jogo não tem relógio. O ecrã escondia o
+    // botão a toda a gente menos ao próprio, ou seja, exatamente a quem já
+    // não está cá, e a sala ficava presa. A regra é agora a mesma dos dois
+    // lados (podeFecharRondaDeDesenho).
+    const possoFechar = podeFecharRondaDeDesenho(room, state.uid);
+    drawEls.skipBtn.classList.toggle("hidden", !possoFechar);
+    // E diz PORQUÊ, senão um botão que aparece do nada a meio de uma ronda
+    // dos outros lê-se como uma forma de estragar a vez de alguém.
+    drawEls.skipBtn.textContent = amDrawer
+      ? t("desenhaNinguemAcertou")
+      : t("desenhaQuemDesenhavaSaiu", drawerName);
     drawEls.continueBtn.classList.add("hidden");
     drawEls.result.classList.add("hidden");
   } else {
