@@ -10,7 +10,7 @@
 // é zero mesmo) e um tecto global que só pode descer. Como o carga-inicial:
 // um número que alguém tem de mexer de propósito, não uma nota que envelhece
 // sozinha.
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
 import { abrirBrowser } from "./test-helpers.mjs";
 
 const browser = await abrirBrowser(chromium);
@@ -172,6 +172,81 @@ const desafioEs = (await page.textContent("#home-desafio-estado")).trim();
 check("a frase do desafio do dia é repintada ao trocar de língua",
   desafioEn.startsWith("One round") && desafioEs.startsWith("Una ronda"),
   `en=${desafioEn} es=${desafioEs}`);
+
+// ---- 5. E NO TELEMÓVEL, NAS TRÊS ----
+// Uma frase inglesa é quase sempre mais comprida do que a portuguesa, e este
+// jogo joga-se todo em telemóveis. Ninguém tinha visto esta app em inglês a
+// 390px.
+//
+// A verificação NÃO julga se um elemento pode transbordar: várias barras
+// rolam de lado de propósito, e um varrimento que as apanhasse a todas
+// dizia onze problemas em português, onde não há problema nenhum. O que se
+// pergunta é se as línguas DISCORDAM — se o inglês ou o espanhol transborda
+// onde o português não transborda, foi a tradução que o partiu.
+//
+// E à parte disso, uma regra absoluta que vale para as três: o CORPO da
+// página nunca rola de lado. Uma barra que rola é uma escolha; a página a
+// rolar é um defeito.
+async function medirTelemovel(lingua) {
+  const c = await browser.newContext({ ...devices["iPhone 13"] });
+  const p = await c.newPage();
+  await p.addInitScript((l) => { localStorage.setItem("euSei_lingua", l); }, lingua);
+  await p.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+  const r = await p.evaluate(() => {
+    const transbordam = [];
+    const alturas = {};
+    const rolam = [];
+    // UM ecrã de cada vez. A primeira versão disto só acrescentava "active"
+    // sem tirar o do ecrã que já estava visível, e media dois ecrãs
+    // empilhados — larguras que nenhuma pessoa vê.
+    const jaAtivos = [...document.querySelectorAll("[data-screen].active")];
+    jaAtivos.forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll("[data-screen]").forEach((sec) => {
+      sec.classList.add("active");
+      if (document.documentElement.scrollWidth > window.innerWidth + 1) rolam.push(sec.dataset.screen);
+      [...sec.querySelectorAll("button, label, summary, h1, h2, h3, .divider, option")].forEach((el, i) => {
+        if (el.offsetParent === null) return;
+        const caixa = el.getBoundingClientRect();
+        const cortado = el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== "visible";
+        // A identidade não pode ser o TEXTO: muda com a língua, que é o que
+        // se está a comparar. É o sítio na árvore.
+        const quem = `${sec.dataset.screen}|${el.tagName}|${el.id || i}`;
+        // A ALTURA é o que interessa medir, e não a largura. Um rótulo
+        // inglês mais comprido não sai da caixa: passa a duas linhas, e a
+        // caixa cresce. Foi assim que a primeira versão disto me passou uma
+        // falsificação — pus um "Create a brand new room for absolutely
+        // everybody to join right now" no botão e ela ficou verde, porque
+        // nada tinha transbordado de lado.
+        alturas[quem] = Math.round(caixa.height);
+        if (cortado) transbordam.push(quem);
+      });
+      sec.classList.remove("active");
+    });
+    jaAtivos.forEach((x) => x.classList.add("active"));
+    return { transbordam, alturas, rolam };
+  });
+  await c.close();
+  return r;
+}
+const tel = { pt: await medirTelemovel("pt"), en: await medirTelemovel("en"), es: await medirTelemovel("es") };
+for (const l of ["pt", "en", "es"]) {
+  check(`${l}: nenhum ecrã põe a página a rolar de lado no telemóvel`, tel[l].rolam.length === 0, tel[l].rolam.join(", "));
+}
+const basePt = new Set(tel.pt.transbordam);
+for (const l of ["en", "es"]) {
+  const novos = tel[l].transbordam.filter((x) => !basePt.has(x));
+  check(`${l}: a tradução não corta texto onde o português não corta`, novos.length === 0, novos.join(", "));
+  // Crescer um bocado é normal (uma palavra mais longa numa linha só). O que
+  // não pode é um controlo DOBRAR de altura por causa da tradução: isso é uma
+  // linha nova, e uma linha nova num telemóvel empurra o que está por baixo.
+  const cresceram = Object.entries(tel[l].alturas)
+    .filter(([quem, alt]) => {
+      const base = tel.pt.alturas[quem];
+      return base > 0 && alt > base * 1.6 && alt - base > 16;
+    })
+    .map(([quem, alt]) => `${quem} ${tel.pt.alturas[quem]}px -> ${alt}px`);
+  check(`${l}: a tradução não faz nenhum controlo crescer para outra linha`, cresceram.length === 0, cresceram.join(" | "));
+}
 
 await browser.close();
 if (erros.length) { console.error(`\n${erros.length} verificações falharam.`); process.exit(1); }

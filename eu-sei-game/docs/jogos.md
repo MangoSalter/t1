@@ -332,7 +332,12 @@ não carregam) também.
 **O que ainda falta**, e continua a ser honesto dizê-lo: o que só aparece
 depois de MUITO jogo em sala — o placar de uma arena a acabar, o meio de uma
 partida da Forca com quatro pessoas. O guarda abre a sala e entra no jogo;
-não joga a partida toda. Os coringas do Descartando Juntos ficam em
+não joga a partida toda. **E cabe tudo no telemóvel**, medido e não esperado: as três línguas abertas
+num iPhone 13, ecrã a ecrã. Nada fica cortado, nenhum botão ganha uma linha
+por causa da tradução, e nenhum ecrã põe a página a rolar de lado. O inglês é
+quase sempre mais comprido do que o português, e isso não custou nada aqui.
+
+Os coringas do Descartando Juntos ficam em
 português de propósito: esse jogo está na oficina, fora do site, e não vale a
 pena traduzir o que talvez não volte. E as CATEGORIAS continuam à tua espera
 (a pergunta está acima).

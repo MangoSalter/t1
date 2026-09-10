@@ -341,7 +341,12 @@ at 36px, because it only ever opened the marathon screen).
 
 To sweep every screen cheaply, don't navigate to each one: open the page on a
 phone context, then walk `[data-screen]` toggling `active` and measure every
-visible `button, label` in each. It takes seconds and it found the hangman
+visible `button, label` in each. **Take the `active` off whatever screen is
+already showing first**, and put it back at the end: adding `active` to a
+second screen leaves two stacked, and the widths you then measure are widths
+nobody ever sees. That cost me a whole false finding — a heading that "grew a
+line in English", which turned out to be the home screen sitting underneath
+it. It takes seconds and it found the hangman
 board's tools at 40px — the mobile block raised the colours beside them to 44
 and forgot the tools, while the comment above the desktop rule claimed both
 were handled. Static markup is all this catches, so in-game HUDs still need
@@ -570,6 +575,33 @@ that would train someone to ignore red:
 - **the game's own name.** "Eu sei" contains "eu", so the classic-mode button
   tripped the check in every language. The name is stripped before the text
   is tokenised.
+
+### Does the translation fit on a phone?
+
+Nobody had ever seen this app in English at 390px, and English runs longer
+than Portuguese. Step 5 of `linguas-ecra-test` opens all three languages on
+an iPhone 13 and compares them.
+
+The trick is what it does NOT do. A sweep that flags "this element sticks out
+of the viewport" reports eleven problems in PORTUGUESE, where there is no
+problem at all — several toolbars scroll sideways on purpose. So the check
+does not judge whether an overflow is allowed. It asks whether the languages
+DISAGREE: if English or Spanish clips text where Portuguese does not, the
+translation broke it. Alongside that, one absolute rule for all three: the
+page BODY never scrolls sideways (a scrolling toolbar is a choice; a
+scrolling page is a defect).
+
+Measuring width was the wrong instinct and the falsification said so. I put
+"Create a brand new room for absolutely everybody to join right now" on the
+create-room button and the check stayed green — a long label does not stick
+out, it WRAPS, and the box grows downward. It compares heights now (a control
+more than 1.6x taller than its Portuguese twin has gained a line, which on a
+phone pushes everything below it), and that same falsification turns it red:
+`home|BUTTON|create-room-btn 50px -> 90px`.
+
+Result, measured rather than hoped: **the translation costs nothing on a
+phone.** Nothing clips, nothing gains a line, no screen scrolls sideways, in
+any of the three.
 
 ### And then there is the half that is never on screen at all
 
