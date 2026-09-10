@@ -849,4 +849,23 @@ export default {
   mapaDifLivreDesc: "Escribe el nombre de cualquier país. Más fácil.",
   mapaDifApontado: "Señalar primero",
   mapaDifApontadoDesc: "Haz clic en el territorio y solo después di el nombre. Más difícil.",
+
+  // OS NOMES DAS CORES. Um leitor de ecrã que anuncia "#b24b38" não disse
+  // nada a ninguém. As sete do avatar já tinham nome; as dez do quadro de
+  // sala, ao lado, ainda liam o hexadecimal em voz alta.
+  corCastanhoEscuro: "Marrón oscuro",
+  corVermelhoTelha: "Rojo teja",
+  corAmareloMostarda: "Amarillo mostaza",
+  corVerdeMusgo: "Verde musgo",
+  corAzulAcinzentado: "Azul grisáceo",
+  corRoxo: "Morado",
+  corBranco: "Blanco",
+  corTijolo: "Rojo ladrillo",
+  corVerdeOliva: "Verde oliva",
+  corRoxoEscuro: "Morado oscuro",
+  corVerdeAzulado: "Verde azulado",
+  corLaranja: "Naranja",
+  corRosa: "Rosa",
+  corCinzento: "Gris",
+  corAria: (nome, hex) => `${nome} ${hex}`,
 };

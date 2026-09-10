@@ -12,7 +12,8 @@ import { t } from "./i18n.js";
 import { say as narrar } from "./voice.js";
 import { BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS } from "./data.js";
 import {
-  BOARD_CHAOS_EVERY, BOARD_MODES, BOARD_SETTINGS_SPEC, DEFAULT_BOARD_MODE, DOODLE_BOARD_FULL, HANGMAN_PLAYER_COLORS,
+  BOARD_CHAOS_EVERY, BOARD_MODES, BOARD_SETTINGS_SPEC, DEFAULT_BOARD_MODE, DOODLE_BOARD_FULL,
+  HANGMAN_COLOR_KEYS, HANGMAN_PLAYER_COLORS,
   MAX_TEAMS, WORD_SEP, addHangmanMiss, applyBoardVotes, boardChaosOn, boardSetting,
   canDrawOnBoard, canGuessNow, canSetBoardMode, clearHangmanDoodle, clearHangmanPuzzle, connectedPlayerIds,
   correctCountOf, currentGuesser, finishHangman, fireBoardChaos, freeGuessing, guessesAreAnonymous,
@@ -1785,7 +1786,7 @@ function hangmanRenderColorPicker(room) {
     btn.dataset.colorChoice = cor;
     btn.style.background = cor;
     btn.disabled = ocupadas.includes(cor);
-    btn.setAttribute("aria-label", `Cor ${cor}`);
+    btn.setAttribute("aria-label", t("corAria", t(HANGMAN_COLOR_KEYS[cor]) || cor, cor));
     btn.setAttribute("aria-pressed", String(minha === cor));
     btn.addEventListener("click", () => pickHangmanColor(state.code, state.room, state.uid, cor));
     hangmanEls.colorChoices.appendChild(btn);

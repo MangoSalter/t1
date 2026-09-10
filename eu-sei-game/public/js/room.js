@@ -1272,6 +1272,24 @@ export const HANGMAN_PLAYER_COLORS = [
   "#2f7d6e", "#d1691f", "#c2569b", "#3a3126", "#8a8a8a",
 ];
 
+// O NOME DE CADA UMA, para quem usa leitor de ecrã: "#b24b38" não diz nada a
+// ninguém. Aqui ficam só as CHAVES — este módulo não conhece línguas (e há um
+// teste que o garante), por isso quem pinta é que traduz. As sete do avatar
+// já tinham nome há muito; estas dez, ao lado, liam o hexadecimal em voz
+// alta.
+export const HANGMAN_COLOR_KEYS = {
+  "#b24b38": "corTijolo",
+  "#5c7e91": "corAzulAcinzentado",
+  "#5b7442": "corVerdeOliva",
+  "#e3a53d": "corAmareloMostarda",
+  "#7a4fb5": "corRoxoEscuro",
+  "#2f7d6e": "corVerdeAzulado",
+  "#d1691f": "corLaranja",
+  "#c2569b": "corRosa",
+  "#3a3126": "corCastanhoEscuro",
+  "#8a8a8a": "corCinzento",
+};
+
 export function takenHangmanColors(room, exceptUid) {
   const cores = room?.hangman?.colors || {};
   const ligados = connectedPlayerIds(room);

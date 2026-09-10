@@ -849,4 +849,23 @@ export default {
   mapaDifLivreDesc: "Type any country's name. Easier.",
   mapaDifApontado: "Point first",
   mapaDifApontadoDesc: "Click the territory and only then name it. Harder.",
+
+  // OS NOMES DAS CORES. Um leitor de ecrã que anuncia "#b24b38" não disse
+  // nada a ninguém. As sete do avatar já tinham nome; as dez do quadro de
+  // sala, ao lado, ainda liam o hexadecimal em voz alta.
+  corCastanhoEscuro: "Dark brown",
+  corVermelhoTelha: "Brick red",
+  corAmareloMostarda: "Mustard yellow",
+  corVerdeMusgo: "Moss green",
+  corAzulAcinzentado: "Slate blue",
+  corRoxo: "Purple",
+  corBranco: "White",
+  corTijolo: "Brick",
+  corVerdeOliva: "Olive green",
+  corRoxoEscuro: "Deep purple",
+  corVerdeAzulado: "Teal",
+  corLaranja: "Orange",
+  corRosa: "Pink",
+  corCinzento: "Grey",
+  corAria: (nome, hex) => `${nome} ${hex}`,
 };

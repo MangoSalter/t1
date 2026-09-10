@@ -596,6 +596,27 @@ that would train someone to ignore red:
   tripped the check in every language. The name is stripped before the text
   is tokenised.
 
+### I made the same mistake the a11y sweep already documents
+
+`linguas-ecra-test` walked `[data-screen]` and reported zero untranslated.
+Zero across **41 screens and none of the 16 overlays** — they live outside
+`[data-screen]` and are born `hidden`, which is written down two sections
+above, in the very case that learned it. Reading a lesson is not the same as
+applying it.
+
+The sweep opens them now, the way `a11y-varrimento` step 1 does, and found
+one on its first run: the whiteboard's end-of-match heading, marked
+`data-i18n-js` because JavaScript repaints it, but with Portuguese in its
+initial markup — so an English player read Portuguese until the match ended.
+The fourth instance of that same `data-i18n-js` mistake.
+
+Two colour palettes sit one screen apart, and only one had names. The
+avatar's seven announce "Amarelo-mostarda #e3a53d"; the room whiteboard's ten
+announced **"Cor #b24b38"** — a hex code, read aloud. Same defect, next door,
+and invisible to every sweep because it is inside an overlay. Both are named
+in three languages now. The keys live in `room.js` as KEYS only, never text,
+so the "room.js knows no languages" check above still holds.
+
 ### The promise that three languages can share one room
 
 `i18n.js` opens by promising that three people in one room can each read
