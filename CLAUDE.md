@@ -283,6 +283,24 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## Two lists that must agree: make the agreement checkable, not careful
+
+The workshop is two places. `JOGOS_NA_OFICINA` in `data.js` decides which
+games the bonus queue skips; `data-oficina` in `index.html` decides what gets
+hidden from the screen. `oficina.js`'s own comment has always said you must
+change both — and nothing checked it. Put a game in the list and forget the
+markup and it stays on the site; mark something not in the list and it
+vanishes for no reason. `oficina-test` had a third hand-written copy of the
+same ten games.
+
+The attribute now carries the game (`data-oficina="reflex"`), so the two sets
+can simply be compared. Ten and ten today. Falsified in both directions:
+delete one marking, red; add a game to the list, red.
+
+That is the general move whenever this codebase turns up "two places that
+must agree" — and it turns up constantly. Do not resolve it by being careful.
+Give the two sides a common name and let a test compare them.
+
 ## A ratchet catches the fix that breaks something else
 
 In the room whiteboard, the colour a player picks is the ONLY thing saying

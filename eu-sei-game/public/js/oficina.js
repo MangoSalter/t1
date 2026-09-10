@@ -8,7 +8,12 @@ import { JOGOS_NA_OFICINA, CHAVE_OFICINA, oficinaAberta } from "./data.js";
 // quem os está a melhorar (e para os testes, que continuam a correr sobre
 // eles como se nada fosse).
 //
-// Voltar a expor um jogo é tirá-lo desta lista e do data-oficina no HTML.
+// Voltar a expor um jogo é tirá-lo desta lista E do data-oficina no HTML —
+// duas listas que têm de concordar, que é a forma de defeito que esta casa
+// mais repete. Por isso o atributo diz agora QUAL jogo marca
+// (data-oficina="reflex") e o oficina-test compara os dois conjuntos: um
+// jogo posto na lista sem marcação continuava à vista, e uma marcação sem
+// jogo escondia alguma coisa por engano.
 // A lista vive no data.js — é preciso lá para o room.js a poder ler sem
 // arrastar consigo o localStorage e o documento. Aqui fica o que é do ecrã.
 export { JOGOS_NA_OFICINA };

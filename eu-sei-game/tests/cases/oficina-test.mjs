@@ -54,6 +54,25 @@ const visivel = (page, sel) => page.evaluate((s) => {
 
 console.log("1) Um visitante normal não vê nenhum dos jogos que estão na oficina...");
 const site = await abrir("http://localhost:8936/index.html");
+
+// A LISTA DO CÓDIGO E A MARCAÇÃO DO HTML TÊM DE SER A MESMA COISA.
+//
+// O JOGOS_NA_OFICINA (data.js) decide o que a fila de bónus salta; o
+// data-oficina (index.html) decide o que se esconde do ecrã. São dois sítios
+// e o comentário do oficina.js sempre disse que se mexe nos dois — mas nada
+// o verificava. Um jogo posto na lista e esquecido no HTML continuava à
+// vista; o contrário escondia um jogo do site sem ninguém pedir.
+const daLista = await site.evaluate(async () => (await import("./js/data.js")).JOGOS_NA_OFICINA);
+const doHtml = await site.evaluate(() =>
+  [...new Set([...document.querySelectorAll("[data-oficina]")].map((el) => el.dataset.oficina))]);
+const soNaLista = daLista.filter((k) => !doHtml.includes(k));
+const soNoHtml = doHtml.filter((k) => !daLista.includes(k));
+console.log(`   lista: ${daLista.length} jogos · HTML: ${doHtml.length} marcados`);
+if (soNaLista.length || soNoHtml.length) {
+  console.log(`   FALHOU: na lista mas sem marcação: ${soNaLista.join(", ") || "nenhum"}; marcados mas fora da lista: ${soNoHtml.join(", ") || "nenhum"}`);
+  process.exitCode = 1;
+}
+
 for (const [sel, nome] of NA_OFICINA) {
   const v = await visivel(site, sel);
   if (v === null) fail(`${nome}: não encontrei o botão (${sel}) — mudou de nome?`);
