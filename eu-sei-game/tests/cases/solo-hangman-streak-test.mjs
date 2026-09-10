@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
 // O jogo deixou de expor window.__solo (era um gancho de depuracao que saiu).
 // Em vez de o repor so para o teste, resolve-se a Forca como um jogador
@@ -41,7 +42,7 @@ async function solveHangman() {
 }
 
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (err) => errors.push(err.message));

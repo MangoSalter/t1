@@ -13,8 +13,9 @@
 //      nunca mais muda, por isso a ronda dessa pessoa chega na mesma, com a
 //      caneta na mão de quem já não está lá.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

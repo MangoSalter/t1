@@ -2,9 +2,9 @@
 // o interruptor manda mesmo, que a preferencia sobrevive, e que nenhum som
 // tem duracao ou volume capazes de irritar.
 import { chromium } from "playwright";
-import { entrarNoSolo } from "./test-helpers.mjs";
+import { entrarNoSolo, abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

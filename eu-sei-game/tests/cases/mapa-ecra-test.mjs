@@ -4,8 +4,9 @@
 // metade: clicar mesmo no mapa acerta no país certo, escrever o nome pinta-o e
 // tranca-o, e quem se engana percebe porquê.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

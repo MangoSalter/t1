@@ -16,8 +16,9 @@
 // Os tetos são generosos de propósito: não são uma meta, são o ponto onde
 // alguma coisa mudou de grandeza.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const ctx = await browser.newContext({ ...devices["iPhone 13"] });
 const page = await ctx.newPage();
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };

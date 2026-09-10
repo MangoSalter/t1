@@ -5,8 +5,9 @@
 // telefone é onde se perde gente: quem ouve mal tenta duas vezes e desiste.
 // A ligação leva o código no endereço, e a app escreve-o sozinha.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
 const errors = [];
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };

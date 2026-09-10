@@ -2,8 +2,8 @@
 // desligado, e — o mais importante — nenhum evento pode tirar vidas, tempo
 // ou pontos, nem engolir cliques.
 import { chromium } from "playwright";
-import { entrarNoSolo } from "./test-helpers.mjs";
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+import { entrarNoSolo, abrirBrowser } from "./test-helpers.mjs";
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

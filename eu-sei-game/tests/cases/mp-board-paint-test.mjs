@@ -7,8 +7,9 @@
 // é sempre o mesmo: mostrar uma imagem velha. Por isso este teste olha para os
 // PIXÉIS, e não para o que está guardado na sala.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const p = await context.newPage();

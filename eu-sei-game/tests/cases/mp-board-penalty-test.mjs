@@ -8,8 +8,9 @@
 // rondas de que ninguém se lembrava. As duas coisas só se veem a jogar várias
 // palavras seguidas, que é o que este teste faz.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const ana = await context.newPage();

@@ -2,9 +2,9 @@
 // nunca. O guiado é que fala — e tem de continuar a funcionar em máquinas
 // onde não há voz nenhuma instalada, que é o caso desta.
 import { chromium } from "playwright";
-import { entrarNoSolo } from "./test-helpers.mjs";
+import { entrarNoSolo, abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

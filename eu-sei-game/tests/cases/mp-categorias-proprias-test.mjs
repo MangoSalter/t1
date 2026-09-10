@@ -6,8 +6,9 @@
 // teste guarda: escrever uma categoria, vê-la sortear-se numa ronda a sério,
 // e apagá-la sem deixar a sala a sortear um índice sem nome.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const erros = [];
 const falhar = (m) => { console.log(`   FALHOU: ${m}`); process.exitCode = 1; };
 

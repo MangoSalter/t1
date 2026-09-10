@@ -1,9 +1,9 @@
 import { chromium } from "playwright";
-import { backToLetterpick } from "./test-helpers.mjs";
+import { backToLetterpick, abrirBrowser } from "./test-helpers.mjs";
 
 const ALL_MG = ["solo-minigame", "solo-minigame-word", "solo-minigame-bug", "solo-minigame-monkey", "solo-minigame-memory"];
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (err) => errors.push(err.message));

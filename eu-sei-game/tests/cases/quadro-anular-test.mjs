@@ -15,8 +15,9 @@
 // algum dia se passasse a MEXER num ponto já escrito em vez de acrescentar ou
 // apagar — e é isso que estes passos vigiam, com píxeis em vez de teoria.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

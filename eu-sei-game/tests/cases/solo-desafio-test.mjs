@@ -6,8 +6,9 @@
 // só: um resultado que se pode repetir até sair bom não se compara com o de
 // ninguém.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const erros = [];
 const falhar = (m) => { console.log(`   FALHOU: ${m}`); process.exitCode = 1; };
 const ctx = await browser.newContext({ ...devices["iPhone 13"] });

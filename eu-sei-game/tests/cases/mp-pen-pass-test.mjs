@@ -6,8 +6,9 @@
 // pode escrever passou a ser assunto do mp-board-shared-test, que cobre os
 // três casos — livre, Forca com palavra em jogo, e Forca à espera de palavra.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

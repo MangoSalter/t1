@@ -8,8 +8,9 @@
 //    quem não tem vê a versão cinzenta, sem elas;
 //  - pedir a palavra aparece a toda a gente, pela ordem em que foi pedida.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

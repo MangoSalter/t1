@@ -11,8 +11,9 @@
 // um número que alguém tem de mexer de propósito, não uma nota que envelhece
 // sozinha.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const erros = [];
 function check(label, cond, extra = "") {
   if (cond) console.log(`OK: ${label}`);

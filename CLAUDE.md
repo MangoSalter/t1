@@ -486,7 +486,31 @@ three languages:
 
 The remaining count is a ceiling in `linguas-ecra-test`, not a note in this
 file, for the reason the first-load section gives: numbers written down go
-stale, numbers that fail a test do not.
+stale, numbers that fail a test do not. It stood at **141** when the front
+door was done.
+
+### The suite had never said which language it was testing
+
+Translating the lobby turned `lobby-catpicker-test` red on a search for
+"Definições" that found "Match settings". Not a defect — the opposite. With no
+choice stored, `i18n.js` starts in the BROWSER's language, deliberately
+("quem chega de fora e encontra tudo em português fecha a página antes de
+descobrir o seletor"), and Playwright's Chromium says en-US. So every case was
+playing in English and nobody noticed, because until now English and
+Portuguese rendered the same everywhere outside the map.
+
+This file used to claim browser cases set `euSei_lingua=pt`. **Nine of
+seventy-five did.** The other sixty-six depended on an accident that this
+change removes, one screen at a time — the worst possible way to find out.
+
+Fixed once, in `test-helpers.mjs`: `abrirBrowser(chromium)` launches and hands
+back a browser whose `newContext`/`newPage` default to `locale: "pt-PT"`.
+Every case's launch line goes through it now. Two dead ends measured before
+settling there: Chromium's `--lang=pt-PT` does not move `navigator.language`
+(still en-US), and setting `localStorage` after `goto` arrives after the first
+paint. A case that wants another language passes `{ locale: "en-US" }`, or
+stores a choice — `linguas-ecra-test` stores `en`, which beats the browser's
+language exactly as a person's choice should.
 
 ## First load has a budget now, not a note
 The old note here said 868 KB across 23 files. Measured again in September:
@@ -587,7 +611,10 @@ whole lobby), and the arena games differ on purpose — Labirinto and Mini-Golfe
 follow the player with a camera at scale 1, Fuga da Infeção fits the whole map
 and shrinks the pieces, which is what the owner asked for.
 
-Browser cases set `euSei_lingua=pt` before asserting on text, and open
+Browser cases go through `abrirBrowser(chromium)` in `test-helpers.mjs`,
+which pins the context to `pt-PT` (see the language section above for why the
+old sentence here — "browser cases set `euSei_lingua=pt`" — was folklore: nine
+of seventy-five did). They open
 `index.html?oficina=1` when they need a game that is hidden from the public
 site (see `public/js/oficina.js`). Most cases open the plain URL — 48 of them —
 but `oficina-test.mjs` is the only one that CHECKS THE HIDING: that the

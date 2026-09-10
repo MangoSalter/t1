@@ -9,8 +9,9 @@
 // levava pontos, o histórico ficava sem dono, e a volta da caneta não tinha
 // mérito nenhum em que se basear.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const ctx = await browser.newContext();
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 const ana = await ctx.newPage(); const beto = await ctx.newPage();

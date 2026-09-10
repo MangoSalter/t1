@@ -5,8 +5,9 @@
 //  - as equipas com três caixas e gente a sobrar;
 //  - e o que acontece quando alguém SAI a meio.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const ana = await context.newPage();

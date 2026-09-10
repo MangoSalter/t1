@@ -5,8 +5,9 @@
 // a abre, o dia em que o esconder deixasse de funcionar era um dia em que a
 // suite inteira passava e o site mostrava tudo à mesma.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 
 // Os jogos que o utilizador mandou tirar do site. Se um deles voltar a ser

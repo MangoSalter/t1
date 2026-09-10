@@ -3,8 +3,9 @@
 // Responde à pergunta do utilizador: "confirma se foi feito um quadro
 // branco para se poder escrever e os outros verem".
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

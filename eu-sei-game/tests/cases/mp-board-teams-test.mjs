@@ -5,8 +5,9 @@
 //  - quem está dentro renomeia a equipa; quem está de fora, não;
 //  - reduzir o número de equipas não deixa ninguém numa equipa fantasma.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

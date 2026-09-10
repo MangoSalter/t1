@@ -3,8 +3,9 @@
 // tempo, o quadro de quem tem a caneta tem de continuar a chegar por baixo em
 // tempo real — as duas coisas ao mesmo tempo é que fazem isto valer a pena.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

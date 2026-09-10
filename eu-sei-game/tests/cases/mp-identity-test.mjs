@@ -12,8 +12,9 @@
 // browser mostra: o sessionStorage a sobreviver ao F5, e os separadores a
 // falarem uns com os outros pelo BroadcastChannel.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const fail = (msg) => { console.log(`   FALHOU: ${msg}`); process.exitCode = 1; };
 const URL = "http://localhost:8936/index.html";

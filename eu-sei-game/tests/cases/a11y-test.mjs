@@ -2,8 +2,9 @@
 // preferencia de movimento reduzido tem de valer para TODAS as animacoes, nao
 // so para algumas.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const errors = [];
 
 console.log("1) Navegar por teclado mostra onde esta o foco...");

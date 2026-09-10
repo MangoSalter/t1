@@ -8,8 +8,9 @@
 // sobreposição. E como o runner corre os casos em paralelo, partir em dois
 // também encurta o relógio.
 import { chromium, devices } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const errors = [];
 
 // Corre DENTRO da página, e serve os dois passos que se seguem. Recebe o que

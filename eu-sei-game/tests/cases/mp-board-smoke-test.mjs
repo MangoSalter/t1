@@ -8,8 +8,9 @@
 // que impede o ecrã de abrir tem de falhar no primeiro segundo, não no
 // vigésimo passo de outro caso.
 import { chromium } from "playwright";
+import { abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const context = await browser.newContext();
 const errors = [];
 const host = await context.newPage();

@@ -7,9 +7,9 @@
 //  - nenhuma ferramenta futura pode ser adicionada sem cor, espessura e
 //    modo de composição, senão rebenta no redesenho.
 import { chromium, devices } from "playwright";
-import { entrarNoSolo } from "./test-helpers.mjs";
+import { entrarNoSolo, abrirBrowser } from "./test-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: process.env.EU_SEI_CHROMIUM || undefined });
+const browser = await abrirBrowser(chromium);
 const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
