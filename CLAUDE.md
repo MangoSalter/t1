@@ -283,6 +283,26 @@ when you measure a rule, measure it with the code that implements the rule.
 A hand-rolled comparison invented a crisis and hid a real (smaller) defect
 behind it.
 
+## A stopwatch inside a parallel run measures the machine, not the code
+
+`mapa-desempenho-test` went red in a full run and passed on its own with
+1.4ms against an 8ms ceiling — a 5.7x margin. Nothing was slow; four cases
+were sharing the processor. It measured ONE pass and compared it to a
+ceiling.
+
+The honest statistic is the MINIMUM, not the average: the question is "is
+this drawing algorithm cheap", and contention can only ever make a
+measurement slower, never faster. Best of five now. Checked both ways: the
+flake is gone, and a deliberate 400k-iteration stall inside `desenhar` still
+takes it to 23.7ms and red.
+
+This is the same warning `carga-inicial-test` carries in its own comment —
+"this container's seconds are not a phone's, and four jobs in parallel make
+them noise", which is why that case counts bytes and never seconds. The map
+case was measuring milliseconds under exactly those four jobs. If you ever
+add a timing check here, take the best of several, and prefer counting
+something that has no clock in it at all.
+
 ## A test that reaches its subject by chance fails by chance
 `solo-monkey-test` played classic rounds until the random bonus draw happened
 to land on Cada Macaco, with a ceiling of sixteen tries. One full run in this

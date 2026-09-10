@@ -30,11 +30,25 @@ console.log("1) O mapa desenha-se dentro do orçamento de uma imagem...");
 const medidas = await page.evaluate(async () => {
   const m = await import("./js/mapa.js");
   const ctx = document.getElementById("mapa-canvas").getContext("2d");
+  // O MELHOR DE CINCO, e não uma medição só.
+  //
+  // A pergunta é "o algoritmo de desenho é barato?", e a contenção da
+  // máquina só pode tornar uma medição mais LENTA, nunca mais rápida — por
+  // isso o mínimo é a estatística honesta, e a média é a errada. Isto foi
+  // preciso: o caso passa sozinho com 1,4ms contra um teto de 8, e mesmo
+  // assim foi a vermelho numa corrida completa, com quatro casos em
+  // paralelo a disputar o processador. Um teste que falha umas vezes em cem
+  // ensina as pessoas a ignorar o vermelho, que é a pior coisa que um teste
+  // pode fazer.
   const medir = () => {
     m.desenhar(ctx); // uma vez fora da conta, para não medir o aquecimento
-    const t = performance.now();
-    for (let i = 0; i < 12; i += 1) m.desenhar(ctx);
-    return (performance.now() - t) / 12;
+    let melhor = Infinity;
+    for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+      const t = performance.now();
+      for (let i = 0; i < 12; i += 1) m.desenhar(ctx);
+      melhor = Math.min(melhor, (performance.now() - t) / 12);
+    }
+    return melhor;
   };
   const vazio = medir();
   // Metade do mundo conquistado: é o pior caso realista, com bandeira em cada
