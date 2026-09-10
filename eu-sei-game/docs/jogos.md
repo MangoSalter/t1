@@ -1,5 +1,21 @@
 # Os jogos que existem — o que fica, o que se corta
 
+> **O que está à tua espera** (o resto do ficheiro explica cada um):
+>
+> | | Decisão | Onde |
+> |---|---|---|
+> | 1 | **Quais dos oito jogos da oficina voltam ao site.** É a maior: melhorar os outros pode ser trabalho deitado fora | fim |
+> | 2 | **Quem se desliga continua a ganhar pontos?** Gosto, não código | "Duas perguntas pequenas" |
+> | 3 | **A maratona começa com dois jogos ticados ou com quatro?** | "Duas perguntas pequenas" |
+> | 4 | **Salas de 10 ou mais?** O StopotS deixa 50 | "O que os jogos do mesmo género têm" |
+> | 5 | **As salas nunca são apagadas.** 358 bytes vazia, 37 KB com desenho; não é urgente, mas nunca encolhe | idem |
+> | 6 | **O preenchimento dos países no mapa** — 6,2 de ΔE entre os mais parecidos | idem |
+> | 7 | **Em que língua se RESPONDE?** As 40 categorias são conteúdo, não decoração | "As três línguas" |
+> | 8 | **As cores que dizem quem é quem** — já decidiste uma vez para as canetas; deixo duas saídas novas | "As cores que dizem quem é quem" |
+>
+> Nada disto bloqueia nada: tudo o que não dependia de ti está feito e no ar.
+
+
 Pediste a lista para cortar o que não vale a pena, melhorar o resto, e só
 depois voltar a expor. Aqui está, com o que eu **sei** e não com o que acho.
 
@@ -388,46 +404,51 @@ Três saídas, e a escolha é tua:
 A sozinho nada disto tem problema — se disseres só "a sozinho traduz-se",
 faço isso e a sala fica como está.
 
-# As cores que dizem quem é quem (uma pergunta pequena)
+# As cores que dizem quem é quem
 
-No quadro de sala cada pessoa escolhe uma cor, e é só por ela que se sabe de
-quem foi a letra errada — o nome está num `title`, que num telemóvel ninguém
-vê, porque não há rato para lá pousar. A cor é a informação toda. Medi as
-dez.
+Isto já tinha sido medido uma vez, para a paleta das CANETAS, e ficou
+decidido: "fica como estava", porque as dez cores seguras que se encontram
+para uma folha branca são rosas-choque e quase-pretos que não são deste
+jogo. Não venho reabrir isso. Vim medir a OUTRA paleta — as dez cores da
+IDENTIDADE de cada jogador no quadro de sala, que partilham nove das dez com
+aquela — porque fazem um trabalho diferente e mais exigente: são a única
+coisa que diz de quem foi a letra errada. O nome está num `title`, e num
+telemóvel não há onde pousar o rato.
 
-**Uma coisa estava partida e está arranjada.** O amarelo da casa dava 2,1:1
-de contraste sobre a folha, e a regra para um objeto gráfico é 3:1. Como
+**O que era novo e está arranjado.** O amarelo da casa dava **2,1:1** de
+contraste sobre a folha, e a regra para um objeto gráfico é 3:1. Como
 decoração passa; como letra fina não se lê. Escurecê-lo à primeira resolveu
 o contraste e partiu outra coisa — ficou indistinguível do vermelho-tijolo
 para quem tem protanopia —, e foi o teste novo que recusou. O ouro que lá
-está agora (`#9b8c3e`) cumpre as duas.
+está (`#9b8c3e`) cumpre as duas coisas. A paleta das canetas não mexeu; esta
+é a única diferença entre as duas.
 
-**A outra é tua.** Cerca de 6% dos homens não separa vermelho de verde. Medi
-as dez cores em visão normal e nas três dicromacias, e o pior par fica a
-**7,3 pontos de distância** — pouco: duas pessoas na mesma sala podem não se
-distinguir uma da outra. Dá para chegar a **24** trocando a paleta toda, e eu
-não o fiz por uma razão: as cores que o conseguem são mais claras e mais
-saturadas do que estas, e mudam a cara do quadro. A cara do quadro é tua.
+**O que era novo e não arranjei.** As dez cores anunciavam "Cor #b24b38" a
+quem usa leitor de ecrã — o hexadecimal, lido em voz alta. Só a paleta do
+avatar tinha nomes. Agora há uma lista só, e as três paletas dizem
+"Vermelho-tijolo" nas três línguas.
 
-Três saídas:
+**O que continua tal e qual, e é a tua decisão de sempre.** O pior par das
+dez fica a **7,3** de distância na pior das visões. É o mesmo número que já
+tinhas visto para as canetas, pela mesma razão. Se um dia quiseres mexer,
+há duas saídas que não te obrigam a mudar a cara do quadro:
 
-1. **Fica como está.** É jogável; só é pior para quem não separa as cores.
-2. **Troco a paleta** pela que separa melhor. O quadro fica mais colorido e
-   menos terroso — posso mostrar-te antes de trocar.
-3. **Deixo as cores e ponho a inicial** de quem escreveu ao lado da letra.
-   Resolve para toda a gente sem mexer na paleta, mas acrescenta texto a um
-   ecrã que tu já afinaste.
+- **a inicial de quem escreveu ao lado da letra** — resolve para toda a
+  gente, incluindo quem está num telemóvel e não pode pousar o rato em lado
+  nenhum, e não mexe numa cor sequer;
+- **trocar só os dois ou três pares que colidem**, em vez da paleta toda.
 
-Enquanto não disseres, o `test-cores` garante que ninguém piora o número sem
-dar por isso.
+Enquanto não disseres nada, o `test-cores` garante que ninguém piora o
+número sem dar por isso — falha se alguma cor descer dos 3:1, e segura uma
+catraca nos 7,3.
 
 (À parte, e não mexi: no quadro de JOGAR SOZINHO há fundos escuros, e o
-castanho-escuro sobre o quadro de giz dá 1,0:1 — tinta invisível. Quem
-escolhe é quem está a olhar, e vê logo, por isso é menos grave do que
-parece; mas se quiseres, a tinta pode aclarar sozinha quando o papel é
-escuro, que é o que a tinta por omissão já faz.)
+castanho-escuro sobre o quadro de giz dá **1,0:1** — tinta invisível. Quem
+escolhe é quem está a olhar e vê logo, por isso é menos grave do que parece;
+se quiseres, a tinta pode aclarar sozinha quando o papel é escuro, que é o
+que a tinta por omissão já faz.)
 
-# A decisão que falta (a única)
+# A decisão maior: os jogos da oficina
 
 Os oito jogos da oficina estão à espera de uma coisa que não é trabalho meu:
 **quais é que queres mesmo de volta.**
