@@ -64,8 +64,24 @@ async function varrer(lingua) {
   await page.addInitScript((l) => { localStorage.setItem("euSei_lingua", l); }, lingua);
   await page.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
   const out = await page.evaluate(() => {
+    // AS SOBREPOSIÇÕES TAMBÉM. Vivem FORA dos [data-screen] e nascem
+    // "hidden", por isso um varrimento de ecrãs não lhes toca — foi o que o
+    // a11y-varrimento aprendeu à sua custa, e eu repeti o erro: o "zero" das
+    // traduções era zero em 41 ecrãs e nenhuma das dezasseis sobreposições.
+    // Abre-se uma de cada vez, mede-se, e fecha-se outra vez.
     const proprio = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim();
     const res = {};
+    document.querySelectorAll(".pause-overlay, .minigame-end-overlay").forEach((ov) => {
+      const escondida = ov.classList.contains("hidden");
+      ov.classList.remove("hidden");
+      const lista = [];
+      ov.querySelectorAll("*").forEach((el) => {
+        if (el.offsetParent === null) return;
+        lista.push(proprio(el).replace(/\s+/g, " "));
+      });
+      if (escondida) ov.classList.add("hidden");
+      res[`sobreposição:${ov.id || "(sem id)"}`] = lista;
+    });
     document.querySelectorAll("[data-screen]").forEach((sec) => {
       const antes = sec.classList.contains("active");
       sec.classList.add("active");
