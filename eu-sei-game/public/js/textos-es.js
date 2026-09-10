@@ -187,6 +187,7 @@ export default {
   votoGloria: "👑 Gloria",
   votoEngracada: "😂 Divertida",
   semResposta: "(sin respuesta)",
+  votacaoAsTuasRespostas: "Tus respuestas",
   rondaPontuacao: "Puntuación de la ronda",
   rondaProxima: "Siguiente ronda",
   rondaQuadroBonus: "Pizarra (bonus)",

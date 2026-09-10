@@ -202,6 +202,7 @@ export default {
   votoGloria: "👑 Glória",
   votoEngracada: "😂 Engraçada",
   semResposta: "(sem resposta)",
+  votacaoAsTuasRespostas: "As tuas respostas",
   rondaPontuacao: "Pontuação da ronda",
   rondaProxima: "Próxima ronda",
   rondaQuadroBonus: "Quadro branco (bónus)",

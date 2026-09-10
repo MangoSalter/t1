@@ -16,7 +16,7 @@ import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig,
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
-  confirmLetter, submitAnswer, finishCategoriesRound, startVoting, castVote,
+  confirmLetter, letraMaisVotada, submitAnswer, finishCategoriesRound, startVoting, castVote,
   finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
@@ -862,8 +862,10 @@ function renderBall(room) {
 
 const letterEls = {
   info: document.getElementById("letter-info"),
+  timer: document.getElementById("letter-timer"),
   buttons: document.getElementById("letter-buttons"),
 };
+let letterRAF = null;
 
 function renderLetterPick(room) {
   const winner = room.players?.[room.ball?.winnerId];
@@ -891,6 +893,22 @@ function renderLetterPick(room) {
     });
     letterEls.buttons.appendChild(btn);
   });
+
+  // Um ecrã que diz "a Ana está a escolher..." e mais nada não distingue
+  // "espera dois segundos" de "isto encravou". O relógio é o mesmo das
+  // categorias e da votação, e é o que torna o prazo visível em vez de
+  // surpreendente.
+  cancelAnimationFrame(letterRAF);
+  function tick() {
+    const r = state.room;
+    if (!r || r.state !== "letterPick") { letterEls.timer.textContent = ""; return; }
+    const fim = r.letterPick?.endAt || 0;
+    letterEls.timer.textContent = r.letterPick?.chosen || !fim
+      ? ""
+      : formatSeconds(Math.max(0, Math.ceil((fim - serverNow()) / 1000)));
+    letterRAF = requestAnimationFrame(tick);
+  }
+  letterRAF = requestAnimationFrame(tick);
 }
 
 // ---------- CATEGORIES ROUND ----------
@@ -993,7 +1011,7 @@ function renderVoting(room) {
   if (!cr) return;
   voteEls.endBtn.classList.toggle("hidden", !isHost(room));
 
-  voteEls.myAnswers.innerHTML = "<h3>As tuas respostas</h3>";
+  voteEls.myAnswers.innerHTML = `<h3>${escapeHtml(t("votacaoAsTuasRespostas"))}</h3>`;
   cr.categoryIndexes.forEach((ci) => {
     const text = room.answers?.[state.uid]?.[catKey(ci)] || "";
     const p = document.createElement("p");
@@ -3050,9 +3068,18 @@ async function runHostLoopTick(room) {
       }
     } else if (room.state === "letterPick") {
       const lp = room.letterPick;
-      const winnerConnected = room.players?.[room.ball?.winnerId]?.connected;
-      if (lp && !lp.chosen && !winnerConnected && now - (lp.startedAt || 0) > 8000) {
-        await confirmLetter(state.code, room, lp.candidates[0]);
+      if (lp && !lp.chosen) {
+        // Duas saídas, e a segunda faltava: quem ganhou a bola pode
+        // DESLIGAR-SE (8s chegam, ninguém está à espera dela) ou pode
+        // simplesmente não carregar em nada, e aí a sala ficava presa. O
+        // prazo trata do segundo caso; a letra que sai é a mais votada pelos
+        // outros, que até aqui votavam para nada.
+        const winnerConnected = room.players?.[room.ball?.winnerId]?.connected;
+        const desligou = !winnerConnected && now - (lp.startedAt || 0) > 8000;
+        const prazoAcabou = !!lp.endAt && now >= lp.endAt;
+        if (desligou || prazoAcabou) {
+          await confirmLetter(state.code, room, letraMaisVotada(lp));
+        }
       }
     } else if (room.state === "mapa") {
       // A Dona Manga rouba um país de vez em quando. É a única coisa no mapa

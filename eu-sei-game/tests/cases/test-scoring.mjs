@@ -9,7 +9,7 @@
 // Agora importa a função verdadeira. É possível porque os casos puros correm
 // dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
 // test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
-import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal } from "./js/room.js";
+import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada } from "./js/room.js";
 
 function catKey(i) { return "c" + i; }
 
@@ -171,6 +171,47 @@ function assertEqual(actual, expected, label) {
 
   // Uma sala vazia não pode rebentar o ecrã final.
   assertEqual(classificacaoFinal({}).length, 0, "uma sala sem jogadores dá uma lista vazia");
+}
+
+// A LETRA QUE SAI QUANDO NINGUÉM ESCOLHE.
+//
+// Quem ganha a bola escolhe a letra. Se pousar o telemóvel, a sala esperava
+// para sempre — a escolha da letra era a única fase sem prazo. Agora tem, e
+// quando o prazo acaba a letra é a mais votada pelos outros, que até aqui
+// votavam para nada. A regra tem de ser DETERMINÍSTICA: durante uma troca de
+// anfitrião pode haver dois a fechar a fase, e duas letras diferentes eram
+// duas rondas diferentes na mesma sala.
+{
+  const lp = (candidates, votes) => ({ candidates, votes });
+
+  assertEqual(
+    letraMaisVotada(lp(["M", "P", "T"], { a: "P", b: "P", c: "T" })),
+    "P",
+    "sai a letra mais votada",
+  );
+
+  // Sem votos nenhuns não há empate a resolver: sai a primeira, que é o que
+  // a regra antiga fazia sempre.
+  assertEqual(letraMaisVotada(lp(["M", "P", "T"], {})), "M", "sem votos sai a primeira candidata");
+  assertEqual(letraMaisVotada(lp(["M", "P", "T"], undefined)), "M", "sem sequer o objeto dos votos, sai a primeira");
+
+  // Empate: a ordem dos candidatos decide, e é a mesma em todos os browsers.
+  assertEqual(
+    letraMaisVotada(lp(["M", "P", "T"], { a: "T", b: "P" })),
+    "P",
+    "no empate ganha a que vem antes na lista de candidatas",
+  );
+
+  // Um voto numa letra que já não é candidata (a fase recomeçou por baixo)
+  // não pode eleger nada que não esteja no ecrã.
+  assertEqual(
+    letraMaisVotada(lp(["M", "P"], { a: "Z", b: "Z", c: "P" })),
+    "P",
+    "um voto fora das candidatas não elege ninguém",
+  );
+
+  assertEqual(letraMaisVotada({ candidates: [] }), null, "sem candidatas não há letra");
+  assertEqual(letraMaisVotada(null), null, "sem fase de letra não há letra");
 }
 
 // O resumo fica no FIM do ficheiro. Ao acrescentar o bloco dos empates

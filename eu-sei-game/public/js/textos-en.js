@@ -187,6 +187,7 @@ export default {
   votoGloria: "👑 Glory",
   votoEngracada: "😂 Funny",
   semResposta: "(no answer)",
+  votacaoAsTuasRespostas: "Your answers",
   rondaPontuacao: "Round score",
   rondaProxima: "Next round",
   rondaQuadroBonus: "Whiteboard (bonus)",

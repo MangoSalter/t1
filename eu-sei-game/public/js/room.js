@@ -7,7 +7,7 @@ import {
 } from "./firebase-init.js";
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey,
-  BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS,
+  BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS, LETTER_PICK_TIME_SECONDS,
   pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, BOARD_CHAOS, BOARD_TOOL_KEYS,
   pickLandmark, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
 
@@ -430,8 +430,34 @@ export async function startLetterPick(code, room) {
   const candidates = pickLetters(3, used, !!room.config?.excludeHardLetters);
   await update(roomRef(code), {
     state: "letterPick",
-    letterPick: { candidates, votes: {}, chosen: null, startedAt: serverNow() },
+    letterPick: {
+      candidates,
+      votes: {},
+      chosen: null,
+      startedAt: serverNow(),
+      endAt: serverNow() + LETTER_PICK_TIME_SECONDS * 1000,
+    },
   });
+}
+
+// Que letra sai quando o prazo acaba (ou quando quem ganhou a bola se
+// desligou). Os votos dos outros estavam ali ao lado a não decidir NADA — só
+// se contavam no ecrã, e a letra era sempre a que o vencedor carregasse. Este
+// é o único momento em que ele não carrega em nada, por isso é o momento em
+// que os votos passam a valer. Empate desempata pela ordem dos candidatos,
+// que é a mesma em todos os browsers: dois anfitriões (durante uma troca)
+// escreveriam a mesma letra.
+export function letraMaisVotada(letterPick) {
+  const candidatos = letterPick?.candidates || [];
+  if (candidatos.length === 0) return null;
+  const votos = Object.values(letterPick?.votes || {});
+  let melhor = candidatos[0];
+  let maisVotos = -1;
+  candidatos.forEach((letra) => {
+    const n = votos.filter((v) => v === letra).length;
+    if (n > maisVotos) { maisVotos = n; melhor = letra; }
+  });
+  return melhor;
 }
 
 export async function voteLetter(code, uid, letter) {

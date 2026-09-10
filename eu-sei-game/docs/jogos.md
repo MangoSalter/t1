@@ -192,6 +192,7 @@ sai sozinha se disseres.
 | **As categorias da casa**: o anfitrião escreve até oito, toda a gente as vê, sorteiam-se como as outras | Eu sei clássico, na sala | O pedido que se repete nas críticas das aplicações de "Stop": deixam escolher da lista, não deixam acrescentar |
 | **Porquê estes pontos**: cada resposta com a razão ao lado ("só tu · 10", "não começa por P · 0") | Fim de ronda, na sala | "Pontuação pouco clara, dá para fazer batota" é a queixa nº1 do StopotS |
 | **A regra da ronda**, com a letra do dia, e o resumo do jogo no ecrã da bola | Eu sei clássico | "Fiquei à espera sem perceber o que fazer" |
+| **A escolha da letra tem prazo** (25s, com relógio à vista), e quando ele acaba sai a letra mais votada pelos outros | Eu sei clássico, na sala | Era a única fase da partida sem prazo: quem ganhava a bola e pousava o telemóvel deixava a sala à espera para sempre. E os votos dos outros, que se contavam no ecrã, não decidiam nada — agora decidem exatamente neste momento |
 | **Cor, espessura e anular** para quem desenha | Desenha e Adivinha | O quadro ao lado tem 68 cores; aqui havia uma caneta só |
 | **O álbum da noite**: os desenhos da partida no ecrã final, com um toque para guardar | Fim de partida | É o que faz as pessoas mandarem print aos amigos (o álbum do Gartic Phone) |
 | **O desafio do dia**: uma ronda por dia, igual para toda a gente, com dias seguidos e texto para colar | Sozinho, e à entrada | "Não encontro ninguém para jogar" — um jogo de festa depende de haver mais gente acordada |

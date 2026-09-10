@@ -201,6 +201,45 @@ await convidado.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 
 const naSala = await fugas(anfitriao, "a sala de espera com dois");
 check("a sala com dois jogadores não deixa português", naSala.length === 0, naSala.join(", "));
 
+// AS QUATRO TELAS DO JOGO CLÁSSICO NA SALA. Nenhum varrimento chegava aqui:
+// o de ecrãs só vê o que está escrito no index.html, e este caso, até agora,
+// entrava no quadro e ficava por lá. Foi assim que "As tuas respostas" —
+// português fixo, dentro do renderVoting — sobreviveu a todas as passagens.
+// São forçadas pelo stub porque jogar a partida inteira aqui era outro caso.
+{
+  const codigoSala = codigo;
+  const anfitriaoUid = await anfitriao.evaluate((c) => window.__testDb.get(`rooms/${c}`).hostId, codigoSala);
+  const telas = [
+    ["a bola", "ball", { state: "ball", ball: { appearAt: Date.now() - 1000, winnerId: null } }],
+    ["a escolha da letra", "letterpick", {
+      state: "letterPick",
+      ball: { appearAt: Date.now() - 5000, winnerId: anfitriaoUid },
+      letterPick: { candidates: ["M", "P", "T"], votes: {}, chosen: null, startedAt: Date.now(), endAt: Date.now() + 600000 },
+    }],
+    ["a folha de respostas", "categories", {
+      state: "categories",
+      categoriesRound: { letter: "P", categoryIndexes: [0, 1], endAt: Date.now() + 600000, finishedBy: null },
+    }],
+    ["a votação", "voting", {
+      state: "voting",
+      answers: { [anfitriaoUid]: { c0: "Pedro", c1: "Porto" } },
+      voting: { endAt: Date.now() + 600000 },
+    }],
+  ];
+  for (const [nome, ecra, patch] of telas) {
+    await anfitriao.evaluate(({ c, patch }) => window.__testDb.update(`rooms/${c}`, patch), { c: codigoSala, patch });
+    await anfitriao.waitForSelector(`[data-screen="${ecra}"].active`, { timeout: 5000 });
+    await anfitriao.waitForTimeout(200);
+    const achadas = await fugas(anfitriao, nome);
+    check(`${nome} não deixa português`, achadas.length === 0, achadas.join(", "));
+  }
+  // Devolver a sala ao lobby, que é onde o resto do caso a espera.
+  await anfitriao.evaluate((c) => window.__testDb.update(`rooms/${c}`, {
+    state: "lobby", ball: null, letterPick: null, categoriesRound: null, answers: null, voting: null,
+  }), codigoSala);
+  await anfitriao.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+}
+
 await anfitriao.click('[data-mp-game="hangman"]');
 await anfitriao.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });
 await convidado.waitForSelector('[data-screen="hangman"].active', { timeout: 10000 });

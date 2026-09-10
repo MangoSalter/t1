@@ -34,6 +34,12 @@ export const CONFIG_LIMITS = {
 
 export const MAX_PLAYERS = 10;
 export const VOTING_TIME_SECONDS = 60; // não especificado na spec; limite razoável para a votação não bloquear o jogo.
+// A escolha da letra era a ÚNICA fase da partida sem prazo. Se quem ganhou a
+// bola pousasse o telemóvel, a sala ficava à espera para sempre — e os outros
+// só liam "a escolher a letra...", sem nada que dissesse se ainda ia acontecer
+// alguma coisa. As categorias e a votação já tinham endAt e o anfitrião fecha-
+// as; esta faltava.
+export const LETTER_PICK_TIME_SECONDS = 25;
 export const BALL_MIN_DELAY_MS = 2000;
 export const BALL_MAX_DELAY_MS = 4000;
 

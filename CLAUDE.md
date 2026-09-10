@@ -252,6 +252,24 @@ shuffles only to hand out spawn points (no role to miss), and everything else
 that iterates all players is either scoring — which lands squarely in the
 survival-scoring decision that is the owner's — or harmless.
 
+And a fifth, in the same `switch` in `runHostLoopTick` — this time two BRANCHES
+apart rather than two lines. `categories` closes when `now >= cr.endAt`;
+`voting` closes when `now >= room.voting.endAt`; `letterPick`, sitting right
+above them, had no deadline at all. Its only escape was for the ball winner to
+DISCONNECT (8s), so someone who simply put their phone down — the ordinary
+case, not the edge one — left the whole room reading "Beto is picking the
+letter…" for ever, with nothing on screen to say whether anything was still
+going to happen. It has `endAt` now, a visible countdown like its two
+neighbours, and the letter that comes out is the most-voted one: the other
+players' votes were displayed on those buttons and decided **nothing**, and
+this is the one moment where the winner isn't choosing, so it is the one
+moment they can. Deterministic on purpose (ties fall back to candidate order),
+because during a host handover two clients may close the phase and two
+different letters are two different rounds in one room.
+
+Worth generalising: **a phase that waits on ONE person needs a deadline, and
+its neighbours will already have one.** Grep the state machine, not the file.
+
 ## Measuring with your own comparison instead of the real one
 The game claims PT/EN/ES, so I checked what the map does with Spanish. My
 first pass compared strings by hand and reported **11 of 18 country names
@@ -691,6 +709,15 @@ The same case then opens a room with TWO clients and enters the shared
 whiteboard, reading the host's screen and the guest's — different text, both
 Portuguese. Nothing else could have reached it: a one-player sweep never sees
 a word of what the room games say.
+
+It entered the room and went straight to the whiteboard, though, so the
+CLASSIC game's four room screens — the ball, the letter pick, the answer
+sheet, the vote — were never read in any language. `renderVoting` had
+`<h3>As tuas respostas</h3>` hard-coded in it the whole time, on the screen
+where everyone in the room is looking at once. The screen sweep could never
+see it (it is built in JavaScript) and this one never went there. It walks
+all four now, forced through the stub rather than played out, and the
+falsification is putting the Portuguese back: `a votação: As tuas respostas`.
 
 Two exclusions the word list needs, and both are the kind of false positive
 that would train someone to ignore red:
