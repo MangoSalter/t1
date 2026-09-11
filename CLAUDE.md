@@ -311,6 +311,18 @@ button with no deadline, and that is left alone on purpose: the host is
 pacing a screen everybody is reading, and `maybeReclaimHost` covers the host
 actually leaving.
 
+Seventh instance, and this one had the rule written in a COMMENT and not in
+the code: `nextRoundOrFinal` decides whether the match ends into a bonus
+game with `Object.keys(room.players).length >= 3`, under a comment saying
+the bonus games "precisam de pelo menos 1 autor + 2 jogadores a jogar" —
+people PLAYING, which is not the same set. Five signed up and one still
+awake ended the match by opening a team game for one person. `renderRoundScore`
+had its own copy of the same wrong count, so the button promised it too.
+`ligadosNaSala` and `MINIMO_PARA_BONUS` are shared by both now. **A comment
+that states the rule correctly while the line under it states it wrongly is
+the easiest of these to miss**, because reading the comment feels like
+reading the code.
+
 The other half of the same idea, found while fixing it: **a deadline nobody
 can see arrive is barely better than no deadline.** All three timed room
 phases drew a bare number that ran to zero and swapped the screen mid-word.

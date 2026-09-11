@@ -17,7 +17,7 @@ import {
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound, startVoting, castVote,
-  finishVoting, nextRoundOrFinal, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
+  finishVoting, nextRoundOrFinal, ligadosNaSala, MINIMO_PARA_BONUS, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho,
   candidatosAVencedorDoDesenho, advanceDrawRound,
   DRAW_WINNER_POINTS, DRAW_DRAWER_BONUS, submitMapTriviaAnswer, resolveMapTriviaRound, advanceMapTriviaRoundOrFinish,
@@ -920,6 +920,7 @@ function renderLetterPick(room) {
 const catEls = {
   letter: document.getElementById("cat-letter"),
   timer: document.getElementById("cat-timer"),
+  ronda: document.getElementById("cat-round"),
   list: document.getElementById("cat-list"),
   regras: document.getElementById("cat-regras"),
   finishBtn: document.getElementById("cat-finish-btn"),
@@ -958,6 +959,14 @@ function renderCategories(room) {
   const cr = room.categoriesRound;
   if (!cr) return;
   catEls.letter.textContent = cr.letter;
+  // Em que ronda vamos. Estava no documento da sala desde sempre e não
+  // aparecia em lado nenhum: quem joga uma partida de cinco rondas não tinha
+  // como saber se estava na primeira ou na quarta. O Desenha e Adivinha diz
+  // "Ronda 1/3" há muito; o jogo que dá o nome à app não dizia nada.
+  if (catEls.ronda) {
+    catEls.ronda.textContent = t("rondaDeTotal", room.round || 1,
+      room.config?.numRounds || DEFAULT_CONFIG.numRounds);
+  }
   // Com a letra lá dentro, em vez de uma regra genérica: é a letra desta
   // ronda que se está a esquecer quando se escreve depressa.
   if (catEls.regras) {
@@ -1113,6 +1122,7 @@ function voteToggleBtn(label, votesForAnswer, targetUid, ci, kind) {
 
 const roundScoreEls = {
   table: document.getElementById("round-score-table"),
+  title: document.getElementById("round-score-title"),
   nextBtn: document.getElementById("round-next-btn"),
 };
 
@@ -1195,10 +1205,15 @@ function renderRoundScore(room) {
   const amHost = isHost(room);
   roundScoreEls.nextBtn.classList.toggle("hidden", !amHost);
   const numRounds = room.config?.numRounds || DEFAULT_CONFIG.numRounds;
+  if (roundScoreEls.title) {
+    roundScoreEls.title.textContent = t("rondaPontuacaoDe", room.round || 1, numRounds);
+  }
   const isLastRound = room.round >= numRounds;
-  const playerCount = Object.keys(room.players || {}).length;
+  // A mesma conta que o nextRoundOrFinal faz (ligadosNaSala): o botão tem de
+  // dizer o que vai mesmo acontecer. Contava TODOS os inscritos, por isso
+  // prometia "quadro bónus" a uma sala que já só tinha uma pessoa acordada.
   roundScoreEls.nextBtn.textContent = isLastRound
-    ? (playerCount >= 3 ? t("rondaQuadroBonus") : t("rondaVerFinais"))
+    ? (ligadosNaSala(room) >= MINIMO_PARA_BONUS ? t("rondaQuadroBonus") : t("rondaVerFinais"))
     : t("rondaProxima");
 }
 

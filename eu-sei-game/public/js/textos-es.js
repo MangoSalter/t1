@@ -191,6 +191,8 @@ export default {
   rondaProgresso: (nome, feitas, total) => `${nome} ha escrito ${feitas} de ${total}`,
   rondaPontuacao: "Puntuación de la ronda",
   rondaProxima: "Siguiente ronda",
+  rondaDeTotal: (n, total) => `Ronda ${n} de ${total}`,
+  rondaPontuacaoDe: (n, total) => `Puntuación de la ronda ${n} de ${total}`,
   rondaQuadroBonus: "Pizarra (bonus)",
   rondaVerFinais: "Ver los resultados finales",
   porqueEstesPontos: "Por qué estos puntos",

@@ -133,6 +133,33 @@ if (medidas.tira.largura > medidas.aparelho) { console.log("   FALHOU: a tira é
 if (!medidas.depoisDaLista) { console.log("   FALHOU: a tira está acima da folha e empurra as respostas"); process.exitCode = 1; }
 if (medidas.botao.altura < 44) { console.log(`   FALHOU: o "Acabei!" ficou com ${medidas.botao.altura}px`); process.exitCode = 1; }
 
+console.log("5b) E a folha tem de dizer em que ronda vamos...");
+// A partida clássica era a única do jogo que nunca dizia isto: o número
+// estava no documento da sala desde sempre e só servia para escolher o texto
+// de um botão no fim. Cinco rondas e nenhuma maneira de saber se se está na
+// primeira ou na quarta.
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { round: 3, config: { ...window.__testDb.get(`rooms/${c}`).config, numRounds: 5 } }), code);
+await page.waitForFunction(() => /\d/.test(document.getElementById("cat-round")?.textContent || ""), null, { timeout: 5000 });
+const contador = await page.evaluate(() => {
+  const el = document.getElementById("cat-round");
+  const b = el.getBoundingClientRect();
+  return { texto: el.textContent.trim(), largura: Math.round(b.width), altura: Math.round(b.height) };
+});
+console.log(`   diz "${contador.texto}" (${contador.largura}x${contador.altura})`);
+if (!/3/.test(contador.texto) || !/5/.test(contador.texto)) {
+  console.log("   FALHOU: o contador não diz a ronda e o total"); process.exitCode = 1;
+}
+// O cabeçalho passou a ter três coisas; num telemóvel tem de enrolar em vez
+// de transbordar (ver a regra do CLAUDE.md sobre medir contra o APARELHO).
+const cabecalho = await page.evaluate((largura) => {
+  const h = document.querySelector('[data-screen="categories"] .round-header');
+  return { largura: Math.round(h.getBoundingClientRect().width), scroll: h.scrollWidth, aparelho: largura };
+}, devices["iPhone 13"].viewport.width);
+console.log(`   cabeçalho ${cabecalho.largura}px (scrollWidth ${cabecalho.scroll}) num aparelho de ${cabecalho.aparelho}px`);
+if (cabecalho.scroll > cabecalho.aparelho) {
+  console.log("   FALHOU: o cabeçalho da ronda transborda o telemóvel"); process.exitCode = 1;
+}
+
 console.log("6) Sozinho na sala não há tira: uma ficha só diz o que a folha já diz...");
 await page.evaluate((c) => {
   const fora = { p2: null, p3: null, p4: null };

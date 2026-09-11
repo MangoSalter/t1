@@ -564,6 +564,10 @@
     <div class="card wide">
       <div class="round-header">
         <div class="round-letter"><span data-i18n="rondaLetra">Letra:</span> <span id="cat-letter"></span></div>
+        <!-- Quantas rondas faltam. A partida clássica é a única do jogo que
+             nunca dizia em que ronda ia: o número existia no room.round e só
+             servia para decidir o texto de um botão no fim. -->
+        <div class="round-of" id="cat-round" data-i18n-js="rondaDeTotal"></div>
         <div class="round-timer" id="cat-timer"></div>
       </div>
       <!-- A regra que interessa enquanto se escreve. O jogo explicava tudo na
@@ -596,7 +600,7 @@
   <!-- ROUND SCORE -->
   <section data-screen="roundscore" class="screen">
     <div class="card wide">
-      <h2 data-i18n="rondaPontuacao">Pontuação da ronda</h2>
+      <h2 id="round-score-title" data-i18n="rondaPontuacao" data-i18n-js="rondaPontuacaoDe">Pontuação da ronda</h2>
       <div id="round-score-table" class="score-table"></div>
       <button id="round-next-btn" class="primary hidden" data-i18n-js="rondaProxima">Próxima ronda</button>
       <button data-leave class="ghost" data-i18n="salaSair">Sair da sala</button>

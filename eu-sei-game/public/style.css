@@ -486,7 +486,11 @@ button.hud-btn .icon-inline { color: var(--ink); }
 .letter-big { font-size: 2.4rem; font-weight: 700; }
 .letter-votes { font-size: 0.8rem; color: var(--muted); }
 
-.round-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+/* `wrap` e `gap` porque o cabeçalho passou a ter três coisas (letra,
+   ronda, relógio) e num telemóvel de 320px não cabem numa linha. */
+.round-header { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.round-of { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+.round-of:empty { display: none; }
 .round-letter { font-size: 1.3rem; font-weight: 700; }
 .round-letter span { color: var(--primary-dark); }
 /* A tira de "quem já vai onde" da folha de respostas. Enrola em telemóvel

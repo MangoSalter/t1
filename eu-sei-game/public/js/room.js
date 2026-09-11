@@ -667,14 +667,28 @@ export function computeRoundResults(room) {
   return { results, roundPoints };
 }
 
+// Quantos estão MESMO na sala. O lobby já contava assim há muito ("uma
+// pessoa que fechou o telemóvel não joga"), mas o fim da partida clássica
+// contava todos os que a sala alguma vez viu — e o comentário aqui abaixo
+// diz a regra em termos de gente a JOGAR, que é outra coisa. Com cinco
+// inscritos e um ligado, a partida acabava a abrir um jogo bónus para uma
+// pessoa sozinha. Exportada porque o ecrã do fim da ronda precisa da mesma
+// conta para dizer no botão o que vai acontecer.
+export function ligadosNaSala(room) {
+  const jogadores = room?.players || {};
+  return Object.keys(jogadores).filter((uid) => jogadores[uid]?.connected).length;
+}
+
+// Quantos é preciso para os jogos bónus de equipa: 1 "autor"/tempo + 2 a
+// jogar.
+export const MINIMO_PARA_BONUS = 3;
+
 export async function nextRoundOrFinal(code, room) {
   const numRounds = room.config?.numRounds || DEFAULT_CONFIG.numRounds;
   if (room.round >= numRounds) {
-    const players = Object.keys(room.players || {});
-    if (players.length >= 3) {
-      // Forca/Mapa-Múndi em equipa precisam de pelo menos 1 "autor"/tempo +
-      // 2 jogadores a jogar. Escolhe a ordem dos jogos bónus ativados na
-      // configuração da sala (por omissão, só a Forca, como antes).
+    if (ligadosNaSala(room) >= MINIMO_PARA_BONUS) {
+      // Escolhe a ordem dos jogos bónus ativados na configuração da sala
+      // (por omissão, só a Forca, como antes).
       const enabledBonus = (room.config?.bonusGames && room.config.bonusGames.length > 0)
         ? room.config.bonusGames
         : ["hangman"];
