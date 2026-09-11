@@ -120,6 +120,26 @@ const alvo = await page.evaluate(() => {
 console.log(`   botão de guardar: ${alvo.h}x${alvo.w}`);
 if (alvo.h < 44 || alvo.w < 44) falhar("o botão de guardar tem de se acertar com o dedo");
 
+console.log("5b) Um F5 a meio da noite NÃO pode comer o álbum...");
+// Era o preço escrito no comentário do próprio álbum. E o álbum é a coisa
+// que as pessoas guardam e mandam aos amigos: perdê-lo por um toque no
+// recarregar é caro de mais para deixar assim.
+const antesDoF5 = await page.evaluate(() => document.querySelectorAll("#final-album-grid img").length);
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector('[data-screen="final"].active', { timeout: 10000 });
+const depoisDoF5 = await page.evaluate(() => ({
+  quantos: document.querySelectorAll("#final-album-grid img").length,
+  escondido: document.getElementById("final-album").classList.contains("hidden"),
+  primeira: (document.querySelector("#final-album-grid img")?.src || "").slice(0, 14),
+}));
+console.log(`   desenhos antes: ${antesDoF5}, depois do F5: ${depoisDoF5.quantos} (${depoisDoF5.primeira})`);
+if (depoisDoF5.quantos !== antesDoF5 || depoisDoF5.escondido) {
+  falhar(`o F5 comeu o álbum (${antesDoF5} -> ${depoisDoF5.quantos})`);
+}
+if (!depoisDoF5.primeira.startsWith("data:image/png")) {
+  falhar("o que voltou não é a imagem");
+}
+
 console.log("6) Sair da sala leva o álbum: noutra sala não aparecem desenhos de gente que não está lá...");
 await page.click('[data-screen="final"] [data-leave]');
 await page.waitForSelector('[data-screen="home"].active', { timeout: 5000 });
@@ -137,6 +157,32 @@ const naSalaNova = await page.evaluate(() => ({
 console.log(`   álbum na sala nova: escondido ${naSalaNova.escondido}, desenhos ${naSalaNova.quantos}`);
 if (!naSalaNova.escondido || naSalaNova.quantos !== 0) {
   falhar("o álbum de uma sala não pode aparecer na seguinte");
+}
+
+console.log("6b) E um álbum de OUTRA sala, deixado para trás, não se abre nesta...");
+// Não é rebuscado: quando a sala guardada já não existe, o arranque chama
+// esquecerSala() — que só apaga a SALA. O álbum ficava no separador, e sem
+// a pergunta "de que sala és tu?" apareceria na sala seguinte, cheio de
+// desenhos de gente que não está lá. É a mesma pergunta que o
+// recoverSecretWord faz à palavra da Forca antes de a aceitar de volta.
+await page.evaluate(() => sessionStorage.setItem("euSei_album", JSON.stringify({
+  sala: "ZZZZ",
+  itens: [{ imagem: "data:image/png;base64,iVBORw0KGgo=", palavra: "Fantasma", autor: "Ninguém", acertou: null }],
+  vistos: ["0:x:Fantasma"],
+})));
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "lobby" }), outraSala);
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 });
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForSelector('[data-screen="lobby"].active', { timeout: 10000 });
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "final" }), outraSala);
+await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+const fantasma = await page.evaluate(() => ({
+  quantos: document.querySelectorAll("#final-album-grid img").length,
+  texto: document.getElementById("final-album-grid").textContent,
+}));
+console.log(`   desenhos vindos da sala ZZZZ: ${fantasma.quantos}`);
+if (fantasma.quantos !== 0 || /Fantasma/.test(fantasma.texto)) {
+  falhar("o álbum de outra sala abriu-se nesta");
 }
 
 console.log("7) Empate no topo: a coroa é dos dois, e o lugar a seguir é o terceiro...");

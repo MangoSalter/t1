@@ -180,6 +180,35 @@ only the one it remembered; `esquecerMapaDaSala` clears both `ligado` and
 `ultimaManga`; and in `app.js` the ball-click flag resets per ball phase while
 the render caches key off content, not position.
 
+## A price written in a comment is still a price
+
+The album of the night's drawings carried its own limitation in a comment:
+"quem recarregar a página a meio perde o que veio antes". True, honest, and
+for months nobody asked whether it had to be true. The album is the thing
+people screenshot and send to friends — losing it to a mis-tap on reload is
+an expensive way to be honest.
+
+It lives in `sessionStorage` now, next to the room key and for the same
+stated reason: the lifetime that matters is THE TAB. `localStorage` would
+bring a stale album back into the next room that happens to draw the same
+four-letter code, and codes repeat.
+
+The entry carries its room code, and the restore refuses a mismatch — the
+same question `recoverSecretWord` asks the Forca's word before taking it
+back. That check needed a REACHABLE case before it was worth a test, and
+there is one: when the remembered room no longer exists, startup calls
+`esquecerSala()`, which clears the room key only. The album would sit there
+and open in the next room, full of drawings by people who are not in it.
+`mp-album` step 6b walks exactly that path; falsified by dropping the
+`g.sala !== code` clause.
+
+Two smaller things worth copying: the write is wrapped in try/catch because
+base64 PNGs can exhaust the quota, and an ornament at the end of the night
+must never break the game; and `esquecerAlbum` clears memory AND disk in one
+place, because this is precisely the "state outside the room needs an owner
+for its lifetime" shape from the section below — persisting it gives it a
+second lifetime that needs the same owner.
+
 ## Ranking by array index invents a result
 `renderFinal` sorted players by score and gave the crown to index 0, `#2` to
 index 1, and so on. Two people tied for first therefore read "👑" and "#2",

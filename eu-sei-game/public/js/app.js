@@ -374,6 +374,8 @@ function enterRoom(code) {
   state.code = code;
   showHomeError("");
   lembrarSala(code, state.name);
+  // Depois de um F5, os desenhos desta sala voltam; de outra sala, não.
+  recuperarAlbumDoSeparador(code);
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = listenRoom(code, onRoomUpdate);
   optionsEls.fab.classList.remove("hidden");
@@ -445,8 +447,7 @@ function leaveToHome() {
   // chave de "já vi este" podia até bater certo entre salas e engolir um
   // desenho novo. Numa revanche na MESMA sala ficam: é a mesma noite e a
   // mesma gente, que é o que o álbum diz ser.
-  albumDaNoite.length = 0;
-  albumJaVistos.clear();
+  esquecerAlbum();
   if (state.unsubscribe) state.unsubscribe();
   state.unsubscribe = null;
   state.code = null;
@@ -1533,11 +1534,62 @@ function renderDraw(room) {
 //
 // Vive no browser de cada um, não na sala: cada cliente já recebeu os traços
 // enquanto eram feitos, por isso a fotografia sai de graça e a sala não
-// engorda com imagens. O preço honesto: quem recarregar a página a meio perde
-// o que veio antes, e quem chegou tarde só tem de onde chegou.
+// engorda com imagens. Quem chegou tarde só tem de onde chegou — isso é
+// inerente. O recarregamento já NÃO custa o álbum: ver o sessionStorage
+// logo abaixo.
 const albumDaNoite = [];
 const albumJaVistos = new Set();
 const ALBUM_LARGURA = 320;
+
+// O álbum sobrevive a um F5. Era o preço escrito no comentário acima —
+// "quem recarregar a página a meio perde o que veio antes" — e o álbum é
+// precisamente a coisa que as pessoas guardam e mandam aos amigos, por isso
+// perdê-lo por um toque acidental no recarregar é caro.
+//
+// Vive no sessionStorage, e no mesmo por boa razão: é onde já vive a sala
+// (ROOM_KEY, ver o comentário lá em cima) e tem a duração certa — o mesmo
+// SEPARADOR. O localStorage traria de volta os desenhos de uma noite
+// antiga na próxima sala com o mesmo código de quatro letras, que se
+// repetem.
+//
+// Guardado COM o código da sala: o álbum de uma sala não se abre noutra.
+// A mesma pergunta que o recoverSecretWord faz à palavra da Forca antes de
+// a aceitar de volta.
+const ALBUM_KEY = "euSei_album";
+
+function guardarAlbumNoSeparador() {
+  if (!state.code) return;
+  try {
+    sessionStorage.setItem(ALBUM_KEY, JSON.stringify({
+      sala: state.code,
+      itens: albumDaNoite,
+      vistos: [...albumJaVistos],
+    }));
+  } catch {
+    // Sem espaço (são PNG em base64) ou sem armazenamento: o álbum continua
+    // a funcionar em memória, só não sobrevive ao recarregamento. Nunca
+    // pode partir o jogo por causa de um enfeite do fim da noite.
+  }
+}
+
+function recuperarAlbumDoSeparador(code) {
+  albumDaNoite.length = 0;
+  albumJaVistos.clear();
+  try {
+    const g = JSON.parse(sessionStorage.getItem(ALBUM_KEY) || "null");
+    if (!g || g.sala !== code || !Array.isArray(g.itens)) return;
+    albumDaNoite.push(...g.itens);
+    (g.vistos || []).forEach((v) => albumJaVistos.add(v));
+  } catch { /* ver guardarAlbumNoSeparador */ }
+}
+
+function esquecerAlbum() {
+  albumDaNoite.length = 0;
+  albumJaVistos.clear();
+  try {
+    sessionStorage.removeItem(ALBUM_KEY);
+  } catch { /* ver guardarAlbumNoSeparador */ }
+}
 
 function guardarNoAlbum(room, draw, marco) {
   const chave = `${draw.turnIndex}:${draw.drawerId}:${draw.secretWord || draw.landmarkId || ""}`;
@@ -1561,6 +1613,7 @@ function guardarNoAlbum(room, draw, marco) {
     autor: room.players?.[draw.drawerId]?.name || t("alguem"),
     acertou: draw.roundWinnerId ? (room.players?.[draw.roundWinnerId]?.name || null) : null,
   });
+  guardarAlbumNoSeparador();
 }
 
 function desenharAlbum() {
