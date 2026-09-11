@@ -619,7 +619,7 @@ function hangmanOpenPenPicker() {
       hangmanEls.penList.appendChild(btn);
     });
   if (hangmanEls.penList.children.length === 0) {
-    hangmanEls.penList.innerHTML = '<p class="hint small">Não há mais ninguém ligado para receber a caneta.</p>';
+    hangmanEls.penList.innerHTML = `<p class="hint small">${escapeHtml(t("quadroSemNinguemParaCaneta"))}</p>`;
   }
   hangmanEls.penOverlay.classList.remove("hidden");
 }
@@ -823,8 +823,12 @@ function hangmanOpenSettings() {
   const modo = room.hangman.mode || DEFAULT_BOARD_MODE;
   const spec = BOARD_SETTINGS_SPEC[modo] || [];
   hangmanEls.settingsList.innerHTML = "";
+  // Ramo defensivo: o botão que abre este painel só aparece quando o modo
+  // TEM definições, e o único sem elas é o "livre". Fica traduzido e fica
+  // aqui para o dia em que essa porta mude (ver linguas-jogo-test, que
+  // explica por que não o verifica).
   if (spec.length === 0) {
-    hangmanEls.settingsList.innerHTML = '<p class="hint small">Este modo não tem nada para definir.</p>';
+    hangmanEls.settingsList.innerHTML = `<p class="hint small">${escapeHtml(t("quadroModoSemDefinicoes"))}</p>`;
   }
   spec.forEach((def) => {
     const atual = boardSetting(room, modo, def.key);
@@ -1383,8 +1387,10 @@ function hangmanRenderMatchOver(room) {
 function hangmanOpenHistory() {
   const lista = wordHistory(state.room);
   hangmanEls.historyList.innerHTML = "";
+  // Ramo defensivo, como o das definições: o botão "📜 Palavras" só aparece
+  // quando JÁ HÁ palavras acabadas.
   if (lista.length === 0) {
-    hangmanEls.historyList.innerHTML = '<p class="hint small">Ainda não acabou nenhuma palavra.</p>';
+    hangmanEls.historyList.innerHTML = `<p class="hint small">${escapeHtml(t("quadroSemPalavrasAinda"))}</p>`;
   }
   lista.forEach((entrada, i) => {
     const linha = document.createElement("div");

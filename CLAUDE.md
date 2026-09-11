@@ -795,6 +795,27 @@ see it (it is built in JavaScript) and this one never went there. It walks
 all four now, forced through the stub rather than played out, and the
 falsification is putting the Portuguese back: `a votação: As tuas respostas`.
 
+### The empty states are a family, and a test never sees them
+
+A test always sets up the FULL case — that is what makes it a test of
+anything — so the text that only appears when there is nothing to show never
+gets read. Three such messages were sitting in `board-room.js` in hard-coded
+Portuguese: no one left to hand the pen to, a mode with nothing to configure,
+no finished words yet.
+
+Worth doing the reachability check before writing the guard, because two of
+the three turned out to be **dead branches**: the ⚙️ button only appears when
+the mode HAS settings, and the only mode without any is "livre"; the 📜 button
+only appears when there ALREADY ARE finished words. So their empty branches
+cannot be reached by a player at all. They are translated and marked
+defensive in the code, and deliberately not asserted — contorting a test into
+a path nobody walks is a test that states something false about the product.
+Only the pen picker's empty list is real, and that one is guarded (falsified
+by putting the Portuguese back).
+
+The general shape: **when you find untranslated text in an empty state, check
+whether the door to it is open before building a test around it.**
+
 Two exclusions the word list needs, and both are the kind of false positive
 that would train someone to ignore red:
 

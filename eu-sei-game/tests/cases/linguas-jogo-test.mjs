@@ -249,6 +249,46 @@ check("o quadro de sala não deixa português a quem desenha", noQuadroDeSala.le
 const noQuadroConvidado = await fugas(convidado, "o quadro de sala (quem vê)");
 check("o quadro de sala não deixa português a quem vê", noQuadroConvidado.length === 0, noQuadroConvidado.join(", "));
 
+// O VAZIO DO QUADRO que uma pessoa consegue mesmo ver: abrir "passar a
+// caneta" quando não há mais ninguém ligado. Nenhum teste tinha visto esta
+// mensagem — um teste monta sempre o caso CHEIO — e estava em português
+// fixo.
+//
+// As outras duas mensagens de vazio do mesmo ficheiro ficaram traduzidas mas
+// NÃO são verificadas aqui, porque medido, não se lhes chega: o botão das
+// definições só aparece quando o modo TEM definições (e o único modo sem
+// elas é o "livre"), e o das palavras só quando JÁ HÁ palavras acabadas. São
+// ramos defensivos. Contorcer o teste para lá chegar seria um teste a
+// afirmar um percurso que ninguém faz.
+{
+  await anfitriao.evaluate((c) => {
+    const sala = window.__testDb.get(`rooms/${c}`);
+    Object.entries(sala.players).forEach(([uid, p]) => {
+      if (uid !== sala.hostId) window.__testDb.update(`rooms/${c}/players/${uid}`, { ...p, connected: false });
+    });
+  }, codigo);
+  await anfitriao.waitForTimeout(500);
+  const botao = anfitriao.locator("#hangman-pass-pen-btn");
+  check("o botão de passar a caneta está à vista para quem manda", await botao.isVisible(), "");
+  if (await botao.isVisible()) {
+    await botao.click();
+    await anfitriao.waitForSelector("#hangman-pen-overlay:not(.hidden)", { timeout: 5000 });
+    const lista = (await anfitriao.locator("#hangman-pen-list").textContent()).trim();
+    console.log(`   sem ninguém ligado, a lista diz: "${lista}"`);
+    const achadas = await fugas(anfitriao, "o quadro sem ninguém a quem passar a caneta");
+    check("a lista vazia de passar a caneta não deixa português", achadas.length === 0, achadas.join(", "));
+    await anfitriao.evaluate(() => document.getElementById("hangman-pen-overlay").classList.add("hidden"));
+  }
+  // Devolver o convidado à sala: o resto do caso conta com ele.
+  await anfitriao.evaluate((c) => {
+    const sala = window.__testDb.get(`rooms/${c}`);
+    Object.entries(sala.players).forEach(([uid, p]) => {
+      if (uid !== sala.hostId) window.__testDb.update(`rooms/${c}/players/${uid}`, { ...p, connected: true });
+    });
+  }, codigo);
+  await anfitriao.waitForTimeout(400);
+}
+
 // DESENHA E ADIVINHA, os dois lados. O varrimento nunca cá tinha entrado — e
 // era aqui que estava a linha de quem desenha ("Ronda 1/2 — desenha: X"),
 // escrita em português fixo dentro do renderDraw. Quem desenha e quem
