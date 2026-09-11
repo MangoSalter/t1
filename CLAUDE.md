@@ -248,10 +248,29 @@ standing would take the round off them for being alone, with nobody to run
 from. `precisaDeNovoInfetado` is the pure half, and `test-arenas` states all
 four cases.
 
-The rest of the sweep came back clean or owner-blocked: `startBattleTeam`
-shuffles only to hand out spawn points (no role to miss), and everything else
-that iterates all players is either scoring — which lands squarely in the
-survival-scoring decision that is the owner's — or harmless.
+That sweep then claimed the rest "came back clean or owner-blocked", and
+**that claim was wrong** — three more turned up afterwards (below). A stale
+all-clear is worse than no note, so here is the exhaustive classification,
+checked line by line against every `room.players` reference:
+
+- **correct to count everyone**: `joinRoom`'s cap of 10. A person who closed
+  their phone keeps their seat and their score, because `rejoinRoom` brings
+  them back to both. This is the one place where counting all is the point.
+- **fine**: the `start*Team` / `startRaceGame` / `startGolfTeam` functions
+  make a piece per player — a spawn point is not a role, so nobody is
+  missed; and the arena renders draw a dot for each, to match.
+- **the owner's**: every `compute*Results` scores everyone, which is the
+  survival-scoring decision in `docs/jogos.md`.
+- **harmless**: the dozens of `room.players?.[uid]?.name` lookups, and the
+  scoreboards, which show everyone because everyone's score is real.
+- **wrong, and fixed since**: the drawing game's winner list, the classic
+  match's bonus gate (`nextRoundOrFinal` plus its copy in
+  `renderRoundScore`), and the room map's "3/5 responderam" counter, whose
+  denominator disagreed with the rule that ends the round — a counter that
+  can never reach its own total reads as "we are still waiting for someone".
+  That last one is a workshop game, so it got the two-line fix and no new
+  guard: the owner asked for no effort there until he decides what comes
+  back.
 
 And a fifth, in the same `switch` in `runHostLoopTick` — this time two BRANCHES
 apart rather than two lines. `categories` closes when `now >= cr.endAt`;

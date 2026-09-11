@@ -1652,10 +1652,15 @@ function renderMapTrivia(room) {
     const msLeft = Math.max(0, (mt.endAt || 0) - serverNow());
     mapTriviaEls.timer.textContent = `${Math.ceil(msLeft / 1000)}s`;
     const answeredCount = Object.keys(mt.answers || {}).length;
-    const totalPlayers = Object.keys(room.players || {}).length;
+    // O denominador tem de ser a MESMA conta que fecha a ronda. O laço do
+    // anfitrião resolve quando todos os LIGADOS responderam; isto dizia o
+    // total de inscritos, por isso com alguém fora da sala mostrava "3/5" e
+    // saltava — um contador que nunca chega ao seu próprio total é pior do
+    // que não ter contador, porque parece que ainda falta gente.
+    const totalPlayers = ligadosNaSala(room);
     mapTriviaEls.answered.textContent = myAnswer
-      ? `Já respondeste "${myAnswer}"! (${answeredCount}/${totalPlayers} responderam)`
-      : `Escreve a tua resposta e envia. (${answeredCount}/${totalPlayers} responderam)`;
+      ? t("mapTriviaJaRespondeste", myAnswer, answeredCount, totalPlayers)
+      : t("mapTriviaEscreveResposta", answeredCount, totalPlayers);
     mapTriviaEls.answerRow.classList.toggle("hidden", !!myAnswer);
     mapTriviaEls.results.classList.add("hidden");
     mapTriviaEls.voteHint.classList.add("hidden");

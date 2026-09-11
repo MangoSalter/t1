@@ -207,6 +207,8 @@ export default {
   rondaPontuacao: "Pontuação da ronda",
   rondaProxima: "Próxima ronda",
   rondaDeTotal: (n, total) => `Ronda ${n} de ${total}`,
+  mapTriviaJaRespondeste: (r, feitas, total) => `Já respondeste "${r}"! (${feitas}/${total} responderam)`,
+  mapTriviaEscreveResposta: (feitas, total) => `Escreve a tua resposta e envia. (${feitas}/${total} responderam)`,
   rondaPontuacaoDe: (n, total) => `Pontuação da ronda ${n} de ${total}`,
   rondaQuadroBonus: "Quadro branco (bónus)",
   rondaVerFinais: "Ver resultados finais",
