@@ -10,10 +10,10 @@
 import { serverNow } from "./firebase-init.js";
 import { t } from "./i18n.js";
 import { say as narrar } from "./voice.js";
-import { BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS } from "./data.js";
+import { BOARD_QUIPS, BOARD_CHAOS, BOARD_TOOLS, NOMES_DAS_CORES } from "./data.js";
 import {
   BOARD_CHAOS_EVERY, BOARD_MODES, BOARD_SETTINGS_SPEC, DEFAULT_BOARD_MODE, DOODLE_BOARD_FULL,
-  HANGMAN_PLAYER_COLORS, NOMES_DAS_CORES,
+  HANGMAN_PLAYER_COLORS,
   MAX_TEAMS, WORD_SEP, addHangmanMiss, applyBoardVotes, boardChaosOn, boardSetting,
   canDrawOnBoard, canGuessNow, canSetBoardMode, clearHangmanDoodle, clearHangmanPuzzle, connectedPlayerIds,
   correctCountOf, currentGuesser, finishHangman, fireBoardChaos, freeGuessing, guessesAreAnonymous,
@@ -356,7 +356,7 @@ function hangmanExportar() {
   const url = URL.createObjectURL(new Blob([dados], { type: "application/json" }));
   descarregar(url, `quadro-sala-${carimbo()}.json`);
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  hangmanEls.status.textContent = "Quadro exportado.";
+  hangmanEls.status.textContent = t("quadroExportado");
 }
 
 async function hangmanImportar(ficheiro) {
@@ -2134,7 +2134,7 @@ export function renderHangman(room) {
   if (naForca && mask && !hangman.solved) {
     const nomeDaVez = room.players?.[daVez]?.name;
     if (freeGuessing(room)) {
-      hangmanEls.turnLabel.textContent = amLeader ? "" : "Arrisca quando quiseres.";
+      hangmanEls.turnLabel.textContent = amLeader ? "" : t("forcaArriscaQuandoQuiseres");
     } else {
       // "Acertaste, joga outra vez" só se diz quando foi mesmo isso que
       // aconteceu: a vez ficou na mesma pessoa E a palavra revelou mais uma

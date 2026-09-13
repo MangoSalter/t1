@@ -19,7 +19,7 @@
 //    guardava tudo em fração da tela; foi deitada fora porque com fração não
 //    existe "fora do ecrã", e sem isso não há para onde afastar.
 
-import { BOARD_TOOLS, pickMascotIntro, gameHowTo } from "./data.js";
+import { BOARD_TOOLS, pickMascotIntro, gameHowTo, NOMES_DAS_CORES } from "./data.js";
 import { t } from "./i18n.js";
 import { say } from "./voice.js";
 import { sfx } from "./sfx.js";
@@ -710,7 +710,7 @@ export function exportBoardFile() {
   downloadBlobUrl(url, `quadro-eu-sei-${stamp()}.json`);
   // Revogar já libertava o endereço antes de o browser lhe pegar.
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  setStatus("Quadro exportado.");
+  setStatus(t("quadroExportado"));
 }
 
 async function importBoardFile(file) {
@@ -787,7 +787,11 @@ function buildToolbar() {
     btn.dataset.boardColor = color;
     btn.style.background = color;
     btn.title = color;
-    btn.setAttribute("aria-label", `Cor ${color}`);
+    // A QUARTA paleta. Ficou escrito que as paletas tinham ficado todas com
+    // nome; esta — a do quadro de quem joga sozinho — continuava a ler
+    // "Cor #b24b38" em voz alta. O aviso sobre comentários que dizem "a
+    // única" vale igual para conclusões que dizem "todas".
+    btn.setAttribute("aria-label", t("corAria", t(NOMES_DAS_CORES[color]) || color, color));
     btn.setAttribute("aria-pressed", String(color === board.color));
     btn.addEventListener("click", () => selectColor(color));
     els.colorRow.appendChild(btn);

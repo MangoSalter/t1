@@ -10,7 +10,7 @@ import {
   CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES, STOP_GRACA_SEGUNDOS,
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
   limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
-  MAP_BACKGROUND_SVG, LANDMARKS,
+  MAP_BACKGROUND_SVG, LANDMARKS, NOMES_DAS_CORES,
 } from "./data.js";
 import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig,
@@ -42,7 +42,7 @@ import {
   GOLF_MP_BROADCAST_MS, GOLF_MP_RESULT_DISPLAY_MS,
   golfTerreno, golfSaltitao, GOLF_MP_ACELERADORES, GOLF_MP_SALTITOES, GOLF_MP_AREIAS,
   mapaMangaRouba, MAPA_MANGA_CADA_MS,
-  NOMES_DAS_CORES,
+  
 } from "./room.js";
 import { state, screens, isHost } from "./app-state.js";
 import { escapeHtml, avatarImgHtml, pintarRelogio, limparRelogio } from "./ui-utils.js";
@@ -188,7 +188,7 @@ const AVATAR_KEY = "euSei_avatar";
 // ecrã, e a paleta grande dos quadros já anuncia a dela desde sempre. Estavam
 // mudos porque vivem numa sobreposição que varrimento nenhum abria (ver
 // a11y-test, passo 12).
-// Os nomes vêm da lista partilhada (NOMES_DAS_CORES, no room.js): havia três
+// Os nomes vêm da lista partilhada (NOMES_DAS_CORES, no data.js): havia três
 // paletas espalhadas pela app e só esta tinha nomes, escritos à mão aqui.
 const AVATAR_PALETTE = ["#3a3126", "#c65d4a", "#e3a53d", "#6c8a4f", "#5c7e91", "#8a6bb0", "#ffffff"];
 const AVATAR_BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7";
@@ -1726,7 +1726,7 @@ mapTriviaEls.continueBtn.addEventListener("click", () => {
 function renderMapTrivia(room) {
   const mt = room.mapTrivia;
   if (!mt) return;
-  mapTriviaEls.roundInfo.textContent = `Ronda ${mt.roundIndex}/${mt.roundsTotal}`;
+  mapTriviaEls.roundInfo.textContent = t("desenhaRondaDe", mt.roundIndex, mt.roundsTotal);
   mapTriviaEls.prompt.textContent = mt.criteria?.promptText || "";
 
   const myAnswer = mt.answers?.[state.uid];
@@ -3079,7 +3079,7 @@ function renderGolfMp(room) {
       .forEach(([uid, p]) => {
         const st = golf.standings?.[uid] || {};
         const detail = st.finished
-          ? `${st.place}º — meteu em ${(st.timeMs / 1000).toFixed(1)}s`
+          ? t("golfeMeteu", st.place, (st.timeMs / 1000).toFixed(1))
           : t("golfeNaoMeteu", st.distance || "?");
         const row = document.createElement("div");
         row.className = "score-row";

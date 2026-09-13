@@ -945,6 +945,33 @@ export function oficinaAberta() {
   }
 }
 
+// O NOME DE CADA COR DA CASA, para quem usa leitor de ecrã: "#b24b38" não
+// diz nada a ninguém. Aqui ficam só as CHAVES — nem este módulo nem o
+// room.js conhecem línguas, por isso quem pinta é que traduz.
+//
+// UMA lista para todas as paletas: a identidade de cada jogador, a tinta do
+// quadro de sala, o rascunho pessoal e o avatar. Havia três listas de cores
+// espalhadas e só a do avatar tinha nomes; as outras liam o hexadecimal em
+// voz alta.
+export const NOMES_DAS_CORES = {
+  "#b24b38": "corTijolo",
+  "#5c7e91": "corAzulAcinzentado",
+  "#5b7442": "corVerdeOliva",
+  "#9b8c3e": "corOuroVelho",
+  "#e3a53d": "corAmareloMostarda",
+  "#7a4fb5": "corRoxoEscuro",
+  "#2f7d6e": "corVerdeAzulado",
+  "#d1691f": "corLaranja",
+  "#c2569b": "corRosa",
+  "#3a3126": "corCastanhoEscuro",
+  "#8a8a8a": "corCinzento",
+  "#f6efdd": "corCreme",
+  "#c65d4a": "corVermelhoTelha",
+  "#6c8a4f": "corVerdeMusgo",
+  "#8a6bb0": "corRoxo",
+  "#ffffff": "corBranco",
+};
+
 export const JOGOS_NA_OFICINA = [
   "reflex",    // Olho de Lince
   "bug",       // Mata o Inseto

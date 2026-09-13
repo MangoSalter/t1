@@ -484,5 +484,27 @@ if (errors.length > 0) {
   process.exitCode = 1;
 }
 
+console.log("18) E as cores dizem o NOME a quem usa leitor de ecrã...");
+{
+  // A quarta paleta do jogo. As outras três — a identidade, a tinta da sala e
+  // o avatar — já anunciavam "Amarelo-mostarda #e3a53d"; esta lia o
+  // hexadecimal em voz alta. Nenhum varrimento podia queixar-se: "Cor
+  // #b24b38" É um nome acessível, só não diz nada a ninguém.
+  const cores = await page.evaluate(async () => {
+    const d = await import("./js/data.js");
+    const botoes = [...document.querySelectorAll("#board-color-row [data-board-color]")];
+    return botoes.map((b) => ({
+      cor: b.dataset.boardColor,
+      nome: b.getAttribute("aria-label") || "",
+      temNome: !!d.NOMES_DAS_CORES[b.dataset.boardColor],
+    }));
+  });
+  const daCasa = cores.filter((c) => c.temNome);
+  const mudas = daCasa.filter((c) => /^Cor #/.test(c.nome) || !/\p{L}{3}/u.test(c.nome.replace(/#\w+/, "")));
+  console.log(`   ${cores.length} cores, ${daCasa.length} da lista da casa · exemplo: "${daCasa[0]?.nome || cores[0]?.nome}"`);
+  if (daCasa.length === 0) { console.log("   FALHOU: nenhuma cor do quadro está na lista da casa — a medição não diz nada"); process.exitCode = 1; }
+  if (mudas.length) { console.log(`   FALHOU: ${mudas.length} cores anunciam só o hexadecimal: ${mudas.slice(0, 3).map((c) => c.nome).join(", ")}`); process.exitCode = 1; }
+}
+
 await browser.close();
 console.log(process.exitCode ? "=> board-test FALHOU" : "=> board-test ok");

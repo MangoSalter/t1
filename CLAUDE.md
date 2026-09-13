@@ -540,8 +540,19 @@ must not silently get worse). Falsified both ways.
 While measuring, a third list of colours turned up. There were three — the
 player identities, the room's ink, the avatar's — and only the avatar's had
 names; the other two announced `Cor #b24b38` to a screen reader. One shared
-`NOMES_DAS_CORES` now, in `room.js`, as keys only so the "room.js knows no
-languages" check still holds.
+`NOMES_DAS_CORES` now, as keys only so the "room.js knows no languages" check
+still holds.
+
+**There was a fourth**, and the note above said "all three" for months: the
+SOLO whiteboard's palette, in `board.js`, still read the hexadecimal out loud.
+No sweep could complain — `Cor #b24b38` IS an accessible name, it just says
+nothing — so this needed a check that asks whether a colour on the house list
+announces its NAME (`board-test` step 18; falsified by putting the old label
+back: ten colours, red). The list moved from `room.js` to `data.js` in the
+same commit, which is where `board.js` could reach it without importing the
+network module. The lesson is the one two sections down, applied to my own
+conclusions rather than to a comment: **"all three are done" rots exactly like
+"this is the only one".**
 
 ## A stopwatch inside a parallel run measures the machine, not the code
 
