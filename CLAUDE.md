@@ -598,6 +598,11 @@ is a measurement nobody makes.
 The ceiling is 4 writes per stroke — an order-of-magnitude guard like
 `carga-inicial`, not a target to tune against.
 
+And then the neighbour, because that is the rule here: Desenha e Adivinha has
+the same 90ms batching, in another file and under its own constant, and only
+the room whiteboard had anyone watching it. `mp-draw` step 4a is the same
+check: 3 writes with it, 12 without.
+
 ## A stopwatch inside a parallel run measures the machine, not the code
 
 `mapa-desempenho-test` went red in a full run and passed on its own with

@@ -114,6 +114,24 @@ console.log("3c) Trocar a palavra: uma vez por vez, com o quadro limpo e o botã
   console.log(`   pontos desenhados: ${Object.keys(room.draw.doodle.points || {}).length}`);
   if (Object.keys(room.draw.doodle.points || {}).length === 0) { console.log("   FALHOU"); process.exitCode = 1; }
 
+  console.log("4a) E um traço é UMA escrita, como no quadro de sala...");
+  {
+    // O mesmo amortecimento de 90ms existe aqui, noutro ficheiro e com outra
+    // constante — e só o quadro de sala tinha quem o guardasse. A regra é a
+    // da casa: quando se encontra um guarda bom, ver o vizinho.
+    await page.evaluate(() => { window.__writeTally = { bytes: 0, calls: 0, filter: "doodle" }; });
+    const c2 = await page.locator("#draw-doodle-canvas").boundingBox();
+    await page.mouse.move(c2.x + 40, c2.y + 200);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i += 1) await page.mouse.move(c2.x + 40 + i * 10, c2.y + 200 + i * 4);
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    const conta = await page.evaluate(() => window.__writeTally);
+    console.log(`   um traço de 12 movimentos: ${conta.calls} escrita(s), ${conta.bytes} bytes`);
+    if (conta.calls === 0) { console.log("   FALHOU: não se mediu escrita nenhuma"); process.exitCode = 1; }
+    if (conta.calls > 4) { console.log(`   FALHOU: ${conta.calls} escritas para um traço — o amortecimento deixou de juntar pontos`); process.exitCode = 1; }
+  }
+
   console.log("4b) Cor e espessura: escolher e ver o traço sair com elas...");
   // Quem desenhava tinha uma caneta só, de uma cor só, enquanto o quadro
   // branco ao lado tem 68 cores. Nos jogos do género a cor e a espessura são
