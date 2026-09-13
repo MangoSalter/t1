@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 // A PALETA GRANDE, partilhada pelos dois quadros.
 //
 // Os quadros tinham dez cores. Dez chegam para escrever, não chegam para
@@ -13,19 +14,22 @@
 // doze famílias em cinco claridades — e para se poder mexer na densidade sem
 // reescrever uma lista de setenta valores.
 
+// Os nomes são CHAVES, não texto: a paleta abre-se dentro dos dois quadros e
+// lia "Vermelho" a quem escolheu inglês. Quem pinta é que traduz, como na
+// lista de cores da casa.
 const FAMILIAS = [
-  { nome: "Vermelho", h: 4 },
-  { nome: "Laranja", h: 26 },
-  { nome: "Âmbar", h: 44 },
-  { nome: "Amarelo", h: 56 },
-  { nome: "Lima", h: 80 },
-  { nome: "Verde", h: 140 },
-  { nome: "Turquesa", h: 172 },
-  { nome: "Ciano", h: 192 },
-  { nome: "Azul", h: 214 },
-  { nome: "Índigo", h: 250 },
-  { nome: "Roxo", h: 280 },
-  { nome: "Rosa", h: 328 },
+  { nome: "paletaVermelho", h: 4 },
+  { nome: "paletaLaranja", h: 26 },
+  { nome: "paletaAmbar", h: 44 },
+  { nome: "paletaAmarelo", h: 56 },
+  { nome: "paletaLima", h: 80 },
+  { nome: "paletaVerde", h: 140 },
+  { nome: "paletaTurquesa", h: 172 },
+  { nome: "paletaCiano", h: 192 },
+  { nome: "paletaAzul", h: 214 },
+  { nome: "paletaIndigo", h: 250 },
+  { nome: "paletaRoxo", h: 280 },
+  { nome: "paletaRosa", h: 328 },
 ];
 // Claridade e saturação de cada degrau. O mais claro serve para preencher sem
 // tapar; o mais escuro serve para contornar.
@@ -82,7 +86,7 @@ export function abrirPaleta(atual, callback) {
   coresDaPaleta().forEach((linha) => {
     const div = document.createElement("div");
     div.className = "paleta-linha";
-    div.setAttribute("aria-label", linha.nome);
+    div.setAttribute("aria-label", t(linha.nome) || linha.nome);
     linha.cores.forEach((cor) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -90,7 +94,7 @@ export function abrirPaleta(atual, callback) {
       b.style.background = cor;
       b.dataset.cor = cor;
       b.title = cor;
-      b.setAttribute("aria-label", `${linha.nome} ${cor}`);
+      b.setAttribute("aria-label", `${t(linha.nome) || linha.nome} ${cor}`);
       if (cor.toLowerCase() === String(atual).toLowerCase()) b.classList.add("escolhida");
       b.addEventListener("click", () => {
         const escolha = aoEscolher;

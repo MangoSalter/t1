@@ -985,6 +985,30 @@ holds.
 And `test-linguas` earns its keep here: it refuses a key nobody uses, so the
 five new keys failed the case until they were actually wired.
 
+### Searching for the old wrong thing is not the same as asking for the right one
+
+The 68-colour palette announced "Vermelho #eeb8b5" to anyone who had picked
+English: it opens inside both whiteboards, its families live only in
+`aria-label`, and the overlay is EMPTY until the 🎨 is pressed — so the
+overlay sweep found nothing to read and the text comparison had no text to
+compare. Two blind spots stacked.
+
+The fix put the family names in as KEYS (like `NOMES_DAS_CORES`), and my first
+guard searched the labels for Portuguese words. It passed on the broken build:
+with the names now keys, removing the `t()` yields `paletaVermelho #eeb8b5`,
+which is not a Portuguese word either. **A check that hunts for the specific
+wrong output only catches the mistake you already made.** It asks for the
+ENGLISH word now, and refuses a raw key, and both go red on that same
+falsification.
+
+One more trap in the same check: scoping. `document.querySelectorAll(
+"[aria-label]")` also picked up the board's own colour buttons, which were
+already translated — so "is this in English?" answered itself with elements
+that were not the subject. Scoped to `#paleta-overlay`.
+
+And a step that opens an overlay has to close it: leaving it up made the NEXT
+step fail to click, with a 30s timeout and nothing broken.
+
 ### The empty states are a family, and a test never sees them
 
 A test always sets up the FULL case — that is what makes it a test of

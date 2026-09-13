@@ -1272,9 +1272,10 @@ function terminarDesafio(rows, corretas, pontos) {
   }
   mostrarEstadoDoDesafio();
 
+  // Duas linhas abaixo o resumo já ia pelo t(); o título ficou em português.
   els.resultTitle.textContent = solo.desafio.repetido
-    ? `Desafio de hoje, outra vez: ${corretas}/${rows.length}`
-    : `Desafio do dia: ${corretas}/${rows.length} corretas`;
+    ? t("soloDesafioTituloRepetido", corretas, rows.length)
+    : t("soloDesafioTitulo", corretas, rows.length);
   els.resultSummary.textContent = solo.desafio.repetido
     ? t("soloDesafioRepetido")
     : t("soloDesafioResumo", pontos, sequencia);
@@ -1776,7 +1777,7 @@ function nextReflexRound() {
 
   els.reflexThemeLabel.textContent = themeName;
   els.reflexPrompt.innerHTML = `Encontra: <strong>${target.e} ${target.n}</strong>`;
-  els.reflexRoundInfo.textContent = `Ronda ${solo.reflexRoundIndex}/${REFLEX_ROUNDS_COUNT}`;
+  els.reflexRoundInfo.textContent = t("desenhaRondaDe", solo.reflexRoundIndex, REFLEX_ROUNDS_COUNT);
   els.reflexStatus.textContent = "";
   renderReflexScene(shown, themeName);
 
@@ -2282,8 +2283,8 @@ function showMarathonResult() {
   solo.inMarathon = false;
   addScoreHistoryEntry({
     score: solo.runScore,
-    mode: "Maratona",
-    detail: `${solo.marathonTotalGames} mini-jogo(s)`,
+    mode: t("soloModoMaratona"),
+    detail: t("soloMiniJogosDetalhe", solo.marathonTotalGames),
     date: Date.now(),
   });
   els.marathonSummary.textContent = t("soloTotal", solo.runScore);
@@ -2492,7 +2493,7 @@ function nextMapRound() {
   solo.mapRoundStartAt = Date.now();
   solo.mapRoundEndAt = solo.mapRoundStartAt + MAP_ROUND_MS;
   els.mapPrompt.textContent = solo.mapCriteria.promptText;
-  els.mapRoundInfo.textContent = `Ronda ${solo.mapRoundIndex}/${MAP_ROUNDS_COUNT}`;
+  els.mapRoundInfo.textContent = t("desenhaRondaDe", solo.mapRoundIndex, MAP_ROUNDS_COUNT);
   els.mapStatus.textContent = "";
   els.mapAnswerInput.value = "";
   els.mapAnswerInput.focus();
@@ -2553,7 +2554,7 @@ function landmarkRenderRound() {
     els.landmarkOptions.appendChild(btn);
   });
   els.landmarkStatus.textContent = "";
-  els.landmarkRoundInfo.textContent = `Ronda ${solo.landmarkUsedIds.size}/${LANDMARK_ROUNDS_COUNT}`;
+  els.landmarkRoundInfo.textContent = t("desenhaRondaDe", solo.landmarkUsedIds.size, LANDMARK_ROUNDS_COUNT);
 }
 
 function landmarkChoose(chosen, btnEl) {

@@ -273,6 +273,39 @@ check("o quadro de sala não deixa português a quem desenha", noQuadroDeSala.le
 const noQuadroConvidado = await fugas(convidado, "o quadro de sala (quem vê)");
 check("o quadro de sala não deixa português a quem vê", noQuadroConvidado.length === 0, noQuadroConvidado.join(", "));
 
+// A PALETA DAS 68 CORES. Vive numa sobreposição que só se enche quando se
+// carrega no 🎨, por isso o varrimento que abre as dezasseis sobreposições
+// encontra-a vazia, e as famílias ("Vermelho", "Índigo") só existem em
+// aria-label, que nenhuma comparação de texto lê. Duas cegueiras somadas.
+{
+  await anfitriao.click("#hangman-paleta-btn");
+  await anfitriao.waitForSelector("#paleta-overlay:not(.hidden), .paleta-overlay:not(.hidden)", { timeout: 3000 }).catch(() => {});
+  await anfitriao.waitForTimeout(300);
+  const familias = await anfitriao.evaluate(() =>
+    // SÓ dentro da paleta: apanhar todos os [aria-label] da página incluía os
+    // botões de cor do próprio quadro, que já estavam traduzidos — e então a
+    // pergunta "isto está em inglês?" respondia-se sozinha com elementos que
+    // não são o assunto.
+    [...document.querySelectorAll("#paleta-overlay [aria-label]")]
+      .map((el) => el.getAttribute("alt") || el.getAttribute("aria-label"))
+      .filter((n) => /#[0-9a-f]{3,6}/i.test(n)));
+  const portuguesas = familias.filter((n) => /\b(Vermelho|Laranja|Âmbar|Amarelo|Verde|Turquesa|Azul|Índigo|Roxo|Rosa)\b/.test(n));
+  const chavesCruas = familias.filter((n) => /paleta[A-Z]/.test(n));
+  console.log(`   ${familias.length} cores na paleta · exemplo: "${familias[0] || "(nenhuma)"}"`);
+  check("a paleta das 68 cores tem famílias com nome", familias.length > 20, `só ${familias.length}`);
+  check("e não as diz em português a quem escolheu inglês", portuguesas.length === 0, portuguesas.slice(0, 3).join(", "));
+  // Procurar português NÃO chega, e a falsificação disse-o: as famílias são
+  // chaves agora, por isso tirar o t() dá "paletaVermelho #ff0000" — que não
+  // é português nenhum e passava à vontade. O que tem de se exigir é a
+  // palavra INGLESA, que só existe se a tradução tiver mesmo acontecido.
+  check("as chaves não chegam cruas ao ecrã", chavesCruas.length === 0, chavesCruas.slice(0, 3).join(", "));
+  check("e a família diz-se em inglês", familias.some((n) => /^(Red|Blue|Green|Yellow|Purple|Pink|Orange) /.test(n)), familias.slice(0, 4).join(" | "));
+  // Fechar é parte do passo: deixá-la aberta tapa os botões do quadro e o
+  // passo seguinte falha a clicar sem que nada esteja partido.
+  await anfitriao.keyboard.press("Escape");
+  await anfitriao.waitForFunction(() => document.getElementById("paleta-overlay")?.classList.contains("hidden"), { timeout: 3000 });
+}
+
 // O VAZIO DO QUADRO que uma pessoa consegue mesmo ver: abrir "passar a
 // caneta" quando não há mais ninguém ligado. Nenhum teste tinha visto esta
 // mensagem — um teste monta sempre o caso CHEIO — e estava em português

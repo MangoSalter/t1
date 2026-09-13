@@ -209,7 +209,7 @@ function redesenhar() {
   poisarCaixaNoMapa();
   const faltam = porConquistar().length;
   const total = emJogo().length;
-  els.progresso.textContent = total ? `${total - faltam} de ${total}` : "";
+  els.progresso.textContent = total ? t("mapaProgresso", total - faltam, total) : "";
   // O marcador só aparece depois da primeira jogada: num mapa por estrear não
   // há ritmo nenhum para mostrar, e "0/min" a piscar só desanima.
   const r = resumo();
