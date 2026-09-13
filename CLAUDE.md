@@ -586,6 +586,30 @@ If one of them ever goes red with nothing broken, this is the fix, and
 exactly 5 cards instead of the 5-to-8 range it had to accept because the draw
 decided which round the game landed in.
 
+## The stub's data is not the screen
+
+Step 5c of `mp-folha-progresso` waited for `finishedAt` to appear in
+`window.__testDb` and then read the warning off the screen: `aviso ""`,
+`relógio "10:00"`. Nothing was broken — the write had landed and the app's
+listener had not repainted yet. The stub is reached directly; the screen is
+reached through a listener, a render and a frame, and the gap between them is
+real time.
+
+So a browser case must wait on the thing a PLAYER would see
+(`waitForFunction` on the element's text), never on the write that is supposed
+to cause it. Waiting on the database is the same mistake as calling the module
+instead of pressing the button, one section up: both reach the subject by a
+route no player has.
+
+The fix that step guards, while I am here: "Acabei!" used to close the round
+the instant somebody pressed it, mid-word for everyone else. There are five
+seconds of grace now (`rondaDeveFechar`, plus `marcarFimDaRonda` so the
+host's clock measures it like every other phase), with the name of whoever
+pressed on screen and the clock counting the graça. **My own docs row had
+already named that as the motivation for the progress strip** — and the strip
+only made the problem visible. A row that states a problem and ships half of
+it is a to-do list in the same way a comment claiming "the only one" is.
+
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with
 `if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that

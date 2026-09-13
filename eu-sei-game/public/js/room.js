@@ -7,7 +7,7 @@ import {
 } from "./firebase-init.js";
 import {
   DEFAULT_CONFIG, pickLetters, pickCategories, catKey, catIndexFromKey,
-  BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS, LETTER_PICK_TIME_SECONDS,
+  BALL_MIN_DELAY_MS, BALL_MAX_DELAY_MS, VOTING_TIME_SECONDS, LETTER_PICK_TIME_SECONDS, STOP_GRACA_SEGUNDOS,
   pickMapCriteria, shuffleArray, normalizeCountryName, pickDrawWord, pickBoardQuip, BOARD_CHAOS, BOARD_TOOL_KEYS,
   pickLandmark, sameWord, JOGOS_NA_OFICINA, oficinaAberta } from "./data.js";
 
@@ -536,6 +536,27 @@ export async function finishCategoriesRound(code, uid) {
     if (current) return current;
     return uid;
   });
+}
+
+// QUANDO É QUE A FOLHA FECHA. Uma regra, porque o ecrã precisa dela para
+// mostrar a contagem e o laço do anfitrião para a executar — e duas cópias
+// disto seriam dois momentos diferentes na mesma sala.
+//
+// Duas maneiras de fechar: o relógio da ronda chega ao fim, ou alguém disse
+// "Acabei!" e passaram os segundos de graça. A graça não existia: o toque
+// de uma pessoa trocava o ecrã a toda a gente a meio de uma palavra.
+export function rondaDeveFechar(cr, agora) {
+  if (!cr) return false;
+  if (cr.endAt && agora >= cr.endAt) return true;
+  if (!cr.finishedBy || !cr.finishedAt) return false;
+  return agora >= cr.finishedAt + STOP_GRACA_SEGUNDOS * 1000;
+}
+
+// Quem carrega no botão só diz QUEM; a HORA é marcada pelo anfitrião, que é
+// quem já tem o relógio de todas as outras fases. Assim a graça mede-se num
+// só relógio, e não no de quem calhou carregar.
+export async function marcarFimDaRonda(code) {
+  await set(ref(db, `rooms/${code}/categoriesRound/finishedAt`), serverNow());
 }
 
 export async function startVoting(code) {

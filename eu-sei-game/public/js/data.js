@@ -40,6 +40,14 @@ export const VOTING_TIME_SECONDS = 60; // não especificado na spec; limite razo
 // alguma coisa. As categorias e a votação já tinham endAt e o anfitrião fecha-
 // as; esta faltava.
 export const LETTER_PICK_TIME_SECONDS = 25;
+
+// Carregar em "Acabei!" fechava a ronda no MESMO instante, para toda a
+// gente. É a queixa clássica das aplicações de "Stop": estás a meio de uma
+// palavra e o ecrã troca. Os jogos do género dão uns segundos a quem estava
+// a escrever — quem carregou já acabou, por definição, e não perde nada com
+// isso. Cinco chegam para acabar uma palavra e não chegam para pensar numa
+// nova, que é exatamente o ponto.
+export const STOP_GRACA_SEGUNDOS = 5;
 export const BALL_MIN_DELAY_MS = 2000;
 export const BALL_MAX_DELAY_MS = 4000;
 

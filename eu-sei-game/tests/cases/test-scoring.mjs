@@ -9,7 +9,8 @@
 // Agora importa a função verdadeira. É possível porque os casos puros correm
 // dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
 // test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
-import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada, progressoDasRespostas } from "./js/room.js";
+import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada, progressoDasRespostas, rondaDeveFechar } from "./js/room.js";
+import { STOP_GRACA_SEGUNDOS } from "./js/data.js";
 
 function catKey(i) { return "c" + i; }
 
@@ -267,6 +268,57 @@ function assertEqual(actual, expected, label) {
 
   assertEqual(progressoDasRespostas(null).length, 0, "sem sala não há tira");
   assertEqual(progressoDasRespostas({}).length, 0, "sem jogadores não há tira");
+}
+
+// QUANDO A FOLHA FECHA — e sobretudo quando NÃO fecha.
+//
+// "Acabei!" fechava a ronda no mesmo instante para toda a gente, que é a
+// queixa clássica das aplicações de "Stop": estás a meio de uma palavra e o
+// ecrã troca. Agora há segundos de graça. Quem carregou já acabou, por
+// definição, e não perde nada.
+{
+  const G = STOP_GRACA_SEGUNDOS * 1000;
+  const agora = 1_000_000;
+
+  assertEqual(rondaDeveFechar({ endAt: agora + 5000 }, agora), false, "com tempo e sem 'Acabei!', a folha fica aberta");
+  assertEqual(rondaDeveFechar({ endAt: agora }, agora), true, "o relógio da ronda fecha-a na mesma");
+  assertEqual(rondaDeveFechar({ endAt: agora - 1 }, agora), true, "e depois do fim continua fechada");
+
+  // O coração disto: carregar NÃO fecha já.
+  assertEqual(
+    rondaDeveFechar({ endAt: agora + 60000, finishedBy: "a", finishedAt: agora }, agora),
+    false,
+    "quem carrega em Acabei! não corta a palavra aos outros no mesmo instante",
+  );
+  assertEqual(
+    rondaDeveFechar({ endAt: agora + 60000, finishedBy: "a", finishedAt: agora - G + 100 }, agora),
+    false,
+    "cem milésimos antes do fim da graça, ainda dá para escrever",
+  );
+  assertEqual(
+    rondaDeveFechar({ endAt: agora + 60000, finishedBy: "a", finishedAt: agora - G }, agora),
+    true,
+    "passada a graça, a folha fecha",
+  );
+
+  // Sem a hora marcada (o anfitrião ainda não a escreveu) não se conta graça
+  // nenhuma a partir do nada: fechar aqui seria fechar no instante do toque,
+  // que é justamente o que isto existe para não fazer.
+  assertEqual(
+    rondaDeveFechar({ endAt: agora + 60000, finishedBy: "a" }, agora),
+    false,
+    "sem hora marcada ainda não há graça a contar",
+  );
+
+  // E o relógio da ronda manda sempre: ninguém ganha tempo extra por
+  // carregar em Acabei! no último segundo.
+  assertEqual(
+    rondaDeveFechar({ endAt: agora - 1, finishedBy: "a", finishedAt: agora }, agora),
+    true,
+    "carregar no fim do tempo não estica a ronda",
+  );
+
+  assertEqual(rondaDeveFechar(null, agora), false, "sem ronda não há nada para fechar");
 }
 
 // O resumo fica no FIM do ficheiro. Ao acrescentar o bloco dos empates

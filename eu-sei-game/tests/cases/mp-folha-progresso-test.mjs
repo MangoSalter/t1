@@ -160,6 +160,47 @@ if (cabecalho.scroll > cabecalho.aparelho) {
   console.log("   FALHOU: o cabeçalho da ronda transborda o telemóvel"); process.exitCode = 1;
 }
 
+console.log("5c) \"Acabei!\" não corta a palavra a quem está a escrever...");
+// Volta a haver outra pessoa na sala e tempo de sobra, para que só a graça
+// possa fechar a ronda.
+await page.evaluate((c) => {
+  window.__testDb.update(`rooms/${c}/players`, { p2: { name: "Beto", score: 0, connected: true } });
+  window.__testDb.update(`rooms/${c}`, {
+    categoriesRound: { letter: "P", categoryIndexes: [0, 1, 2], endAt: Date.now() + 600000, finishedBy: null, finishedAt: null },
+  });
+}, code);
+await page.waitForTimeout(400);
+// O Beto carrega no "Acabei!" (é o que a escrita faz quando ele toca).
+await page.evaluate(async (c) => {
+  const m = await import("./js/room.js");
+  await m.finishCategoriesRound(c, "p2");
+}, code);
+// Esperar pelo ECRÃ e não pela base de dados: o __testDb já tem o
+// finishedAt um instante antes de o ouvinte da app o pintar, e ler a base
+// de dados para depois medir o ecrã afirma a hora errada (a primeira
+// versão disto falhou por isto, não por defeito nenhum).
+await page.waitForFunction(() => /\S/.test(document.getElementById("cat-acabou")?.textContent || ""), null, { timeout: 5000 });
+let estado = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).state, code);
+const aviso = (await page.locator("#cat-acabou").textContent()).trim();
+const relogioAgora = (await page.locator("#cat-timer").textContent()).trim();
+console.log(`   logo a seguir ao toque: estado "${estado}", aviso "${aviso}", relógio "${relogioAgora}"`);
+if (estado !== "categories") { console.log("   FALHOU: a folha fechou no mesmo instante"); process.exitCode = 1; }
+if (!/Beto/.test(aviso)) { console.log("   FALHOU: a folha não diz quem disse Acabei!"); process.exitCode = 1; }
+// O relógio passa a contar a graça, e não os 600s que faltavam da ronda.
+if (!/^[1-5]s$/.test(relogioAgora)) { console.log(`   FALHOU: o relógio devia contar a graça, diz "${relogioAgora}"`); process.exitCode = 1; }
+
+// E fecha ao fim da graça, sem mais ninguém tocar em nada.
+await page.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).state === "voting", code, { timeout: 15000 });
+estado = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).state, code);
+console.log(`   passados os segundos de graça: estado "${estado}"`);
+
+// Repor a folha para o resto do caso.
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, {
+  state: "categories",
+  categoriesRound: { letter: "P", categoryIndexes: [0, 1, 2], endAt: Date.now() + 600000, finishedBy: null, finishedAt: null },
+}), code);
+await page.waitForSelector('[data-screen="categories"].active', { timeout: 5000 });
+
 console.log("6) Sozinho na sala não há tira: uma ficha só diz o que a folha já diz...");
 await page.evaluate((c) => {
   const fora = { p2: null, p3: null, p4: null };

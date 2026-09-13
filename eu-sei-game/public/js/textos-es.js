@@ -192,6 +192,7 @@ export default {
   rondaPontuacao: "Puntuación de la ronda",
   rondaProxima: "Siguiente ronda",
   rondaDeTotal: (n, total) => `Ronda ${n} de ${total}`,
+  rondaAlguemAcabou: (nome) => `${nome} dijo "¡Terminé!" — acaba la palabra, ¡rápido!`,
   mapTriviaJaRespondeste: (r, feitas, total) => `¡Ya respondiste "${r}"! (${feitas}/${total} han respondido)`,
   mapTriviaEscreveResposta: (feitas, total) => `Escribe tu respuesta y envíala. (${feitas}/${total} han respondido)`,
   rondaPontuacaoDe: (n, total) => `Puntuación de la ronda ${n} de ${total}`,

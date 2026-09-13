@@ -192,6 +192,7 @@ export default {
   rondaPontuacao: "Round score",
   rondaProxima: "Next round",
   rondaDeTotal: (n, total) => `Round ${n} of ${total}`,
+  rondaAlguemAcabou: (nome) => `${nome} called "Done!" — finish your word, quick!`,
   mapTriviaJaRespondeste: (r, feitas, total) => `You answered "${r}"! (${feitas}/${total} have answered)`,
   mapTriviaEscreveResposta: (feitas, total) => `Type your answer and send it. (${feitas}/${total} have answered)`,
   rondaPontuacaoDe: (n, total) => `Round ${n} of ${total} — scores`,

@@ -7,7 +7,7 @@ import { showTouchControls, hideTouchControls } from "./touch-controls.js";
 import { sfx } from "./sfx.js";
 import { abrirPaleta } from "./paleta.js";
 import {
-  CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES,
+  CATEGORIES, DEFAULT_CONFIG, CONFIG_LIMITS, catKey, MIN_ENABLED_CATEGORIES, STOP_GRACA_SEGUNDOS,
   CUSTOM_CAT_OFFSET, MAX_CUSTOM_CATEGORIES, MAX_CUSTOM_CATEGORY_LEN,
   limparCategoriasProprias, nomeDaCategoria, ehCategoriaPropria,
   MAP_BACKGROUND_SVG, LANDMARKS,
@@ -16,7 +16,8 @@ import {
   createRoom, joinRoom, rejoinRoom, listenRoom, updateConfig,
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
-  confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound, startVoting, castVote,
+  confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound,
+  rondaDeveFechar, marcarFimDaRonda, startVoting, castVote,
   finishVoting, nextRoundOrFinal, ligadosNaSala, MINIMO_PARA_BONUS, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho,
   candidatosAVencedorDoDesenho, advanceDrawRound,
@@ -922,6 +923,7 @@ const catEls = {
   letter: document.getElementById("cat-letter"),
   timer: document.getElementById("cat-timer"),
   ronda: document.getElementById("cat-round"),
+  acabou: document.getElementById("cat-acabou"),
   list: document.getElementById("cat-list"),
   regras: document.getElementById("cat-regras"),
   finishBtn: document.getElementById("cat-finish-btn"),
@@ -1017,8 +1019,19 @@ function renderCategories(room) {
   function tick() {
     const r = state.room;
     if (!r || r.state !== "categories") { limparRelogio(catEls.timer, relogioCat); return; }
-    const msLeft = (r.categoriesRound?.endAt || 0) - serverNow();
+    const cr2 = r.categoriesRound;
+    // Se alguém disse "Acabei!", o relógio passa a contar a GRAÇA, e a
+    // folha diz de quem foi. Cinco segundos em silêncio seriam só uma
+    // surpresa mais lenta.
+    const emGraca = !!(cr2?.finishedBy && cr2?.finishedAt);
+    const fim = emGraca ? cr2.finishedAt + STOP_GRACA_SEGUNDOS * 1000 : (cr2?.endAt || 0);
+    const msLeft = fim - serverNow();
     pintarRelogio(catEls.timer, Math.max(0, Math.ceil(msLeft / 1000)), relogioCat, () => sfx("toque"));
+    if (catEls.acabou) {
+      catEls.acabou.textContent = emGraca
+        ? t("rondaAlguemAcabou", r.players?.[cr2.finishedBy]?.name || t("alguem"))
+        : "";
+    }
     catRAF = requestAnimationFrame(tick);
   }
   catRAF = requestAnimationFrame(tick);
@@ -3217,7 +3230,12 @@ async function runHostLoopTick(room) {
       if (now - ultima > MAPA_MANGA_CADA_MS) await mapaMangaRouba(state.code, room);
     } else if (room.state === "categories") {
       const cr = room.categoriesRound;
-      if (cr && (now >= cr.endAt || cr.finishedBy)) {
+      // Alguém disse "Acabei!" e a hora ainda não está marcada: marca-a. É
+      // o anfitrião que o faz porque é o relógio dele que mede todas as
+      // outras fases — a graça tem de ser medida no mesmo.
+      if (cr && cr.finishedBy && !cr.finishedAt) {
+        await marcarFimDaRonda(state.code);
+      } else if (rondaDeveFechar(cr, now)) {
         await startVoting(state.code);
       }
     } else if (room.state === "voting") {
