@@ -334,6 +334,13 @@ const estreito = await ep.evaluate((larguraDoAparelho) => {
     if (document.documentElement.scrollWidth > larguraDoAparelho + 1) {
       out.rolam.push(`${sec.dataset.screen} (${document.documentElement.scrollWidth}px num ecrã de ${larguraDoAparelho})`);
     }
+    // O que nasce escondido conta para o TAMANHO (um mínimo de 44px não
+    // depende de quem está ao lado), mas NÃO para a rolagem: nenhum ecrã
+    // mostra todas as suas barras ao mesmo tempo, por isso uma largura
+    // medida com elas todas à mostra é uma largura que ninguém vê. Por isso
+    // a pergunta da rolagem, acima, fica-se pelo que está mesmo visível.
+    const tapados = [...sec.querySelectorAll(".hidden")];
+    tapados.forEach((e) => e.classList.remove("hidden"));
     sec.querySelectorAll("button, label, select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea").forEach((el) => {
       if (el.offsetParent === null) return;
       const b = el.getBoundingClientRect();
@@ -343,6 +350,7 @@ const estreito = await ep.evaluate((larguraDoAparelho) => {
         out.pequenos.push(`${sec.dataset.screen}:${(el.textContent || el.id || "").trim().slice(0, 16)} ${Math.round(b.width)}x${Math.round(b.height)}`);
       }
     });
+    tapados.forEach((e) => e.classList.add("hidden"));
     sec.classList.remove("active");
   });
   jaAtivos.forEach((x) => x.classList.add("active"));

@@ -726,6 +726,13 @@ element shrank because its own rule hid its contents.
 
 Falsified by reverting the CSS: eight findings, red.
 
+Step 5 (320px) reveals them too, and there the line had to be drawn: what is
+born hidden counts for the SIZE check — a 44px minimum does not depend on who
+is beside it — but never for the sideways-scroll check, because no screen
+shows all its bars at once, so a width measured with them all revealed is a
+width nobody ever sees. Clean at 320px: 260 controls, nothing under 44, no
+page scrolling sideways; and red on the same reverted CSS.
+
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
 first version of that check was wrong in a way that looked right: it asked
