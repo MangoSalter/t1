@@ -176,6 +176,7 @@ export default {
   salaPrecisaJogadores: (n) => `Precisa de ${n}+ jogadores ligados.`,
   salaDesligado: "(desligado)",
   quadroExportado: "Quadro exportado.",
+  aCarregar: "a carregar...",
   forcaLetrasErradas: (letras) => `Letras erradas: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Erros: ${erros} / ${teto}`,
   paletaVermelho: "Vermelho", paletaLaranja: "Laranja", paletaAmbar: "Âmbar", paletaAmarelo: "Amarelo",

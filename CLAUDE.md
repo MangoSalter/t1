@@ -766,6 +766,39 @@ shows all its bars at once, so a width measured with them all revealed is a
 width nobody ever sees. Clean at 320px: 260 controls, nothing under 44, no
 page scrolling sideways; and red on the same reverted CSS.
 
+## The stub answers instantly, so a whole moment of the game was untestable
+
+Creating and joining a room are the only two things anyone does before there
+is a game, and both wait on the network — at a party, on ten phones at once,
+often on somebody else's mobile data. Both buttons sat silent through that
+wait, which is exactly the reading the lazy-module loader already fixed for
+itself ("a button that neither acts nor speaks reads as broken"). They say
+`t("aCarregar")` and refuse a second tap now, through one `comBotaoOcupado`
+so there is one way to say it rather than two.
+
+Testing it needed the stub to be SLOW, which it never is: `window.__atrasoDaRede`
+makes `get`/`set`/`update` wait, in the same spirit as the existing
+`__writeTally` hook. That is not the stub lying about what Firebase does — it
+is the time Firebase takes to do it, and without it this moment does not exist
+for anyone to measure. `a11y-varrimento` step 4b holds a create for 1.2s and
+reads the button on an iPhone 13: **342x50 before and during**, disabled, with
+a different label.
+
+Two process notes, both costing a run each:
+
+- restoring `disabled = false` afterwards would be wrong: the create button is
+  ALSO disabled while the name box is empty, and that rule belongs to someone
+  else. Restore what was there.
+- the step's wait for "did it go busy?" must not be a bare `waitForFunction`:
+  when the button never goes busy — the very defect being hunted — that is a
+  30-second timeout and a Playwright stack instead of one readable sentence.
+  `.then(true).catch(false)`, then complain.
+
+And the loader's own label was hard-coded Portuguese this whole time, on the
+one screen an English player stares at while 143 KB travels. It goes through
+`t()` now, which needed `await import("./js/i18n.js")` inside that inline
+module script.
+
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
 first version of that check was wrong in a way that looked right: it asked

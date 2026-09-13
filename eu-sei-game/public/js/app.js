@@ -141,16 +141,40 @@ aoMudarLingua(pintarDesafioDaEntrada);
 els.createBtn.disabled = true;
 els.joinBtn.disabled = true;
 
+// Criar e entrar numa sala são as duas únicas coisas que se fazem antes de
+// haver jogo, e ambas esperam pela rede. Numa festa isto acontece em dez
+// telemóveis ao mesmo tempo, muitas vezes nos dados de outra pessoa: um botão
+// que fica calado durante três segundos lê-se como avariado e leva com um
+// segundo toque. É a mesma razão pela qual os módulos preguiçosos dizem
+// "a carregar..." — e o mesmo rótulo, para não haver duas maneiras de dizer
+// a mesma coisa.
+async function comBotaoOcupado(btn, tarefa) {
+  const rotulo = btn.textContent;
+  const estavaDesativado = btn.disabled;
+  btn.textContent = t("aCarregar");
+  btn.disabled = true;
+  try {
+    await tarefa();
+  } finally {
+    btn.textContent = rotulo;
+    // Repõe-se o que ESTAVA, e não "ativo": o botão de criar também fica
+    // desativado enquanto o nome estiver vazio, e essa regra é de outro dono.
+    btn.disabled = estavaDesativado;
+  }
+}
+
 els.createBtn.addEventListener("click", async () => {
   const name = els.nameInput.value.trim();
   if (!name) return showHomeError(t("erroEscreveNome"));
-  try {
-    state.name = name;
-    const code = await createRoom(state.uid, name, loadAvatar());
-    enterRoom(code);
-  } catch (err) {
-    showHomeError(t(err.message) || err.message);
-  }
+  await comBotaoOcupado(els.createBtn, async () => {
+    try {
+      state.name = name;
+      const code = await createRoom(state.uid, name, loadAvatar());
+      enterRoom(code);
+    } catch (err) {
+      showHomeError(t(err.message) || err.message);
+    }
+  });
 });
 
 // Enter no nome cria a sala; Enter no código entra na sala — a seguir a
@@ -171,13 +195,15 @@ els.joinBtn.addEventListener("click", async () => {
   const code = els.joinCodeInput.value.trim();
   if (!name) return showHomeError(t("erroEscreveNome"));
   if (!code) return showHomeError(t("erroEscreveCodigo"));
-  try {
-    state.name = name;
-    const joinedCode = await joinRoom(code, state.uid, name, loadAvatar());
-    enterRoom(joinedCode);
-  } catch (err) {
-    showHomeError(t(err.message) || err.message);
-  }
+  await comBotaoOcupado(els.joinBtn, async () => {
+    try {
+      state.name = name;
+      const joinedCode = await joinRoom(code, state.uid, name, loadAvatar());
+      enterRoom(joinedCode);
+    } catch (err) {
+      showHomeError(t(err.message) || err.message);
+    }
+  });
 });
 
 // ---------- AVATAR (desenho em pixels, mostrado ao lado do nome nas salas) ----------

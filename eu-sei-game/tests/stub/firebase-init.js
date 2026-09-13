@@ -183,7 +183,19 @@ export function onValue(r, cb) {
   return () => { pathListeners.get(r.path)?.delete(cb); };
 }
 
+// A rede de mentira é instantânea, e a de verdade não é. Sem isto não há
+// maneira de um caso ver o que uma pessoa vê nos dois ou três segundos entre
+// carregar em "Entrar na sala" e estar lá dentro — que é precisamente o
+// momento em que um botão calado se lê como avariado. Não é uma mentira do
+// stub sobre o que a Firebase FAZ: é o tempo que ela leva a fazê-lo.
+function atrasoDaRede() {
+  const ms = typeof window !== "undefined" && window.__atrasoDaRede;
+  return ms ? new Promise((r) => setTimeout(r, ms)) : null;
+}
+
 export async function get(r) {
+  const espera = atrasoDaRede();
+  if (espera) await espera;
   const val = getAt(splitPath(r.path));
   return { exists: () => val !== null && val !== undefined, val: () => val };
 }
@@ -197,12 +209,16 @@ function tally(path, payload) {
 }
 
 export async function set(r, value) {
+  const espera = atrasoDaRede();
+  if (espera) await espera;
   tally(r.path, value);
   setAt(splitPath(r.path), value);
   notifyPath(r.path, "set", value);
 }
 
 export async function update(r, partial) {
+  const espera = atrasoDaRede();
+  if (espera) await espera;
   tally(r.path, partial);
   applyUpdate(splitPath(r.path), partial);
   notifyPath(r.path, "update", partial);

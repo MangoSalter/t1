@@ -164,6 +164,7 @@ export default {
   salaPrecisaJogadores: (n) => `Needs ${n}+ connected players.`,
   salaDesligado: "(offline)",
   quadroExportado: "Board exported.",
+  aCarregar: "loading...",
   forcaLetrasErradas: (letras) => `Wrong letters: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Misses: ${erros} / ${teto}`,
   paletaVermelho: "Red", paletaLaranja: "Orange", paletaAmbar: "Amber", paletaAmarelo: "Yellow",

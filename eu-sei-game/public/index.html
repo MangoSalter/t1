@@ -1271,6 +1271,9 @@
        O rótulo muda enquanto o módulo vem: numa rede lenta são segundos, e um
        botão que não faz nada nem diz nada lê-se como avariado. -->
   <script type="module">
+    // O rótulo passa pelo t() como tudo o resto: numa rede lenta esta é a
+    // única palavra que quem escolheu inglês vê durante segundos.
+    const { t } = await import("./js/i18n.js");
     const portas = [
       { sel: "[data-open-mapa]", mod: "./js/mapa-ecra.js", abrir: (m) => m.__mapa.abrirMapa() },
       { sel: "[data-open-board]", mod: "./js/board.js", abrir: (m) => m.abrirQuadro() },
@@ -1284,7 +1287,7 @@
           if (jaCa.has(porta.mod)) return; // o módulo já ouve este botão
           ev.preventDefault();
           const rotulo = btn.textContent;
-          btn.textContent = "a carregar...";
+          btn.textContent = t("aCarregar");
           try {
             const m = await import(porta.mod);
             jaCa.add(porta.mod);

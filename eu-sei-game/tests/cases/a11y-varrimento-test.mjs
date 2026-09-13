@@ -309,6 +309,43 @@ if (rotuloDepois !== rotuloAntes) {
 }
 await lentoCtx.close();
 
+console.log("4b) E os dois botões da entrada, enquanto a sala não chega...");
+{
+  // Criar e entrar são as únicas coisas que se fazem antes de haver jogo, e
+  // ambas esperam pela rede — numa festa, em dez telemóveis ao mesmo tempo e
+  // muitas vezes nos dados de outra pessoa. O stub responde num instante, por
+  // isso o atraso é posto à mão: sem isso este momento não existe para
+  // ninguém medir.
+  const ctx = await browser.newContext({ ...devices["iPhone 13"] });
+  const p = await ctx.newPage();
+  await p.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" });
+  await p.fill("#name-input", "Ana");
+  await p.waitForFunction(() => !document.getElementById("create-room-btn").disabled, { timeout: 5000 });
+  const caixaAntes = await p.locator("#create-room-btn").boundingBox();
+  const rotuloAntes = (await p.locator("#create-room-btn").textContent()).trim();
+  await p.evaluate(() => { window.__atrasoDaRede = 1200; });
+  await p.click("#create-room-btn");
+  // Se ele NUNCA se desativa é precisamente o defeito que este passo procura:
+  // esperar sem rede de segurança dava um timeout de 30s e uma pilha de
+  // Playwright em vez de uma frase que se lê.
+  const ficouOcupado = await p
+    .waitForFunction(() => document.getElementById("create-room-btn").disabled, { timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+  const durante = await p.evaluate(() => {
+    const b = document.getElementById("create-room-btn");
+    const r = b.getBoundingClientRect();
+    return { rotulo: b.textContent.trim(), desativado: b.disabled, w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  await p.evaluate(() => { window.__atrasoDaRede = 0; });
+  await p.waitForSelector('[data-screen="lobby"].active', { timeout: 8000 });
+  console.log(`   "${rotuloAntes}" ${Math.round(caixaAntes.width)}x${Math.round(caixaAntes.height)} -> "${durante.rotulo}" ${durante.w}x${durante.h} (desativado: ${durante.desativado})`);
+  if (!ficouOcupado || !durante.desativado) queixar("o botão de criar sala", ["continua a aceitar toques enquanto espera pela rede"]);
+  if (durante.rotulo === rotuloAntes) queixar("o botão de criar sala", ["não diz nada enquanto espera pela rede"]);
+  if (durante.h < 44 || durante.w < 44) queixar("o botão de criar sala", [`encolheu para ${durante.w}x${durante.h} enquanto esperava`]);
+  await ctx.close();
+}
+
 console.log("5) E no telemóvel mais ESTREITO que ainda se usa, não só no do dono...");
 // Tudo aqui em cima mede num iPhone 13, 390px de largura. Um iPhone SE tem
 // 320, e um Android comum 360 — e uma régua só prova a régua que se usou.

@@ -164,6 +164,7 @@ export default {
   salaPrecisaJogadores: (n) => `Necesita ${n}+ jugadores conectados.`,
   salaDesligado: "(desconectado)",
   quadroExportado: "Pizarra exportada.",
+  aCarregar: "cargando...",
   forcaLetrasErradas: (letras) => `Letras falladas: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Fallos: ${erros} / ${teto}`,
   paletaVermelho: "Rojo", paletaLaranja: "Naranja", paletaAmbar: "Ámbar", paletaAmarelo: "Amarillo",
