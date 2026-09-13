@@ -151,13 +151,19 @@ els.joinBtn.disabled = true;
 async function comBotaoOcupado(btn, tarefa) {
   const rotulo = btn.textContent;
   const estavaDesativado = btn.disabled;
-  btn.textContent = t("aCarregar");
+  const ocupado = t("aCarregar");
+  btn.textContent = ocupado;
   btn.disabled = true;
   try {
     await tarefa();
   } finally {
-    btn.textContent = rotulo;
-    // Repõe-se o que ESTAVA, e não "ativo": o botão de criar também fica
+    // Repõe-se o rótulo SÓ se ninguém lhe tiver mexido entretanto. Vários
+    // destes botões são repintados pelo render enquanto a escrita viaja (o
+    // "Próxima ronda" passa a "Ver os finais"), e repor o que estava por cima
+    // do que o render acabou de escrever é a mesma armadilha que o carregador
+    // de módulos já documenta.
+    if (btn.textContent === ocupado) btn.textContent = rotulo;
+    // E repõe-se o que ESTAVA, e não "ativo": o botão de criar também fica
     // desativado enquanto o nome estiver vazio, e essa regra é de outro dono.
     btn.disabled = estavaDesativado;
   }
@@ -1177,11 +1183,11 @@ const roundScoreEls = {
   nextBtn: document.getElementById("round-next-btn"),
 };
 
-roundScoreEls.nextBtn.addEventListener("click", () => {
+roundScoreEls.nextBtn.addEventListener("click", async () => {
   // Ver o comentário do botão de fechar a votação: avançar a ronda por engano
   // arrasta a sala inteira.
   if (!state.room || !isHost(state.room)) return;
-  nextRoundOrFinal(state.code, state.room);
+  await comBotaoOcupado(roundScoreEls.nextBtn, () => nextRoundOrFinal(state.code, state.room));
 });
 
 // PORQUÊ estes pontos. A queixa que mais se repete nas críticas dos jogos
@@ -1492,12 +1498,12 @@ drawEls.winnerCancelBtn.addEventListener("click", () => {
   drawEls.winnerOverlay.classList.add("hidden");
 });
 
-drawEls.skipBtn.addEventListener("click", () => {
-  skipDrawRound(state.code, state.room, state.uid);
+drawEls.skipBtn.addEventListener("click", async () => {
+  await comBotaoOcupado(drawEls.skipBtn, () => skipDrawRound(state.code, state.room, state.uid));
 });
 
-drawEls.continueBtn.addEventListener("click", () => {
-  advanceDrawRound(state.code, state.room);
+drawEls.continueBtn.addEventListener("click", async () => {
+  await comBotaoOcupado(drawEls.continueBtn, () => advanceDrawRound(state.code, state.room));
 });
 
 window.addEventListener("resize", () => {
@@ -3133,11 +3139,11 @@ const finalEls = {
   albumGrid: document.getElementById("final-album-grid"),
 };
 
-finalEls.rematchBtn.addEventListener("click", () => {
+finalEls.rematchBtn.addEventListener("click", async () => {
   // O terceiro do mesmo tipo: o botão é escondido a quem não é anfitrião, mas
   // esconder não protege. Recomeçar a partida apaga a pontuação de todos.
   if (!state.room || !isHost(state.room)) return;
-  resetForRematch(state.code, state.room);
+  await comBotaoOcupado(finalEls.rematchBtn, () => resetForRematch(state.code, state.room));
 });
 
 function renderFinal(room) {

@@ -812,6 +812,19 @@ That check is only possible because the stub can now be slow: press, assert
 the button refuses the second tap, then assert the round is still 1 and the
 ball is the same ball.
 
+The other four host buttons that move the whole room — next round, rematch,
+and the drawing game's skip and continue — got the same treatment, and doing
+that changed the restore rule: several of them are REPAINTED by the render
+while the write is in flight ("Próxima ronda" becomes "Ver os finais" on the
+last one), so the label goes back only `if (btn.textContent === ocupado)`.
+Blindly restoring is the same trap the lazy loader documents from the other
+side.
+
+Falsifying that rule caught a second bug in my own check: `page.click`
+resolves when the TOUCH is done, not when the handler's `finally` has run, so
+the first version read the label too early and passed with the rule broken.
+Wait for the button to go un-busy, then read.
+
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
 first version of that check was wrong in a way that looked right: it asked

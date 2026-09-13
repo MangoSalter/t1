@@ -228,8 +228,24 @@ console.log("3c) Trocar a palavra: uma vez por vez, com o quadro limpo e o botã
   console.log(`   texto do resultado: "${resultText}"`);
   if (!resultText.includes(palavraEmJogo)) { console.log("   FALHOU: o resultado devia revelar a palavra"); process.exitCode = 1; }
 
-  console.log("7) Continuar para a ronda 2 (host clica)...");
-  await page.click("#draw-continue-btn");
+  console.log("7) Continuar para a ronda 2 (host clica) — e o botão ocupado não pisa o render...");
+  // Enquanto a escrita viaja, o render pode repintar o mesmo botão (o
+  // "Próxima ronda" do fim da ronda passa a "Ver os finais" na última). Repor
+  // cegamente o rótulo antigo por cima disso é a armadilha que o carregador
+  // de módulos já documenta. Aqui o teste faz o papel do render.
+  await page.evaluate(() => { window.__atrasoDaRede = 600; });
+  const cliqueContinuar = page.click("#draw-continue-btn");
+  await page.waitForFunction(() => document.getElementById("draw-continue-btn").disabled, { timeout: 3000 });
+  await page.evaluate(() => { document.getElementById("draw-continue-btn").textContent = "OUTRO RÓTULO"; });
+  await cliqueContinuar;
+  // O page.click volta quando o TOQUE acabou, não quando o `finally` do
+  // botão correu — ler aqui era ler antes de a reposição acontecer, e o
+  // passo passava com a regra partida (falsificado, foi o que fez).
+  await page.waitForFunction(() => !document.getElementById("draw-continue-btn").disabled, { timeout: 5000 });
+  await page.evaluate(() => { window.__atrasoDaRede = 0; });
+  const rotuloDepois = (await page.locator("#draw-continue-btn").textContent()).trim();
+  console.log(`   rótulo depois da espera: "${rotuloDepois}"`);
+  if (rotuloDepois !== "OUTRO RÓTULO") { console.log("   FALHOU: o botão apagou o que o render tinha escrito"); process.exitCode = 1; }
   await page.waitForFunction((code) => window.__testDb.get(`rooms/${code}`).draw.turnIndex === 1, code, { timeout: 3000 });
   room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
   console.log(`   nova ronda: turnIndex=${room.draw.turnIndex}, drawerId=${room.draw.drawerId}, pontos limpos: ${Object.keys(room.draw.doodle.points || {}).length === 0}`);
