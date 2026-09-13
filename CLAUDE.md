@@ -939,6 +939,30 @@ that would train someone to ignore red:
   tripped the check in every language. The name is stripped before the text
   is tokenised.
 
+### And the same hole again, in this sweep, one level down
+
+`linguas-ecra` walks every `[data-screen]` and skips `offsetParent === null`,
+so it never read a single control that is born `.hidden` inside a screen —
+the same blind spot the a11y sweep had, which I had just fixed there and not
+here. It reveals them now, per screen, and puts the class back.
+
+One finding, and it is honest to say it was NOT visible to a player:
+`#round-next-btn` carried `data-i18n-js` and no `data-i18n` — the fifth
+instance of that pair — but `renderRoundScore` un-hides the button and sets
+its text in the same pass, so there is no moment where it is on screen in
+Portuguese. It carries both attributes now anyway: one attribute, and the
+rule this file already settled ("anything with text in the HTML needs
+`data-i18n` too") stops being a thing you have to reason about per element.
+
+Falsified by stripping the attributes off the drawing game's swap button:
+`draw: 🔄 Trocar palavra`, red.
+
+And I walked straight into the `git checkout <file>` scar this file already
+records, in the same hour I read it: I falsified by editing `index.html`,
+undid it with `git checkout -- index.html`, and that restored the COMMITTED
+file — wiping the `data-i18n` fix I had not committed yet. `git status`
+caught it. Copy the file first, every time.
+
 ### I made the same mistake the a11y sweep already documents
 
 `linguas-ecra-test` walked `[data-screen]` and reported zero untranslated.

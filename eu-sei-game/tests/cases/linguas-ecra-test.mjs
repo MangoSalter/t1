@@ -85,6 +85,13 @@ async function varrer(lingua) {
     document.querySelectorAll("[data-screen]").forEach((sec) => {
       const antes = sec.classList.contains("active");
       sec.classList.add("active");
+      // E DENTRO do ecrã, o mesmo outra vez: as barras de quem desenha, os
+      // botões que só aparecem a quem é a vez, nascem `hidden` e o
+      // offsetParent nulo lá abaixo salta-os. O a11y-varrimento levou este
+      // buraco para as sobreposições e deixou-o um nível mais fundo; é a
+      // mesma revelação, feita e desfeita.
+      const escondidos = [...sec.querySelectorAll(".hidden")];
+      escondidos.forEach((e) => e.classList.remove("hidden"));
       const lista = [];
       sec.querySelectorAll("*").forEach((el) => {
         if (el.offsetParent === null) return;
@@ -95,6 +102,7 @@ async function varrer(lingua) {
         if (el.parentElement?.closest("[data-i18n-html]")) return;
         lista.push(proprio(el).replace(/\s+/g, " "));
       });
+      escondidos.forEach((e) => e.classList.add("hidden"));
       if (!antes) sec.classList.remove("active");
       res[sec.dataset.screen] = lista;
     });
