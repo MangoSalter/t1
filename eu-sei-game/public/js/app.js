@@ -552,10 +552,10 @@ esconderAOficina();
 
 const mpGameButtons = Array.from(document.querySelectorAll("[data-mp-game]"));
 mpGameButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     const room = state.room;
     if (!room || !isHost(room)) return;
-    startQuickBonusGame(state.code, room, btn.dataset.mpGame);
+    await comBotaoOcupado(btn, () => startQuickBonusGame(state.code, room, btn.dataset.mpGame));
   });
 });
 
@@ -749,9 +749,15 @@ function clamp(value, limits) {
   return Math.min(limits.max, Math.max(limits.min, n));
 }
 
-lobbyEls.startBtn.addEventListener("click", () => {
+lobbyEls.startBtn.addEventListener("click", async () => {
   if (!state.room || !isHost(state.room)) return;
-  startGame(state.code);
+  // Ocupado enquanto a escrita viaja, e não só por educação: sem isto um
+  // segundo toque — o que qualquer pessoa dá a um botão que não respondeu —
+  // voltava a chamar o startGame, que repõe a ronda a 1 e sorteia outra bola.
+  // Numa rede lenta isso chega depois de os outros já estarem a jogar, e a
+  // partida recomeça para toda a gente. É a mesma trava do ballClicked e do
+  // hangmanJudging, no sítio onde faltava.
+  await comBotaoOcupado(lobbyEls.startBtn, () => startGame(state.code));
 });
 
 function renderLobby(room) {

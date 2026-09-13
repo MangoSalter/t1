@@ -799,6 +799,19 @@ one screen an English player stares at while 143 KB travels. It goes through
 `t()` now, which needed `await import("./js/i18n.js")` inside that inline
 module script.
 
+The same busy state then paid for itself somewhere it was not decoration: the
+host's **"Começar"**. It called `startGame` un-awaited, and `startGame` has no
+re-entry guard — it writes `round: 1` and rolls a fresh ball. So the second
+tap, the one anybody gives a button that did not answer, RESTARTED THE MATCH,
+and on a slow connection it landed after everyone else had already begun. The
+codebase had this trap solved twice (`ballClicked`, `hangmanJudging`) and not
+here. The quick mini-game buttons beside it had the same shape and got the
+same treatment.
+
+That check is only possible because the stub can now be slow: press, assert
+the button refuses the second tap, then assert the round is still 1 and the
+ball is the same ball.
+
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
 first version of that check was wrong in a way that looked right: it asked

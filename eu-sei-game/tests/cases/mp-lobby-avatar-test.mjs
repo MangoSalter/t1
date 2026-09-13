@@ -57,6 +57,38 @@ const imgSrc = await page.locator("#lobby-players img.avatar-thumb-sm").first().
 console.log(`   img src na lista: ${imgSrc?.slice(0, 40)}...`);
 if (imgSrc !== avatarVal) { console.log("   FALHOU: lista de jogadores não reflete o novo avatar"); process.exitCode = 1; }
 
+console.log("4) O 'Começar' não aceita o segundo toque enquanto a sala não arranca...");
+{
+  // Com a rede lenta, o anfitrião impaciente carrega outra vez — e o segundo
+  // startGame repunha a ronda a 1 e sorteava outra bola, já com os outros a
+  // jogar. Precisa de dois jogadores ligados para o botão sequer ligar.
+  await page.evaluate((c) => window.__testDb.update(`rooms/${c}/players`, {
+    p2: { name: "Beto", score: 0, connected: true },
+  }), code.trim());
+  await page.waitForFunction(() => !document.getElementById("start-game-btn")?.disabled, { timeout: 3000 })
+    .catch(() => {});
+  await page.evaluate(() => { window.__atrasoDaRede = 700; });
+  const botao = page.locator("#start-game-btn");
+  await botao.click();
+  const ocupado = await page.evaluate(() => {
+    const b = document.getElementById("start-game-btn");
+    return { desativado: b.disabled, rotulo: b.textContent.trim() };
+  });
+  // O segundo toque, à força, como quem carrega num botão que não respondeu.
+  await botao.click({ force: true }).catch(() => {});
+  await page.evaluate(() => { window.__atrasoDaRede = 0; });
+  await page.waitForFunction((c) => window.__testDb.get(`rooms/${c}`).state === "ball", code.trim(), { timeout: 5000 });
+  const primeira = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).ball.appearAt, code.trim());
+  await page.waitForTimeout(400);
+  const depois = await page.evaluate((c) => ({
+    ronda: window.__testDb.get(`rooms/${c}`).round,
+    bola: window.__testDb.get(`rooms/${c}`).ball.appearAt,
+  }), code.trim());
+  console.log(`   botão enquanto esperava: "${ocupado.rotulo}" (desativado: ${ocupado.desativado}) · ronda ${depois.ronda} · bola ${depois.bola === primeira ? "a mesma" : "OUTRA"}`);
+  if (!ocupado.desativado) { console.log("   FALHOU: o botão aceita toques enquanto a sala não arranca"); process.exitCode = 1; }
+  if (depois.ronda !== 1 || depois.bola !== primeira) { console.log("   FALHOU: o segundo toque recomeçou a partida"); process.exitCode = 1; }
+}
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));
