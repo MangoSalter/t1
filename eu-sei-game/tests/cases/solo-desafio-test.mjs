@@ -100,6 +100,37 @@ if (resultado.guardado.sequencia !== 1) falhar("primeira vez = 1 dia seguido");
 if (resultado.guardado.dia !== doModulo.dia) falhar("devia ficar guardado o dia de hoje");
 if (!resultado.copiarVisivel) falhar("devia dar para copiar o resultado");
 
+console.log("3b) E o texto que se cola numa conversa fala a língua de quem joga...");
+{
+  // É a frase deste jogo que mais longe viaja — vai para uma conversa, não
+  // para um ecrã — e estava em português duro para as outras duas línguas.
+  // Nenhum varrimento lhe podia chegar: só existe depois de se carregar em
+  // copiar, e só se lê pela porta do erro. A área de transferência não está
+  // disponível aqui, e o código já trata disso mostrando o texto no resumo
+  // para se copiar à mão; é por aí que se lê o que a pessoa ia colar.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("sem permissão")) },
+      configurable: true,
+    });
+  });
+  const trocarLingua = async (l) => page.evaluate(async (lingua) => {
+    const m = await import("./js/i18n.js");
+    await m.definirLingua(lingua);
+  }, l);
+  await page.click("#solo-desafio-copiar-btn");
+  const emPortugues = (await page.locator("#solo-result-summary").textContent()).trim();
+  await trocarLingua("en");
+  await page.click("#solo-desafio-copiar-btn");
+  const emIngles = (await page.locator("#solo-result-summary").textContent()).trim();
+  await trocarLingua("pt");
+  console.log(`   pt: ${JSON.stringify(emPortugues)}`);
+  console.log(`   en: ${JSON.stringify(emIngles)}`);
+  if (!/desafio de/.test(emPortugues)) falhar(`em português devia dizer "desafio de": ${emPortugues}`);
+  if (!/challenge/i.test(emIngles) || /desafio|Letra/.test(emIngles)) falhar(`o texto partilhado ficou em português: ${emIngles}`);
+  if (!emIngles.includes("🟩") || !emIngles.includes("3/6")) falhar(`o texto partilhado perdeu o resultado: ${emIngles}`);
+}
+
 console.log("4) Jogar outra vez no mesmo dia não muda o que ficou guardado...");
 // Há cinco botões "Voltar" na página, um por ecrã: só serve o do ecrã ativo.
 await page.click('[data-screen="solo-result"] [data-solo-leave]');

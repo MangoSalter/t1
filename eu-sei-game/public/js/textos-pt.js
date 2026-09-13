@@ -174,6 +174,11 @@ export default {
   cfgBonusHint: "Depois da última ronda, joga-se cada um destes uma vez, por ordem sorteada.",
   salaFaltamJogadores: (n) => `Salta as rondas clássicas e começa já neste. Há ${n} ligado(s) — alguns jogos precisam de mais.`,
   salaPrecisaJogadores: (n) => `Precisa de ${n}+ jogadores ligados.`,
+  salaDesligado: "(desligado)",
+  desafioPartilhaTitulo: (dia) => `Eu sei! — desafio de ${dia}`,
+  desafioPartilhaLinha: (letra, certas, total, pontos) => `Letra ${letra} · ${certas}/${total} · ${pontos} pts`,
+  desafioPartilhaSequencia: (n) => `${n} dias seguidos`,
+  desafioCopiado: "✅ Copiado",
 
   // O desafio do dia é escrito com peças (pontos, dias seguidos), por isso
   // não cabe num data-i18n: quem o pinta volta a pintá-lo quando a língua

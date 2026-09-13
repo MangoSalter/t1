@@ -916,6 +916,42 @@ see it (it is built in JavaScript) and this one never went there. It walks
 all four now, forced through the stub rather than played out, and the
 falsification is putting the Portuguese back: `a votação: As tuas respostas`.
 
+### The states a test never puts the game into are a bigger family than the empty ones
+
+Reading `renderLobby` end to end — the screen every night starts on — turned
+up ` (desligado)` written straight into the player list, in a game that
+advertises three languages. Every guard was green and right to be: the string
+only exists once SOMEBODY CLOSES THEIR PHONE, and a test always sets up the
+working case. Same shape as the empty states one section up, but wider: not
+"nothing to show", just "a state nobody arranges".
+
+Two more from the same grep, and the second is the worst of the three because
+of where it goes:
+
+- `textoDoDesafio` — the daily challenge's shareable result, the sentence of
+  this game that travels FURTHEST, since it is pasted into somebody else's
+  chat — was Portuguese in all three languages. It only exists after you press
+  copy, so nothing that reads screens could ever have seen it.
+- `"✅ Copiado"`, set on that same button, same reason.
+
+How to read it back in a test: the code already handles a clipboard it cannot
+write to by putting the text on screen to be copied by hand, so the check
+denies `navigator.clipboard` and reads it through that door — a real path,
+not a contrived one. `solo-desafio` step 3b then copies once in Portuguese and
+once in English and compares.
+
+The grep that found all three: string literals in `app.js`/`room.js`/
+`solo.js`/`board-room.js` containing a Portuguese word, minus the lines that
+already call `t()`. It has false positives worth knowing about, so don't
+"fix" them: `BOARD_MODES` keeps a Portuguese `label`/`hint` beside its
+`chave`, read only as `t(mode.chaveHint) || mode.hint`, and `MASCOT_QUIPS`
+is the same idea — data in `room.js`/`solo.js`, translated at the render, and
+that is exactly how `room.js` stays free of `t()` so the shared-room promise
+holds.
+
+And `test-linguas` earns its keep here: it refuses a key nobody uses, so the
+five new keys failed the case until they were actually wired.
+
 ### The empty states are a family, and a test never sees them
 
 A test always sets up the FULL case — that is what makes it a test of

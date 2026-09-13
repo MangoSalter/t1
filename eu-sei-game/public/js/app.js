@@ -735,7 +735,11 @@ function renderLobby(room) {
   players.forEach(([uid, p]) => {
     const li = document.createElement("li");
     li.innerHTML = avatarImgHtml(p.avatar, "sm", p.name)
-      + escapeHtml(p.name) + (uid === room.hostId ? " 👑" : "") + (p.connected ? "" : " (desligado)");
+      // "(desligado)" esteve aqui em português duro durante todo o tempo em
+      // que o jogo diz falar três línguas, e no ecrã por onde toda a gente
+      // entra. Nenhum varrimento lhe podia tocar: só aparece quando ALGUÉM
+      // FECHA O TELEMÓVEL, e um teste monta sempre o caso inteiro.
+      + escapeHtml(p.name) + (uid === room.hostId ? " 👑" : "") + (p.connected ? "" : ` ${escapeHtml(t("salaDesligado"))}`);
     lobbyEls.players.appendChild(li);
   });
 

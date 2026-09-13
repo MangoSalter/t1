@@ -162,6 +162,11 @@ export default {
   cfgBonusHint: "Después de la última ronda se juega cada uno de estos una vez, en orden sorteado.",
   salaFaltamJogadores: (n) => `Sáltate las rondas clásicas y empieza ya con este. Hay ${n} conectado(s); algunos juegos necesitan más.`,
   salaPrecisaJogadores: (n) => `Necesita ${n}+ jugadores conectados.`,
+  salaDesligado: "(desconectado)",
+  desafioPartilhaTitulo: (dia) => `Eu sei! — desafío de ${dia}`,
+  desafioPartilhaLinha: (letra, certas, total, pontos) => `Letra ${letra} · ${certas}/${total} · ${pontos} pts`,
+  desafioPartilhaSequencia: (n) => `${n} días seguidos`,
+  desafioCopiado: "✅ Copiado",
 
   casaVerDesafio: "📅 Ver el reto de hoy",
   desafioSequencia: (n) => ` · ${n} día(s) seguidos`,

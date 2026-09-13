@@ -201,6 +201,30 @@ await convidado.waitForSelector('[data-screen="lobby"].active', { timeout: 5000 
 const naSala = await fugas(anfitriao, "a sala de espera com dois");
 check("a sala com dois jogadores não deixa português", naSala.length === 0, naSala.join(", "));
 
+// E COM UM DELES DESLIGADO. O "(desligado)" ao lado do nome só aparece quando
+// alguém fecha o telemóvel, e um teste monta sempre o caso inteiro — por isso
+// nenhuma passagem, em português ou noutra língua, tinha lido esta palavra.
+// É a mesma família dos estados vazios: texto que só existe quando falta
+// alguma coisa.
+{
+  await anfitriao.evaluate((c) => {
+    const sala = window.__testDb.get(`rooms/${c}`);
+    const outro = Object.keys(sala.players).find((uid) => uid !== sala.hostId);
+    window.__testDb.update(`rooms/${c}/players/${outro}`, { connected: false });
+  }, codigo);
+  await anfitriao.waitForFunction(() => /\(/.test(document.getElementById("lobby-players")?.textContent || ""), { timeout: 3000 });
+  const lista = (await anfitriao.locator("#lobby-players").textContent()).trim();
+  console.log(`   lista da sala em inglês: "${lista.replace(/\s+/g, " ")}"`);
+  check("o rótulo de quem se desligou não fica em português", !/desligado/i.test(lista), lista);
+  check("e diz alguma coisa", /\(\w+\)/.test(lista), lista);
+  await anfitriao.evaluate((c) => {
+    const sala = window.__testDb.get(`rooms/${c}`);
+    const outro = Object.keys(sala.players).find((uid) => uid !== sala.hostId);
+    window.__testDb.update(`rooms/${c}/players/${outro}`, { connected: true });
+  }, codigo);
+  await anfitriao.waitForFunction(() => !/\(/.test(document.getElementById("lobby-players")?.textContent || ""), { timeout: 3000 });
+}
+
 // AS QUATRO TELAS DO JOGO CLÁSSICO NA SALA. Nenhum varrimento chegava aqui:
 // o de ecrãs só vê o que está escrito no index.html, e este caso, até agora,
 // entrava no quadro e ficava por lá. Foi assim que "As tuas respostas" —

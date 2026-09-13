@@ -1251,8 +1251,10 @@ els.desafioBtnCasa?.addEventListener("click", comecarDesafio);
 function textoDoDesafio(rows, corretas, pontos, sequencia) {
   const fila = rows.map((r) => (r.valid ? "🟩" : "⬜")).join("");
   const dia = solo.desafio?.dia || diaDoDesafio();
-  return `Eu sei! — desafio de ${dia}\nLetra ${solo.letter} · ${corretas}/${rows.length} · ${pontos} pts\n${fila}`
-    + (sequencia > 1 ? `\n${sequencia} dias seguidos` : "");
+  // Isto é o que a pessoa cola numa conversa — a frase do jogo que mais
+  // longe viaja — e estava em português para quem joga nas outras duas.
+  return `${t("desafioPartilhaTitulo", dia)}\n${t("desafioPartilhaLinha", solo.letter, corretas, rows.length, pontos)}\n${fila}`
+    + (sequencia > 1 ? `\n${t("desafioPartilhaSequencia", sequencia)}` : "");
 }
 
 function terminarDesafio(rows, corretas, pontos) {
@@ -1283,7 +1285,7 @@ function terminarDesafio(rows, corretas, pontos) {
     const texto = textoDoDesafio(rows, corretas, pontos, sequencia);
     try {
       await navigator.clipboard.writeText(texto);
-      els.desafioCopiarBtn.textContent = "✅ Copiado";
+      els.desafioCopiarBtn.textContent = t("desafioCopiado");
     } catch {
       // Sem permissão para a área de transferência (acontece), mostra-se o
       // texto para se poder copiar à mão em vez de não acontecer nada.

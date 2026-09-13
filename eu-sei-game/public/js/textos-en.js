@@ -162,6 +162,11 @@ export default {
   cfgBonusHint: "After the last round, each of these is played once, in a drawn order.",
   salaFaltamJogadores: (n) => `Skip the classic rounds and start with this one. ${n} connected — some games need more.`,
   salaPrecisaJogadores: (n) => `Needs ${n}+ connected players.`,
+  salaDesligado: "(offline)",
+  desafioPartilhaTitulo: (dia) => `Eu sei! — ${dia} challenge`,
+  desafioPartilhaLinha: (letra, certas, total, pontos) => `Letter ${letra} · ${certas}/${total} · ${pontos} pts`,
+  desafioPartilhaSequencia: (n) => `${n} days in a row`,
+  desafioCopiado: "✅ Copied",
 
   casaVerDesafio: "📅 See today's challenge",
   desafioSequencia: (n) => ` · ${n} day(s) in a row`,
