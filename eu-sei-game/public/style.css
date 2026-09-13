@@ -1307,6 +1307,16 @@ input:focus-visible, select:focus-visible { border-color: var(--primary); }
      subiam para 44 — e a ferramenta é o que mais se troca no quadro (caneta,
      borracha, caneta outra vez), por isso é o alvo que mais se falha. */
   .hangman-toolbar .board-tool { min-height: 44px; }
+  /* E o RASCUNHO PESSOAL, que é a terceira vez que esta mesma regra cobre
+     metade do que promete: tem as suas cores, a sua borracha e a sua caixa,
+     todas ao lado das do quadro, e ficaram nos tamanhos do computador
+     enquanto as vizinhas subiam. Nasce escondido, por isso nenhum
+     varrimento lhe tinha tocado. */
+  .hangman-personal-tools .board-color { width: 44px; height: 44px; }
+  .hangman-personal-tools .board-tool { min-height: 44px; min-width: 44px; }
+  /* Com o texto escondido, a etiqueta fica só com a caixa — 25px de largura.
+     O alvo é a etiqueta inteira, logo é ela que tem de medir 44. */
+  .hangman-personal-toggle, .hangman-fill-toggle { min-width: 44px; justify-content: center; }
   /* Só o ícone: o nome inteiro de sete botões não cabe em 390px, e cortá-los a
      meio é pior do que mostrar só o símbolo. */
   .hangman-board-zone button.ghost, .hangman-board-zone button.primary {

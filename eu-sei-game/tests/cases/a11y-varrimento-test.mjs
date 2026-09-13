@@ -88,6 +88,25 @@ function varrerControlos(modo) {
     });
   }
 
+  // Os controlos que NASCEM escondidos dentro de um ecrã — as barras de quem
+  // desenha, os botões que só aparecem a quem é a vez. `medir` salta tudo o
+  // que tem offsetParent nulo, por isso nenhum varrimento lhes tocou nunca:
+  // o mesmo buraco que as sobreposições tinham, um nível mais abaixo.
+  if (modo === "ecras-escondidos") {
+    const alvos = [...document.querySelectorAll("[data-screen]")];
+    const estava = alvos.map((e) => e.classList.contains("active"));
+    const saida = alvos.map((alvo) => {
+      alvos.forEach((e) => e.classList.toggle("active", e === alvo));
+      const escondidos = [...alvo.querySelectorAll(".hidden")];
+      escondidos.forEach((e) => e.classList.remove("hidden"));
+      const medida = medir(alvo);
+      escondidos.forEach((e) => e.classList.add("hidden"));
+      return { onde: alvo.dataset.screen, ...medida, transborda: false };
+    });
+    alvos.forEach((e, i) => e.classList.toggle("active", estava[i]));
+    return saida;
+  }
+
   const ecras = [...document.querySelectorAll("[data-screen]")];
   const antes = ecras.map((e) => e.classList.contains("active"));
   const resultado = ecras.map((alvo) => {
@@ -162,6 +181,21 @@ if (varrimento.length < 35) {
 }
 queixar("alvos abaixo de 44px", varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
 queixar("sem nome para leitor de ecrã", varrimento.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)));
+
+console.log("2b) E os controlos que nascem escondidos DENTRO de um ecrã...");
+const escondidos = await vp.evaluate(varrerControlos, "ecras-escondidos");
+const jaVistos = new Set(varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
+const jaSemNome = new Set(varrimento.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)));
+const novosMaus = escondidos.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)).filter((m) => !jaVistos.has(m));
+const novosSemNome = escondidos.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)).filter((n) => !jaSemNome.has(n));
+const totalEscondidos = escondidos.reduce((a, e) => a + e.vistos, 0);
+console.log(`   ${totalEscondidos} controlos com os escondidos à mostra (${varrimento.reduce((a, e) => a + e.vistos, 0)} sem eles)`);
+if (totalEscondidos <= varrimento.reduce((a, e) => a + e.vistos, 0)) {
+  console.log("   FALHOU: revelar o que está escondido tinha de dar MAIS controlos — o modo deixou de revelar nada");
+  process.exitCode = 1;
+}
+queixar("escondidos ao nascer, abaixo de 44px", novosMaus);
+queixar("escondidos ao nascer, sem nome para leitor de ecrã", novosSemNome);
 await varreCtx.close();
 
 console.log("3) O jogo clássico a sério, com os botões que só nascem a jogar...");

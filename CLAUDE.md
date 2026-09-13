@@ -696,6 +696,34 @@ button mid-flight: **342x50 on an iPhone 13**, before and during, so the label
 swap never shrinks the target under the thumb. It also checks the old label
 comes back.
 
+## A sweep that skips what it cannot see, one level further down
+
+The overlay lesson two sections up says a sweep that skips `hidden` things
+skips all of them — and the sweep it produced still had the same hole INSIDE
+each screen. `medir` drops anything with a null `offsetParent`, so every
+control that is born `.hidden` within a `[data-screen]` was invisible to it:
+the drawing game's whole toolbar, and every button that only appears to
+whoever's turn it is. I found this by adding a button to that toolbar and
+noticing no sweep would ever measure it.
+
+Step 2b reveals them the way step 1 reveals overlays — un-hide every `.hidden`
+descendant of the screen, measure, put the class back — and reports only what
+step 2 did not already see. It went from 214 controls to **268**, and the step
+fails if that number does not GROW, because a mode that quietly stops
+revealing anything is a green tick measuring nothing.
+
+What it found, on its first run: the solo Forca's personal scratch pad —
+five colours at 44x32, an eraser at 40x44, and two checkboxes at 44x25. The
+CSS says why, and it is the **third** instance of the shape this file already
+records twice: the phone block raises `.hangman-toolbar`'s colours AND tools
+to 44, under a comment congratulating itself for not forgetting the tools,
+and `.hangman-personal-tools` sits in the very next rule at the desktop's 40
+and 32. The two checkboxes are a different miss: `@media (max-width: 720px)`
+hides their text, which leaves the label as a bare 25px-wide box — the
+element shrank because its own rule hid its contents.
+
+Falsified by reverting the CSS: eight findings, red.
+
 ## The accessible name is not the textContent
 Both sweeps also check that a screen reader has something to announce, and the
 first version of that check was wrong in a way that looked right: it asked
