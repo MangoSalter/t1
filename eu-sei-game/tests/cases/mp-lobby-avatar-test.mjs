@@ -89,6 +89,41 @@ console.log("4) O 'Começar' não aceita o segundo toque enquanto a sala não ar
   if (depois.ronda !== 1 || depois.bola !== primeira) { console.log("   FALHOU: o segundo toque recomeçou a partida"); process.exitCode = 1; }
 }
 
+console.log("5) Quando a rede cai, quem caiu também fica a saber...");
+{
+  // O onDisconnect já dizia aos OUTROS; a esta pessoa não se dizia nada e o
+  // ecrã dela só parava. Mede-se num telemóvel porque a faixa fica por cima
+  // de tudo e não pode tapar o que se toca.
+  const semRedeAntes = await page.evaluate(() => document.getElementById("sem-rede").classList.contains("hidden"));
+  await page.evaluate(() => { window.__semRede = true; });
+  // Não aparece já: a Firebase pisca o ".info/connected" por tudo e por nada.
+  await page.waitForTimeout(400);
+  const logoASeguir = await page.evaluate(() => document.getElementById("sem-rede").classList.contains("hidden"));
+  await page.waitForFunction(() => !document.getElementById("sem-rede").classList.contains("hidden"), { timeout: 4000 });
+  const faixa = await page.evaluate(() => {
+    const el = document.getElementById("sem-rede");
+    const r = el.getBoundingClientRect();
+    const fab = document.getElementById("options-fab")?.getBoundingClientRect();
+    return {
+      texto: el.textContent.trim(), papel: el.getAttribute("role"),
+      topo: Math.round(r.top), altura: Math.round(r.height),
+      // Cruzamento a sério, nos dois eixos: comparar só as alturas dizia que
+      // uma faixa à esquerda tapava um botão à direita.
+      tapaOFab: !!fab && r.bottom > fab.top && r.top < fab.bottom && r.right > fab.left && r.left < fab.right,
+      toque: getComputedStyle(el).pointerEvents,
+    };
+  });
+  await page.evaluate(() => { window.__semRede = false; });
+  await page.waitForFunction(() => document.getElementById("sem-rede").classList.contains("hidden"), { timeout: 3000 });
+  console.log(`   escondida ao princípio: ${semRedeAntes} · ainda escondida aos 0,4s: ${logoASeguir} · depois: "${faixa.texto}" (${faixa.altura}px, role=${faixa.papel})`);
+  if (!semRedeAntes) { console.log("   FALHOU: com rede não devia haver faixa nenhuma"); process.exitCode = 1; }
+  if (!logoASeguir) { console.log("   FALHOU: a faixa apareceu logo — um pisca-pisca da rede não é uma queda"); process.exitCode = 1; }
+  if (faixa.papel !== "status") { console.log("   FALHOU: a faixa tem de ser anunciada a quem usa leitor de ecrã"); process.exitCode = 1; }
+  if (faixa.topo < 100) { console.log(`   FALHOU: a faixa devia estar em baixo, está em ${faixa.topo}`); process.exitCode = 1; }
+  if (faixa.tapaOFab) { console.log("   FALHOU: a faixa está a tapar o botão de opções"); process.exitCode = 1; }
+  if (faixa.toque !== "none") { console.log("   FALHOU: a faixa apanha o toque — prende quem está sem rede"); process.exitCode = 1; }
+}
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));

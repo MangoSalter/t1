@@ -164,6 +164,7 @@ export default {
   salaPrecisaJogadores: (n) => `Needs ${n}+ connected players.`,
   salaDesligado: "(offline)",
   quadroExportado: "Board exported.",
+  semRede: "📡 No connection — trying to get back...",
   fimPartilhar: "📋 Copy tonight's result",
   fimPartilhaTitulo: (sala) => `Eu sei! — room ${sala}`,
   fimPartilhaFrase: (texto, quem) => `😂 “${texto}” — ${quem}`,

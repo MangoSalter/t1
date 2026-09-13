@@ -176,7 +176,29 @@ export function ref(_db, path) {
   return { path: path || "" };
 }
 
+// O ".info/connected" da Firebase: um caminho que ela mantém sozinha e que
+// diz a CADA CLIENTE se ainda está ligado. O stub não tem rede para perder,
+// por isso responde "ligado" — e deixa um interruptor (window.__semRede) para
+// um caso poder cortar a ligação de propósito, que é a única maneira de ver o
+// que uma pessoa vê quando o wi-fi cai a meio de uma ronda.
+const OUVINTES_DA_LIGACAO = new Set();
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__semRede", {
+    configurable: true,
+    get: () => !!window.__semRedeValor,
+    set: (v) => {
+      window.__semRedeValor = !!v;
+      OUVINTES_DA_LIGACAO.forEach((cb) => cb({ val: () => !window.__semRedeValor }));
+    },
+  });
+}
+
 export function onValue(r, cb) {
+  if (r.path === ".info/connected") {
+    OUVINTES_DA_LIGACAO.add(cb);
+    cb({ val: () => typeof window === "undefined" || !window.__semRedeValor });
+    return () => OUVINTES_DA_LIGACAO.delete(cb);
+  }
   if (!pathListeners.has(r.path)) pathListeners.set(r.path, new Set());
   pathListeners.get(r.path).add(cb);
   cb({ val: () => getAt(splitPath(r.path)) });

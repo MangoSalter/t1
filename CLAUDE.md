@@ -815,6 +815,40 @@ shows all its bars at once, so a width measured with them all revealed is a
 width nobody ever sees. Clean at 320px: 260 controls, nothing under 44, no
 page scrolling sideways; and red on the same reverted CSS.
 
+## Telling the OTHERS is not telling the person
+
+`attachPresence` has always set `onDisconnect(...).set(false)`, so when
+somebody's wifi drops everyone else sees them go quiet. The person who
+dropped was told nothing at all: their screen simply stopped changing, which
+in the middle of a round is indistinguishable from everyone else writing in
+silence. Firebase's own `.info/connected` says it, and nothing was listening.
+
+Three things the banner needed, and each was found by measuring rather than
+by taste:
+
+- **a delay.** `.info/connected` flickers on nothing; a red banner blinking
+  during a game is worse than the blip it reports. A second and a half.
+- **not at the top.** The first version was a full-width strip at the top,
+  which the new sweep step immediately showed covering the map bar's four
+  buttons and the whiteboard's exit — trapping in the app precisely the
+  person having network trouble. It is a pill at the bottom left now, clear
+  of the options button in the other corner.
+- **`pointer-events: none`.** Measured, there is no band of the screen that
+  is free on every screen: the top has the map bar and the board's exit, the
+  bottom has the language selector and the end of the menus. A banner that
+  only ever shows can never trap anyone, and that is the invariant the check
+  states.
+
+The stub grew `.info/connected` with a `window.__semRede` switch, next to
+`__atrasoDaRede`. Both are the same idea: the stub has no network to lose or
+delay, so the moments that only exist when the network misbehaves could not
+be seen by any test until it could pretend.
+
+And one check of my own was wrong before the code was: it flagged an 18x18
+checkbox as "fully covered", when the target of a checkbox is the LABEL that
+wraps it — which is why every other step in that file excludes checkboxes and
+radios. The rule to copy was three steps up.
+
 ## The stub answers instantly, so a whole moment of the game was untestable
 
 Creating and joining a room are the only two things anyone does before there

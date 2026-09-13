@@ -176,6 +176,7 @@ export default {
   salaPrecisaJogadores: (n) => `Precisa de ${n}+ jogadores ligados.`,
   salaDesligado: "(desligado)",
   quadroExportado: "Quadro exportado.",
+  semRede: "📡 Sem ligação — a tentar voltar...",
   fimPartilhar: "📋 Copiar o resultado da noite",
   fimPartilhaTitulo: (sala) => `Eu sei! — sala ${sala}`,
   fimPartilhaFrase: (texto, quem) => `😂 “${texto}” — ${quem}`,

@@ -373,6 +373,15 @@ function attachPresence(code, uid) {
   onDisconnect(connRef).set(false);
 }
 
+// A LIGAÇÃO DESTE TELEMÓVEL. O onDisconnect acima diz aos OUTROS que alguém
+// caiu; a esta pessoa não dizia nada — o ecrã dela simplesmente parava, e a
+// meio de uma ronda isso não se distingue de "está tudo calado". O
+// ".info/connected" é da Firebase e não da sala: sabe-se mesmo sem sala
+// nenhuma aberta.
+export function ouvirLigacao(callback) {
+  return onValue(ref(db, ".info/connected"), (snap) => callback(snap.val() === true));
+}
+
 export function listenRoom(code, callback) {
   const r = roomRef(code);
   return onValue(r, (snap) => callback(snap.val()));

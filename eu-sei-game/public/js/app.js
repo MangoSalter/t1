@@ -17,7 +17,7 @@ import {
   maybeReclaimHost, updatePlayerAvatar, startGame, startQuickBonusGame, backToLobby,
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound,
-  rondaDeveFechar, marcarFimDaRonda, startVoting, castVote,
+  rondaDeveFechar, marcarFimDaRonda, startVoting, castVote, ouvirLigacao,
   podeTrocarPalavraDeDesenho, trocarPalavraDeDesenho,
   finishVoting, nextRoundOrFinal, ligadosNaSala, MINIMO_PARA_BONUS, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho,
@@ -210,6 +210,28 @@ els.joinBtn.addEventListener("click", async () => {
       showHomeError(t(err.message) || err.message);
     }
   });
+});
+
+// SEM LIGAÇÃO. O onDisconnect já avisava os OUTROS de que alguém caiu; a
+// quem cai não se dizia nada — o ecrã dela parava e mais nada, o que a meio
+// de uma ronda não se distingue de "está tudo calado a escrever". Numa festa
+// isto acontece a sério: alguém sai do alcance do wi-fi, ou o telemóvel troca
+// de rede.
+//
+// A faixa só aparece depois de um segundo e meio: a Firebase pisca o
+// ".info/connected" em falhas de nada, e uma faixa vermelha a piscar durante
+// um jogo é pior do que a falha que anuncia.
+const ESPERA_ANTES_DE_AVISAR_MS = 1500;
+const semRedeEl = document.getElementById("sem-rede");
+let avisoDeRede = null;
+
+ouvirLigacao((ligado) => {
+  clearTimeout(avisoDeRede);
+  if (ligado) {
+    semRedeEl.classList.add("hidden");
+    return;
+  }
+  avisoDeRede = setTimeout(() => semRedeEl.classList.remove("hidden"), ESPERA_ANTES_DE_AVISAR_MS);
 });
 
 // ---------- AVATAR (desenho em pixels, mostrado ao lado do nome nas salas) ----------

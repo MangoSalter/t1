@@ -387,6 +387,27 @@ button.hud-btn .icon-inline { color: var(--ink); }
    rabisco coletivo, cada jogador na sua cor, disponível em qualquer ecrã
    dentro de uma sala — ao contrário do quadro da Forca, que é só do
    anfitrião e serve um propósito diferente (charadas)). */
+/* Em cima e ao centro, por cima de tudo, sem tapar nada que se toque: os
+   botões flutuantes desta app vivem em baixo. Fica com o vermelho da casa
+   escuro o suficiente para o texto branco se ler (medido no test-cores). */
+.sem-rede {
+  /* EM BAIXO E À ESQUERDA, e não colada ao topo como o primeiro instinto
+     mandava: medido, uma faixa no topo tapava os quatro botões da barra do
+     mapa e a saída do quadro — prendia na app exatamente quem está com
+     problemas de rede. À direita fica o espaço do botão flutuante das
+     opções, que vive no canto de baixo. */
+  position: fixed; bottom: 12px; left: 12px; right: 80px; z-index: 60;
+  /* NUNCA apanha o toque. Medido: não há faixa de ecrã livre em todos os
+     ecrãs — em cima está a barra do mapa e a saída do quadro, em baixo o
+     seletor de línguas e o fim dos menus. Uma faixa que só se vê não pode
+     prender ninguém, e prender quem está sem rede era o pior dos mundos. */
+  pointer-events: none;
+  width: fit-content; max-width: calc(100% - 92px);
+  background: var(--primary-dark); color: #fff;
+  text-align: center; padding: 10px 14px; font-size: 0.95rem;
+  border-radius: 999px; box-shadow: 3px 3px 0 rgba(58,49,38,0.3);
+}
+
 .options-fab { position: fixed; bottom: 16px; right: 16px; z-index: 40; width: 52px; height: 52px; border-radius: 50%; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 3px 3px 0 rgba(58,49,38,0.3); }
 .options-card { max-width: 520px; }
 .options-card .score-row { gap: 10px; }

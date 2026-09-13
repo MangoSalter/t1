@@ -182,6 +182,47 @@ if (varrimento.length < 35) {
 queixar("alvos abaixo de 44px", varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
 queixar("sem nome para leitor de ecrã", varrimento.flatMap((e) => e.semNome.map((n) => `${e.onde}: ${n}`)));
 
+console.log("2c) E a faixa de \"sem ligação\" não pode tapar nada que se toque...");
+{
+  // A faixa fica colada ao topo, por cima de tudo, em qualquer ecrã — e há
+  // ecrãs com barras lá em cima (a do mapa, por exemplo). Uma faixa que
+  // tapasse o \"voltar\" prendia na app precisamente quem está com problemas
+  // de rede.
+  const tapados = await vp.evaluate(() => {
+    const faixa = document.getElementById("sem-rede");
+    faixa.classList.remove("hidden");
+    const f = faixa.getBoundingClientRect();
+    const ecras = [...document.querySelectorAll("[data-screen]")];
+    const antes = ecras.map((e) => e.classList.contains("active"));
+    const maus = [];
+    ecras.forEach((alvo) => {
+      ecras.forEach((e) => e.classList.toggle("active", e === alvo));
+      // Sem as caixas e os redondos: o alvo deles é a ETIQUETA que os
+      // embrulha, e é ela que tem de medir 44px — os outros passos deste
+      // ficheiro excluem-nos pela mesma razão. Sem isto, uma caixa de 18px
+      // cabia inteira dentro da faixa e dava uma queixa que não é uma.
+      alvo.querySelectorAll("button, a, select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, label").forEach((el) => {
+        if (el.offsetParent === null) return;
+        const r = el.getBoundingClientRect();
+        if (r.height === 0 || r.width === 0) return;
+        // TAPAR a sério é cobrir o controlo inteiro: um canto sobreposto por
+        // uma faixa que não apanha o toque vê-se e toca-se à mesma. O que
+        // não pode acontecer é um botão desaparecer por completo.
+        const dentro = r.top >= f.top && r.bottom <= f.bottom && r.left >= f.left && r.right <= f.right;
+        if (dentro) {
+          maus.push(`${alvo.dataset.screen}:${el.tagName}#${el.id || "(sem id)"} ${Math.round(r.width)}x${Math.round(r.height)} em ${Math.round(r.top)}`);
+        }
+      });
+    });
+    ecras.forEach((e, i) => e.classList.toggle("active", antes[i]));
+    faixa.classList.add("hidden");
+    return { maus, altura: Math.round(f.height), toque: getComputedStyle(faixa).pointerEvents };
+  });
+  console.log(`   faixa de ${tapados.altura}px · pointer-events: ${tapados.toque} · controlos tapados por inteiro: ${tapados.maus.length}`);
+  if (tapados.toque !== "none") queixar("a faixa de sem ligação", ["apanha o toque, e pode prender quem está sem rede"]);
+  queixar("controlos tapados pela faixa de sem ligação", tapados.maus);
+}
+
 console.log("2b) E os controlos que nascem escondidos DENTRO de um ecrã...");
 const escondidos = await vp.evaluate(varrerControlos, "ecras-escondidos");
 const jaVistos = new Set(varrimento.flatMap((e) => e.maus.map((m) => `${e.onde}: ${m}`)));
