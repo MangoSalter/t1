@@ -1096,8 +1096,9 @@ Falsified by loading Spanish alongside Portuguese.
 The three tables live in `textos-pt.js`, `textos-en.js` and `textos-es.js`;
 `i18n.js` is 3 KB and pulls the chosen one with a top-level `await import`,
 so `t()` stays synchronous for everything downstream and nobody has to know.
-First load: **713 KB / 19 files** — the whole three-language game costs 52 KB
-over where it started, not 131.
+First load: **742 KB / 19 files** (713 when the split was made; the features
+since have cost 29 KB) — the whole three-language game costs 52 KB over where
+it started, not 131.
 
 And one process scar, because it cost a full suite run: I falsified the new
 "one table only" check by editing `i18n.js` to load Spanish as well, then
@@ -1120,6 +1121,31 @@ Two consequences worth knowing before touching this:
   loaded. Nothing is lost: `test-linguas` compares all three tables key by
   key and fails on any divergence, which is a stronger guarantee than a
   silent fallback that shows Portuguese inside an English screen.
+
+## The invite link had no face
+
+The lobby's invite button copies a link, and that link gets pasted into
+WhatsApp — which is exactly where a party game wins or loses the people who
+were only half invited. There were no Open Graph tags at all, so what arrived
+was a bare URL.
+
+Three things worth keeping from adding them:
+
+- **the image path is relative on purpose.** `og:image` wants an absolute URL,
+  and the README says out loud that this repo may be renamed — an absolute one
+  written here would rot on that day. Crawlers resolve a relative one against
+  the page.
+- **the card is in Portuguese and stays that way.** What reads it is a robot
+  reading static HTML; it never runs the language selector. So there is one
+  card, in the house language, matching `<html lang="pt-PT">`.
+- **it costs the players nothing, and that is checked.** The preview image is
+  fetched only by the crawler, so `carga-inicial` step 5 asserts `capa.png` is
+  NOT among the first-load requests — still 19 files — while also fetching it
+  to prove it is really served. Falsified both ways: delete the file, 404 and
+  red; drop one meta tag, red.
+
+`tools/capa.mjs` draws it from the mascot that is already in `index.html`, so
+the card and the page that opens next are the same cat.
 
 ## First load has a budget now, not a note
 The old note here said 868 KB across 23 files. Measured again in September:

@@ -83,5 +83,35 @@ const tabelas = pedidos.filter((p) => /textos-\w+\.js/.test(p.nome));
 console.log(`   tabelas de texto na primeira abertura: ${tabelas.map((p) => p.nome).join(", ") || "nenhuma"}`);
 if (tabelas.length !== 1) fail(`viajaram ${tabelas.length} tabelas de texto, devia ser 1: ${tabelas.map((p) => p.nome).join(", ")}`);
 
+console.log("5) E o cartão do convite existe, chega, e não se paga...");
+// Vive AQUI porque a pergunta é a mesma deste ficheiro: o que custa a
+// primeira visita. O convite do lobby é uma ligação que se cola no WhatsApp
+// — sem cartão aparece um endereço nu e ninguém abre. E a imagem do cartão
+// não pode viajar na primeira abertura: o robô do WhatsApp é que a vai
+// buscar, uma vez, longe do telemóvel de quem está a jogar.
+const cartao = await page.evaluate(() => {
+  const meta = (sel) => document.querySelector(sel)?.getAttribute("content") || "";
+  return {
+    titulo: meta('meta[property="og:title"]'),
+    descricao: meta('meta[property="og:description"]'),
+    imagem: meta('meta[property="og:image"]'),
+    alt: meta('meta[property="og:image:alt"]'),
+    tema: meta('meta[name="theme-color"]'),
+    endereco: new URL(meta('meta[property="og:image"]') || "nada", location.href).href,
+  };
+});
+const resposta = await page.request.get(cartao.endereco);
+const tipo = resposta.headers()["content-type"] || "";
+const bytes = (await resposta.body()).length;
+console.log(`   "${cartao.titulo}" · ${cartao.imagem} ${resposta.status()} ${tipo} ${Math.round(bytes / 1024)}KB · tema ${cartao.tema}`);
+for (const [campo, valor] of Object.entries(cartao)) {
+  if (!valor) fail(`o cartão do convite não tem ${campo}`);
+}
+if (!resposta.ok() || !tipo.startsWith("image/")) fail(`a imagem do cartão não é servida (${resposta.status()} ${tipo})`);
+// O robô do Facebook/WhatsApp desiste de imagens grandes; 8 MB é o limite
+// deles, mas uma capa que passe de 1 MB é uma capa mal feita.
+if (bytes > 1024 * 1024) fail(`a capa tem ${Math.round(bytes / 1024)}KB, demasiado para uma antevisão`);
+if (pedidos.some((p) => /capa/.test(p.nome))) fail("a capa do convite viajou na primeira abertura — não é para os jogadores");
+
 await browser.close();
 console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: OK");
