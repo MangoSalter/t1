@@ -3135,6 +3135,7 @@ function renderGolfMp(room) {
 const finalEls = {
   ranking: document.getElementById("final-ranking"),
   rematchBtn: document.getElementById("final-rematch-btn"),
+  destaque: document.getElementById("final-destaque"),
   album: document.getElementById("final-album"),
   albumGrid: document.getElementById("final-album-grid"),
 };
@@ -3158,6 +3159,14 @@ function renderFinal(room) {
       <span class="final-score">${pontos} pts</span>`;
     finalEls.ranking.appendChild(row);
   });
+  // A frase da noite, se alguém votou nalguma. O nome vem do jogador, e quem
+  // já saiu continua a contar: a piada foi dita à mesa, não à ligação.
+  const destaque = room.destaques?.engracada;
+  const nome = destaque ? (room.players?.[destaque.uid]?.name || t("alguem")) : "";
+  finalEls.destaque.classList.toggle("hidden", !destaque);
+  finalEls.destaque.textContent = destaque
+    ? t("fimDestaque", destaque.texto, nome, destaque.votos)
+    : "";
   finalEls.rematchBtn.classList.toggle("hidden", !isHost(room));
   desenharAlbum();
 }

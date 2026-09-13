@@ -67,8 +67,35 @@ await page.evaluate((c) => {
 await page.waitForTimeout(600);
 
 console.log("4) Ecrã final: o álbum tem a fotografia, com tinta lá dentro...");
+// A FRASE DA NOITE, no mesmo ecrã: é a metade do jogo clássico que faltava,
+// ao lado do álbum que já existia para o desenho. Escreve-se o destaque como
+// o finishVoting o escreveria.
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}/destaques`, {
+  engracada: { texto: "Abacate assassino", uid: window.__testDb.get(`rooms/${c}`).hostId, votos: 3, ronda: 2, letra: "A" },
+}), code);
 await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "final" }), code);
 await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+await page.waitForFunction(() => !document.getElementById("final-destaque").classList.contains("hidden"), { timeout: 3000 });
+const destaque = (await page.locator("#final-destaque").textContent()).trim();
+console.log(`   frase da noite: "${destaque}"`);
+if (!destaque.includes("Abacate assassino")) { console.log("   FALHOU: o ecrã final devia mostrar a frase da noite"); process.exitCode = 1; }
+if (!destaque.includes("Ana")) { console.log("   FALHOU: e dizer de quem foi"); process.exitCode = 1; }
+if (!destaque.includes("3")) { console.log("   FALHOU: e quantos votos teve"); process.exitCode = 1; }
+
+// E a frase é da PARTIDA: começar outra não a leva consigo. É o startGame
+// que a apaga, porque é ali que uma partida começa — o backToLobby guarda os
+// pontos de propósito, e o startBallPhase corre a cada ronda.
+await page.evaluate(async (c) => {
+  const m = await import("./js/room.js");
+  await m.startGame(c);
+}, code);
+await page.waitForTimeout(300);
+const sobrou = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).destaques, code);
+console.log(`   depois de começar outra partida: ${JSON.stringify(sobrou)}`);
+if (sobrou) { console.log("   FALHOU: a frase da partida anterior seguiu para a seguinte"); process.exitCode = 1; }
+await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "final" }), code);
+await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+
 const album = await page.evaluate(() => {
   const sec = document.getElementById("final-album");
   const imgs = [...document.querySelectorAll("#final-album-grid img")];

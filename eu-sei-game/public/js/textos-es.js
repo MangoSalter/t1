@@ -164,6 +164,7 @@ export default {
   salaPrecisaJogadores: (n) => `Necesita ${n}+ jugadores conectados.`,
   salaDesligado: "(desconectado)",
   quadroExportado: "Pizarra exportada.",
+  fimDestaque: (texto, quem, votos) => `😂 La frase de la noche: “${texto}” — ${quem}, ${votos} voto(s) de Graciosa.`,
   aCarregar: "cargando...",
   forcaLetrasErradas: (letras) => `Letras falladas: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Fallos: ${erros} / ${teto}`,

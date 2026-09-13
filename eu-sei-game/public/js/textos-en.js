@@ -164,6 +164,7 @@ export default {
   salaPrecisaJogadores: (n) => `Needs ${n}+ connected players.`,
   salaDesligado: "(offline)",
   quadroExportado: "Board exported.",
+  fimDestaque: (texto, quem, votos) => `😂 Line of the night: “${texto}” — ${quem}, ${votos} Funny vote(s).`,
   aCarregar: "loading...",
   forcaLetrasErradas: (letras) => `Wrong letters: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Misses: ${erros} / ${teto}`,

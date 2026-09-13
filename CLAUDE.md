@@ -181,6 +181,34 @@ only the one it remembered; `esquecerMapaDaSala` clears both `ligado` and
 `ultimaManga`; and in `app.js` the ball-click flag resets per ball phase while
 the render caches key off content, not position.
 
+## State that belongs to a match wants the match's beginning as its owner
+
+The classic game left nothing of itself at the end — a table of points, while
+Desenha e Adivinha has the album people screenshot. The "Engraçada" votes were
+already being cast and already paid points, but they died with the round:
+`roundResults` is wiped by the next one. So the funniest answer of the night
+is kept now (one per room) and shown on the final screen.
+
+The interesting part was choosing who clears it, and the answer was none of
+the three obvious ones:
+
+- `backToLobby` keeps the scores on purpose ("o que se ganhou, ganhou-se"), so
+  it is not the end of anything;
+- `startBallPhase` runs every ROUND, and would wipe the line the round after
+  it was won;
+- `resetForRematch` would work, but it is the second hand-written wipe list in
+  this file, and this document already records what happens to those.
+
+`startGame` clears it: a match's state is owned by the place a match BEGINS.
+One writer, no list to keep in sync. Falsified both halves — remove the clear
+and the previous match's joke follows into the next one; hide the line and the
+final screen loses it.
+
+One small trap in the string: the first draft read "a frase do Ana". A name
+carries no gender, so any article picks a side the game cannot know. The
+phrasing takes no article at all — the same reason `LANDMARKS` writes its
+sentence by hand instead of assembling "em/no/na".
+
 ## A price written in a comment is still a price
 
 The album of the night's drawings carried its own limitation in a comment:

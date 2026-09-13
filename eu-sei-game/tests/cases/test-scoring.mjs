@@ -9,7 +9,7 @@
 // Agora importa a função verdadeira. É possível porque os casos puros correm
 // dentro de uma cópia da app onde o firebase-init.js é o stub — é assim que o
 // test-battle-logic.mjs e o test-arenas.mjs importam o room.js.
-import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada, progressoDasRespostas, rondaDeveFechar } from "./js/room.js";
+import { computeRoundResults, ROUND_GLORIA_BONUS, classificacaoFinal, letraMaisVotada, progressoDasRespostas, rondaDeveFechar, respostaMaisEngracada, melhorDestaque } from "./js/room.js";
 import { STOP_GRACA_SEGUNDOS } from "./js/data.js";
 
 function catKey(i) { return "c" + i; }
@@ -319,6 +319,30 @@ function assertEqual(actual, expected, label) {
   );
 
   assertEqual(rondaDeveFechar(null, agora), false, "sem ronda não há nada para fechar");
+}
+
+// A FRASE DA NOITE. Os votos de "engraçada" já valiam pontos e morriam com a
+// ronda; esta é a metade que fica para o ecrã final.
+{
+  const resultados = {
+    a: { cat0: { text: "Abacate assassino", engracadaVotes: 3 }, cat1: { text: "Aveia", engracadaVotes: 0 } },
+    b: { cat0: { text: "Alho", engracadaVotes: 1 } },
+  };
+  const melhor = respostaMaisEngracada(resultados, 2, "A");
+  assertEqual(melhor?.texto, "Abacate assassino", "a frase da noite é a mais votada");
+  assertEqual(melhor?.votos, 3, "com os votos que teve");
+  assertEqual(melhor?.uid, "a", "e de quem foi");
+  assertEqual(`${melhor?.ronda}${melhor?.letra}`, "2A", "guarda a ronda e a letra");
+  assertEqual(respostaMaisEngracada({ a: { cat0: { text: "Alho", engracadaVotes: 0 } } }, 1, "A"), null,
+    "sem votos nenhuns não há frase");
+  assertEqual(respostaMaisEngracada({ a: { cat0: { text: "", engracadaVotes: 9 } } }, 1, "A"), null,
+    "uma resposta vazia nunca é a frase da noite");
+
+  const antiga = { texto: "Velha", uid: "z", votos: 3, ronda: 1, letra: "V" };
+  assertEqual(melhorDestaque(antiga, melhor), antiga, "empate fica com a que já lá estava");
+  assertEqual(melhorDestaque({ ...antiga, votos: 1 }, melhor), melhor, "e troca quando a nova tem mais votos");
+  assertEqual(melhorDestaque(antiga, null), antiga, "sem candidata fica a que lá estava");
+  assertEqual(melhorDestaque(null, null), null, "e sem nenhuma das duas fica nada");
 }
 
 // O resumo fica no FIM do ficheiro. Ao acrescentar o bloco dos empates

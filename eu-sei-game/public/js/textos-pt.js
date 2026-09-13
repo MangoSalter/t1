@@ -176,6 +176,9 @@ export default {
   salaPrecisaJogadores: (n) => `Precisa de ${n}+ jogadores ligados.`,
   salaDesligado: "(desligado)",
   quadroExportado: "Quadro exportado.",
+  // Sem artigo antes do nome: "do Ana" e "da Beto" saem dos dois lados de
+  // uma escolha que o jogo não tem como fazer — não sabe o género de ninguém.
+  fimDestaque: (texto, quem, votos) => `😂 A frase da noite: “${texto}” — ${quem}, ${votos} voto(s) de Engraçada.`,
   aCarregar: "a carregar...",
   forcaLetrasErradas: (letras) => `Letras erradas: ${letras}`,
   forcaErrosDeN: (erros, teto) => `Erros: ${erros} / ${teto}`,

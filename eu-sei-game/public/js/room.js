@@ -400,7 +400,12 @@ export async function maybeReclaimHost(code, room, myUid) {
 // --- Início do jogo / rondas ---
 
 export async function startGame(code) {
-  await update(roomRef(code), { round: 1 });
+  // O destaque é da PARTIDA, e é AQUI que uma partida começa — não no
+  // backToLobby, que guarda os pontos de propósito ("o que se ganhou,
+  // ganhou-se"), nem no startBallPhase, que corre a cada ronda e o apagaria
+  // logo a seguir a o ter ganho. Um dono só, no princípio da coisa que ele
+  // representa.
+  await update(roomRef(code), { round: 1, destaques: null });
   await startBallPhase(code);
 }
 
@@ -577,6 +582,34 @@ export async function castVote(code, room, targetUid, catIndex, voterUid, kind) 
   await set(ref(db, `rooms/${code}/votes/${voteKey}/${voterUid}`), next);
 }
 
+// O DESTAQUE DA NOITE. Os votos de "engraçada" já valem pontos, mas morriam
+// com a ronda — o roundResults é apagado na seguinte —, por isso no fim da
+// partida não ficava nada do que fez a mesa rir. O Desenha e Adivinha tem o
+// álbum; o jogo clássico não tinha nada, e é o jogo que dá o nome à app.
+//
+// Guarda-se UMA resposta por sala: a mais votada até agora. Empate fica com
+// a que já lá estava, de propósito — durante uma troca de anfitrião dois
+// clientes podem fechar a mesma ronda, e dois destaques diferentes na mesma
+// sala seriam duas noites diferentes.
+export function respostaMaisEngracada(resultados, ronda, letra) {
+  let melhor = null;
+  Object.entries(resultados || {}).forEach(([uid, categorias]) => {
+    Object.values(categorias || {}).forEach((r) => {
+      if (!r?.text || !(r.engracadaVotes > 0)) return;
+      if (!melhor || r.engracadaVotes > melhor.votos) {
+        melhor = { texto: r.text, uid, votos: r.engracadaVotes, ronda, letra };
+      }
+    });
+  });
+  return melhor;
+}
+
+export function melhorDestaque(atual, candidato) {
+  if (!candidato) return atual || null;
+  if (!atual) return candidato;
+  return candidato.votos > atual.votos ? candidato : atual;
+}
+
 export async function finishVoting(code, room) {
   const { results, roundPoints } = computeRoundResults(room);
   const updates = {};
@@ -586,6 +619,9 @@ export async function finishVoting(code, room) {
   });
   updates["roundResults"] = { byPlayer: results, roundPoints };
   updates["state"] = "roundScore";
+  const candidato = respostaMaisEngracada(results, room.round || 0, room.letterPick?.letter || room.letter || "");
+  const destaque = melhorDestaque(room.destaques?.engracada, candidato);
+  if (destaque && destaque !== room.destaques?.engracada) updates["destaques/engracada"] = destaque;
   await update(roomRef(code), updates);
 }
 
