@@ -347,6 +347,8 @@ export default {
   forcaArriscarPalavra: "Arriesgar palabra",
   desenhaAnular: "↩️ Deshacer",
   desenhaAlguemAcertou: "🏆 ¡Alguien acertó!",
+  desenhaTrocarPalavra: "🔄 Cambiar palabra",
+  desenhaTrocaGasta: "🔄 Ya cambiaste esta ronda",
   desenhaNinguemAcertou: "🙈 Nadie acertó",
   mapTriviaTitulo: "¡Mapamundi por equipos!",
   mapTriviaVoto: "Una respuesta equivocada puede aceptarse si la mayoría de la sala vota que sí.",

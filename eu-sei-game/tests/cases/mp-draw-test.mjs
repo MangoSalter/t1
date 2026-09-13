@@ -59,6 +59,49 @@ const drawerStatus = await page.locator("#draw-status").textContent();
 if (!drawerStatus.includes(secret1)) { console.log("   FALHOU: a desenhadora devia ver a palavra"); process.exitCode = 1; }
 else console.log("   OK: a desenhadora vê a palavra no estado");
 
+console.log("3c) Trocar a palavra: uma vez por vez, com o quadro limpo e o botão a dizer que já foi...");
+{
+  // Calhar com uma palavra que não se sabe desenhar só tinha saída pelo
+  // "ninguém acertou", que gasta a vez de toda a gente e não dá pontos.
+  const caixa = await page.locator("#draw-doodle-canvas").boundingBox();
+  await page.mouse.move(caixa.x + 80, caixa.y + 80);
+  await page.mouse.down();
+  await page.mouse.move(caixa.x + 200, caixa.y + 160, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction((code) => Object.keys(window.__testDb.get(`rooms/${code}`).draw.doodle.points || {}).length > 0, code, { timeout: 3000 });
+
+  const rotuloAntes = await page.locator("#draw-trocar-btn").textContent();
+  const podeAntes = await page.locator("#draw-trocar-btn").isEnabled();
+  await page.click("#draw-trocar-btn");
+  // Espera-se pelo ECRÃ, não pela base de dados: a escrita chega antes de o
+  // ouvinte repintar, e o que interessa é o que a pessoa lê.
+  await page.waitForFunction((antiga) => !(document.getElementById("draw-status")?.textContent || "").includes(antiga), secret1, { timeout: 3000 });
+
+  const depois = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
+  const rotuloDepois = await page.locator("#draw-trocar-btn").textContent();
+  const podeDepois = await page.locator("#draw-trocar-btn").isEnabled();
+  const traços = Object.keys(depois.draw.doodle?.points || {}).length;
+  console.log(`   "${secret1}" -> "${depois.draw.secretWord}" · traços no quadro: ${traços} · botão: "${rotuloAntes}" (${podeAntes ? "ativo" : "gasto"}) -> "${rotuloDepois}" (${podeDepois ? "ativo" : "gasto"})`);
+  if (!podeAntes) { console.log("   FALHOU: a troca devia estar disponível na primeira vez"); process.exitCode = 1; }
+  if (depois.draw.secretWord === secret1) { console.log("   FALHOU: a palavra devia ter mudado"); process.exitCode = 1; }
+  if (!(depois.draw.usedWords || []).length) { console.log("   FALHOU: a palavra velha devia ficar nos usados, para não voltar"); process.exitCode = 1; }
+  if (traços !== 0) { console.log("   FALHOU: o traço era da palavra velha, tinha de sair do quadro"); process.exitCode = 1; }
+  if (podeDepois) { console.log("   FALHOU: a troca é uma por vez"); process.exitCode = 1; }
+  if (rotuloDepois === rotuloAntes) { console.log("   FALHOU: o botão tem de dizer que já foi gasto"); process.exitCode = 1; }
+
+  // E a escrita recusa o que o ecrã esconde: uma segunda troca pelo módulo
+  // não muda nada.
+  const segunda = await page.evaluate(async (code) => {
+    const sala = window.__testDb.get(`rooms/${code}`);
+    const antes = sala.draw.secretWord;
+    const m = await import("./js/room.js");
+    await m.trocarPalavraDeDesenho(code, sala, sala.draw.drawerId);
+    return { antes, agora: window.__testDb.get(`rooms/${code}`).draw.secretWord };
+  }, code);
+  console.log(`   segunda troca pelo módulo: "${segunda.antes}" -> "${segunda.agora}"`);
+  if (segunda.antes !== segunda.agora) { console.log("   FALHOU: a segunda troca tinha de ser recusada"); process.exitCode = 1; }
+}
+
 {
   console.log("4) Ana (desenhadora) desenha um traço real e depois seleciona quem acertou...");
   const canvasBox = await page.locator("#draw-doodle-canvas").boundingBox();
@@ -178,9 +221,12 @@ else console.log("   OK: a desenhadora vê a palavra no estado");
     process.exitCode = 1;
   }
 
+  // A palavra desta ronda não é a que saiu no sorteio inicial: a Ana trocou-a
+  // no passo 3c, e é a que está em jogo que o resultado tem de revelar.
+  const palavraEmJogo = room.draw.secretWord;
   const resultText = await page.locator("#draw-result").textContent();
   console.log(`   texto do resultado: "${resultText}"`);
-  if (!resultText.includes(secret1)) { console.log("   FALHOU: o resultado devia revelar a palavra"); process.exitCode = 1; }
+  if (!resultText.includes(palavraEmJogo)) { console.log("   FALHOU: o resultado devia revelar a palavra"); process.exitCode = 1; }
 
   console.log("7) Continuar para a ronda 2 (host clica)...");
   await page.click("#draw-continue-btn");
@@ -188,8 +234,11 @@ else console.log("   OK: a desenhadora vê a palavra no estado");
   room = await page.evaluate((code) => window.__testDb.get(`rooms/${code}`), code);
   console.log(`   nova ronda: turnIndex=${room.draw.turnIndex}, drawerId=${room.draw.drawerId}, pontos limpos: ${Object.keys(room.draw.doodle.points || {}).length === 0}`);
   if (Object.keys(room.draw.doodle.points || {}).length !== 0 || room.draw.resolved !== false) { console.log("   FALHOU"); process.exitCode = 1; }
-  console.log(`   palavra nova na ronda 2: "${room.draw.secretWord}" (não repete a 1ª)`);
-  if (!room.draw.secretWord || room.draw.secretWord === secret1) { console.log("   FALHOU: devia sortear palavra nova"); process.exitCode = 1; }
+  console.log(`   palavra nova na ronda 2: "${room.draw.secretWord}" (nem a jogada nem a trocada fora)`);
+  if (!room.draw.secretWord || room.draw.secretWord === palavraEmJogo || room.draw.secretWord === secret1) {
+    console.log("   FALHOU: devia sortear palavra nova, e a trocada fora também não pode voltar");
+    process.exitCode = 1;
+  }
 }
 
 console.log("8) Saltar as rondas restantes (skip) até ao fim da fila -> deve ir para ecrã final...");

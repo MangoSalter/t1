@@ -347,6 +347,8 @@ export default {
   forcaArriscarPalavra: "Guess the word",
   desenhaAnular: "↩️ Undo",
   desenhaAlguemAcertou: "🏆 Somebody got it!",
+  desenhaTrocarPalavra: "🔄 Swap word",
+  desenhaTrocaGasta: "🔄 Already swapped this turn",
   desenhaNinguemAcertou: "🙈 Nobody got it",
   mapTriviaTitulo: "World Map in teams!",
   mapTriviaVoto: "A wrong answer can still count if most of the room votes it in.",

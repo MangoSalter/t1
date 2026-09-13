@@ -2508,6 +2508,7 @@ export async function startDrawGame(code, room, tema = "livre") {
       resolved: false,
       roundWinnerId: null,
       resolvedAt: null,
+      trocouPalavra: false,
     },
   });
 }
@@ -2610,6 +2611,46 @@ export async function skipDrawRound(code, room, uid) {
   });
 }
 
+// O que esta ronda já gastou do baralho. No tema dos marcos o que não se
+// repete é o MARCO e não o nome, porque é por id que o baralho se filtra —
+// e isso tem de ser a mesma coisa para quem passa à ronda seguinte e para
+// quem troca de palavra a meio, senão um dos dois deixa a palavra voltar.
+function chaveDaRondaDeDesenho(draw) {
+  if (!draw) return null;
+  return draw.tema === TEMA_MARCOS ? (draw.landmarkId || null) : (draw.secretWord || null);
+}
+
+// TROCAR A PALAVRA, uma vez por vez. Quem calhava com uma palavra que não
+// sabe desenhar só tinha o "ninguém acertou" — que fecha a ronda a toda a
+// gente, sem pontos para ninguém: perder a vez inteira por causa do sorteio.
+// É a queixa de sempre do skribbl, que a resolve dando três palavras à
+// escolha; aqui uma troca chega, e uma só, senão o baralho passa a ser uma
+// lista de compras e quem adivinha nunca sai da primeira letra.
+// Mesma regra para o ecrã e para a escrita.
+export function podeTrocarPalavraDeDesenho(room, uid) {
+  const draw = room?.draw;
+  if (!draw || draw.resolved) return false;
+  if (draw.drawerId !== uid) return false;
+  return !draw.trocouPalavra;
+}
+
+export async function trocarPalavraDeDesenho(code, room, uid) {
+  if (!podeTrocarPalavraDeDesenho(room, uid)) return false;
+  const draw = room.draw;
+  const usedWords = [...(draw.usedWords || []), chaveDaRondaDeDesenho(draw)].filter(Boolean);
+  const ronda = sortearRondaDeDesenho(draw.tema, usedWords);
+  await update(ref(db, `rooms/${code}/draw`), {
+    secretWord: ronda.secretWord,
+    landmarkId: ronda.landmarkId,
+    usedWords,
+    // O traço que lá estava era da palavra velha. Deixá-lo no quadro dava a
+    // quem adivinha uma pista de uma coisa que já não está em jogo.
+    doodle: { points: null },
+    trocouPalavra: true,
+  });
+  return true;
+}
+
 export async function advanceDrawRound(code, room) {
   const draw = room.draw;
   if (!draw) return;
@@ -2625,10 +2666,7 @@ export async function advanceDrawRound(code, room) {
     await startNextBonusGame(code, room);
     return;
   }
-  // No tema dos marcos o que não se repete é o MARCO, não o nome: é o id que
-  // entra na lista dos usados, porque é por id que o baralho se filtra.
-  const jaSaiu = draw.tema === TEMA_MARCOS ? (draw.landmarkId ? [draw.landmarkId] : []) : [draw.secretWord];
-  const usedWords = [...(draw.usedWords || []), ...jaSaiu].filter(Boolean);
+  const usedWords = [...(draw.usedWords || []), chaveDaRondaDeDesenho(draw)].filter(Boolean);
   const ronda = sortearRondaDeDesenho(draw.tema, usedWords);
   await update(ref(db, `rooms/${code}/draw`), {
     turnIndex: nextIndex,
@@ -2640,6 +2678,7 @@ export async function advanceDrawRound(code, room) {
     resolved: false,
     roundWinnerId: null,
     resolvedAt: null,
+    trocouPalavra: false,
   });
 }
 

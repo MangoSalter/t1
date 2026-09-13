@@ -211,6 +211,18 @@ for (const nomeTlm of ["iPhone 13", "Pixel 5"]) {
   const dono = await tlm.evaluate((c) => window.__testDb.get(`rooms/${c}`).hostId, c2);
   await tlm.evaluate(({ c, h }) => window.__testDb.update(`rooms/${c}/draw`, { drawerId: h }), { c: c2, h: dono });
   await tlm.waitForTimeout(300);
+  // A ronda ainda está aberta e a caneta é desta pessoa: é o único instante
+  // em que a barra de quem desenha está no ecrã, e nenhum varrimento a
+  // alcança (nasce toda `hidden`). Mede-se aqui o botão de trocar a palavra
+  // contra o vizinho que já lá estava.
+  const barra = await tlm.evaluate(() => {
+    const m = (id) => { const e = document.getElementById(id); const r = e.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), visivel: !e.classList.contains("hidden") }; };
+    return { trocar: m("draw-trocar-btn"), limpar: m("draw-clear-btn"), largura: innerWidth, rolaAoLado: document.documentElement.scrollWidth > innerWidth };
+  });
+  console.log(`   ${nomeTlm}: trocar ${barra.trocar.w}x${barra.trocar.h} (visível: ${barra.trocar.visivel}) · limpar ${barra.limpar.w}x${barra.limpar.h}`);
+  if (!barra.trocar.visivel) falhar(`${nomeTlm}: quem desenha tem de ver o botão de trocar a palavra`);
+  if (barra.trocar.h < 44 || barra.trocar.w < 44) falhar(`${nomeTlm}: o botão de trocar mede ${barra.trocar.w}x${barra.trocar.h}, abaixo dos 44px`);
+  if (barra.rolaAoLado) falhar(`${nomeTlm}: a página passou a rolar de lado`);
   await tlm.evaluate(async (c) => {
     const m = await import("./js/room.js");
     const r = window.__testDb.get(`rooms/${c}`);

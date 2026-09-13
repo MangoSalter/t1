@@ -362,6 +362,8 @@ export default {
   forcaArriscarPalavra: "Arriscar palavra",
   desenhaAnular: "↩️ Anular",
   desenhaAlguemAcertou: "🏆 Alguém acertou!",
+  desenhaTrocarPalavra: "🔄 Trocar palavra",
+  desenhaTrocaGasta: "🔄 Já trocaste esta ronda",
   desenhaNinguemAcertou: "🙈 Ninguém acertou",
   mapTriviaTitulo: "Mapa-Múndi em equipa!",
   mapTriviaVoto: "Uma resposta errada pode ser aceite se a maioria da equipa votar que sim.",

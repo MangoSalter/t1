@@ -18,6 +18,7 @@ import {
   startBallPhase, claimBallWin, startLetterPick, voteLetter,
   confirmLetter, letraMaisVotada, submitAnswer, progressoDasRespostas, finishCategoriesRound,
   rondaDeveFechar, marcarFimDaRonda, startVoting, castVote,
+  podeTrocarPalavraDeDesenho, trocarPalavraDeDesenho,
   finishVoting, nextRoundOrFinal, ligadosNaSala, MINIMO_PARA_BONUS, resetForRematch, leaveRoom, pointsObjectToArray, classificacaoFinal,
   pushDrawDoodlePoints, clearDrawDoodle, undoLastDrawStroke, selectDrawWinner, skipDrawRound, podeFecharRondaDeDesenho,
   candidatosAVencedorDoDesenho, advanceDrawRound,
@@ -1254,6 +1255,7 @@ const drawEls = {
   undoBtn: document.getElementById("draw-undo-btn"),
   clearBtn: document.getElementById("draw-clear-btn"),
   selectWinnerBtn: document.getElementById("draw-select-winner-btn"),
+  trocarBtn: document.getElementById("draw-trocar-btn"),
   skipBtn: document.getElementById("draw-skip-btn"),
   continueBtn: document.getElementById("draw-continue-btn"),
   result: document.getElementById("draw-result"),
@@ -1382,6 +1384,10 @@ drawEls.doodleCanvas.addEventListener("pointerup", drawDoodleEndStroke);
 drawEls.doodleCanvas.addEventListener("pointercancel", drawDoodleEndStroke);
 drawEls.doodleCanvas.addEventListener("pointerleave", drawDoodleEndStroke);
 
+drawEls.trocarBtn.addEventListener("click", () => {
+  if (!state.room) return;
+  trocarPalavraDeDesenho(state.code, state.room, state.uid);
+});
 drawEls.clearBtn.addEventListener("click", () => {
   clearDrawDoodle(state.code, state.room, state.uid);
 });
@@ -1488,6 +1494,12 @@ function renderDraw(room) {
     drawEls.doodleCanvas.classList.toggle("hangman-doodle-canvas-active", amDrawer);
     drawEls.clearBtn.classList.toggle("hidden", !amDrawer);
     drawEls.undoBtn.classList.toggle("hidden", !amDrawer);
+    // A troca fica à vista GASTA em vez de desaparecer: um botão que some a
+    // meio da vez lê-se como avaria, e assim diz porque já não serve.
+    const podeTrocar = podeTrocarPalavraDeDesenho(room, state.uid);
+    drawEls.trocarBtn.classList.toggle("hidden", !amDrawer);
+    drawEls.trocarBtn.disabled = !podeTrocar;
+    drawEls.trocarBtn.textContent = podeTrocar ? t("desenhaTrocarPalavra") : t("desenhaTrocaGasta");
     drawEls.corBtn.classList.toggle("hidden", !amDrawer);
     drawEls.espessuras.classList.toggle("hidden", !amDrawer);
     drawEls.selectWinnerBtn.classList.toggle("hidden", !amDrawer);
@@ -1510,6 +1522,7 @@ function renderDraw(room) {
     drawEls.doodleCanvas.classList.remove("hangman-doodle-canvas-active");
     drawEls.clearBtn.classList.add("hidden");
     drawEls.undoBtn.classList.add("hidden");
+    drawEls.trocarBtn.classList.add("hidden");
     drawEls.corBtn.classList.add("hidden");
     drawEls.espessuras.classList.add("hidden");
     drawEls.selectWinnerBtn.classList.add("hidden");
