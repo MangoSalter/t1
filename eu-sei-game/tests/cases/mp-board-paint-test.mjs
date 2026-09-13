@@ -108,6 +108,23 @@ console.log(`   ${casas.quantos} pontos, no máximo ${casas.pior} casas decimais
 if (casas.quantos === 0) fail("devia haver pontos para medir");
 if (casas.pior > 4) fail(`os pontos vão com ${casas.pior} casas decimais — é rede desperdiçada a cada traço`);
 
+console.log("7) E um traço é UMA escrita, não uma por movimento do dedo...");
+// O passo 6 mede o que cada ponto custa; isto mede quantas VEZES se escreve.
+// Os pontos são juntados e enviados no máximo a cada 90ms — tirar esse
+// amortecimento não muda um único byte por ponto (o passo 6 continuaria
+// verde) e multiplica as escritas por dez, que numa sala é toda a gente a
+// descarregar dez vezes mais mensagens. O contador do stub estava lá desde
+// sempre e nunca ninguém o tinha gasto.
+{
+  await p.evaluate(() => { window.__writeTally = { bytes: 0, calls: 0, filter: "doodle" }; });
+  await desenhar(300);
+  await p.waitForTimeout(400);
+  const conta = await p.evaluate(() => window.__writeTally);
+  console.log(`   um traço de 12 movimentos: ${conta.calls} escrita(s), ${conta.bytes} bytes`);
+  if (conta.calls === 0) fail("não se mediu escrita nenhuma — o contador do stub deixou de contar");
+  if (conta.calls > 4) fail(`${conta.calls} escritas para um traço: o amortecimento de ${90}ms deixou de juntar pontos`);
+}
+
 if (errors.length > 0) {
   console.log(`   FALHOU: erros de JavaScript: ${errors.slice(0, 3).join(" | ")}`);
   process.exitCode = 1;

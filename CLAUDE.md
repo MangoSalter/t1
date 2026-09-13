@@ -582,6 +582,22 @@ network module. The lesson is the one two sections down, applied to my own
 conclusions rather than to a comment: **"all three are done" rots exactly like
 "this is the only one".**
 
+## Two different questions about the same traffic
+
+`mp-board-paint` step 6 measures what each drawn point COSTS (four decimals,
+not seventeen). Step 7 measures how many TIMES the room is written to, and
+they catch different mistakes: set the drawing's 90ms batching interval to
+zero and the bytes per point do not move at all — 805 to 814 — while the
+writes go from **3 per stroke to 12**, which in a room is everyone
+downloading four times the messages. Step 6 stays green through that.
+
+It spends `window.__writeTally`, a counter that had sat in the stub since
+forever with nothing using it. Worth remembering that a hook nobody spends
+is a measurement nobody makes.
+
+The ceiling is 4 writes per stroke — an order-of-magnitude guard like
+`carga-inicial`, not a target to tune against.
+
 ## A stopwatch inside a parallel run measures the machine, not the code
 
 `mapa-desempenho-test` went red in a full run and passed on its own with
