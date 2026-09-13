@@ -3786,8 +3786,11 @@ function renderSoloHangman() {
     .map((ch) => (revealAll || solo.hangmanGuessedLetters[ch] ? ch : "_"))
     .join(" ");
   const wrong = Object.keys(solo.hangmanGuessedLetters).filter((l) => !solo.hangmanWord.includes(l));
-  els.soloHangmanWrongLetters.textContent = wrong.length ? `Letras erradas: ${wrong.join(", ")}` : "";
-  els.soloHangmanLives.textContent = `Erros: ${solo.hangmanWrongCount} / ${solo.hangmanMaxWrong}`;
+  // Duas linhas que aparecem em TODAS as jogadas da Forca de quem joga
+  // sozinho, e que ficaram em português nas três línguas: são pintadas a
+  // meio do jogo, e o guarda das línguas joga a Memória, não esta.
+  els.soloHangmanWrongLetters.textContent = wrong.length ? t("forcaLetrasErradas", wrong.join(", ")) : "";
+  els.soloHangmanLives.textContent = t("forcaErrosDeN", solo.hangmanWrongCount, solo.hangmanMaxWrong);
 }
 
 function soloHangmanGuessLetter(letterRaw) {

@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { abrirBrowser } from "./test-helpers.mjs";
+import { abrirBrowser, entrarNoSolo } from "./test-helpers.mjs";
 
 // O jogo deixou de expor window.__solo (era um gancho de depuracao que saiu).
 // Em vez de o repor so para o teste, resolve-se a Forca como um jogador
@@ -174,6 +174,46 @@ if (mgePoints3.includes("sequência")) { console.log("   FALHOU: maratona não d
 await page.click("#mge-continue-btn");
 await page.waitForSelector('[data-screen="solo-marathon-result"].active', { timeout: 3000 });
 console.log("   OK: maratona terminou normalmente");
+
+console.log("N) As duas linhas da Forca falam a língua de quem joga...");
+{
+  // "Letras erradas" e "Erros: 2 / 4" aparecem em TODAS as jogadas e ficaram
+  // em português nas três línguas. São pintadas a meio do jogo, e o guarda
+  // das línguas entra pela Memória — nunca por aqui.
+  // Recarrega-se a página: a esta altura o jogo está a meio de uma maratona e
+  // o botão da casa nem sequer está à vista.
+  await page.goto("http://localhost:8936/index.html?oficina=1", { waitUntil: "networkidle" });
+  await entrarNoSolo(page);
+  await page.click("#solo-play-hangman-btn");
+  await page.waitForSelector('[data-screen="solo-hangman-setup"].active', { timeout: 3000 });
+  await page.click("#hangman-solo-setup-start-btn");
+  await page.waitForSelector("#ready-overlay:not(.hidden)", { timeout: 3000 });
+  await page.click("#ready-start-btn");
+  await page.waitForSelector('[data-screen="solo-hangman"].active', { timeout: 3000 });
+  await page.evaluate(async () => {
+    const m = await import("./js/i18n.js");
+    await m.definirLingua("en");
+  });
+  // Um erro de propósito, que é o que faz as duas linhas aparecerem.
+  await page.fill("#solo-hangman-letter-input", "w");
+  await page.press("#solo-hangman-letter-input", "Enter");
+  await page.waitForTimeout(200);
+  const erradas = (await page.locator("#solo-hangman-wrong-letters").textContent()).trim();
+  const vidas = (await page.locator("#solo-hangman-lives").textContent()).trim();
+  await page.evaluate(async () => {
+    const m = await import("./js/i18n.js");
+    await m.definirLingua("pt");
+  });
+  console.log(`   em inglês: "${erradas}" · "${vidas}"`);
+  if (/Letras erradas|Erros:/.test(`${erradas} ${vidas}`)) {
+    console.log("   FALHOU: a Forca continua a dizer as duas linhas em português");
+    process.exitCode = 1;
+  }
+  if (!/Wrong letters/.test(erradas) || !/Misses/.test(vidas)) {
+    console.log(`   FALHOU: esperava as duas linhas em inglês, tenho "${erradas}" e "${vidas}"`);
+    process.exitCode = 1;
+  }
+}
 
 await browser.close();
 
