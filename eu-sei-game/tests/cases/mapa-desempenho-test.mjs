@@ -84,13 +84,22 @@ await outra.goto("http://localhost:8936/index.html", { waitUntil: "networkidle" 
 const pediuOsPaises = pedidos.some((u) => u.startsWith("paises.json"));
 console.log(`   a primeira página pediu paises.json: ${pediuOsPaises} (esperado false)`);
 if (pediuOsPaises) fail("os 191KB do mapa não podem vir na primeira página de quem nem abriu o mapa");
+// Esperar pelo PEDIDO, e não perguntar a um array se ele já foi preenchido.
+// Este passo falhava de vez em quando sem nada estar partido: o
+// `waitForFunction` corre DENTRO da página e volta assim que os dados estão
+// lidos, mas o evento "request" ainda vai a caminho do Node — e o array era
+// lido nesse intervalo. Um caso que falha uma vez em cada tantas ensina a
+// ignorar o vermelho, que é o pior que um teste pode fazer.
+const pedidoDosPaises = outra
+  .waitForRequest((req) => req.url().includes("paises.json"), { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
 await outra.click("[data-open-mapa]");
 await outra.waitForFunction(async () => (await import("./js/mapa.js")).mapa.paises.length > 0, { timeout: 15000 });
-const pediuDepois = pedidos.some((u) => u.startsWith("paises.json"));
+const pediuDepois = await pedidoDosPaises;
 console.log(`   e pediu-os ao abrir o mapa: ${pediuDepois}`);
 if (!pediuDepois) fail("o mapa tem de ir buscar os dados quando abre");
 
-console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: ok");
 // E NÃO PODEM CRESCER SEM QUE ALGUÉM REPARE.
 //
 // O ficheiro é gerado (world-atlas -> tools), e regenerá-lo com mais casas
@@ -117,3 +126,6 @@ if (tamanhoKB.kb > TETO_KB) {
 if (tamanhoKB.paises !== 177) fail(`esperava 177 países, tenho ${tamanhoKB.paises}`);
 
 await browser.close();
+// O resumo estava a meio do ficheiro, antes do passo 3 — a armadilha que o
+// CLAUDE.md já descreve duas vezes. Imprimia "ok" e só depois media os dados.
+console.log(process.exitCode ? "\nRESULTADO: FALHOU" : "\nRESULTADO: ok");

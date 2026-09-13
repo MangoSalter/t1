@@ -611,6 +611,28 @@ already named that as the motivation for the progress strip** — and the strip
 only made the problem visible. A row that states a problem and ships half of
 it is a to-do list in the same way a comment claiming "the only one" is.
 
+## Asking an array whether an event has arrived yet
+
+`mapa-desempenho` step 2 went red in a full run with nothing broken, and then
+red twice more on its own — and then green, with a `console.log` as the only
+change. It collected request URLs into an array from a `page.on("request")`
+listener, then clicked, then waited for `mapa.paises.length > 0`, then asked
+the array whether `paises.json` was in it.
+
+That wait runs INSIDE the page and returns the moment the data is parsed; the
+`request` event still has to cross to the Node side. The array is read in
+that gap. The data had always arrived — the listener just had not been told
+yet.
+
+Wait on the event itself (`waitForRequest`, armed BEFORE the click, awaited
+after), not on a page-side condition that you hope implies it. Five runs green
+after the fix. This is the same family as the two flakes already in here —
+`solo-monkey` reaching its subject by dice, and the stopwatch under four
+parallel jobs — and the giveaway is the same: it failed with nothing broken.
+
+While in there, the file also had the summary-in-the-middle trap this document
+describes twice: `RESULTADO: ok` printed before step 3 ran. Moved to the end.
+
 ## A check after the file's failure summary is not a check
 `test-mapa-sala.mjs` ends with
 `if (falhas > 0) { ...; process.exit(1); }`. I appended a new block AFTER that
