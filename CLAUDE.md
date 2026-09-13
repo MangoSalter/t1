@@ -83,7 +83,8 @@ module in the stub over mirroring it.
 `--jobs 1` to debug). Each worker gets its own port pair from 8936 up and its
 own copy of the cases, because the stub shares state through localStorage,
 which is per-origin: two cases on one port would silently see each other's
-rooms. The full suite is 96 cases and takes **16m42s at 4 jobs** (measured
+rooms. The full suite is 96 cases and takes **15m07s at 4 jobs** (re-timed over four
+consecutive September runs: 15m01, 15m05, 15m07, 15m16) (measured
 September, not estimated — it said ~11 minutes for a while and had quietly
 grown past it, and the case count sat at 85 for three cases longer than that
 was true, and then at 91/14m33s for three more, and 94 lasted exactly two
@@ -680,10 +681,11 @@ so the symptom was a silent failure with no error text. That cliff is visible
 now: the runner prints each case's duration, says `MORTO ao fim de Ns` instead
 of a bare `FALHOU` when it was the ceiling that killed it, and ends the run by
 listing anything past 60% of the limit. The threshold is 60% and not 70%
-because measured, the two longest cases — `test-mapa` at **199-206s** and
-`a11y-test` at **194-200s** across three runs — both fall under 70% (210s), so that threshold would
-name nothing at all, the one file that has actually died included. Third is
-`a11y-varrimento-test` at 144s; everything else is under 111s. They split
+because measured, the two longest cases — `a11y-test` at **189-191s** and
+`test-mapa` at **127-133s** across four more runs — both fall under 70% (210s), so that threshold would
+name nothing at all, the one file that has actually died included. (Those two
+have swapped places since: `test-mapa` used to be the longest at 199-206s.)
+Third is `a11y-varrimento-test` at 135-150s; everything else is under 111s. They split
 cleanly:
 `a11y-test` keeps focus, reduced motion and contrast; the sweeps measure size
 and name, screen by screen and overlay by overlay. Two cases also finish
