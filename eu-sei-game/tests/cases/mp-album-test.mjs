@@ -75,6 +75,7 @@ await page.evaluate((c) => window.__testDb.update(`rooms/${c}/destaques`, {
 }), code);
 await page.evaluate((c) => window.__testDb.update(`rooms/${c}`, { state: "final" }), code);
 await page.waitForSelector('[data-screen="final"].active', { timeout: 5000 });
+
 await page.waitForFunction(() => !document.getElementById("final-destaque").classList.contains("hidden"), { timeout: 3000 });
 const destaque = (await page.locator("#final-destaque").textContent()).trim();
 console.log(`   frase da noite: "${destaque}"`);
@@ -138,6 +139,36 @@ const tinta = await page.evaluate(() => new Promise((resolve) => {
 console.log(`   píxeis escuros na miniatura: ${tinta.escuros} de ${tinta.total}`);
 if (tinta.escuros < 100) falhar("a fotografia saiu em branco — o álbum estaria a guardar folhas vazias");
 
+console.log("4b) E leva-se a noite para a conversa do grupo...");
+{
+  // O mesmo caminho do desafio do dia: sem área de transferência, o texto
+  // aparece no ecrã para se copiar à mão — e é por aí que se lê o que a
+  // pessoa ia colar.
+  await page.evaluate((c) => window.__testDb.update(`rooms/${c}/destaques`, {
+    engracada: { texto: "Abacate assassino", uid: window.__testDb.get(`rooms/${c}`).hostId, votos: 3, ronda: 2, letra: "A" },
+  }), code);
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("sem permissão")) },
+      configurable: true,
+    });
+  });
+  await page.click("#final-share-btn");
+  const texto = (await page.locator("#final-destaque").textContent()).trim();
+  console.log(`   ${JSON.stringify(texto)}`);
+  if (!texto.includes(code.trim())) { console.log("   FALHOU: o texto devia dizer de que sala foi"); process.exitCode = 1; }
+  if (!/👑/.test(texto) || !texto.includes("Ana")) { console.log("   FALHOU: e trazer a classificação"); process.exitCode = 1; }
+  if (!texto.includes("Abacate assassino")) { console.log("   FALHOU: e a frase da noite"); process.exitCode = 1; }
+  const botao = await page.evaluate(() => {
+    const b = document.getElementById("final-share-btn");
+    const r = b.getBoundingClientRect();
+    return { visivel: !b.classList.contains("hidden"), w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  console.log(`   botão: ${botao.w}x${botao.h} (visível a toda a gente: ${botao.visivel})`);
+  if (!botao.visivel) { console.log("   FALHOU: a partilha é de todos, não só do anfitrião"); process.exitCode = 1; }
+  if (botao.h < 44) { console.log(`   FALHOU: o botão mede ${botao.h}px de altura`); process.exitCode = 1; }
+}
 console.log("5) Guardar o desenho é um alvo de dedo...");
 const alvo = await page.evaluate(() => {
   const b = document.querySelector(".album-guardar");

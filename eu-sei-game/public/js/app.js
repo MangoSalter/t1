@@ -3136,9 +3136,42 @@ const finalEls = {
   ranking: document.getElementById("final-ranking"),
   rematchBtn: document.getElementById("final-rematch-btn"),
   destaque: document.getElementById("final-destaque"),
+  shareBtn: document.getElementById("final-share-btn"),
   album: document.getElementById("final-album"),
   albumGrid: document.getElementById("final-album-grid"),
 };
+
+// O RESULTADO DA NOITE EM TEXTO, para se colar numa conversa — o mesmo que o
+// desafio do dia já fazia sozinho, e a mesma razão: é assim que um jogo de
+// festa chega a quem não estava lá. Sem serviço nenhum pelo meio: é uma
+// frase, e quem a manda decide a quem.
+function textoDoFimDaPartida(room) {
+  const linhas = classificacaoFinal(room.players || {}).map(({ jogador, pontos, lugar, primeiro }) =>
+    `${primeiro ? "👑" : `#${lugar}`} ${jogador.name} ${pontos} pts`);
+  const d = room.destaques?.engracada;
+  const quem = d ? (room.players?.[d.uid]?.name || t("alguem")) : "";
+  return [
+    t("fimPartilhaTitulo", state.code),
+    linhas.join(" · "),
+    d ? t("fimPartilhaFrase", d.texto, quem) : "",
+  ].filter(Boolean).join("\n");
+}
+
+finalEls.shareBtn.addEventListener("click", async () => {
+  const room = state.room;
+  if (!room) return;
+  const texto = textoDoFimDaPartida(room);
+  try {
+    await navigator.clipboard.writeText(texto);
+    finalEls.shareBtn.textContent = t("desafioCopiado");
+  } catch {
+    // Sem permissão para a área de transferência — acontece, e o desafio do
+    // dia já resolve isto da mesma maneira: mostra-se o texto para se copiar
+    // à mão, em vez de não acontecer nada nenhuma.
+    finalEls.destaque.classList.remove("hidden");
+    finalEls.destaque.textContent = texto;
+  }
+});
 
 finalEls.rematchBtn.addEventListener("click", async () => {
   // O terceiro do mesmo tipo: o botão é escondido a quem não é anfitrião, mas
