@@ -849,6 +849,23 @@ checkbox as "fully covered", when the target of a checkbox is the LABEL that
 wraps it — which is why every other step in that file excludes checkboxes and
 radios. The rule to copy was three steps up.
 
+**Then the banner led straight to a real bug behind it.** `connected: true`
+was written in exactly four places — create, join, rejoin, and once inside
+`attachPresence` — and nowhere on RECONNECT. So Firebase's `onDisconnect`
+marked you gone the moment the wifi blipped, and when it came back nothing
+marked you present again: you stayed a ghost to the whole room until you
+reloaded the page. That is not cosmetic, because half the rules in this app
+count on `connected` — who may start the match, the drawing game's turn
+order, `MINIMO_PARA_BONUS`, `reatribuirInfecao`. A five-second blip and the
+room quietly stopped counting you.
+
+Two halves to the fix, and the second is easy to miss: presence is
+re-asserted when `.info/connected` returns true, AND `onDisconnect` is
+re-armed there, because **an `onDisconnect` is spent when it fires** — without
+that, the NEXT drop would go unrecorded by anyone. `leaveRoom` clears the
+remembered presence, or a network blip just after leaving would resurrect the
+player in the room they just left.
+
 ## The stub answers instantly, so a whole moment of the game was untestable
 
 Creating and joining a room are the only two things anyone does before there

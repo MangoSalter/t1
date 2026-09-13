@@ -124,6 +124,27 @@ console.log("5) Quando a rede cai, quem caiu também fica a saber...");
   if (faixa.toque !== "none") { console.log("   FALHOU: a faixa apanha o toque — prende quem está sem rede"); process.exitCode = 1; }
 }
 
+console.log("6) E ao voltar a rede, deixa-se de ser fantasma para a sala...");
+{
+  // O onDisconnect marca-nos desligados quando a ligação cai; ao voltar, nada
+  // nos marcava outra vez presentes — ficava-se fantasma até recarregar. E
+  // não é cosmético: quem pode começar a partida, a ordem das vezes do
+  // desenho, o mínimo para os bónus e a infeção contam todos por `connected`.
+  const uid = await page.evaluate((c) => window.__testDb.get(`rooms/${c}`).hostId, code.trim());
+  // O servidor a fazer a sua parte: a ligação caiu, logo estamos desligados.
+  await page.evaluate(({ c, u }) => window.__testDb.update(`rooms/${c}/players/${u}`, { connected: false }), { c: code.trim(), u: uid });
+  await page.evaluate(() => { window.__semRede = true; });
+  await page.waitForTimeout(200);
+  const enquantoCaido = await page.evaluate(({ c, u }) => window.__testDb.get(`rooms/${c}/players/${u}/connected`), { c: code.trim(), u: uid });
+  await page.evaluate(() => { window.__semRede = false; });
+  await page.waitForFunction(({ c, u }) => window.__testDb.get(`rooms/${c}/players/${u}/connected`) === true,
+    { c: code.trim(), u: uid }, { timeout: 4000 }).catch(() => {});
+  const depois = await page.evaluate(({ c, u }) => window.__testDb.get(`rooms/${c}/players/${u}/connected`), { c: code.trim(), u: uid });
+  console.log(`   caído: connected=${enquantoCaido} · de volta: connected=${depois}`);
+  if (enquantoCaido !== false) { console.log("   FALHOU: o teste não chegou a pôr o jogador como desligado"); process.exitCode = 1; }
+  if (depois !== true) { console.log("   FALHOU: ao voltar a rede o jogador continua fantasma para a sala"); process.exitCode = 1; }
+}
+
 await browser.close();
 const realErrors = errors.filter((e) => !e.includes("gstatic") && !e.includes("googleapis") && !e.includes("TUNNEL") && !e.includes("Fingerprinting") && !e.includes("fonts.googleapis") && !e.includes("CONNECTION_RESET"));
 console.log(realErrors.length === 0 ? "\nSem erros de consola relevantes." : "\nERROS:\n" + realErrors.join("\n"));

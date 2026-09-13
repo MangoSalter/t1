@@ -367,10 +367,40 @@ export async function updatePlayerAvatar(code, uid, avatar) {
   await update(ref(db, `rooms/${code}/players/${uid}`), { avatar: avatar || null });
 }
 
-function attachPresence(code, uid) {
+// A PRESENÇA TEM DE SE VOLTAR A AFIRMAR. O onDisconnect marca-nos como
+// desligados assim que a ligação cai — e quando ela volta, nada nos marcava
+// outra vez como presentes: ficava-se fantasma para a sala inteira até
+// recarregar a página. E isso não é cosmético, porque metade das regras desta
+// app conta por `connected`: quem pode começar a partida, a ordem das vezes
+// do desenho, o mínimo para os jogos bónus, a quem se passa a infeção.
+//
+// Além disso o próprio onDisconnect GASTA-SE quando dispara, por isso tem de
+// ser rearmado no regresso, senão a queda seguinte não era registada por
+// ninguém.
+let presencaAtual = null;
+let ouvinteDaLigacao = null;
+
+function escreverPresenca() {
+  if (!presencaAtual) return;
+  const { code, uid } = presencaAtual;
   const connRef = ref(db, `rooms/${code}/players/${uid}/connected`);
   set(connRef, true);
   onDisconnect(connRef).set(false);
+}
+
+function attachPresence(code, uid) {
+  presencaAtual = { code, uid };
+  escreverPresenca();
+  if (!ouvinteDaLigacao) {
+    ouvinteDaLigacao = ouvirLigacao((ligado) => { if (ligado) escreverPresenca(); });
+  }
+}
+
+// Sair da sala apaga a presença de que se estava a tomar conta: sem isto, um
+// pisca-pisca da rede a seguir a sair ressuscitava o jogador na sala que ele
+// acabou de deixar.
+export function esquecerPresenca() {
+  presencaAtual = null;
 }
 
 // A LIGAÇÃO DESTE TELEMÓVEL. O onDisconnect acima diz aos OUTROS que alguém
@@ -894,6 +924,7 @@ export async function backToLobby(code, room) {
 }
 
 export async function leaveRoom(code, uid) {
+  esquecerPresenca();
   await remove(ref(db, `rooms/${code}/players/${uid}`));
 }
 
